@@ -16,7 +16,7 @@ if 'logger' not in locals():
 
 class DeadUnit:
     """Represents a dead unit awaiting respawn."""
-    def __init__(self, unit_type, player, death_turn, greek_id, upgraded_skills=None, dominion_permanent_attack=0):
+    def __init__(self, unit_type, player, death_turn, greek_id, upgraded_skills=None, dominion_permanent_attack=0, dominion_kills=0, dominion_skill_states=None):
         self.unit_type = unit_type
         self.player = player
         self.death_turn = death_turn
@@ -25,7 +25,9 @@ class DeadUnit:
         self.ready_for_respawn = False
         self.respawn_preview = None  # Tuple (y, x) showing where unit will respawn
         self.upgraded_skills = upgraded_skills or set()  # Preserve skill upgrades for respawn
-        self.dominion_permanent_attack = dominion_permanent_attack  # Preserve Dominion manual upgrade attack bonuses
+        self.dominion_permanent_attack = dominion_permanent_attack  # Preserve Dominion manual upgrade attack bonuses (old system - deprecated)
+        self.dominion_kills = dominion_kills  # Preserve Dominion kill count (new manual upgrade system)
+        self.dominion_skill_states = dominion_skill_states or {}  # Preserve Dominion skill upgrade states
 
 class Game:
     def __init__(self, skip_setup=False, map_name="lime_foyer_arena", player_names=None):
@@ -1455,11 +1457,65 @@ class Game:
             else:
                 unit.upgraded_skills = set()
 
-            # Restore Dominion manual upgrade attack bonuses for MARROW_CONDENSER
+            # Restore Dominion state for MARROW_CONDENSER with manual upgrade
+            if unit.type == UnitType.MARROW_CONDENSER and hasattr(dead_unit, 'dominion_kills'):
+                from boneglaive.game.upgrades import UpgradeManager
+                if UpgradeManager.is_skill_upgraded(unit, "Dominion"):
+                    # Restore decremented kill count
+                    if hasattr(unit, 'passive_skill') and unit.passive_skill.name == "Dominion":
+                        passive = unit.passive_skill
+                        passive.kills = dead_unit.dominion_kills
+
+                        # Restore skill upgrade states
+                        if hasattr(dead_unit, 'dominion_skill_states'):
+                            states = dead_unit.dominion_skill_states
+                            passive.marrow_dike_upgraded = states.get('marrow_dike', False)
+                            passive.ossify_upgraded = states.get('ossify', False)
+                            passive.bone_tithe_upgraded = states.get('bone_tithe', False)
+
+                            # Rebuild available_upgrades list
+                            passive.available_upgrades = []
+                            if not passive.marrow_dike_upgraded:
+                                passive.available_upgrades.append("marrow_dike")
+                            if not passive.ossify_upgraded:
+                                passive.available_upgrades.append("ossify")
+                            if not passive.bone_tithe_upgraded:
+                                passive.available_upgrades.append("bone_tithe")
+
+                        # Reapply stat bonuses based on restored kill count
+                        # Using same progressive logic as lines 2313-2321
+                        if passive.kills >= 1:
+                            # First kill: +1 movement (only if marrow_dike was upgraded)
+                            if not passive.marrow_dike_upgraded and not passive.ossify_upgraded and not passive.bone_tithe_upgraded:
+                                # Still at stage 1 with no upgrades completed
+                                unit.move_range_bonus += 1
+                            elif passive.marrow_dike_upgraded and not passive.ossify_upgraded and not passive.bone_tithe_upgraded:
+                                # Already upgraded marrow_dike, ready for stage 2
+                                pass  # No stat bonus yet, waiting for 2nd kill
+
+                        if passive.kills >= 2:
+                            # Second kill: +1 attack (only if ossify was upgraded)
+                            if passive.marrow_dike_upgraded and not passive.ossify_upgraded and not passive.bone_tithe_upgraded:
+                                # Still at stage 2 with marrow_dike upgraded
+                                unit.attack_bonus += 1
+                            elif passive.marrow_dike_upgraded and passive.ossify_upgraded and not passive.bone_tithe_upgraded:
+                                # Already upgraded ossify, ready for stage 3
+                                pass  # No stat bonus yet, waiting for 3rd kill
+
+                        if passive.kills >= 3:
+                            # Third kill: +1 defense (only if bone_tithe was upgraded)
+                            if passive.marrow_dike_upgraded and passive.ossify_upgraded and not passive.bone_tithe_upgraded:
+                                # Still at stage 3 with ossify upgraded
+                                unit.defense_bonus += 1
+                            # If all three are upgraded, no more stat bonuses available
+
+                        logger.info(f"RESPAWN: Restored Dominion state for {unit.get_display_name()}: {passive.kills} kills, upgrades: marrow_dike={passive.marrow_dike_upgraded}, ossify={passive.ossify_upgraded}, bone_tithe={passive.bone_tithe_upgraded}")
+
+            # Legacy: Old Dominion manual upgrade attack bonus system (deprecated)
             if hasattr(dead_unit, 'dominion_permanent_attack') and dead_unit.dominion_permanent_attack > 0:
                 unit.dominion_permanent_attack = dead_unit.dominion_permanent_attack
                 unit.attack_bonus += dead_unit.dominion_permanent_attack
-                logger.info(f"RESPAWN: Restored {dead_unit.dominion_permanent_attack} Dominion attack bonuses for {unit.get_display_name()}")
+                logger.info(f"RESPAWN: Restored {dead_unit.dominion_permanent_attack} legacy Dominion attack bonuses for {unit.get_display_name()}")
 
             # Reset bone_tithe_hp_gained on respawn (not preserved across death) for MARROW_CONDENSER
             if unit.type == UnitType.MARROW_CONDENSER:
@@ -2303,15 +2359,8 @@ class Game:
                 if passive.name == "Dominion":
                     passive.kills += 1
 
-                    # Check for manual Dominion upgrade (from upgrade points)
-                    from boneglaive.game.upgrades import UpgradeManager
-                    if UpgradeManager.is_skill_upgraded(dike_owner, "Dominion"):
-                        # Manual upgrade: +1 attack per kill in Marrow Dike
-                        dike_owner.attack_bonus += 1
-                        # Track permanent attack bonuses from Dominion manual upgrade (survives death)
-                        if not hasattr(dike_owner, 'dominion_permanent_attack'):
-                            dike_owner.dominion_permanent_attack = 0
-                        dike_owner.dominion_permanent_attack += 1
+                    # Note: Old manual upgrade logic removed.
+                    # New manual upgrade provides death penalty mitigation instead of permanent attack bonuses
 
                 # Apply the stat bonus based on upgrade tier
                 # Instead of granting all bonuses at once, apply them progressively based on upgrade level
@@ -5037,27 +5086,6 @@ class Game:
                 if unit.player == self.current_player:
                     # Initialize the flag for health regeneration
                     unit.took_no_actions = True
-
-                    # Apply Marrow Dike mired damage if manually upgraded
-                    if hasattr(self, 'marrow_dike_interior'):
-                        unit_pos = (unit.y, unit.x)
-                        if unit_pos in self.marrow_dike_interior:
-                            dike_info = self.marrow_dike_interior[unit_pos]
-                            dike_owner = dike_info.get('owner')
-
-                            # Check if dike owner has manual upgrade
-                            if dike_owner:
-                                from boneglaive.game.upgrades import UpgradeManager
-                                if UpgradeManager.is_skill_upgraded(dike_owner, "Marrow Dike"):
-                                    # Only damage enemies
-                                    if unit.player != dike_owner.player:
-                                        # Deal 1 damage per turn
-                                        previous_hp = unit.hp
-                                        unit.hp = max(0, unit.hp - 1)
-
-                                        # Check if unit died
-                                        if unit.hp <= 0 and previous_hp > 0:
-                                            self.handle_unit_death(unit, dike_owner, cause="marrow_dike_mired", ui=ui)
 
                     # Reset DERELICTIONIST movement/skill flags at start of turn (Severance passive)
                     if unit.type == UnitType.DERELICTIONIST:

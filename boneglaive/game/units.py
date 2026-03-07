@@ -983,10 +983,53 @@ class Unit:
                             MessageType.SYSTEM
                         )
 
+            # Handle Dominion death penalty mitigation (manual upgrade) for MARROW_CONDENSER
+            dominion_kills = 0
+            dominion_skill_states = {}
+
+            if self.type == UnitType.MARROW_CONDENSER and hasattr(self, 'passive_skill'):
+                from boneglaive.game.upgrades import UpgradeManager
+                if UpgradeManager.is_skill_upgraded(self, "Dominion"):
+                    passive = self.passive_skill
+                    if passive.name == "Dominion" and passive.kills > 0:
+                        # Decrement kills by 1 (lose current stage only)
+                        new_kills = passive.kills - 1
+                        dominion_kills = new_kills
+
+                        # Determine which skill to downgrade (reverse order: bone_tithe → ossify → marrow_dike)
+                        downgraded_skill = None
+                        if passive.bone_tithe_upgraded:
+                            downgraded_skill = "bone_tithe"
+                            passive.bone_tithe_upgraded = False
+                            passive.available_upgrades.append("bone_tithe")
+                        elif passive.ossify_upgraded:
+                            downgraded_skill = "ossify"
+                            passive.ossify_upgraded = False
+                            passive.available_upgrades.append("ossify")
+                        elif passive.marrow_dike_upgraded:
+                            downgraded_skill = "marrow_dike"
+                            passive.marrow_dike_upgraded = False
+                            passive.available_upgrades.append("marrow_dike")
+
+                        # Store skill states for respawn
+                        dominion_skill_states = {
+                            'marrow_dike': passive.marrow_dike_upgraded,
+                            'ossify': passive.ossify_upgraded,
+                            'bone_tithe': passive.bone_tithe_upgraded
+                        }
+
+                        # Log the downgrade
+                        if downgraded_skill:
+                            message_log.add_message(
+                                f"{self.get_display_name()} loses Dominion upgrade: {downgraded_skill}",
+                                MessageType.SYSTEM,
+                                player=self.player
+                            )
+
             # Create DeadUnit entry for respawn
             # Preserve upgraded_skills for respawn
             upgraded_skills_copy = set(self.upgraded_skills) if hasattr(self, 'upgraded_skills') else set()
-            # Preserve Dominion manual upgrade attack bonuses for MARROW_CONDENSER
+            # Preserve Dominion manual upgrade attack bonuses for MARROW_CONDENSER (old system - deprecated)
             dominion_attack = getattr(self, 'dominion_permanent_attack', 0)
             dead_unit = DeadUnit(
                 unit_type=self.type,
@@ -994,7 +1037,9 @@ class Unit:
                 death_turn=self._game.turn,
                 greek_id=self.greek_id,
                 upgraded_skills=upgraded_skills_copy,
-                dominion_permanent_attack=dominion_attack
+                dominion_permanent_attack=dominion_attack,
+                dominion_kills=dominion_kills,
+                dominion_skill_states=dominion_skill_states
             )
             self._game.dead_units.append(dead_unit)
 

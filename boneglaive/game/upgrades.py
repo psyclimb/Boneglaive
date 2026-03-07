@@ -249,7 +249,7 @@ SKILL_UPGRADES = {
     "MARROW_CONDENSER": {
         "Dominion": {
             "name": "Dominion",
-            "description": "Each kill inside Marrow Dike grants +1 attack.",
+            "description": "Only lose the current Dominion upgrade stage on death.",
             "type": "buff",
             "cost": 1
         },
@@ -261,7 +261,7 @@ SKILL_UPGRADES = {
         },
         "Marrow Dike": {
             "name": "Marrow Dike",
-            "description": "Pull damage increased from 3 to 4. Trapped enemies suffer Mired (-2 attack) and take 1 damage per turn.",
+            "description": "Pull damage becomes equal to the MARROW CONDENSER's atk.",
             "type": "buff",
             "cost": 1
         },
