@@ -3213,23 +3213,8 @@ class Game:
         # Process Neural Shunt random actions for affected units
         self._process_neural_shunt_actions()
         
-        # Process echo units before executing actions
-        # Update duration and handle expired echoes - ONLY for echoes belonging to the current player
-        for unit in list(self.units):  # Create a copy of the list to safely modify during iteration
-            if unit.is_alive() and unit.is_echo and unit.player == self.current_player:
-                # Only decrement duration on the owner's turn
-                unit.echo_duration -= 1
-                logger.debug(f"Echo {unit.get_display_name()} duration decremented to {unit.echo_duration}")
-                
-                # If duration reached zero, the echo expires
-                if unit.echo_duration <= 0:
-                    logger.debug(f"Echo {unit.get_display_name()} expires after owner's turns completed")
-
-                    # Trigger explosion effect (deals damage to adjacent enemies)
-                    self._trigger_echo_death_effect(unit, ui)
-
-                    # Kill the echo
-                    unit.hp = 0
+        # NOTE: Echo expiration moved to AFTER action execution to fix attack resolution bug
+        # Echoes now expire at the end of turn, allowing their final attacks to complete
         
         # Create a single list of units with actions, ordered by timestamp
         units_with_actions = []
@@ -4347,6 +4332,24 @@ class Game:
                     
                     # Kill the vapor using expire() to bypass invulnerability
                     vapor_unit.expire()
+
+        # Process echo expiration AFTER all actions have been executed
+        # This ensures echo attacks complete before the echo dies
+        for unit in list(self.units):  # Create a copy of the list to safely modify during iteration
+            if unit.is_alive() and unit.is_echo and unit.player == self.current_player:
+                # Only decrement duration on the owner's turn
+                unit.echo_duration -= 1
+                logger.debug(f"Echo {unit.get_display_name()} duration decremented to {unit.echo_duration}")
+
+                # If duration reached zero, the echo expires
+                if unit.echo_duration <= 0:
+                    logger.debug(f"Echo {unit.get_display_name()} expires after actions completed")
+
+                    # Trigger explosion effect (deals damage to adjacent enemies)
+                    self._trigger_echo_death_effect(unit, ui)
+
+                    # Kill the echo
+                    unit.hp = 0
 
         # Clear all actions and update skill cooldowns
         # Note: last_executed_attack is now set during attack execution (line 3246),

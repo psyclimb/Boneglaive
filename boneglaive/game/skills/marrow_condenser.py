@@ -475,8 +475,8 @@ class MarrowDikeSkill(ActiveSkill):
                 unit.y = new_y
                 unit.x = new_x
 
-                # Deal pull damage (3 base, 4 if manually upgraded, respects defense, min 1)
-                pull_damage = 4 if manual_upgraded else 3
+                # Deal pull damage (3 base, or equal to MARROW CONDENSER's attack if manually upgraded, respects defense, min 1)
+                pull_damage = user.get_effective_stats()['attack'] if manual_upgraded else 3
                 actual_damage = max(1, pull_damage - unit.get_effective_stats()['defense'])
                 previous_hp = unit.hp
                 unit.hp = max(0, unit.hp - actual_damage)

@@ -922,67 +922,33 @@ class EstrangeSkill(ActiveSkill):
 
 
 class GraeExchangeSkill(ActiveSkill):
-    """Active skill for GRAYMAN. Creates an echo that can attack but not move."""
+    """Active skill for GRAYMAN. Banishes target enemy and replaces them with a GRAYMAN echo."""
 
     def __init__(self):
         super().__init__(
             name="Græ Exchange",
             key="G",
-            description="Create an echo at current position and teleport away. Echo can attack but not move.",
-            target_type=TargetType.AREA,
-            cooldown=3,
-            range_=3
+            description="Banish target enemy unit and replace them with a GRAYMAN echo for 2 turns.",
+            target_type=TargetType.ENEMY,
+            cooldown=5,
+            range_=5
         )
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False
-
-        # If no target_pos provided, just check if skill is available (for UI menu)
-        if not target_pos:
-            return True
-
-        if not game:
+        if not game or not target_pos:
             return False
 
-        # Target position must be valid and passable
-        if not game.is_valid_position(target_pos[0], target_pos[1]):
+        # Get target unit
+        target_unit = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target_unit:
             return False
 
-        # Target position must be passable terrain
-        if not game.map.is_passable(target_pos[0], target_pos[1]):
+        # Check if target is an enemy (not same player)
+        if target_unit.player == user.player:
             return False
-
-        # Target position must be empty (no unit)
-        if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
-            return False
-
-        # Check if any other unit is already planning to teleport to this position
-        # (via Vault, Delta Config, Grae Exchange, or any other teleport skill)
-        for other_unit in game.units:
-            if (other_unit.is_alive() and other_unit != user):
-                # Check for vault targets
-                if (hasattr(other_unit, 'vault_target_indicator') and
-                    other_unit.vault_target_indicator == target_pos):
-                    from boneglaive.utils.message_log import message_log, MessageType
-                    message_log.add_message(
-                        f"Cannot teleport to this position.",
-                        MessageType.WARNING,
-                        player=user.player
-                    )
-                    return False
-
-                # Check for teleport targets (Delta Config, Grae Exchange, etc.)
-                if (hasattr(other_unit, 'teleport_target_indicator') and
-                    other_unit.teleport_target_indicator == target_pos):
-                    from boneglaive.utils.message_log import message_log, MessageType
-                    message_log.add_message(
-                        f"Cannot teleport to this position.",
-                        MessageType.WARNING,
-                        player=user.player
-                    )
-                    return False
 
         # Use the correct starting position (current position or planned move position)
         from_y = user.y
@@ -997,6 +963,21 @@ class GraeExchangeSkill(ActiveSkill):
         if distance > self.range:
             return False
 
+        # Check line of sight
+        from boneglaive.utils.coordinates import get_line, Position
+        path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
+
+        # Check for obstacles along the path (excluding the start and end points)
+        for pos in path[1:-1]:
+            # Check if the position is blocked by terrain
+            if not game.map.is_passable(pos.y, pos.x):
+                return False
+
+            # Check if position is blocked by another unit
+            blocking_unit = game.get_unit_at(pos.y, pos.x)
+            if blocking_unit:
+                return False
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -1005,285 +986,114 @@ class GraeExchangeSkill(ActiveSkill):
         user.skill_target = target_pos
         user.selected_skill = self
 
-        # Don't clear move_target - allow move+skill combos
-        # If user moves first, echo will spawn at the moved position
-
-        # Set teleport target indicator for UI
-        user.teleport_target_indicator = target_pos
+        # Get target unit
+        target = game.get_unit_at(target_pos[0], target_pos[1])
 
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} initiates the Græ Exchange ritual targeting position ({target_pos[0]}, {target_pos[1]})",
+            f"{user.get_display_name()} prepares Græ Exchange targeting {target.get_display_name()}",
             MessageType.ABILITY,
-            player=user.player
+            player=user.player,
+            target_name=target.get_display_name()
         )
 
         self.current_cooldown = self.cooldown
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute the Græ Exchange skill - create an echo at current position and teleport away."""
+        """Execute the Græ Exchange skill - banish target enemy and replace with echo."""
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+        from boneglaive.game.upgrades import UpgradeManager
 
-        # CRITICAL: Capture original position FIRST, before any checks or logic
-        # This ensures we get the true starting position before animations or other code modifies it
-        original_pos = (user.y, user.x)
-        logger.info(f"[GRÆ EXCHANGE DEBUG] Captured original_pos: {original_pos} for {user.get_display_name()}")
-
-        # SAFETY CHECK: Verify target position is still valid and empty
-        # (Another unit might have moved there between planning and execution)
-        if game.get_unit_at(target_pos[0], target_pos[1]) is not None:
+        # Get target unit
+        target = game.get_unit_at(target_pos[0], target_pos[1])
+        if not target:
             message_log.add_message(
-                f"{user.get_display_name()}'s Græ Exchange failed - target position occupied",
+                f"{user.get_display_name()}'s Græ Exchange failed - target not found",
                 MessageType.WARNING,
                 player=user.player
             )
-            # Clear indicators and return failure
-            user.teleport_target_indicator = None
             return False
 
-        # Clear the teleport target indicator after execution
-        user.teleport_target_indicator = None
-
-        # Log the skill activation with special message for echoes
-        if hasattr(user, 'is_echo') and user.is_echo:
-            message_log.add_message(
-                f"The echo {user.get_display_name()} performs Græ Exchange!",
-                MessageType.ABILITY,
-                player=user.player
-            )
-        else:
-            message_log.add_message(
-                f"{user.get_display_name()} begins the Græ Exchange ritual",
-                MessageType.ABILITY,
-                player=user.player
-            )
+        # Log the banishment
+        message_log.add_message(
+            f"{user.get_display_name()} performs Græ Exchange on {target.get_display_name()}",
+            MessageType.ABILITY,
+            player=user.player,
+            attacker_name=user.get_display_name(),
+            target_name=target.get_display_name()
+        )
         
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get the animation sequence
-            exchange_animation = ui.asset_manager.get_skill_animation_sequence('grae_exchange')
-            if not exchange_animation:
-                exchange_animation = ['/', '_', '*', 'p', 'P']  # Fallback
-            
-            # Play initial animation at user's position
-            ui.renderer.animate_attack_sequence(
-                user.y, user.x,
-                exchange_animation,
-                6,  # yellowish color
-                0.15  # duration
-            )
-            
-            # Flash the current position to emphasize the echo creation
-            if hasattr(ui, 'asset_manager'):
-                tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 6
-                color_ids = [6, 3 if user.player == 1 else 4] * 3  # Alternate yellow with player color
-                durations = [0.1] * 6
-                
-                ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
+            # Animation will be handled by the new banishment animation
+            pass
         
-        # Create an echo unit at the original position - BEFORE moving the user
+        # Store target position for echo spawning
+        banished_pos = (target.y, target.x)
+
+        # Log banishment message
+        message_log.add_message(
+            f"{target.get_display_name()} is banished to the void!",
+            MessageType.ABILITY,
+            player=user.player,
+            target_name=target.get_display_name()
+        )
+
+        # Mark the unit as banished so they don't award GP
+        target.is_banished = True
+
+        # Remove target from game (banishment - temporary)
+        if target in game.units:
+            game.units.remove(target)
+            game._remove_from_unit_grid(target)
+
+        # Create GRAYMAN echo at the banished target's location
         from boneglaive.game.units import Unit
-        echo_unit = Unit(user.type, user.player, original_pos[0], original_pos[1])
+        echo_unit = Unit(user.type, user.player, banished_pos[0], banished_pos[1])
         echo_unit.initialize_skills()
         echo_unit.set_game_reference(game)
-        logger.info(f"[GRÆ EXCHANGE DEBUG] Created echo at position ({echo_unit.y}, {echo_unit.x})")
-        
+
         # Set echo properties
         echo_unit.is_echo = True
         echo_unit.echo_duration = 2  # Echo lasts 2 turns
+        echo_unit.original_unit = user
+        echo_unit.hp = 5
+        echo_unit.max_hp = 5
+        echo_unit.attack = 3
 
-        # Preserve the original_unit chain
-        # If an echo is creating another echo, point to the ORIGINAL GRAYMAN, not the intermediate echo
-        if hasattr(user, 'is_echo') and user.is_echo and hasattr(user, 'original_unit'):
-            # Echo creating echo - preserve the chain to the original GRAYMAN
-            echo_unit.original_unit = user.original_unit
-        else:
-            # Normal GRAYMAN creating echo
-            echo_unit.original_unit = user
+        # Store the banished unit in the echo so we can return them later
+        echo_unit.banished_unit = target
+
+        # Visual identifier
+        if hasattr(user, 'greek_id') and user.greek_id:
+            echo_unit.greek_id = user.greek_id.lower()
 
         # Copy upgraded_skills from the original unit to the echo
-        # This is needed so the echo knows which skills were upgraded (for LOTO system)
         if hasattr(user, 'upgraded_skills'):
             echo_unit.upgraded_skills = set(user.upgraded_skills)
 
-        echo_unit.hp = 5  # Echo has 5 HP and cannot be healed
-        echo_unit.max_hp = 5  # Echo max HP is also 5
+        # Add echo to game
+        game.units.append(echo_unit)
 
-        # Set attack value for echo unit to exactly 3 (regardless of original unit's attack)
-        echo_unit.attack = 3  # Increased from 2 to 3
+        # CRITICAL: Add echo to spatial grid so get_unit_at() can find it
+        game._update_unit_grid(echo_unit)
 
-        # Add Greek letter identifier with visual differentiation
-        if hasattr(user, 'greek_id') and user.greek_id:
-            if hasattr(user, 'is_echo') and user.is_echo:
-                # Echo creating echo - use dot symbol to show it's 2nd generation
-                echo_unit.greek_id = '·'
-            else:
-                # Normal unit creating echo - use lowercase
-                echo_unit.greek_id = user.greek_id.lower()
+        logger.info(f"ECHO SPAWNED from banishment: {echo_unit.type.name} at position ({banished_pos[0]}, {banished_pos[1]})")
         
-        # Log explicit debug message about echo creation
-        logger.info(f"ECHO UNIT CREATED: {echo_unit.type.name} at position ({original_pos[0]}, {original_pos[1]}) with {echo_unit.hp} HP")
-        
-        # Now teleport the user to the target position
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get teleport out animation sequence
-            teleport_out = ui.asset_manager.get_skill_animation_sequence('teleport_out')
-            if not teleport_out:
-                teleport_out = ['P', '.', ':', '=', ' ']  # Fallback
-            
-            # Get teleport in animation sequence
-            teleport_in = ui.asset_manager.get_skill_animation_sequence('teleport_in')
-            if not teleport_in:
-                teleport_in = [' ', '=', ':', '.', 'P']  # Fallback
-            
-            # Temporarily remove GRAYMAN from grid to make space for echo
-            temp_y, temp_x = user.y, user.x
-            game._remove_from_unit_grid(user)  # Remove from grid FIRST
-            user.y, user.x = -999, -999  # Move off-screen (doesn't update grid since we removed it)
+        # Log echo spawn
+        message_log.add_message(
+            f"A GRAYMAN echo manifests in {target.get_display_name()}'s place",
+            MessageType.ABILITY,
+            player=user.player
+        )
 
-            # Add the echo unit to the game at the position GRAYMAN just left
-            game.units.append(echo_unit)
-
-            # CRITICAL: Add echo to spatial grid so get_unit_at() can find it
-            game._update_unit_grid(echo_unit)
-            logger.info(f"[GRÆ EXCHANGE DEBUG] Echo added to grid at ({echo_unit.y}, {echo_unit.x})")
-
-            # Redraw to show the echo in the original position and the real unit gone
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                ui.renderer.refresh()
-            
-            # Pause for effect
-            sleep_with_animation_speed(0.3)
-            
-            # Show the teleport to the new position
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                teleport_in,
-                7,  # white color
-                0.15  # duration
-            )
-            
-            # Actually move the unit to the target position
-            # Teleport atomically: remove from old position, update coordinates, add to new position
-            logger.info(f"[GRÆ EXCHANGE DEBUG] Before teleport - User at ({temp_y}, {temp_x}), Echo at ({echo_unit.y}, {echo_unit.x}), Target: {target_pos}")
-
-            # Check target position is still empty
-            final_unit = game.get_unit_at(target_pos[0], target_pos[1])
-            if final_unit is not None and final_unit != user:
-                # Target occupied (should have been caught by can_use, but check anyway)
-                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked - position occupied by {final_unit.get_display_name()}")
-
-                # CRITICAL: Teleport failed! Remove echo first, then restore GRAYMAN
-                # Remove the echo since the skill failed
-                game.units.remove(echo_unit)
-                game._remove_from_unit_grid(echo_unit)
-
-                # Now restore GRAYMAN to original position
-                user._y, user._x = temp_y, temp_x  # Direct assignment to bypass setters
-                game._update_unit_grid(user)  # Add back to grid
-
-                message_log.add_message(
-                    f"{user.get_display_name()}'s Græ Exchange blocked - position occupied!",
-                    MessageType.WARNING,
-                    player=user.player
-                )
-                return False
-
-            # Teleport atomically (user already removed from grid at line 1109)
-            # Set private attributes directly (bypass property setters)
-            user._y = target_pos[0]
-            user._x = target_pos[1]
-
-            # Add to new position in grid
-            game.unit_grid[(target_pos[0], target_pos[1])] = user
-
-            # Trigger trap checks if unit was trapped or is a foreman
-            if hasattr(user, 'trapped_by') and user.trapped_by is not None:
-                game._check_position_change_trap_release(user, temp_y, temp_x)
-            if user.type == UnitType.MANDIBLE_FOREMAN:
-                game._check_position_change_trap_release(user, temp_y, temp_x)
-            
-            # Redraw to show the final state
-            logger.info(f"[GRÆ EXCHANGE DEBUG] After teleport - User at ({user.y}, {user.x}), Echo at ({echo_unit.y}, {echo_unit.x})")
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                ui.renderer.refresh()
-                
-            # Flash the moved unit to emphasize completion
-            if hasattr(ui, 'asset_manager'):
-                tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
-                color_ids = [7, 3 if user.player == 1 else 4] * 2  # Alternate white with player color
-                durations = [0.1] * 4
-                
-                ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
-        else:
-            # No UI, just set position without animations
-            # Remove GRAYMAN from grid temporarily to make space for echo
-            game._remove_from_unit_grid(user)
-
-            # Add the echo unit to the game
-            game.units.append(echo_unit)
-
-            # CRITICAL: Add echo to spatial grid so get_unit_at() can find it
-            game._update_unit_grid(echo_unit)
-            logger.info(f"[GRÆ EXCHANGE DEBUG] (No UI) Echo added to grid at ({echo_unit.y}, {echo_unit.x})")
-
-            # Move the user to the target position
-            # Teleport atomically: remove from old position, update coordinates, add to new position
-            # Check target position is still empty
-            final_unit = game.get_unit_at(target_pos[0], target_pos[1])
-            if final_unit is not None and final_unit != user:
-                # Target occupied (should have been caught by can_use, but check anyway)
-                logger.error(f"TELEPORT BLOCKED: {user.get_display_name()}'s Græ Exchange to {target_pos} blocked - position occupied by {final_unit.get_display_name()}")
-
-                # CRITICAL: Teleport failed! Remove echo first, then restore GRAYMAN
-                # Remove the echo since the skill failed
-                game.units.remove(echo_unit)
-                game._remove_from_unit_grid(echo_unit)
-
-                # Now restore GRAYMAN to original position
-                user._y, user._x = original_pos[0], original_pos[1]  # Direct assignment to bypass setters
-                game._update_unit_grid(user)  # Add back to grid
-
-                message_log.add_message(
-                    f"{user.get_display_name()}'s Græ Exchange blocked - position occupied!",
-                    MessageType.WARNING,
-                    player=user.player
-                )
-                return False
-
-            # Teleport atomically (user already removed from grid at line 1191)
-            # Set private attributes directly (bypass property setters)
-            user._y = target_pos[0]
-            user._x = target_pos[1]
-
-            # Add to new position in grid
-            game.unit_grid[(target_pos[0], target_pos[1])] = user
-
-            # Trigger trap checks if unit was trapped or is a foreman
-            if hasattr(user, 'trapped_by') and user.trapped_by is not None:
-                game._check_position_change_trap_release(user, original_pos[0], original_pos[1])
-            if user.type == UnitType.MANDIBLE_FOREMAN:
-                game._check_position_change_trap_release(user, original_pos[0], original_pos[1])
-        
-        # Log the completion with special message for echoes
-        if hasattr(user, 'is_echo') and user.is_echo:
-            message_log.add_message(
-                f"The echo {user.get_display_name()} splits into another echo and teleports from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})",
-                MessageType.ABILITY,
-                player=user.player
-            )
-        else:
-            message_log.add_message(
-                f"{user.get_display_name()} creates an echo and teleports from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})",
-                MessageType.ABILITY,
-                player=user.player
-            )
+        # Redraw board to show the result
+        if ui and hasattr(ui, 'draw_board'):
+            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
         return True

@@ -184,7 +184,7 @@ class SetupUnitHelp:
                     },
                     {
                         'name': 'GRÆ EXCHANGE',
-                        'desc': 'Teleports away while leaving a psychic echo at the current position. The immobile echo can attack enemies and explodes when destroyed, damaging adjacent foes.'
+                        'desc': 'Banishes a target enemy unit and replaces them with a GRAYMAN echo that can attack and explode on death.'
                     }
                 ]
             },

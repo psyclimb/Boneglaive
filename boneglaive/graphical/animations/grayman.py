@@ -636,17 +636,19 @@ class DeltaConfigAnimation:
 
 class GraeExchangeAnimation:
     """
-    Græ Exchange animation - splits into an echo and teleports away.
-    The unit appears to phase/split, leaving a ghostly echo behind.
+    Græ Exchange animation - banish target enemy and replace with echo.
+    Reality-tearing beam that banishes the target and spawns a GRAYMAN echo.
     """
 
-    def __init__(self, caster_unit, target_pos, particle_emitter, camera=None):
+    def __init__(self, caster_unit, target_pos, particle_emitter, camera=None, game=None, units_list=None):
         """
         Args:
             caster_unit: AnimatedUnit performing the exchange
-            target_pos: Target grid position (grid_x, grid_y)
+            target_pos: Target grid position (grid_y, grid_x)
             particle_emitter: ParticleEmitter for spawning particles
             camera: Camera instance for coordinate conversion (optional)
+            game: Game instance (optional)
+            units_list: List of units (optional)
         """
         self.caster_unit = caster_unit
         # NOTE: target_pos is (grid_y, grid_x) format from renderer - UNPACK CORRECTLY!
@@ -654,11 +656,29 @@ class GraeExchangeAnimation:
         self.particle_emitter = particle_emitter
         self.camera = camera
 
-        # Convert grid to screen coordinates using camera
-        self.source_x = caster_unit.x
-        self.source_y = caster_unit.y
+        # Get caster's game logic unit to use its actual position (post-move)
+        # The AnimatedUnit's grid_x/y might not be updated yet, so use the game unit's position
+        if hasattr(caster_unit, 'game_unit') and caster_unit.game_unit:
+            # Use game unit's actual position (post-move)
+            caster_grid_x = caster_unit.game_unit.x
+            caster_grid_y = caster_unit.game_unit.y
+            # Convert grid to screen coordinates using camera
+            if self.camera:
+                self.source_x, self.source_y = self.camera.grid_to_screen(caster_grid_x, caster_grid_y, centered=True)
+            else:
+                # Fallback to defaults
+                GRID_OFFSET_X = 100
+                GRID_OFFSET_Y = 50
+                self.source_x = GRID_OFFSET_X + caster_grid_x * TILE_SIZE + TILE_SIZE // 2
+                self.source_y = GRID_OFFSET_Y + caster_grid_y * TILE_SIZE + TILE_SIZE // 2
+        else:
+            # Fall back to AnimatedUnit's screen position
+            self.source_x = caster_unit.x
+            self.source_y = caster_unit.y
+
+        # Convert target position to screen coordinates
         if self.camera:
-            self.target_x, self.target_y = self.camera.grid_to_screen(self.target_grid_x, self.target_grid_y)
+            self.target_x, self.target_y = self.camera.grid_to_screen(self.target_grid_x, self.target_grid_y, centered=True)
         else:
             # Fallback to defaults
             GRID_OFFSET_X = 100
@@ -666,210 +686,295 @@ class GraeExchangeAnimation:
             self.target_x = GRID_OFFSET_X + self.target_grid_x * TILE_SIZE + TILE_SIZE // 2
             self.target_y = GRID_OFFSET_Y + self.target_grid_y * TILE_SIZE + TILE_SIZE // 2
 
-        # Animation phases
-        self.phase = "ritual"  # ritual, split, teleport_out, teleport_in
+        # Animation phases - keeping same total duration (1.4s) for sound sync
+        self.phase = "charge"  # charge, beam, banish, echo_spawn
         self.timer = 0
-        self.ritual_duration = 0.4
-        self.split_duration = 0.5
-        self.teleport_out_duration = 0.2
-        self.teleport_in_duration = 0.3
+        self.charge_duration = 0.4  # Same as old ritual duration
+        self.beam_duration = 0.5    # Same as old split duration
+        self.banish_duration = 0.3   # Combines old teleport_out + part of in
+        self.echo_spawn_duration = 0.2  # Remaining time
 
         # Purple/lavender colors from Grayman's orbs
         self.color_outer = (170, 119, 255)  # #aa77ff
         self.color_inner = (221, 187, 255)  # #ddbbff
-        self.color_ghost = (170, 119, 255, 120)  # Semi-transparent for echo
         self.color_bright = (255, 255, 255)
+        self.color_cloak = (74, 74, 90)     # #4a4a5a - Cloak fabric
+        self.color_skin = (154, 154, 170)   # #9a9aaa - Gray skin
 
-        # Split effect - dual images offset from center
-        self.split_offset = 0  # How far apart the split images are
+        # Beam effect properties
+        self.beam_width = 0
+        self.max_beam_width = 15
 
         # Flags
-        self.ritual_particles_spawned = False
-        self.split_particles_spawned = False
-        self.teleported = False
-        self.teleport_particles_spawned = False
+        self.charge_particles_spawned = False
+        self.beam_particles_spawned = False
+        self.banish_particles_spawned = False
+        self.echo_particles_spawned = False
 
     def update(self, delta_time):
         """Update animation state."""
         self.timer += delta_time
 
-        if self.phase == "ritual":
-            # Ritual phase - building energy
-            if not self.ritual_particles_spawned:
-                play_sound("grae_exchange_ritual")
+        if self.phase == "charge":
+            # Charge phase - building energy at caster
+            if not self.charge_particles_spawned:
+                play_sound("grae_exchange_ritual")  # Keep same sound timing
 
-                # Spawn ritual particles swirling around
-                for i in range(16):
-                    angle = (i / 16) * 2 * math.pi
-                    distance = 40
-                    x = self.source_x + math.cos(angle) * distance
-                    y = self.source_y + math.sin(angle) * distance
-                    # Particles orbit around caster
-                    vx = -math.sin(angle) * 80
-                    vy = math.cos(angle) * 80
-                    color = self.color_outer if i % 2 == 0 else self.color_inner
-                    particle = Particle(x, y, vx, vy, lifetime=0.4, size=3, color=color)
-                    self.particle_emitter.particles.append(particle)
-                self.ritual_particles_spawned = True
-
-            if self.timer >= self.ritual_duration:
-                self.phase = "split"
-                self.timer = 0
-                play_sound("grae_exchange_split")
-
-        elif self.phase == "split":
-            # Split phase - unit appears to duplicate/phase
-            progress = self.timer / self.split_duration
-            self.split_offset = 20 * progress  # Max 20 pixel offset
-
-            # Spawn particles during split
-            if random.random() < 0.3:
-                angle = random.uniform(0, 2 * math.pi)
-                offset = random.uniform(5, 25)
-                x = self.source_x + math.cos(angle) * offset
-                y = self.source_y + math.sin(angle) * offset
-                vx = math.cos(angle) * 50
-                vy = math.sin(angle) * 50
-                color = self.color_inner
-                particle = Particle(x, y, vx, vy, lifetime=0.3, size=3, color=color)
-                self.particle_emitter.particles.append(particle)
-
-            if self.timer >= self.split_duration:
-                self.phase = "teleport_out"
-                self.timer = 0
-                play_sound("grae_exchange_teleport")
-
-        elif self.phase == "teleport_out":
-            # Teleport out - one copy vanishes (the real unit leaves)
-            if not self.teleported:
-                # Hide caster (will reappear at target)
-                self.caster_unit.visible = False
-                self.teleported = True
-
-                # Spawn vanishing particles
+                # Spawn charging particles at caster
                 for _ in range(20):
                     angle = random.uniform(0, 2 * math.pi)
-                    speed = random.uniform(80, 150)
-                    vx = math.cos(angle) * speed
-                    vy = math.sin(angle) * speed
-                    color = self.color_outer
-                    particle = Particle(self.source_x, self.source_y, vx, vy,
-                                      lifetime=0.4, size=4, color=color)
+                    distance = random.uniform(30, 60)
+                    x = self.source_x + math.cos(angle) * distance
+                    y = self.source_y + math.sin(angle) * distance
+                    # Particles move toward center
+                    vx = -math.cos(angle) * 100
+                    vy = -math.sin(angle) * 100
+                    color = self.color_outer if random.random() > 0.5 else self.color_inner
+                    particle = Particle(x, y, vx, vy, lifetime=0.4, size=4, color=color)
+                    self.particle_emitter.particles.append(particle)
+                self.charge_particles_spawned = True
+
+            if self.timer >= self.charge_duration:
+                self.phase = "beam"
+                self.timer = 0
+                play_sound("grae_exchange_split")  # Keep same sound timing
+
+        elif self.phase == "beam":
+            # Beam phase - fire reality-tearing beam at target
+            progress = self.timer / self.beam_duration
+            self.beam_width = self.max_beam_width * min(1.0, progress * 2)
+
+            # Spawn beam particles along path
+            if random.random() < 0.4:
+                t = random.uniform(0.2, 0.8)
+                x = self.source_x + (self.target_x - self.source_x) * t
+                y = self.source_y + (self.target_y - self.source_y) * t
+
+                # Add perpendicular offset for beam width
+                dx = self.target_x - self.source_x
+                dy = self.target_y - self.source_y
+                length = math.sqrt(dx*dx + dy*dy)
+                if length > 0:
+                    perp_x = -dy / length
+                    perp_y = dx / length
+                    offset = random.uniform(-20, 20)
+                    x += perp_x * offset
+                    y += perp_y * offset
+
+                color = random.choice([self.color_outer, self.color_inner, self.color_cloak])
+                particle = Particle(x, y, 0, 0, lifetime=0.3, size=4, color=color)
+                self.particle_emitter.particles.append(particle)
+
+            if self.timer >= self.beam_duration:
+                self.phase = "banish"
+                self.timer = 0
+                play_sound("grae_exchange_teleport")  # Keep same sound timing
+
+        elif self.phase == "banish":
+            # Banish phase - target implodes and vanishes
+            if not self.banish_particles_spawned:
+                # Implosion particles - move inward
+                for i in range(30):
+                    angle = (i / 30) * 2 * math.pi
+                    distance = random.uniform(40, 80)
+                    x = self.target_x + math.cos(angle) * distance
+                    y = self.target_y + math.sin(angle) * distance
+                    # Particles move toward center
+                    vx = -math.cos(angle) * 150
+                    vy = -math.sin(angle) * 150
+                    color = random.choice([self.color_outer, self.color_inner, self.color_skin])
+                    particle = Particle(x, y, vx, vy, lifetime=0.4, size=5, color=color)
                     self.particle_emitter.particles.append(particle)
 
-            if self.timer >= self.teleport_out_duration:
-                self.phase = "teleport_in"
+                self.banish_particles_spawned = True
+
+            if self.timer >= self.banish_duration:
+                self.phase = "echo_spawn"
                 self.timer = 0
 
-        elif self.phase == "teleport_in":
-            # Appear at destination
-            if not self.teleport_particles_spawned:
-                # Move caster to target position
-                self.caster_unit.grid_x = self.target_grid_x
-                self.caster_unit.grid_y = self.target_grid_y
-                self.caster_unit.x = self.target_x
-                self.caster_unit.y = self.target_y
-                self.caster_unit.visible = True
-
-                # Spawn arrival particles
+        elif self.phase == "echo_spawn":
+            # Echo spawn phase - purple materialization at target position
+            if not self.echo_particles_spawned:
+                # Spawn materialization particles
                 for _ in range(25):
                     angle = random.uniform(0, 2 * math.pi)
-                    speed = random.uniform(60, 180)
+                    speed = random.uniform(50, 150)
                     vx = math.cos(angle) * speed
                     vy = math.sin(angle) * speed
                     color = random.choice([self.color_outer, self.color_inner, self.color_bright])
                     particle = Particle(self.target_x, self.target_y, vx, vy,
-                                      lifetime=0.5, size=4, color=color)
+                                      lifetime=0.4, size=4, color=color)
                     self.particle_emitter.particles.append(particle)
 
-                # Ring of particles
-                for i in range(10):
-                    angle = (i / 10) * 2 * math.pi
-                    vx = math.cos(angle) * 120
-                    vy = math.sin(angle) * 120
+                # Ring of particles expanding
+                for i in range(12):
+                    angle = (i / 12) * 2 * math.pi
+                    vx = math.cos(angle) * 100
+                    vy = math.sin(angle) * 100
                     particle = Particle(self.target_x, self.target_y, vx, vy,
-                                      lifetime=0.4, size=3, color=self.color_inner)
+                                      lifetime=0.3, size=3, color=self.color_inner)
                     self.particle_emitter.particles.append(particle)
 
-                self.teleport_particles_spawned = True
+                self.echo_particles_spawned = True
 
-            if self.timer >= self.teleport_in_duration:
+            if self.timer >= self.echo_spawn_duration:
                 return False  # Animation complete
 
         return True  # Animation still active
 
     def draw(self, surface):
         """Draw the Græ Exchange animation."""
-        if self.phase == "ritual":
-            # Draw swirling energy around caster
-            progress = self.timer / self.ritual_duration
+        if self.phase == "charge":
+            # Draw charging glow at caster
+            progress = self.timer / self.charge_duration
 
             # Pulsing glow
-            glow_radius = int(25 + 10 * math.sin(self.timer * 12))
+            glow_radius = int(20 + 10 * math.sin(self.timer * 15))
             glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (*self.color_outer, int(100 * progress)),
+            pygame.draw.circle(glow_surf, (*self.color_outer, int(120 * progress)),
                              (glow_radius, glow_radius), glow_radius)
             surface.blit(glow_surf, (int(self.source_x - glow_radius),
                                     int(self.source_y - glow_radius)))
 
-            # Draw rotating circle
-            num_dots = 8
-            for i in range(num_dots):
-                angle = (i / num_dots) * 2 * math.pi + self.timer * 5
-                radius = 30
-                x = self.source_x + math.cos(angle) * radius
-                y = self.source_y + math.sin(angle) * radius
-                pygame.draw.circle(surface, self.color_inner, (int(x), int(y)), 3)
+            # Inner glow
+            inner_radius = int(glow_radius * 0.6)
+            glow_surf2 = pygame.Surface((inner_radius * 2, inner_radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(glow_surf2, (*self.color_inner, int(180 * progress)),
+                             (inner_radius, inner_radius), inner_radius)
+            surface.blit(glow_surf2, (int(self.source_x - inner_radius),
+                                     int(self.source_y - inner_radius)))
 
-        elif self.phase == "split":
-            # Draw two overlapping copies of the unit position (indicating split)
-            progress = self.timer / self.split_duration
+            # Draw psi symbol at source
+            size = int(15 * progress)
+            if size > 3:
+                # Draw triangular psi shape
+                points = [
+                    (int(self.source_x), int(self.source_y - size)),
+                    (int(self.source_x - size * 0.5), int(self.source_y + size * 0.3)),
+                    (int(self.source_x + size * 0.5), int(self.source_y + size * 0.3))
+                ]
+                pygame.draw.lines(surface, self.color_bright, False, points, 2)
 
-            # Left copy (will become echo - more transparent)
-            left_x = self.source_x - self.split_offset
-            left_y = self.source_y
-            left_alpha = int(180 - 100 * progress)  # Fades to echo transparency
-            left_surf = pygame.Surface((40, 40), pygame.SRCALPHA)
-            pygame.draw.circle(left_surf, (*self.color_outer, left_alpha), (20, 20), 15)
-            surface.blit(left_surf, (int(left_x - 20), int(left_y - 20)))
+        elif self.phase == "beam":
+            # Draw reality-tearing beam
+            progress = self.timer / self.beam_duration
 
-            # Right copy (will teleport - solid)
-            right_x = self.source_x + self.split_offset
-            right_y = self.source_y
-            right_alpha = 255
-            right_surf = pygame.Surface((40, 40), pygame.SRCALPHA)
-            pygame.draw.circle(right_surf, (*self.color_inner, right_alpha), (20, 20), 15)
-            surface.blit(right_surf, (int(right_x - 20), int(right_y - 20)))
+            if self.beam_width > 2:
+                # Calculate beam direction
+                dx = self.target_x - self.source_x
+                dy = self.target_y - self.source_y
+                distance = math.sqrt(dx*dx + dy*dy)
 
-            # Draw connecting energy between the two
-            if self.split_offset > 5:
-                pygame.draw.line(surface, self.color_bright,
-                              (int(left_x), int(left_y)),
-                              (int(right_x), int(right_y)), 2)
+                if distance > 0:
+                    # Draw thick outer beam with pulsing
+                    pulse = 0.7 + 0.3 * math.sin(self.timer * 20)
 
-        elif self.phase == "teleport_out":
-            # Draw fading echo at source (the copy that stays)
-            progress = self.timer / self.teleport_out_duration
-            echo_alpha = int(120 * (1.0 - progress * 0.5))  # Fades but remains visible
+                    # Outer purple beam
+                    pygame.draw.line(surface, tuple(int(c * pulse) for c in self.color_outer),
+                                  (int(self.source_x), int(self.source_y)),
+                                  (int(self.target_x), int(self.target_y)),
+                                  int(self.beam_width))
 
-            echo_surf = pygame.Surface((50, 50), pygame.SRCALPHA)
-            # Draw ghostly echo
-            pygame.draw.circle(echo_surf, (*self.color_outer, echo_alpha), (25, 25), 18)
-            pygame.draw.circle(echo_surf, (*self.color_inner, echo_alpha), (25, 25), 12, 2)
-            surface.blit(echo_surf, (int(self.source_x - 25), int(self.source_y - 25)))
+                    # Inner lighter beam
+                    pygame.draw.line(surface, tuple(int(c * pulse) for c in self.color_inner),
+                                  (int(self.source_x), int(self.source_y)),
+                                  (int(self.target_x), int(self.target_y)),
+                                  int(self.beam_width * 0.6))
 
-        elif self.phase == "teleport_in":
-            # Draw arrival flash at destination
-            progress = self.timer / self.teleport_in_duration
-            if progress < 0.5:
-                flash_alpha = int(255 * (1.0 - progress / 0.5))
-                flash_radius = int(35 * (1.0 + progress * 2))
+                    # Bright core
+                    pygame.draw.line(surface, self.color_bright,
+                                  (int(self.source_x), int(self.source_y)),
+                                  (int(self.target_x), int(self.target_y)), 2)
 
-                flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
-                pygame.draw.circle(flash_surf, (*self.color_bright, flash_alpha),
-                                 (flash_radius, flash_radius), flash_radius)
-                surface.blit(flash_surf, (int(self.target_x - flash_radius),
-                                         int(self.target_y - flash_radius)))
+                    # Reality tear effect - jagged lines alongside beam
+                    perpendicular_x = -dy / distance
+                    perpendicular_y = dx / distance
+
+                    for i in range(3):
+                        offset = (i - 1) * 25
+                        tear_x1 = self.source_x + perpendicular_x * offset
+                        tear_y1 = self.source_y + perpendicular_y * offset
+                        tear_x2 = self.target_x + perpendicular_x * offset
+                        tear_y2 = self.target_y + perpendicular_y * offset
+
+                        # Draw jagged line
+                        num_segments = 8
+                        points = []
+                        for j in range(num_segments + 1):
+                            t = j / num_segments
+                            x = tear_x1 + (tear_x2 - tear_x1) * t
+                            y = tear_y1 + (tear_y2 - tear_y1) * t
+                            # Add random offset for jaggedness
+                            jitter = math.sin(t * math.pi * 3 + self.timer * 10) * 5
+                            x += perpendicular_x * jitter
+                            y += perpendicular_y * jitter
+                            points.append((int(x), int(y)))
+
+                        if len(points) >= 2:
+                            pygame.draw.lines(surface, self.color_cloak, False, points, 1)
+
+        elif self.phase == "banish":
+            # Draw implosion at target
+            progress = self.timer / self.banish_duration
+
+            # Collapsing vortex
+            vortex_radius = int(40 * (1.0 - progress))
+            if vortex_radius > 2:
+                # Draw spiral
+                num_spirals = 3
+                for spiral in range(num_spirals):
+                    points = []
+                    for i in range(20):
+                        angle = (i / 20) * 2 * math.pi + (spiral * 2 * math.pi / num_spirals) + self.timer * 10
+                        r = vortex_radius * (1.0 - i / 20)
+                        x = self.target_x + math.cos(angle) * r
+                        y = self.target_y + math.sin(angle) * r
+                        points.append((int(x), int(y)))
+
+                    if len(points) >= 2:
+                        color = self.color_outer if spiral % 2 == 0 else self.color_inner
+                        pygame.draw.lines(surface, color, False, points, 2)
+
+                # Central void
+                void_radius = int(15 * progress)
+                if void_radius > 0:
+                    void_surf = pygame.Surface((void_radius * 2, void_radius * 2), pygame.SRCALPHA)
+                    pygame.draw.circle(void_surf, (0, 0, 0, int(200 * progress)),
+                                     (void_radius, void_radius), void_radius)
+                    surface.blit(void_surf, (int(self.target_x - void_radius),
+                                            int(self.target_y - void_radius)))
+
+        elif self.phase == "echo_spawn":
+            # Draw echo materialization
+            progress = self.timer / self.echo_spawn_duration
+
+            # Growing echo form
+            echo_radius = int(25 * progress)
+            if echo_radius > 2:
+                echo_surf = pygame.Surface((echo_radius * 2, echo_radius * 2), pygame.SRCALPHA)
+
+                # Outer glow
+                pygame.draw.circle(echo_surf, (*self.color_outer, int(100 * progress)),
+                                 (echo_radius, echo_radius), echo_radius)
+
+                # Inner form
+                inner_radius = int(echo_radius * 0.6)
+                pygame.draw.circle(echo_surf, (*self.color_inner, int(150 * progress)),
+                                 (echo_radius, echo_radius), inner_radius)
+
+                surface.blit(echo_surf, (int(self.target_x - echo_radius),
+                                        int(self.target_y - echo_radius)))
+
+            # Psi symbol forming
+            if progress > 0.5:
+                symbol_alpha = int((progress - 0.5) * 2 * 255)
+                symbol_size = 15
+                points = [
+                    (int(self.target_x), int(self.target_y - symbol_size)),
+                    (int(self.target_x - symbol_size * 0.5), int(self.target_y + symbol_size * 0.3)),
+                    (int(self.target_x + symbol_size * 0.5), int(self.target_y + symbol_size * 0.3))
+                ]
+                pygame.draw.lines(surface, (*self.color_bright, symbol_alpha), False, points, 2)
 
 
 class EstrangeBeam:
