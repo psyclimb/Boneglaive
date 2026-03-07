@@ -2477,7 +2477,7 @@ class Game:
         Note: Health regeneration is handled separately after all actions are processed.
         """
         from boneglaive.utils.message_log import message_log, MessageType
-        
+
         # Process ALL units for effects that apply to any unit inside a reinforced Marrow Dike
         # This affects both current player's units and enemy units
         for unit in self.units:
@@ -6223,6 +6223,11 @@ class Game:
         # Check if this echo has a banished unit that needs to return
         if hasattr(echo_unit, 'banished_unit') and echo_unit.banished_unit:
             banished = echo_unit.banished_unit
+
+            # IMPORTANT: Remove echo from spatial grid BEFORE returning banished unit
+            # This prevents collision detection from displacing the banished unit
+            self._remove_from_unit_grid(echo_unit)
+
             # Return the banished unit to the game at the echo's position
             banished.y = echo_unit.y
             banished.x = echo_unit.x
@@ -6257,22 +6262,38 @@ class Game:
         
         # Find all units in adjacent tiles (chess distance 1)
         affected_units = []
-        for unit in self.units:
+        # Create a copy of the units list to avoid iteration issues
+        for unit in list(self.units):
             if not unit.is_alive():
                 continue
-                
+
             # Skip friendly units - no friendly fire
             if unit.player == echo_unit.player:
                 continue
-                
+
+            # Skip the echo itself (it's already dying)
+            if unit == echo_unit:
+                continue
+
             # Calculate distance to echo
             distance = self.chess_distance(echo_unit.y, echo_unit.x, unit.y, unit.x)
-            if distance <= 1 and unit != echo_unit:  # Adjacent including diagonals, excluding the echo itself
-                # Verify GRAYMAN units are immune to explosion effect
-                if unit.type == UnitType.GRAYMAN and unit.is_immune_to_effects():
-                    # Skip GRAYMAN units with Stasiality
-                    continue
-                    
+            if distance <= 1:  # Adjacent including diagonals
+                # Verify GRAYMAN units and GRAYMAN echoes are immune to explosion effect (including banishment)
+                # Both regular GRAYMAN and GRAYMAN echoes have Stasiality
+                if unit.type == UnitType.GRAYMAN:
+                    # All GRAYMAN units (including echoes) have Stasiality
+                    is_echo = hasattr(unit, 'is_echo') and unit.is_echo
+                    if unit.is_immune_to_effects() or is_echo:
+                        logger.debug(f"GRAYMAN {'echo' if is_echo else ''} {unit.get_display_name()} immune to banishment due to Stasiality")
+
+                        # Add message about immunity
+                        message_log.add_message(
+                            f"{unit.get_display_name()} is immune to banishment due to Stasiality",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
+                        continue
+
                 affected_units.append(unit)
         
         if not affected_units:
@@ -6333,73 +6354,157 @@ class Game:
                 ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
                 if hasattr(time, 'sleep'):
                     time.sleep(0.2)  # Short pause after explosion
-            
-        # Apply damage to affected units
+
+        # Check if Græ Exchange is upgraded (units hit by explosion are also banished)
+        is_grae_upgraded = False
+        if hasattr(echo_unit, 'original_unit') and echo_unit.original_unit:
+            original_grayman = echo_unit.original_unit
+            from boneglaive.game.upgrades import UpgradeManager
+            is_grae_upgraded = UpgradeManager.is_skill_upgraded(original_grayman, "Græ Exchange")
+
+        # Apply damage (or banishment if upgraded) to affected units
         for unit in affected_units:
-            # Echo explosion damage
-            damage = 3
-            # Apply defense reduction for explosions
-            effective_defense = unit.get_effective_stats()['defense']
-            damage = max(1, damage - effective_defense)
-            
-            # Store previous HP
-            previous_hp = unit.hp
-            
-            # Apply damage
-            unit.hp = max(0, unit.hp - damage)
-            
-            # Log the damage using combat message format to ensure player color
-            message_log.add_combat_message(
-                attacker_name=echo_unit.get_display_name(),
-                target_name=unit.get_display_name(),
-                damage=damage,
-                ability="explosion",
-                attacker_player=echo_unit.player,
-                target_player=unit.player
-            )
-            
-            # Show impact effects and damage number for explosion if UI is available
+            if is_grae_upgraded:
+                # UPGRADED: Banish units hit by the explosion AND create echoes
+                # Store unit's current position before banishing
+                banish_pos = (unit.y, unit.x)
+                logger.debug(f"Banishing {unit.get_display_name()} at position {banish_pos}")
+
+                # Mark unit as banished
+                unit.is_banished = True
+
+                # Remove unit from the game temporarily
+                if unit in self.units:
+                    logger.debug(f"Removing {unit.get_display_name()} from units list")
+                    self.units.remove(unit)
+                    self._remove_from_unit_grid(unit)
+                else:
+                    logger.warning(f"Unit {unit.get_display_name()} not in units list?")
+
+                # Create a new GRAYMAN echo at the banished unit's position
+                from boneglaive.game.units import Unit
+                new_echo = Unit(UnitType.GRAYMAN, echo_unit.player, banish_pos[0], banish_pos[1])
+                new_echo.initialize_skills()
+                new_echo.set_game_reference(self)
+
+                # Set echo properties
+                new_echo.is_echo = True
+                new_echo.echo_duration = 2  # Echo lasts 2 turns
+                new_echo.original_unit = echo_unit.original_unit if hasattr(echo_unit, 'original_unit') else echo_unit
+                new_echo.hp = 5
+                new_echo.max_hp = 5
+                new_echo.attack = 3
+
+                # Store the banished unit in the new echo so we can return them later
+                new_echo.banished_unit = unit
+
+                # Visual identifier (use lowercase greek or add suffix)
+                if hasattr(echo_unit, 'greek_id') and echo_unit.greek_id:
+                    # Create a unique identifier for this echo
+                    new_echo.greek_id = echo_unit.greek_id.lower()
+                elif hasattr(echo_unit, 'original_unit') and echo_unit.original_unit and hasattr(echo_unit.original_unit, 'greek_id') and echo_unit.original_unit.greek_id:
+                    new_echo.greek_id = echo_unit.original_unit.greek_id.lower()
+
+                # Copy upgraded_skills from the original GRAYMAN
+                if hasattr(echo_unit, 'original_unit') and echo_unit.original_unit and hasattr(echo_unit.original_unit, 'upgraded_skills'):
+                    new_echo.upgraded_skills = set(echo_unit.original_unit.upgraded_skills)
+
+                # Add new echo to game
+                self.units.append(new_echo)
+                self._update_unit_grid(new_echo)
+
+                logger.info(f"ECHO SPAWNED from explosion banishment: {new_echo.get_display_name()} at position {banish_pos}")
+
+                # Log the banishment and echo creation
+                message_log.add_message(
+                    f"{unit.get_display_name()} is banished by the psychic explosion!",
+                    MessageType.ABILITY,
+                    player=echo_unit.player
+                )
+                message_log.add_message(
+                    f"A GRAYMAN echo manifests in {unit.get_display_name()}'s place",
+                    MessageType.ABILITY,
+                    player=echo_unit.player
+                )
+            else:
+                # NORMAL: Just apply damage
+                # Echo explosion damage
+                damage = 3
+                # Apply defense reduction for explosions
+                effective_defense = unit.get_effective_stats()['defense']
+                damage = max(1, damage - effective_defense)
+
+                # Store previous HP
+                previous_hp = unit.hp
+
+                # Apply damage
+                unit.hp = max(0, unit.hp - damage)
+
+                # Log the damage using combat message format to ensure player color
+                message_log.add_combat_message(
+                    attacker_name=echo_unit.get_display_name(),
+                    target_name=unit.get_display_name(),
+                    damage=damage,
+                    ability="explosion",
+                    attacker_player=echo_unit.player,
+                    target_player=unit.player
+                )
+
+            # Show impact effects for explosion if UI is available
             if ui and hasattr(ui, 'renderer'):
                 import curses
-                
-                # First, show an impact effect on the unit before showing damage
-                if hasattr(ui, 'asset_manager'):
-                    # Get the unit tile
-                    unit_tile = ui.asset_manager.get_unit_tile(unit.type)
-                    
-                    # Flash the unit with alternating colors to show impact
-                    for i in range(2):
-                        # Use alternating colors (yellow and white) to show impact
-                        color = 6 if i % 2 == 0 else 7  # 6:yellow, 7:white
-                        ui.renderer.draw_tile(unit.y, unit.x, unit_tile, color, curses.A_BOLD)
+
+                if is_grae_upgraded:
+                    # BANISHMENT EFFECT: Show vanishing animation
+                    if hasattr(ui, 'renderer'):
+                        # Vanishing animation for banishment
+                        vanish_animation = ['@', 'o', 'O', ':', '·', ' ']
+                        ui.renderer.animate_attack_sequence(
+                            unit.y, unit.x,
+                            vanish_animation,
+                            5,  # Magenta/purple for banishment
+                            0.08
+                        )
+                else:
+                    # DAMAGE EFFECT: Show impact and damage number
+                    # First, show an impact effect on the unit before showing damage
+                    if hasattr(ui, 'asset_manager'):
+                        # Get the unit tile
+                        unit_tile = ui.asset_manager.get_unit_tile(unit.type)
+
+                        # Flash the unit with alternating colors to show impact
+                        for i in range(2):
+                            # Use alternating colors (yellow and white) to show impact
+                            color = 6 if i % 2 == 0 else 7  # 6:yellow, 7:white
+                            ui.renderer.draw_tile(unit.y, unit.x, unit_tile, color, curses.A_BOLD)
+                            ui.renderer.refresh()
+                            if hasattr(time, 'sleep'):
+                                time.sleep(0.1)
+
+                    # Show the damage text with flashing effect
+                    damage_text = f"-{damage}"
+
+                    # Make damage text more prominent with flashing effect
+                    for i in range(3):
+                        # First clear the area
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
+                        # Draw with alternating bold/normal for a flashing effect
+                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                         ui.renderer.refresh()
                         if hasattr(time, 'sleep'):
                             time.sleep(0.1)
-                
-                # Show the damage text with flashing effect
-                damage_text = f"-{damage}"
-                
-                # Make damage text more prominent with flashing effect
-                for i in range(3):
-                    # First clear the area
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                    # Draw with alternating bold/normal for a flashing effect
-                    attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
+
+                    # Final damage display (stays on screen slightly longer)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
                     ui.renderer.refresh()
                     if hasattr(time, 'sleep'):
-                        time.sleep(0.1)
-                
-                # Final damage display (stays on screen slightly longer)
-                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
-                ui.renderer.refresh()
-                if hasattr(time, 'sleep'):
-                    time.sleep(0.2)
-            
-            # Check if unit was killed
-            if unit.hp <= 0 and previous_hp > 0:
-                # Use centralized death handling
-                self.handle_unit_death(unit, echo_unit, cause="explosion", ui=ui)
+                        time.sleep(0.2)
+
+                    # Check if unit was killed
+                    if unit.hp <= 0 and previous_hp > 0:
+                        # Use centralized death handling
+                        self.handle_unit_death(unit, echo_unit, cause="explosion", ui=ui)
                 
                 # Check if this was a MANDIBLE_FOREMAN or another echo
                 if unit.type == UnitType.MANDIBLE_FOREMAN:

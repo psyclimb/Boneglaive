@@ -950,6 +950,13 @@ class GraeExchangeSkill(ActiveSkill):
         if target_unit.player == user.player:
             return False
 
+        # Check if target is immune to banishment (GRAYMAN with Stasiality)
+        if target_unit.type == UnitType.GRAYMAN:
+            # GRAYMAN units (including echoes) cannot be banished
+            is_echo = hasattr(target_unit, 'is_echo') and target_unit.is_echo
+            if target_unit.is_immune_to_effects() or is_echo:
+                return False
+
         # Use the correct starting position (current position or planned move position)
         from_y = user.y
         from_x = user.x
@@ -1018,6 +1025,20 @@ class GraeExchangeSkill(ActiveSkill):
                 player=user.player
             )
             return False
+
+        # Check if target is immune to banishment due to Stasiality
+        if target.type == UnitType.GRAYMAN:
+            # GRAYMAN units (including echoes) are immune to banishment
+            is_echo = hasattr(target, 'is_echo') and target.is_echo
+            if target.is_immune_to_effects() or is_echo:
+                message_log.add_message(
+                    f"{target.get_display_name()} is immune to banishment due to Stasiality",
+                    MessageType.ABILITY,
+                    player=target.player
+                )
+                # Skill fails but cooldown is still consumed
+                self.current_cooldown = self.cooldown
+                return True
 
         # Log the banishment
         message_log.add_message(

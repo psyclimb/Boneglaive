@@ -85,7 +85,7 @@ SKILL_UPGRADES = {
         },
         "Græ Exchange": {
             "name": "Græ Exchange",
-            "description": "Echoes can use Græ Exchange.",
+            "description": "Units hit by the psychic explosion are also banished.",
             "type": "buff",
             "cost": 1
         }

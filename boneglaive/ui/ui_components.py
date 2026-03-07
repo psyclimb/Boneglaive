@@ -858,14 +858,14 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'GRÆ EXCHANGE (Active) [Key: G]',
-                        'description': 'The GRAYMAN splits its consciousness across spacetime, creating a psychic echo at its current position before teleporting up to 3 tiles away. The echo possesses 5 HP and 3 attack but cannot move or use skills—only basic attacks. When the echo is destroyed, it explodes for 4 damage to all adjacent enemies. The echo persists for 2 of the GRAYMAN\'s turns, creating simultaneous battlefield presence in multiple locations.',
+                        'description': 'The GRAYMAN performs a dimensional exchange, temporarily banishing a target enemy unit from reality while simultaneously manifesting a psychic echo in their place. The banished unit is displaced into a temporal void for 1 turn, completely removed from the battlefield. The echo that replaces them possesses 5 HP and 3 attack but cannot move or use skills—only basic attacks. When the echo is destroyed or expires, it detonates in a psychic explosion dealing 3 damage to all adjacent enemies, after which the banished unit returns to the echo\'s last position.',
                         'details': [
                             'Type: Active',
-                            'Range: 3',
-                            'Target: Empty passable terrain',
-                            'Effect: Creates Echo (ψ) with 5 HP, 3 ATK, immobile; lasts 2 owner turns',
-                            'Cooldown: 4 turns',
-                            'Special: Echo cannot use skills; explodes for 4 damage to adjacent enemies on death; no line of sight required'
+                            'Range: 5',
+                            'Target: Enemy unit',
+                            'Effect: Banishes target for 1 turn; creates Echo (ψ) with 5 HP, 3 ATK at target\'s position',
+                            'Cooldown: 5 turns',
+                            'Special: Echo is immobile and cannot use skills; explodes for 3 damage to adjacent enemies on death; banished unit returns when echo expires or dies; requires line of sight'
                         ]
                     }
                 ],
@@ -873,7 +873,9 @@ class UnitHelpComponent(UIComponent):
                     '- Use Stasiality immunity to ignore enemy control abilities and debuffs',
                     '- Delta Config provides unmatched repositioning; use for flanking or escaping danger',
                     '- Estrange permanently weakens key enemy units; prioritize high-value targets',
-                    '- Græ Exchange allows attacking from two positions simultaneously',
+                    '- Græ Exchange temporarily removes dangerous enemies while creating a combat presence',
+                    '- Banish high-value targets at critical moments to disrupt enemy strategy',
+                    '- Position echoes to maximize explosion damage when they expire',
                     '- Stay at maximum range (5) to avoid retaliation due to 0 defense'
                 ],
                 'tactical': [
@@ -885,11 +887,13 @@ class UnitHelpComponent(UIComponent):
             'GRAYMAN_ECHO': {
                 'title': 'GRAYMAN ECHO',
                 'overview': [
-                    'GRAYMAN echoes are temporary psychic projections created by the Græ Exchange skill.',
-                    'These immobile entities explode when destroyed, serving as area denial units that',
-                    'provide basic combat presence in key locations.',
+                    'GRAYMAN echoes are temporary psychic projections manifested through the Græ Exchange skill.',
+                    'When the GRAYMAN banishes an enemy unit to the temporal void, an echo takes their place,',
+                    'maintaining battlefield control while the original target remains displaced. These immobile',
+                    'entities can perform basic attacks and explode when destroyed, serving as both combat units',
+                    'and area denial threats that guard the position until the banished unit returns.',
                     '',
-                    'Role: Area Controller'
+                    'Role: Area Controller / Temporary Replacement'
                 ],
                 'stats': [
                     'HP: 5',
@@ -917,30 +921,32 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'DEATH EXPLOSION (On Death)',
-                        'description': 'When destroyed, explodes dealing 4 damage to all adjacent enemy units.',
+                        'description': 'When destroyed or when its duration expires, the echo detonates in a psychic explosion dealing 3 damage to all adjacent enemy units. After the explosion, the banished unit returns from the void to reclaim their position.',
                         'details': [
-                            'Type: On Death',
+                            'Type: On Death/Expiration',
                             'Range: All adjacent tiles',
                             'Target: Enemy units',
                             'Line of Sight: No',
-                            'Damage: 4',
+                            'Damage: 3',
                             'Pierce: No',
-                            'Effects: Explosion on death',
+                            'Effects: Psychic explosion',
                             'Cooldown: None',
-                            'Special: Triggers when HP reaches 0'
+                            'Special: Triggers when HP reaches 0 or duration expires; banished unit returns afterward'
                         ]
                     }
                 ],
                 'tips': [
-                    '- Plan placement carefully since echoes cannot move',
-                    '- Explosion threat forces enemies to keep distance',
-                    '- Best placed in chokepoints or near valuable targets',
-                    '- Cannot use skills, only basic attacks'
+                    '- Echo replaces banished enemy at their exact position',
+                    '- Use to temporarily remove key threats while maintaining board control',
+                    '- Explosion threat forces enemies to keep distance from the echo',
+                    '- Remember the banished unit will return when the echo expires',
+                    '- Cannot use skills, only basic attacks within range 1'
                 ],
                 'tactical': [
-                    '- Strong against: Melee units, clustered formations',
-                    '- Limitations: Cannot move, no skills, 2-turn duration, low HP',
-                    '- Best positioning: Chokepoints, objective areas, enemy approach routes'
+                    '- Strong against: Melee units, clustered formations, key enemy pieces',
+                    '- Limitations: Cannot move, no skills, 1-turn duration, low HP',
+                    '- Strategic value: Temporarily neutralizes threats while providing combat presence',
+                    '- Timing consideration: Banished unit returns at echo\'s position when it expires'
                 ]
             },
             UnitType.MARROW_CONDENSER: {
