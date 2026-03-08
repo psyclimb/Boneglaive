@@ -79,7 +79,7 @@ SKILL_UPGRADES = {
         },
         "Estrange": {
             "name": "Estrange",
-            "description": "Estranging an already estranged target banishes them and spawns a GRAYMAN echo.",
+            "description": "Range increased from 5 to 7.",
             "type": "buff",
             "cost": 1
         },

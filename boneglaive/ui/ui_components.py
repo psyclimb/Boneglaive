@@ -840,7 +840,7 @@ class UnitHelpComponent(UIComponent):
                             'Type: Active',
                             'Range: Unlimited (entire battlefield)',
                             'Target: Empty passable terrain',
-                            'Cooldown: 12 turns',
+                            'Cooldown: 6 turns',
                             'Special: Warps space to bring distant points together; no line of sight required'
                         ]
                     },
@@ -864,7 +864,7 @@ class UnitHelpComponent(UIComponent):
                             'Range: 5',
                             'Target: Enemy unit',
                             'Effect: Banishes target for 1 turn; creates Echo (ψ) with 5 HP, 3 ATK at target\'s position',
-                            'Cooldown: 5 turns',
+                            'Cooldown: 3 turns',
                             'Special: Echo is immobile and cannot use skills; explodes for 3 damage to adjacent enemies on death; banished unit returns when echo expires or dies; requires line of sight'
                         ]
                     }

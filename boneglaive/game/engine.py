@@ -6205,7 +6205,7 @@ class Game:
         logger.info(f"Test mode {'enabled' if self.test_mode else 'disabled'}")
         return self.test_mode
         
-    def _trigger_echo_death_effect(self, echo_unit, ui=None):
+    def _trigger_echo_death_effect(self, echo_unit, ui=None, processed_echoes=None):
         """
         Handle the death effect when an echo unit is destroyed.
         Echoes explode and deal 3 damage to all adjacent units when destroyed.
@@ -6213,14 +6213,66 @@ class Game:
         Args:
             echo_unit: The echo unit that was destroyed
             ui: Optional UI reference for animations
+            processed_echoes: Set of echo units already processed (prevents infinite loops)
         """
         import time
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
 
+        # Initialize processed_echoes set if not provided
+        if processed_echoes is None:
+            processed_echoes = set()
+
+        # Check if this echo has already been processed (prevents infinite loop)
+        if echo_unit in processed_echoes:
+            logger.debug(f"Echo {echo_unit.get_display_name()} already processed, skipping to prevent infinite loop")
+            return
+
+        # Mark this echo as processed
+        processed_echoes.add(echo_unit)
+
         logger.debug(f"Echo {echo_unit.get_display_name()} destroyed, triggering death effect")
 
-        # Check if this echo has a banished unit that needs to return
+        # CRITICAL: Collect affected units BEFORE returning banished unit
+        # This prevents the just-returned unit from being caught in the explosion
+        # Find all units in adjacent tiles (chess distance 1)
+        affected_units = []
+        # Create a copy of the units list to avoid iteration issues
+        for unit in list(self.units):
+            if not unit.is_alive():
+                continue
+
+            # Skip friendly units - no friendly fire
+            if unit.player == echo_unit.player:
+                continue
+
+            # Skip the echo itself (it's already dying)
+            if unit == echo_unit:
+                continue
+
+            # Calculate distance to echo
+            distance = self.chess_distance(echo_unit.y, echo_unit.x, unit.y, unit.x)
+            if distance <= 1:  # Adjacent including diagonals
+                # Verify GRAYMAN units and GRAYMAN echoes are immune to explosion effect (including banishment)
+                # Both regular GRAYMAN and GRAYMAN echoes have Stasiality
+                if unit.type == UnitType.GRAYMAN:
+                    # All GRAYMAN units (including echoes) have Stasiality
+                    is_echo = hasattr(unit, 'is_echo') and unit.is_echo
+                    if unit.is_immune_to_effects() or is_echo:
+                        logger.debug(f"GRAYMAN {'echo' if is_echo else ''} {unit.get_display_name()} immune to banishment due to Stasiality")
+
+                        # Add message about immunity
+                        message_log.add_message(
+                            f"{unit.get_display_name()} is immune to banishment due to Stasiality",
+                            MessageType.ABILITY,
+                            player=unit.player
+                        )
+                        continue
+
+                affected_units.append(unit)
+
+        # NOW return the banished unit AFTER we've collected affected units
+        # This prevents the just-returned unit from being hit by the explosion
         if hasattr(echo_unit, 'banished_unit') and echo_unit.banished_unit:
             banished = echo_unit.banished_unit
 
@@ -6259,47 +6311,11 @@ class Game:
                     7,  # White
                     0.12
                 )
-        
-        # Find all units in adjacent tiles (chess distance 1)
-        affected_units = []
-        # Create a copy of the units list to avoid iteration issues
-        for unit in list(self.units):
-            if not unit.is_alive():
-                continue
 
-            # Skip friendly units - no friendly fire
-            if unit.player == echo_unit.player:
-                continue
-
-            # Skip the echo itself (it's already dying)
-            if unit == echo_unit:
-                continue
-
-            # Calculate distance to echo
-            distance = self.chess_distance(echo_unit.y, echo_unit.x, unit.y, unit.x)
-            if distance <= 1:  # Adjacent including diagonals
-                # Verify GRAYMAN units and GRAYMAN echoes are immune to explosion effect (including banishment)
-                # Both regular GRAYMAN and GRAYMAN echoes have Stasiality
-                if unit.type == UnitType.GRAYMAN:
-                    # All GRAYMAN units (including echoes) have Stasiality
-                    is_echo = hasattr(unit, 'is_echo') and unit.is_echo
-                    if unit.is_immune_to_effects() or is_echo:
-                        logger.debug(f"GRAYMAN {'echo' if is_echo else ''} {unit.get_display_name()} immune to banishment due to Stasiality")
-
-                        # Add message about immunity
-                        message_log.add_message(
-                            f"{unit.get_display_name()} is immune to banishment due to Stasiality",
-                            MessageType.ABILITY,
-                            player=unit.player
-                        )
-                        continue
-
-                affected_units.append(unit)
-        
         if not affected_units:
-            # No units affected
+            # No units affected by explosion
             return
-            
+
         # Log the explosion with a more dramatic message for the GRAYMAN echo
         message_log.add_message(
             f"{echo_unit.get_display_name()} collapses into a psychic void, tearing through spacetime",
@@ -6413,6 +6429,10 @@ class Game:
                 self.units.append(new_echo)
                 self._update_unit_grid(new_echo)
 
+                # CRITICAL: Mark new echo as already processed to prevent immediate chain explosion
+                # New echoes spawned from this explosion should not explode in the same chain
+                processed_echoes.add(new_echo)
+
                 logger.info(f"ECHO SPAWNED from explosion banishment: {new_echo.get_display_name()} at position {banish_pos}")
 
                 # Log the banishment and echo creation
@@ -6520,7 +6540,8 @@ class Game:
                             )
                 elif unit.is_echo:
                     # Chain reaction - trigger this echo's death effect too
-                    self._trigger_echo_death_effect(unit, ui)
+                    # Pass the processed_echoes set to prevent infinite loops
+                    self._trigger_echo_death_effect(unit, ui, processed_echoes)
     
     
     def _show_wall_attack_animation(self, ui, unit, wall_position, damage):
