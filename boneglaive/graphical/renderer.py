@@ -915,7 +915,31 @@ class GraphicalRenderer:
                     continue
 
                 if event.key == pygame.K_ESCAPE:
-                    self.running = False
+                    # Check if unit is selected with a pending move (but no attack/skill planned)
+                    if self.selected_unit:
+                        game_unit = self._get_game_unit(self.selected_unit)
+                        if game_unit and game_unit.move_target:
+                            # Check if no attack or skill has been planned yet
+                            if not game_unit.attack_target and not game_unit.skill_target:
+                                # Cancel the move
+                                game_unit.move_target = None
+
+                                # Reset UI state
+                                self.current_action_mode = "SELECT"
+                                self.show_movement_range = False
+                                self.show_target_range = False
+                                self.show_skill_range = False
+                                self.valid_positions = []
+                                self.attack_positions = []
+                                self.skill_positions = []
+
+                                # Show confirmation message
+                                self.combat_log.add_message("Move cancelled", "system")
+
+                                # Keep unit selected but don't force skill bar open
+                                # (preserve whatever state it was in before)
+
+                    # ESC no longer quits the game - players use concede instead
                 elif event.key == pygame.K_F11:
                     # Toggle fullscreen mode
                     self._toggle_fullscreen()
