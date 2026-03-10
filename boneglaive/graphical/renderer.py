@@ -3484,6 +3484,15 @@ class GraphicalRenderer:
                 if game_unit and game_unit.is_alive():
                     # Check if unit has imbued status (from Market Futures on enemies)
                     if hasattr(game_unit, 'status_imbued') and game_unit.status_imbued:
+                        # Determine color based on which player imbued the unit
+                        imbued_player = getattr(game_unit, 'status_imbued_player', 1)
+                        if imbued_player == 1:
+                            symbol_color = (100, 255, 100)  # Green for Player 1
+                            sparkle_colors = [(100, 255, 150), (150, 255, 100)]
+                        else:
+                            symbol_color = (100, 150, 255)  # Blue for Player 2
+                            sparkle_colors = [(100, 150, 255), (150, 200, 255)]
+
                         # Calculate screen position (center of unit's tile)
                         tile_x = GRID_OFFSET_X + unit.grid_x * TILE_SIZE + TILE_SIZE // 2
                         tile_y = GRID_OFFSET_Y + unit.grid_y * TILE_SIZE + TILE_SIZE // 2
@@ -3491,7 +3500,7 @@ class GraphicalRenderer:
                         # Draw waving currency symbol (¤) - same as furniture
                         font_size = 120
                         currency_font = pygame.font.Font(None, font_size)
-                        currency_text = currency_font.render("¤", True, (255, 215, 0))  # Gold
+                        currency_text = currency_font.render("¤", True, symbol_color)
                         currency_text.set_alpha(alpha)
 
                         # Apply wave offset to y position for undulating effect
@@ -3523,7 +3532,7 @@ class GraphicalRenderer:
                             # Random properties
                             max_life = random.uniform(1.0, 1.5)
                             sparkle_size = random.randint(2, 4)
-                            color = random.choice([(255, 235, 100), (255, 215, 0)])
+                            color = random.choice(sparkle_colors)  # Use player-specific colors
 
                             self.imbued_sparkles.append({
                                 'x': spawn_x,
@@ -4906,8 +4915,63 @@ class GraphicalRenderer:
                 shadow_x = GRID_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE // 2
                 shadow_y = GRID_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE // 2
 
+                # Check which type of indicator this is - use appropriate skill icon instead of unit sprite
+                is_market_futures = (hasattr(game_unit, 'market_futures_indicator') and
+                                   game_unit.market_futures_indicator == pos)
+                is_broaching_gas = (hasattr(game_unit, 'broaching_gas_indicator') and
+                                   game_unit.broaching_gas_indicator == pos)
+                is_saft_e_gas = (hasattr(game_unit, 'saft_e_gas_indicator') and
+                                game_unit.saft_e_gas_indicator == pos)
+
                 # Create shadow surface
-                if unit.sprite:
+                if is_market_futures or is_broaching_gas or is_saft_e_gas:
+                    # Determine which skill icon to load
+                    import os
+                    if is_market_futures:
+                        icon_filename = 'market_futures.svg'
+                    elif is_broaching_gas:
+                        icon_filename = 'broaching_gas.svg'
+                    else:  # is_saft_e_gas
+                        icon_filename = 'saft-e-gas.svg'
+
+                    icon_path = os.path.join(os.path.dirname(__file__), '..', '..', 'graphics', 'skill_icons', icon_filename)
+                    try:
+                        # Load and render SVG as PNG
+                        import cairosvg
+                        from io import BytesIO
+                        png_data = cairosvg.svg2png(url=icon_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
+                        icon_surface = pygame.image.load(BytesIO(png_data))
+
+                        # Use icon with transparency
+                        shadow_sprite = icon_surface.copy()
+
+                        # Apply tint for wispy effect (brighter blue tint)
+                        tint_surface = pygame.Surface(shadow_sprite.get_size(), pygame.SRCALPHA)
+                        tint_color = (150, 200, 255, 80)  # Brighter blue tint, more prominent
+                        tint_surface.fill(tint_color)
+                        shadow_sprite.blit(tint_surface, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+                        # Apply transparency
+                        shadow_sprite.set_alpha(base_alpha)
+
+                        # Draw shadow centered at position
+                        shadow_rect = shadow_sprite.get_rect(center=(shadow_x, shadow_y))
+                        surface.blit(shadow_sprite, shadow_rect)
+                    except Exception as e:
+                        # Fallback to text abbreviation if icon can't be loaded
+                        fallback_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                        fallback_surf.fill((150, 200, 255, base_alpha))
+                        if is_market_futures:
+                            fallback_text = "MF"
+                        elif is_broaching_gas:
+                            fallback_text = "BG"
+                        else:  # is_saft_e_gas
+                            fallback_text = "SE"
+                        text_render = self.small_font.render(fallback_text, True, (255, 255, 255))
+                        text_rect = text_render.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
+                        fallback_surf.blit(text_render, text_rect)
+                        surface.blit(fallback_surf, (shadow_x - TILE_SIZE // 2, shadow_y - TILE_SIZE // 2))
+                elif unit.sprite:
                     # Use actual sprite with transparency
                     shadow_sprite = unit.sprite.copy()
 
@@ -4962,6 +5026,15 @@ class GraphicalRenderer:
 
             grid_y, grid_x = anchor_pos
 
+            # Determine color based on which player created the anchor
+            creator = anchor_data.get('creator')
+            if creator and creator.player == 1:
+                symbol_color = (100, 255, 100)  # Green for Player 1
+                sparkle_colors = [(100, 255, 150), (150, 255, 100)]
+            else:
+                symbol_color = (100, 150, 255)  # Blue for Player 2
+                sparkle_colors = [(100, 150, 255), (150, 200, 255)]
+
             # Calculate screen position (center of tile)
             tile_x = GRID_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE // 2
             tile_y = GRID_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE // 2
@@ -4969,7 +5042,7 @@ class GraphicalRenderer:
             # Draw waving currency symbol (¤) - 200% larger = 120pt (was 40pt)
             font_size = 120
             currency_font = pygame.font.Font(None, font_size)
-            currency_text = currency_font.render("¤", True, (255, 215, 0))  # Gold
+            currency_text = currency_font.render("¤", True, symbol_color)
             currency_text.set_alpha(alpha)
 
             # Apply wave offset to y position for undulating effect
@@ -5006,7 +5079,7 @@ class GraphicalRenderer:
                 # Random properties
                 max_life = random.uniform(1.0, 1.5)  # Lifetime in seconds
                 size = random.randint(2, 4)
-                color = random.choice([(255, 235, 100), (255, 215, 0)])  # Bright gold or gold
+                color = random.choice(sparkle_colors)  # Use player-specific colors
 
                 self.imbued_sparkles.append({
                     'x': spawn_x,
