@@ -246,14 +246,11 @@ class AnimationFactory:
 
         # DEBUG: Log all Gaussian Dusk related calls
         if "GAUSSIAN" in skill_key or "DUSK" in skill_key:
-            print(f"[AnimationFactory] ========== GAUSSIAN DUSK ANIMATION FACTORY ==========")
-            print(f"[AnimationFactory]   Original skill_name: '{skill_name}'")
-            print(f"[AnimationFactory]   Normalized skill_key: '{skill_key}'")
-            print(f"[AnimationFactory]   Caster unit: {caster_unit}")
+            pass
             if hasattr(caster_unit, 'game_unit'):
-                print(f"[AnimationFactory]   Caster game_unit: {caster_unit.game_unit}")
+                pass
                 if hasattr(caster_unit.game_unit, 'charging_status'):
-                    print(f"[AnimationFactory]   charging_status: {caster_unit.game_unit.charging_status}")
+                    pass
 
         # Check for special variants
         if skill_key == "DEMILUNE":
@@ -268,7 +265,7 @@ class AnimationFactory:
 
         # Check for Fragcrest trap mode (override class before lookup)
         if skill_key == "FRAGCREST" and kwargs.get('is_trap', False):
-            print("[AnimationFactory] FRAGCREST trap mode detected - using FragcrestTrapAnimation")
+            pass
             anim_data = (FragcrestTrapAnimation, {})
         else:
             # Get animation class and kwargs from registry
@@ -276,19 +273,18 @@ class AnimationFactory:
 
         # DEBUG: Log lookup result
         if "GAUSSIAN" in skill_key or "DUSK" in skill_key:
-            print(f"[AnimationFactory]   Looking up '{skill_key}' in SKILL_ANIMATIONS...")
-            print(f"[AnimationFactory]   Found: {anim_data is not None}")
+            pass
             if anim_data:
-                print(f"[AnimationFactory]   Animation class: {anim_data[0]}")
+                pass
 
         if not anim_data:
-            print(f"[AnimationFactory] No animation defined for skill: {skill_name} (key: {skill_key})")
+            pass
             return None
 
         anim_class, base_kwargs = anim_data
 
         if anim_class is None:
-            print(f"[AnimationFactory] Animation not implemented yet: {skill_name} (key: {skill_key})")
+            pass
             return None
 
         # Play skill sound effect
@@ -299,7 +295,7 @@ class AnimationFactory:
                 sound_manager.play(sound_key, category="skills")
             except Exception as e:
                 # Don't crash if sound fails - just log it
-                print(f"[AnimationFactory] Failed to play sound for {skill_name}: {e}")
+                pass
 
         # Prepare animation kwargs
         # Merge base_kwargs with passed-in kwargs (preserving custom parameters like start_pos, end_pos)
@@ -315,7 +311,6 @@ class AnimationFactory:
             grid_to_screen = camera.grid_to_screen
         else:
             # Fallback for older code that doesn't pass camera
-            print("[AnimationFactory] WARNING: No camera provided, using default offsets")
             from boneglaive.graphical.animations.core import TILE_SIZE as DEFAULT_TILE_SIZE
             GRID_OFFSET_X = 100
             GRID_OFFSET_Y = 50
@@ -347,7 +342,6 @@ class AnimationFactory:
                 kwargs['target_y'] = target_y
             else:
                 # No caster and no target position - cannot determine location
-                print("[AnimationFactory] Warning: No caster or target position provided")
                 kwargs['target_x'] = 0
                 kwargs['target_y'] = 0
 
@@ -361,13 +355,10 @@ class AnimationFactory:
                     # Use game unit's actual position (post-move)
                     caster_grid_x = caster_unit.game_unit.x
                     caster_grid_y = caster_unit.game_unit.y
-                    print(f"[AnimationFactory] Using game_unit position for {skill_name}: ({caster_grid_y}, {caster_grid_x})")
-                    print(f"[AnimationFactory] AnimatedUnit position: ({caster_unit.grid_y}, {caster_unit.grid_x})")
                 else:
                     # Fall back to AnimatedUnit's position
                     caster_grid_x = caster_unit.grid_x
                     caster_grid_y = caster_unit.grid_y
-                    print(f"[AnimationFactory] No game_unit, using AnimatedUnit position: ({caster_grid_y}, {caster_grid_x})")
 
                 caster_screen_x, caster_screen_y = grid_to_screen(caster_grid_x, caster_grid_y)
             else:
@@ -380,7 +371,7 @@ class AnimationFactory:
             if anim_class.__name__ == "JudgementAnimation":
                 # Requires: target_pos, game instance, camera, callbacks
                 if not target_pos:
-                    print("[AnimationFactory] JUDGEMENT requires a target position")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -440,7 +431,7 @@ class AnimationFactory:
                 # PryAnimation - New full animation with ceiling impact and falling debris
                 # Requires: target_pos, game instance, camera, callbacks
                 if not target_pos:
-                    print("[AnimationFactory] PRY requires a target position")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -459,14 +450,13 @@ class AnimationFactory:
             elif anim_class.__name__ == "VaultAnimationController":
                 # VaultAnimationController needs target position
                 if not target_pos:
-                    print("[AnimationFactory] VAULT requires a target position")
+                    pass
                     return None
 
                 # Check if vault was displaced (collision with ally move)
                 actual_target_pos = target_pos
                 if caster_unit and hasattr(caster_unit, 'game_unit') and hasattr(caster_unit.game_unit, 'vault_displaced_to'):
                     actual_target_pos = caster_unit.game_unit.vault_displaced_to
-                    print(f"[AnimationFactory] VAULT displaced from {target_pos} to {actual_target_pos}")
                     # Clear the flag
                     del caster_unit.game_unit.vault_displaced_to
 
@@ -480,14 +470,13 @@ class AnimationFactory:
             elif anim_class.__name__ == "VaultAnimationControllerUpgraded":
                 # VaultAnimationControllerUpgraded needs target position (same signature as regular Vault)
                 if not target_pos:
-                    print("[AnimationFactory] VAULT_UPGRADED requires a target position")
+                    pass
                     return None
 
                 # Check if vault was displaced (collision with ally move)
                 actual_target_pos = target_pos
                 if caster_unit and hasattr(caster_unit, 'game_unit') and hasattr(caster_unit.game_unit, 'vault_displaced_to'):
                     actual_target_pos = caster_unit.game_unit.vault_displaced_to
-                    print(f"[AnimationFactory] VAULT_UPGRADED displaced from {target_pos} to {actual_target_pos}")
                     # Clear the flag
                     del caster_unit.game_unit.vault_displaced_to
 
@@ -511,7 +500,7 @@ class AnimationFactory:
                 # DeltaConfigAnimation needs caster unit, target position, and particle emitter
                 # Also needs game and units_list for upgraded abduction mechanics
                 if not target_pos:
-                    print("[AnimationFactory] DELTA_CONFIG requires a target position")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -524,7 +513,7 @@ class AnimationFactory:
             elif anim_class.__name__ == "GraeExchangeAnimation":
                 # GraeExchangeAnimation needs caster unit, target position, and particle emitter
                 if not target_pos:
-                    print("[AnimationFactory] GRAE_EXCHANGE requires a target position")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -575,7 +564,7 @@ class AnimationFactory:
             elif anim_class.__name__ == "GraniteGeasEffect":
                 # GraniteGeasEffect needs target position and target unit
                 if not target_unit:
-                    print("[AnimationFactory] GRANITE_GEAS requires a target unit")
+                    pass
                     return None
                 animation = anim_class(
                     target_x=kwargs['target_x'],
@@ -587,7 +576,7 @@ class AnimationFactory:
                 # Melange Eminence passive healing animations
                 # Requires: target_pos (POTPOURRIST position), camera, heal_amount from event
                 if not target_pos:
-                    print("[AnimationFactory] MELANGE_EMINENCE_HEAL requires a target position")
+                    pass
                     return None
 
                 # Get heal_amount from kwargs (passed from animation event)
@@ -610,7 +599,6 @@ class AnimationFactory:
                 )
             elif anim_class.__name__ in ["NeutronIlluminantCardinal", "NeutronIlluminantDiagonal"]:
                 # Neutron Illuminant animations need caster position, particle emitter, and screen flash callback
-                print(f"[AnimationFactory] Creating {anim_class.__name__} at ({caster_screen_x}, {caster_screen_y})")
                 animation = anim_class(
                     caster_x=caster_screen_x,
                     caster_y=caster_screen_y,
@@ -618,11 +606,10 @@ class AnimationFactory:
                     particle_emitter=particle_emitter,
                     screen_flash_callback=screen_flash_callback
                 )
-                print(f"[AnimationFactory] Created animation: {animation}")
             elif anim_class.__name__ == "NeuralShuntAnimation":
                 # Neural Shunt needs caster, target positions, and callbacks
                 if not target_unit:
-                    print("[AnimationFactory] NEURAL_SHUNT requires a target unit")
+                    pass
                     return None
                 animation = anim_class(
                     caster_x=caster_screen_x,
@@ -647,7 +634,7 @@ class AnimationFactory:
             elif anim_class.__name__ == "KarrierRaveTripleStrike":
                 # Karrier Rave triple strike (melee attack with Neutron Illuminant patterns)
                 if not target_unit:
-                    print("[AnimationFactory] KARRIER_RAVE_STRIKE requires a target unit")
+                    pass
                     return None
                 animation = anim_class(
                     caster_x=caster_screen_x,
@@ -678,7 +665,7 @@ class AnimationFactory:
                 if anim_class.__name__ == "JawlineNetworkUpgraded":
                     # Upgraded version needs target position for direction
                     if not target_pos:
-                        print("[AnimationFactory] JAWLINE_UPGRADED requires a target position")
+                        pass
                         return None
                     # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
                     target_x, target_y = grid_to_screen(target_pos[1], target_pos[0])
@@ -702,7 +689,7 @@ class AnimationFactory:
                 # Expedite rush - needs start, target, and caster unit
                 # NOTE: target_pos is (grid_y, grid_x) format from renderer
                 if not target_pos:
-                    print("[AnimationFactory] EXPEDITE requires a target position")
+                    pass
                     return None
 
                 # IMPORTANT: Check if the foreman had a planned move that was cleared
@@ -720,7 +707,6 @@ class AnimationFactory:
                     # Use the planned position as start
                     planned_y, planned_x = expedite_planned_start
                     caster_screen_x, caster_screen_y = grid_to_screen(planned_x, planned_y)
-                    print(f"[AnimationFactory] Expedite using planned start position: grid ({planned_y}, {planned_x}) -> screen ({caster_screen_x}, {caster_screen_y})")
 
                 # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
                 target_x, target_y = grid_to_screen(target_pos[1], target_pos[0])
@@ -744,7 +730,7 @@ class AnimationFactory:
                 # Divine Depreciation - reality-warping furniture reappraisal
                 # Requires: target_pos (furniture position), all standard callbacks, game instance
                 if not target_pos:
-                    print("[AnimationFactory] DIVINE_DEPRECIATION requires a target position (furniture)")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -764,7 +750,7 @@ class AnimationFactory:
                 # Auction Curse - cursed auction with furniture detection
                 # Requires: target_pos (enemy unit), game instance for furniture within 2 tiles
                 if not target_pos:
-                    print("[AnimationFactory] AUCTION_CURSE requires a target position (enemy unit)")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -784,7 +770,7 @@ class AnimationFactory:
                 # Market Futures - temporal investment energy infusion
                 # Requires: target_pos (furniture position), all standard callbacks, game instance
                 if not target_pos:
-                    print("[AnimationFactory] MARKET_FUTURES requires a target position (furniture)")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -804,7 +790,7 @@ class AnimationFactory:
                 # Parallax - Market Futures teleportation animation
                 # Requires: target_pos (destination), camera, game instance, standard callbacks
                 if not target_pos:
-                    print("[AnimationFactory] PARALLAX requires a target position (destination)")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -877,7 +863,7 @@ class AnimationFactory:
                 heal_amount = kwargs.get('heal_amount', 0)
 
                 if not death_pos or not affected_allies:
-                    print("[AnimationFactory] BONE_TITHE_DEATH_HEAL requires death_pos and affected_allies")
+                    pass
                     return None
 
                 animation = anim_class(
@@ -911,7 +897,7 @@ class AnimationFactory:
                 # Marrow Dike Wall Despawn - individual wall crumbling animation
                 # Requires: target_pos (wall position), camera, standard callbacks
                 if not target_pos:
-                    print("[AnimationFactory] MARROW_DIKE_WALL_DESPAWN requires a target position")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -931,7 +917,7 @@ class AnimationFactory:
                 # Partition - protective barrier around ally
                 # Requires: target_unit (ally), target_pos, camera, standard callbacks
                 if not target_unit:
-                    print("[AnimationFactory] PARTITION requires a target unit")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -951,7 +937,7 @@ class AnimationFactory:
                 # Vagal Run - lightning trauma therapy cascading down vagus nerve
                 # Requires: target_unit (ally), target_pos, camera, standard callbacks
                 if not target_unit:
-                    print("[AnimationFactory] VAGAL_RUN requires a target unit")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -973,7 +959,7 @@ class AnimationFactory:
                 # Requires: target_unit, target_pos, camera, standard callbacks
                 # NOTE: caster_unit may be None if DERELICTIONIST died
                 if not target_unit:
-                    print("[AnimationFactory] VAGAL_RUN_ABREACTION requires a target unit")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,  # May be None
@@ -996,7 +982,7 @@ class AnimationFactory:
                 end_pos = kwargs.get('end_pos')
 
                 if not start_pos or not end_pos:
-                    print("[AnimationFactory] DERELICT_PUSH_TRAIL requires start_pos and end_pos")
+                    pass
                     return None
 
                 animation = anim_class(
@@ -1010,7 +996,7 @@ class AnimationFactory:
                 building_tiles = kwargs.get('building_tiles')
 
                 if not building_tiles:
-                    print("[AnimationFactory] DERELICT_BUILDING_FORMATION requires building_tiles")
+                    pass
                     return None
 
                 animation = anim_class(
@@ -1024,7 +1010,7 @@ class AnimationFactory:
                 building_tiles = kwargs.get('building_tiles')
 
                 if not building_tiles:
-                    print("[AnimationFactory] DERELICT_BUILDING_TILES requires building_tiles")
+                    pass
                     return None
 
                 animation = anim_class(
@@ -1037,7 +1023,7 @@ class AnimationFactory:
                 # Check if skill is upgraded (uses underground parabola with second explosion)
                 # Requires: target_pos (center of 3x3 area), camera, callbacks
                 if not target_pos:
-                    print("[AnimationFactory] PARABOL requires a target position")
+                    pass
                     return None
 
                 # Check for upgrade
@@ -1083,10 +1069,10 @@ class AnimationFactory:
                 # Requires: target_pos (primary target), target_unit, camera, callbacks, game
                 # FragcrestAnimation = normal cast, FragcrestTrapAnimation = trap detonation
                 if not target_pos:
-                    print("[AnimationFactory] FRAGCREST requires a target position")
+                    pass
                     return None
                 if not target_unit:
-                    print("[AnimationFactory] FRAGCREST requires a target unit")
+                    pass
                     return None
 
                 # Both animation classes use the same constructor
@@ -1109,12 +1095,8 @@ class AnimationFactory:
             elif anim_class.__name__ == "GaussianDuskFireAnimation":
                 # Gaussian Dusk Fire - rail gun beam firing across map
                 # Requires: caster_unit, target_pos (direction vector), camera, callbacks, game
-                print(f"[AnimationFactory] Creating GaussianDuskFireAnimation")
-                print(f"[AnimationFactory]   caster_unit: {caster_unit}")
-                print(f"[AnimationFactory]   target_pos (direction): {target_pos}")
-                print(f"[AnimationFactory]   camera: {camera}")
                 if not target_pos:
-                    print("[AnimationFactory] ERROR: GAUSSIAN_DUSK_FIRE requires a target position (direction)")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1130,7 +1112,6 @@ class AnimationFactory:
                     camera=camera,
                     game=kwargs.get('game')  # Required for calculating firing line
                 )
-                print(f"[AnimationFactory] GaussianDuskFireAnimation created successfully")
             elif anim_class.__name__ == "RailGenesisDeathExplosionAnimation":
                 # Rail Genesis death explosion - rail network detonation when FOWL CONTRIVANCE dies
                 # Requires: caster_unit (dead FOWL CONTRIVANCE), game (for rail positions), camera, callbacks
@@ -1162,7 +1143,7 @@ class AnimationFactory:
                 # Check if Diverge is upgraded (creates 3 vapors)
                 # Requires target_pos (position of unit/vapor being split), game instance
                 if not target_pos:
-                    print("[AnimationFactory] DIVERGE requires a target position")
+                    pass
                     return None
 
                 # Check if skill is upgraded
@@ -1205,7 +1186,7 @@ class AnimationFactory:
                 # Aerosolize Arms - disarms target and creates Living Aerosol
                 # Requires: caster_unit, target_unit, target_pos, game, camera, callbacks
                 if not target_pos:
-                    print("[AnimationFactory] AEROSOLIZE_ARMS requires a target position")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1225,7 +1206,7 @@ class AnimationFactory:
                 # Auction Curse Tick - periodic DOT damage with furniture inflation
                 # Requires: target_pos (cursed unit position), game (for furniture), camera, callbacks
                 if not target_pos:
-                    print("[AnimationFactory] AUCTION_CURSE_TICK requires a target position")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1245,7 +1226,7 @@ class AnimationFactory:
                 # Matador - MASSIVE pelota projectile with multi-bounce ricochet
                 # Requires: caster_unit, target_pos, camera, particle_emitter, game, bounce_count
                 if not target_pos:
-                    print("[AnimationFactory] MATADOR requires a target position")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1259,7 +1240,7 @@ class AnimationFactory:
                 # Poach - Medium pelota with ricochet and buff stealing
                 # Requires: caster_unit, target_pos, camera, particle_emitter, game, screen shake/flash
                 if not target_pos:
-                    print("[AnimationFactory] POACH requires a target position")
+                    pass
                     return None
 
                 animation = anim_class(
@@ -1310,7 +1291,7 @@ class AnimationFactory:
                 # Selenic Backdraft Zone - Persistent ground effect for upgraded Demilune
                 # Requires: zone_tiles (list of grid positions), caster_unit, camera, game
                 if not zone_tiles:
-                    print("[AnimationFactory] ERROR: SelenicBackdraftZone requires zone_tiles")
+                    pass
                     return None
 
                 animation = anim_class(
@@ -1323,7 +1304,7 @@ class AnimationFactory:
                 # Derelict Building Formation - Building rising animation
                 # Requires: building_tiles (list of grid positions), camera, game
                 if not building_tiles:
-                    print("[AnimationFactory] ERROR: DerelictBuildingFormation requires building_tiles")
+                    pass
                     return None
 
                 animation = anim_class(
@@ -1335,7 +1316,7 @@ class AnimationFactory:
                 # Derelict Building Tiles - Persistent building tile effect
                 # Requires: building_tiles (list of grid positions), camera, game
                 if not building_tiles:
-                    print("[AnimationFactory] ERROR: DerelictBuildingTiles requires building_tiles")
+                    pass
                     return None
 
                 animation = anim_class(
@@ -1347,7 +1328,7 @@ class AnimationFactory:
                 # Respawn - Unit rises from ground with bone particles
                 # Requires: caster_unit (respawning unit), target_pos, camera, particle_emitter, callbacks
                 if not target_pos:
-                    print("[AnimationFactory] RESPAWN requires a target position")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1367,7 +1348,7 @@ class AnimationFactory:
                 # Autoclave Failure - GLAIVEMAN charges energy but fizzles (no targets)
                 # Requires: caster_unit (GLAIVEMAN), target_pos, camera, particle_emitter, callbacks
                 if not target_pos:
-                    print("[AnimationFactory] AUTOCLAVE_FAILURE requires a target position")
+                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1387,10 +1368,9 @@ class AnimationFactory:
                 # Most animations expect just target coordinates
                 animation = anim_class(**kwargs)
 
-            print(f"[AnimationFactory] Created {anim_class.__name__} for {skill_name}")
             return animation
         except Exception as e:
-            print(f"[AnimationFactory] Error creating animation for {skill_name}: {e}")
+            pass
             import traceback
             traceback.print_exc()
             return None

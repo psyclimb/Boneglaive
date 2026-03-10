@@ -1196,7 +1196,6 @@ class DemiluneSwing:
                 self.swing_direction = "east"
             else:
                 # Fallback for non-cardinal (shouldn't happen with new skill restriction)
-                print(f"[DemiluneSwing] Warning: Non-cardinal direction detected! dy={dy}, dx={dx}")
                 # Default to north
                 arc_grid_tiles.append((caster_grid_y - 1, caster_grid_x - 1))
                 arc_grid_tiles.append((caster_grid_y - 1, caster_grid_x))

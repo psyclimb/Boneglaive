@@ -221,7 +221,7 @@ class MapSelectionMenu(MenuScreen):
             except ImportError:
                 return None
         except Exception as e:
-            print(f"Warning: Could not load map icon {icon_path}: {e}")
+            pass
             return None
 
     def update(self, delta_time: float, mouse_pos, mouse_pressed):

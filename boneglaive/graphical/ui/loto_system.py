@@ -156,7 +156,7 @@ class LOTORenderer:
                 png_data = cairosvg.svg2png(url=chain_path, output_width=icon_size, output_height=icon_size)
                 self.chain_icon = pygame.image.load(BytesIO(png_data)).convert_alpha()
             else:
-                print(f"[LOTO] Chain SVG not found: {chain_path}")
+                pass
                 self.chain_icon = self._create_fallback_chain()
 
             # Load lock icon
@@ -164,7 +164,7 @@ class LOTORenderer:
                 png_data = cairosvg.svg2png(url=lock_path, output_width=icon_size, output_height=icon_size)
                 self.lock_icon = pygame.image.load(BytesIO(png_data)).convert_alpha()
             else:
-                print(f"[LOTO] Lock SVG not found: {lock_path}")
+                pass
                 self.lock_icon = self._create_fallback_lock()
 
             # Load tag icon
@@ -172,16 +172,16 @@ class LOTORenderer:
                 png_data = cairosvg.svg2png(url=tag_path, output_width=icon_size, output_height=icon_size)
                 self.tag_icon = pygame.image.load(BytesIO(png_data)).convert_alpha()
             else:
-                print(f"[LOTO] Tag SVG not found: {tag_path}")
+                pass
                 self.tag_icon = self._create_fallback_tag()
 
         except ImportError:
-            print("[LOTO] cairosvg not available, using fallback graphics")
+            pass
             self.chain_icon = self._create_fallback_chain()
             self.lock_icon = self._create_fallback_lock()
             self.tag_icon = self._create_fallback_tag()
         except Exception as e:
-            print(f"[LOTO] Error loading SVG icons: {e}")
+            pass
             self.chain_icon = self._create_fallback_chain()
             self.lock_icon = self._create_fallback_lock()
             self.tag_icon = self._create_fallback_tag()

@@ -464,7 +464,6 @@ class VaultAnimationController:
         self.caster.vault_target_grid_x = target_grid_x
         self.caster.vault_target_grid_y = target_grid_y
 
-        print(f"  [VAULT] Starting vault from ({caster_unit.grid_x}, {caster_unit.grid_y}) to {target_pos}")
 
         # Launch sound - leap off ground
         play_sound("vault_launch")
@@ -588,7 +587,6 @@ class VaultAnimationControllerUpgraded:
         self.caster.vault_target_grid_x = target_grid_x
         self.caster.vault_target_grid_y = target_grid_y
 
-        print(f"  [VAULT_UPGRADED] Starting extended vault from ({caster_unit.grid_x}, {caster_unit.grid_y}) to {target_pos}")
 
         # Launch sound (upgraded version)
         play_sound("vault_launch_upgraded")
@@ -803,7 +801,6 @@ class GlaiveSweepAnimation:
         self.sweep_angle = 0  # Current angle of the sweeping blade (in degrees)
         self.arc_particles = []
 
-        print(f"  [GLAIVE_SWEEP] Starting sweep animation, {len(self.hit_units)} enemies in range")
 
         # Start windup
         self._start_windup()
@@ -1012,8 +1009,6 @@ class PryImpactAnimation:
         self.debris_duration = 0.4
         self.splash_duration = 0.3
 
-        print(f"  [PRY_IMPACT] Starting simplified pry animation on {target_unit.name}")
-        print(f"  [PRY_IMPACT] Found {len(self.adjacent_targets)} adjacent targets for splash")
 
         # Start phase 1: Impact flash
         self._trigger_flash()

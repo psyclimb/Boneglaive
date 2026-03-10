@@ -86,7 +86,7 @@ class ConfigManager:
                         if hasattr(self.config, key):
                             setattr(self.config, key, value)
         except (json.JSONDecodeError, IOError) as e:
-            print(f"Error loading config: {e}. Using defaults.")
+            pass
     
     def save_config(self) -> None:
         """Save current configuration to file."""

@@ -64,9 +64,8 @@ class SoundManager:
         try:
             if not pygame.mixer.get_init():
                 pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
-                print("[SoundManager] Pygame mixer initialized")
         except Exception as e:
-            print(f"[SoundManager] Failed to initialize mixer: {e}")
+            pass
             self.enabled = False
 
     def load_sound(self, sound_key: str, category: str = "skills") -> bool:
@@ -95,17 +94,16 @@ class SoundManager:
 
         if not sound_path.exists():
             if sound_key not in self._missing_sounds:
-                print(f"[SoundManager] Sound not found: {sound_key} (searched: {sound_path})")
+                pass
                 self._missing_sounds.add(sound_key)
             return False
 
         try:
             sound = pygame.mixer.Sound(str(sound_path))
             self._sound_cache[sound_key] = sound
-            print(f"[SoundManager] Loaded sound: {sound_key} from {sound_path}")
             return True
         except Exception as e:
-            print(f"[SoundManager] Failed to load sound {sound_key}: {e}")
+            pass
             return False
 
     def play(self, sound_key: str, category: str = "skills", loops: int = 0) -> bool:
@@ -139,7 +137,7 @@ class SoundManager:
             sound.play(loops=loops)
             return True
         except Exception as e:
-            print(f"[SoundManager] Failed to play sound {sound_key}: {e}")
+            pass
             return False
 
     def stop(self, sound_key: str):
@@ -148,7 +146,7 @@ class SoundManager:
             try:
                 self._sound_cache[sound_key].stop()
             except Exception as e:
-                print(f"[SoundManager] Failed to stop sound {sound_key}: {e}")
+                pass
 
     def stop_all(self):
         """Stop all currently playing sounds."""
@@ -164,7 +162,6 @@ class SoundManager:
         """
         if category in self.volumes:
             self.volumes[category] = max(0.0, min(1.0, volume))
-            print(f"[SoundManager] Set {category} volume to {self.volumes[category]:.2f}")
 
     def enable(self):
         """Enable sound system."""
@@ -191,7 +188,6 @@ class SoundManager:
         """Clear the sound cache (useful for reloading sounds)."""
         self._sound_cache.clear()
         self._missing_sounds.clear()
-        print("[SoundManager] Sound cache cleared")
 
 
 # Global sound manager instance (singleton pattern)

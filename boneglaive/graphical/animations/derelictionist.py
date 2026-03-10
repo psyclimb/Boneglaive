@@ -2228,7 +2228,6 @@ class DerelictionistDefectTeleportAnimation:
         self.origin_x, self.origin_y = camera.grid_to_screen(origin_grid_x, origin_grid_y, centered=True)
         self.dest_x, self.dest_y = camera.grid_to_screen(dest_grid_x, dest_grid_y, centered=True)
 
-        print(f"[DefectTeleport] Initializing teleport animation:")
         print(f"  Origin grid: ({origin_grid_x}, {origin_grid_y}) -> screen: ({self.origin_x}, {self.origin_y})")
         print(f"  Dest grid: ({dest_grid_x}, {dest_grid_y}) -> screen: ({self.dest_x}, {self.dest_y})")
 
@@ -2261,7 +2260,6 @@ class DerelictionistDefectTeleportAnimation:
 
         # Severance dissolution at origin
         self.severance = SeveranceDissolve(self.origin_x, self.origin_y)
-        print(f"[DefectTeleport] Created severance effect at ({self.origin_x}, {self.origin_y})")
 
         # Light screen shake
         self.screen_shake_callback(3, 0.4)
@@ -2345,7 +2343,7 @@ class DerelictionistDefectTeleportAnimation:
 
         # Debug: Print when drawing
         if not hasattr(self, '_draw_logged'):
-            print(f"[DefectTeleport] Drawing animation - phase: {self.phase}, timer: {self.timer:.2f}")
+            pass
             print(f"  Effects: severance={self.severance is not None}, origin_swirl={self.origin_swirl is not None}, dest_swirl={self.dest_swirl is not None}")
             print(f"  fragments={self.fragments is not None}, vapor={self.vapor is not None}, glow={self.glow is not None}")
             self._draw_logged = True

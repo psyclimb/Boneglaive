@@ -222,15 +222,13 @@ class GameStateAdapter:
             self.game = Game(skip_setup=skip_setup, map_name=map_name)
 
         # Initialize AI if in vs_ai mode
-        print(f"[GameStateAdapter] Network mode: {network_mode}")
         if network_mode == "vs_ai":
-            print("[GameStateAdapter] Initializing AI for player 2...")
+            pass
             from boneglaive.ai.ai_interface import AIInterface
             self.ai_interface = AIInterface()
             self.ai_interface.initialize(self.game, ui=ui_adapter)
-            print(f"[GameStateAdapter] AI initialized: {self.ai_interface}")
         else:
-            print("[GameStateAdapter] AI not initialized (not in vs_ai mode)")
+            pass
 
         # Register callbacks for detecting status effects
         self.game.pre_status_clear_callback = self._detect_status_effects_callback
@@ -1035,7 +1033,6 @@ class GameStateAdapter:
                 if (hasattr(game_unit, 'demilune_mirrored_zone_tiles') and
                     game_unit.demilune_mirrored_zone_tiles):
 
-                    print(f"  [GameState] Detected new Selenic Backdraft zone on {len(game_unit.demilune_mirrored_zone_tiles)} tiles")
 
                     # Create zone animation event
                     events.append(AnimationEvent(
@@ -1067,7 +1064,7 @@ class GameStateAdapter:
                             nearby_building_tiles.append(tile_pos)
 
                     if nearby_building_tiles:
-                        print(f"  [GameState] Detected new Derelict building with {len(nearby_building_tiles)} tiles around {game_unit.type}")
+                        pass
 
                         # Create building formation event
                         events.append(AnimationEvent(
@@ -1180,7 +1177,6 @@ class GameStateAdapter:
                 affected_positions = trap_info['affected_positions']
                 units_with_shrapnel = trap_info.get('units_with_shrapnel', [])
 
-                print(f"  [GameState] Detected Fragcrest trap trigger at {trap_pos} by {triggering_unit.get_display_name()}")
 
                 # Create skill animation event for Fragcrest at trap position
                 # Note: skill_name must be "FRAGCREST" (all caps) to match AnimationFactory registration
@@ -1371,15 +1367,14 @@ class GameStateAdapter:
                     if skill.name == "Diverge":
                         target_unit = self.game.get_unit_at(y, x)
                         if target_unit:
-                            print(f"[DEBUG Diverge] Position ({y},{x}): can_use={can_use_result}, unit_type={target_unit.type.name}, player={target_unit.player}, caster_player={game_unit.player}")
+                            pass
                         else:
-                            print(f"[DEBUG Diverge] Position ({y},{x}): can_use={can_use_result}, unit=None")
+                            pass
 
                     if can_use_result:
                         # Convert to renderer coords
                         skill_range_positions.append((x, y))
 
-        print(f"[DEBUG Diverge] Total valid positions: {len(skill_range_positions)}")
         return skill_range_positions
 
     def handle_player_action(self, action_type: str, **kwargs) -> bool:

@@ -421,7 +421,7 @@ class AnimatedUnit:
                         png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
                         self.sprite = pygame.image.load(BytesIO(png_data))
                     except ImportError:
-                        print(f"Info: cairosvg not available, rendering SVG with basic rasterization for {sprite_path}")
+                        pass
                         # Fallback: create a colored square placeholder
                         self.sprite = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
                         # Draw a simple representation
@@ -434,7 +434,7 @@ class AnimatedUnit:
 
                 self.sprite_rect = self.sprite.get_rect()
             except Exception as e:
-                print(f"Warning: Could not load sprite {sprite_path}: {e}")
+                pass
                 self.sprite = None
 
     def _detect_vapor_type(self):
@@ -448,10 +448,9 @@ class AnimatedUnit:
             if hasattr(self.game_unit, 'type') and self.game_unit.type == UnitType.HEINOUS_VAPOR:
                 # Get vapor type from game unit
                 vapor_type = getattr(self.game_unit, 'vapor_type', 'BROACHING')
-                print(f"[VaporCloud] Detected HEINOUS VAPOR of type: {vapor_type}")
                 self.vapor_cloud = VaporParticleCloud(vapor_type)
         except Exception as e:
-            print(f"[VaporCloud] Error detecting vapor type: {e}")
+            pass
 
     def _create_red_glaive_sprite(self):
         """Create a red six-pointed glaive sprite for attack indication."""
@@ -1056,23 +1055,22 @@ class StatusIconFlash:
                     png_data = cairosvg.svg2png(url=icon_path, output_width=self.icon_size, output_height=self.icon_size)
                     self.icon_surface = pygame.image.load(BytesIO(png_data))
                 except ImportError:
-                    print(f"[StatusIcon] cairosvg not available, using fallback for {effect_name}")
+                    pass
                     # Fallback: create colored circle as placeholder
                     self.icon_surface = pygame.Surface((self.icon_size, self.icon_size), pygame.SRCALPHA)
                     pygame.draw.circle(self.icon_surface, (255, 100, 100), (self.icon_size//2, self.icon_size//2), self.icon_size//3)
                     pygame.draw.circle(self.icon_surface, (255, 255, 255), (self.icon_size//2, self.icon_size//2), self.icon_size//3, 2)
             except Exception as e:
-                print(f"[StatusIcon] Error loading icon {icon_path}: {e}")
+                pass
                 # Create fallback surface
                 self.icon_surface = pygame.Surface((self.icon_size, self.icon_size), pygame.SRCALPHA)
                 pygame.draw.circle(self.icon_surface, (255, 100, 100), (self.icon_size//2, self.icon_size//2), self.icon_size//3)
         else:
-            print(f"[StatusIcon] Icon not found: {icon_path}")
+            pass
             # Create fallback surface
             self.icon_surface = pygame.Surface((self.icon_size, self.icon_size), pygame.SRCALPHA)
             pygame.draw.circle(self.icon_surface, (255, 100, 100), (self.icon_size//2, self.icon_size//2), self.icon_size//3)
 
-        print(f"  [STATUS_ICON] Flashing {effect_name} icon on {unit.name}")
 
     def update(self, delta_time):
         """Update animation state."""
@@ -1166,7 +1164,6 @@ class BasicMeleeAttackAnimation:
             self.dx /= distance
             self.dy /= distance
 
-        print(f"  [BASIC_ATTACK] Starting melee attack animation: {attacker_unit.name} → target")
 
     def _trigger_windup(self):
         """Phase 1: Wind-up lean back."""

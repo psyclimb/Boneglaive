@@ -31,7 +31,6 @@ class NeutronIlluminantCardinal:
             particle_emitter: ParticleEmitter for spawning particles
             screen_flash_callback: Callback to trigger screen flash effect
         """
-        print(f"[NeutronIlluminantCardinal] Creating CARDINAL flash at ({caster_x}, {caster_y})")
         self.caster_x = caster_x
         self.caster_y = caster_y
         self.caster_unit = caster_unit
@@ -60,7 +59,6 @@ class NeutronIlluminantCardinal:
 
         # Spawn immediate particle burst
         self._spawn_flash_particles()
-        print(f"[NeutronIlluminantCardinal] Spawned particles at 4 diagonal positions")
 
     def _spawn_flash_particles(self):
         """Spawn bright flash particles at all diagonal positions."""
@@ -166,7 +164,6 @@ class NeutronIlluminantDiagonal:
             particle_emitter: ParticleEmitter for spawning particles
             screen_flash_callback: Callback to trigger screen flash effect
         """
-        print(f"[NeutronIlluminantDiagonal] Creating DIAGONAL flash at ({caster_x}, {caster_y})")
         self.caster_x = caster_x
         self.caster_y = caster_y
         self.caster_unit = caster_unit
@@ -195,7 +192,6 @@ class NeutronIlluminantDiagonal:
 
         # Spawn immediate particle burst
         self._spawn_flash_particles()
-        print(f"[NeutronIlluminantDiagonal] Spawned particles at 4 cardinal positions")
 
     def _spawn_flash_particles(self):
         """Spawn bright flash particles at all cardinal positions."""

@@ -29,7 +29,6 @@ def run_game():
     # Initialize DLC system before creating game
     from boneglaive.game.dlc_manager import initialize_dlc_system
     dlc_count = initialize_dlc_system()
-    print(f"DLC system initialized: {dlc_count} DLC units loaded")
 
     # Create game state adapter
     adapter = GameStateAdapter()
@@ -45,10 +44,8 @@ def run_game():
     # Get network mode from config
     from boneglaive.utils.config import NetworkMode
     network_mode = config.get('network_mode', NetworkMode.VS_AI.value)
-    print(f"[DEBUG] network_mode from config: {network_mode}")
 
     # Initialize game with selected configuration
-    print(f"Initializing game on map: {selected_map}...")
     # skip_setup=False means game starts in setup phase
     adapter.initialize_game(skip_setup=False, map_name=selected_map, network_mode=network_mode, ui_adapter=ui_adapter)
 
@@ -58,15 +55,10 @@ def run_game():
         print("Terrain change callback registered for dynamic terrain updates")
 
     # Set multiplayer mode based on config
-    print(f"[DEBUG] LOCAL_MULTIPLAYER.value: {NetworkMode.LOCAL_MULTIPLAYER.value}")
     if network_mode == NetworkMode.LOCAL_MULTIPLAYER.value:
         adapter.game.local_multiplayer = True
-        print(f"Game created - starting in setup phase (LOCAL MULTIPLAYER)")
-        print(f"[DEBUG] adapter.game.local_multiplayer = {adapter.game.local_multiplayer}")
     else:
         adapter.game.local_multiplayer = False
-        print(f"Game created - starting in setup phase (VS AI)")
-        print(f"[DEBUG] adapter.game.local_multiplayer = {adapter.game.local_multiplayer}")
 
     # Set UI reference on game for animations
     adapter.game.set_ui_reference(ui_adapter)
@@ -74,7 +66,6 @@ def run_game():
     # Sync units from game
     print("Syncing units from game...")
     renderer.sync_units_from_game()
-    print(f"Created {len(renderer.units)} visual units")
 
     # Add welcome messages to combat log
     renderer.combat_log.add_message("Welcome to Boneglaive!", "system")

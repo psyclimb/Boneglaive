@@ -415,10 +415,10 @@ class GraphicalRenderer:
                 self.terrain_tiles[terrain_type] = surface
                 return surface
             except ImportError:
-                print(f"Info: cairosvg not available, cannot load terrain SVG: {svg_path}")
+                pass
                 return None
         except Exception as e:
-            print(f"Warning: Could not load terrain SVG {svg_path}: {e}")
+            pass
             return None
 
     def _load_rail_overlays(self) -> None:
@@ -429,7 +429,7 @@ class GraphicalRenderer:
         svg_path = "graphics/terrain/rail_universal.svg"
 
         if not os.path.exists(svg_path):
-            print(f"Warning: Universal rail overlay not found: {svg_path}")
+            pass
             return
 
         try:
@@ -444,11 +444,10 @@ class GraphicalRenderer:
 
             # Cache the universal rail surface
             self.rail_universal = surface
-            print(f"Loaded universal rail bomb overlay")
         except ImportError:
-            print(f"Info: cairosvg not available, cannot load universal rail overlay: {svg_path}")
+            pass
         except Exception as e:
-            print(f"Warning: Could not load universal rail overlay {svg_path}: {e}")
+            pass
 
     def _load_scalar_node_overlay(self) -> None:
         """
@@ -458,7 +457,7 @@ class GraphicalRenderer:
         svg_path = "graphics/terrain/scalar_node_trap.svg"
 
         if not os.path.exists(svg_path):
-            print(f"Warning: Scalar node trap overlay not found: {svg_path}")
+            pass
             return
 
         try:
@@ -473,11 +472,10 @@ class GraphicalRenderer:
 
             # Cache the scalar node trap surface
             self.scalar_node_trap = surface
-            print(f"Loaded scalar node trap overlay")
         except ImportError:
-            print(f"Info: cairosvg not available, cannot load scalar node trap overlay: {svg_path}")
+            pass
         except Exception as e:
-            print(f"Warning: Could not load scalar node trap overlay {svg_path}: {e}")
+            pass
 
     def _load_fragcrest_trap_overlay(self) -> None:
         """
@@ -488,7 +486,7 @@ class GraphicalRenderer:
         svg_path = "graphics/terrain/fragcrest_trap.svg"
 
         if not os.path.exists(svg_path):
-            print(f"Warning: Fragcrest trap overlay not found: {svg_path}")
+            pass
             return
 
         try:
@@ -503,11 +501,10 @@ class GraphicalRenderer:
 
             # Cache the fragcrest trap surface
             self.fragcrest_trap = surface
-            print(f"Loaded Fragcrest trap overlay")
         except ImportError:
-            print(f"Info: cairosvg not available, cannot load Fragcrest trap overlay: {svg_path}")
+            pass
         except Exception as e:
-            print(f"Warning: Could not load Fragcrest trap overlay {svg_path}: {e}")
+            pass
 
     def _load_rail_junction_overlay(self) -> None:
         """
@@ -517,7 +514,7 @@ class GraphicalRenderer:
         svg_path = "graphics/ui/rail_junction_overlay.svg"
 
         if not os.path.exists(svg_path):
-            print(f"Warning: Rail junction overlay not found: {svg_path}")
+            pass
             return
 
         try:
@@ -532,11 +529,10 @@ class GraphicalRenderer:
 
             # Cache the rail junction overlay surface
             self.rail_junction_overlay = surface
-            print(f"Loaded Rail Genesis junction overlay")
         except ImportError:
-            print(f"Info: cairosvg not available, cannot load Rail Genesis junction overlay: {svg_path}")
+            pass
         except Exception as e:
-            print(f"Warning: Could not load Rail Genesis junction overlay {svg_path}: {e}")
+            pass
 
     # ASCII renderer compatibility stubs
     def animate_attack_sequence(self, y, x, sequence, color, duration):
@@ -586,7 +582,7 @@ class GraphicalRenderer:
                 # Trigger respawn animation ONLY for actual respawns (not vapors, echoes, or initial spawns)
                 # Vapors and echoes have their own spawn animations
                 if is_respawn and not is_vapor and not is_echo:
-                    print(f"[Renderer] Respawned unit detected: {game_unit.type}, triggering respawn animation at ({game_unit.y}, {game_unit.x})")
+                    pass
 
                     # Create respawn animation IMMEDIATELY (not queued)
                     from boneglaive.graphical.animations import AnimationFactory
@@ -607,9 +603,8 @@ class GraphicalRenderer:
                     )
                     if respawn_animation:
                         self.active_animations.append(respawn_animation)
-                        print(f"  [Animation] Successfully triggered respawn animation for {game_unit.get_display_name()}")
                     else:
-                        print(f"  [Animation] WARNING: Failed to create respawn animation")
+                        pass
 
                     # Clear the respawn flag after triggering animation
                     game_unit._just_respawned = False
@@ -622,7 +617,6 @@ class GraphicalRenderer:
                     # For COOLANT and CUTTING, this plays after the Diverge split animation
                     if vapor_type in ['BROACHING', 'SAFETY', 'COOLANT', 'CUTTING', 'CALIBRATION', 'LIVING_AEROSOL']:
                         skill_name = f"{vapor_type}_gas"
-                        print(f"[Renderer] New HEINOUS VAPOR detected: {vapor_type}, triggering spawn animation at ({game_unit.y}, {game_unit.x})")
 
                         # Queue spawn animation at the vapor's actual position
                         self.game_adapter.queue_skill_animation(
@@ -866,7 +860,7 @@ class GraphicalRenderer:
                             game_unit = self.upgrade_window.unit
                             success = self.game_adapter.game.apply_unit_upgrade(game_unit, upgrade['skill_name'])
                             if success:
-                                print(f"Upgraded {upgrade['skill_name']}!")
+                                pass
                                 self.combat_log.add_message(f"Upgraded {upgrade['skill_name']}!", "system")
                                 # Refresh the upgrade window with updated available upgrades
                                 if not self.upgrade_window.show(game_unit):
@@ -938,10 +932,8 @@ class GraphicalRenderer:
                         game = self.game_adapter.game
                         if game.current_player == 1:
                             game.player1_upgrade_points += 1
-                            print(f"[DEV] Player 1 upgrade points: {game.player1_upgrade_points}")
                         else:
                             game.player2_upgrade_points += 1
-                            print(f"[DEV] Player 2 upgrade points: {game.player2_upgrade_points}")
 
                 # Check action menu hotkeys first
                 elif event.key in [pygame.K_m, pygame.K_a, pygame.K_s, pygame.K_u, pygame.K_r, pygame.K_t, pygame.K_c, pygame.K_h]:
@@ -956,7 +948,7 @@ class GraphicalRenderer:
                     if self.show_skills:
                         skill = self.skill_bar.handle_hotkey(event.key)
                         if skill and self.selected_unit:
-                            print(f"Skill selected: {skill.name}")
+                            pass  # Skill selected
                             self.selected_skill = skill
                             self.current_action_mode = "SKILL"
 
@@ -971,7 +963,7 @@ class GraphicalRenderer:
                                     game_unit.y, game_unit.x = original_y, original_x
                                 else:
                                     self.skill_positions = self.game_adapter.get_skill_range(game_unit, skill)
-                                print(f"Skill has {len(self.skill_positions)} valid targets")
+                                pass  # Valid targets found
 
                                 # Hide movement/attack range, show skill range
                                 self.show_movement_range = False
@@ -980,7 +972,7 @@ class GraphicalRenderer:
                             else:
                                 self.skill_positions = []
                         elif skill and not self.selected_unit:
-                            print("Select a unit first to use skills")
+                            pass  # No unit selected
 
             elif event.type == pygame.MOUSEMOTION:
                 # Track if we should skip other modal handlers (when game over is minimized)
@@ -1109,7 +1101,7 @@ class GraphicalRenderer:
                                 game_unit = self.upgrade_window.unit
                                 success = self.game_adapter.game.apply_unit_upgrade(game_unit, upgrade['skill_name'])
                                 if success:
-                                    print(f"Upgraded {upgrade['skill_name']}!")
+                                    pass
                                     self.combat_log.add_message(f"Upgraded {upgrade['skill_name']}!", "system")
                                     # Refresh the upgrade window with updated available upgrades
                                     if not self.upgrade_window.show(game_unit):
@@ -1199,7 +1191,7 @@ class GraphicalRenderer:
                     if self.show_skills:
                         skill = self.skill_bar.handle_click(event.pos)
                         if skill and self.selected_unit:
-                            print(f"Skill selected via click: {skill.name}")
+                            pass  # Skill selected via click
                             self.selected_skill = skill
                             game_unit = self._get_game_unit(self.selected_unit)
                             if game_unit:
@@ -1229,7 +1221,7 @@ class GraphicalRenderer:
                                     self.skill_bar.update(visual_unit, clicked_unit)
                                     self.unit_info_panel.update(visual_unit, clicked_unit)
                                     self.status_effects_panel.update(clicked_unit)
-                                    print(f"Selected unit: {clicked_unit.get_display_name()}")
+                                    pass  # Unit selected
                                     clicked_handled = True
                                     break
 
@@ -1312,11 +1304,11 @@ class GraphicalRenderer:
                     success = self.selected_skill.use(game_unit, target_pos, self.game_adapter.game)
 
                     if success:
-                        print(f"Skill planned: {self.selected_skill.name} at ({grid_y}, {grid_x})")
+                        pass  # Skill planned
 
                         # Special handling for Parallax - it executes immediately, not during turn execution
                         if self.selected_skill.name == "Parallax":
-                            print(f"[Renderer] Parallax executed immediately - triggering animation")
+                            pass
 
                             # Create animation event for immediate execution
                             from boneglaive.graphical.game_state import AnimationEvent
@@ -1339,11 +1331,10 @@ class GraphicalRenderer:
                                 visual_unit = self.game_adapter.visual_units.get(game_unit.uuid)
                                 if visual_unit:
                                     visual_unit.pending_teleport_skill = "Parallax"
-                                    print(f"[Renderer] Set pending_teleport_skill flag on visual unit")
                                 else:
-                                    print(f"[Renderer] WARNING: Could not find visual unit with UUID {game_unit.uuid}")
+                                    pass
                             else:
-                                print(f"[Renderer] WARNING: Game unit has no UUID!")
+                                pass
 
                             # Sync state to update visual unit position
                             sync_events = self.game_adapter.sync_state()
@@ -1351,11 +1342,10 @@ class GraphicalRenderer:
                                 if event.event_type != "skill":  # Skip skill events, we already handled it
                                     self.handle_animation_event(event)
 
-                            print(f"[Renderer] Parallax animation triggered")
 
                         # Special handling for Deft(?) Reroll - it executes immediately, not during turn execution
                         if self.selected_skill.name == "Deft(?) Reroll":
-                            print(f"[Renderer] Deft(?) Reroll executed immediately - triggering animation")
+                            pass
 
                             # Create animation event for immediate execution
                             from boneglaive.graphical.game_state import AnimationEvent
@@ -1377,9 +1367,8 @@ class GraphicalRenderer:
                                 if event.event_type != "skill":  # Skip skill events, we already handled it
                                     self.handle_animation_event(event)
 
-                            print(f"[Renderer] Deft(?) Reroll animation triggered")
                     else:
-                        print(f"Failed to use skill: {self.selected_skill.name}")
+                        pass  # Skill use failed
 
                     # Clear skill targeting mode and hide all ranges
                     self.selected_skill = None
@@ -1392,7 +1381,7 @@ class GraphicalRenderer:
                     self.show_skills = False  # Hide skill bar after using a skill
                     self.current_action_mode = "SELECT"
             else:
-                print(f"Target out of skill range")
+                pass  # Target out of skill range
             return  # Don't process normal click logic when in skill mode
 
         # Unit selection
@@ -1452,7 +1441,7 @@ class GraphicalRenderer:
                             game_unit.action_timestamp = self.game_adapter.game.action_counter
                             self.game_adapter.game.action_counter += 1
 
-                            print(f"Attack planned: {self.selected_unit.name} -> {unit.name}")
+                            pass  # Attack planned
 
                             # Clear selection
                             self.selected_unit = None
@@ -1467,7 +1456,7 @@ class GraphicalRenderer:
                             self.unit_info_panel.update(None, None)
                             self.current_action_mode = "SELECT"
                     else:
-                        print(f"Enemy {unit.name} out of attack range")
+                        pass  # Enemy out of attack range
                 elif self.selected_unit and self.current_action_mode != "ATTACK":
                     # Unit selected but not in attack mode - just show enemy info
                     game_unit = self._get_game_unit(unit)
@@ -1537,9 +1526,7 @@ class GraphicalRenderer:
                     self.skill_bar.update(None, None)
                     self.status_effects_panel.update(None)
 
-                    print(f"Selected furniture: {furniture_name} at ({grid_x}, {grid_y})")
-                    if astral_value:
-                        print(f"  Astral Value: {astral_value}")
+                    pass  # Furniture selected
 
                     return  # Don't process as movement
 
@@ -1562,7 +1549,7 @@ class GraphicalRenderer:
                             self.game_adapter.game.action_counter += 1
 
                             wall_info = self.game_adapter.game.marrow_dike_tiles[(grid_y, grid_x)]
-                            print(f"Attack planned: {self.selected_unit.name} -> Marrow Dike wall at ({grid_x}, {grid_y})")
+                            pass  # Attack planned on wall
 
                             # Clear selection
                             self.selected_unit = None
@@ -1577,7 +1564,7 @@ class GraphicalRenderer:
                             self.unit_info_panel.update(None, None)
                             self.current_action_mode = "SELECT"
                     else:
-                        print(f"Marrow Dike wall at ({grid_x}, {grid_y}) out of attack range")
+                        pass  # Wall out of attack range
 
                     return  # Don't process as movement
 
@@ -1590,7 +1577,7 @@ class GraphicalRenderer:
                     if game_unit:
                         # Check if unit already has a pending move
                         if game_unit.move_target:
-                            print(f"{self.selected_unit.name} already has a pending move - cannot move again")
+                            pass
                             return
 
                         # Set move target (game uses y, x coordinates)
@@ -1601,7 +1588,7 @@ class GraphicalRenderer:
                         game_unit.action_timestamp = self.game_adapter.game.action_counter
                         self.game_adapter.game.action_counter += 1
 
-                        print(f"Move planned: {self.selected_unit.name} → ({grid_x}, {grid_y})")
+                        pass  # Move planned
 
                         # Keep unit selected but update to show attack range from new position
                         # Clear movement range since unit already moved
@@ -1615,14 +1602,14 @@ class GraphicalRenderer:
                         # Switch to ATTACK mode automatically so user can attack after moving
                         self.current_action_mode = "ATTACK"
 
-                        print(f"  Attack range updated: {len(self.attack_positions)} targets from new position")
+                        pass  # Attack range updated
                     else:
-                        print(f"ERROR: Could not find game unit for {self.selected_unit.name}")
+                        pass  # Could not find game unit
                 else:
-                    print(f"Cannot move there - not in movement range")
+                    pass  # Not in movement range
             elif self.selected_unit and self.current_action_mode != "MOVE":
                 # Unit selected but not in move mode - inform player
-                print(f"Click Move (M) to move the selected unit")
+                pass  # Not in move mode
 
     def _get_unit_id(self, unit) -> Optional[str]:
         """Helper to get unit ID."""
@@ -1639,7 +1626,7 @@ class GraphicalRenderer:
         """
         if action == "move":
             if self.selected_unit:
-                print("Move mode activated")
+                pass  # Move mode activated
                 self.current_action_mode = "MOVE"
                 self.show_skills = False  # Hide skills when switching to move mode
                 # Show movement range
@@ -1657,7 +1644,7 @@ class GraphicalRenderer:
 
         elif action == "attack":
             if self.selected_unit:
-                print("Attack mode activated")
+                pass  # Attack mode activated
                 self.current_action_mode = "ATTACK"
                 self.show_skills = False  # Hide skills when switching to attack mode
                 # Show attack range
@@ -1674,41 +1661,41 @@ class GraphicalRenderer:
 
         elif action == "skills":
             if self.selected_unit:
-                print("Skills button clicked - toggling skill bar visibility")
+                pass  # Skills toggled
                 # Toggle skill bar visibility
                 self.show_skills = not self.show_skills
                 self.current_action_mode = "SKILLS" if self.show_skills else "SELECT"
 
         elif action == "respawn":
-            print("Respawn mode activated")
+            pass  # Respawn mode activated
             self.start_respawn_mode()
 
         elif action == "upgrade":
-            print("Upgrade mode activated")
+            pass  # Upgrade mode activated
             if self.selected_unit:
                 game_unit = self._get_game_unit(self.selected_unit)
                 if game_unit:
                     success = self.upgrade_window.show(game_unit)
                     if not success:
-                        print("No upgrades available for this unit")
+                        pass  # No upgrades available
 
         elif action == "help":
-            print("Help button clicked")
+            pass  # Help button clicked
             # Show help page for selected unit
             if self.selected_unit:
                 game_unit = self._get_game_unit(self.selected_unit)
                 if game_unit:
                     self.help_page.show(game_unit.type)
-                    print(f"Showing help for {game_unit.type}")
+                    pass  # Showing help
             else:
-                print("No unit selected for help")
+                pass  # No unit selected
 
         elif action == "execute":
-            print("Executing turn...")
+            pass
             self.execute_turn()
 
         elif action == "concede":
-            print("Concede requested - showing confirmation dialog")
+            pass  # Concede requested
             self.concede_dialog.show()
 
     def _get_furniture_name(self, terrain_type) -> str:
@@ -1806,11 +1793,9 @@ class GraphicalRenderer:
                     skill_name = event.kwargs.get('skill_name')
                     if skill_name in PRE_EXECUTION_BLOCKING_SKILLS:
                         events_to_process.append(event)
-                        print(f"  [Renderer] Processing blocking skill: {skill_name}")
                     else:
                         # Keep non-blocking skills for post-execution
                         events_to_keep.append(event)
-                        print(f"  [Renderer] Deferring non-blocking skill for post-execution: {skill_name}")
                 else:
                     # Process non-skill events (damage, heal, etc.)
                     events_to_process.append(event)
@@ -1864,12 +1849,10 @@ class GraphicalRenderer:
             target = event.target_unit  # Potpourrist healing
             heal = event.kwargs.get("heal_amount", 0)
 
-            print(f"[GeasHeal] Processing geas_heal event: {target.get_display_name() if target else 'None'} heals {heal} HP from {source.get_display_name() if source else 'None'}")
 
             source_visual = self._get_visual_unit(source)
             target_visual = self._get_visual_unit(target)
 
-            print(f"[GeasHeal] Visual units: source={source_visual is not None}, target={target_visual is not None}")
 
             if source_visual and target_visual:
                 from boneglaive.graphical.animations.potpourrist import GeasBreakHeal
@@ -1877,7 +1860,6 @@ class GraphicalRenderer:
                 source_animated = source_visual.animated_unit
                 target_animated = target_visual.animated_unit
 
-                print(f"[GeasHeal] Creating animation from ({source_animated.x:.1f}, {source_animated.y:.1f}) to ({target_animated.x:.1f}, {target_animated.y:.1f})")
 
                 # Create geas break heal animation
                 animation = GeasBreakHeal(
@@ -1889,16 +1871,14 @@ class GraphicalRenderer:
                     heal_amount=heal
                 )
                 self.active_animations.append(animation)
-                print(f"[GeasHeal] Animation added to active_animations (count: {len(self.active_animations)})")
 
                 # Also show floating heal text
                 x = target_animated.x
                 y = target_animated.y - 20
                 self.floating_texts.append(FloatingText(x, y, f"+{heal}", COLOR_HEAL))
 
-                print(f"[GeasHeal] Animation created successfully!")
             else:
-                print(f"[GeasHeal] ERROR: Could not find visual units for animation")
+                pass
 
         elif event.event_type == "melange_heal":
             # Melange Eminence passive healing animation
@@ -1906,7 +1886,6 @@ class GraphicalRenderer:
             heal = event.kwargs.get("heal_amount", 1)
             infused = event.kwargs.get("infused", False)
 
-            print(f"[MelangeHeal] Processing melange_heal event: {target.get_display_name() if target else 'None'} heals {heal} HP (infused: {infused})")
 
             target_visual = self._get_visual_unit(target)
 
@@ -1921,7 +1900,6 @@ class GraphicalRenderer:
                     from boneglaive.graphical.animations.potpourrist import MelangeEminenceHealAnimation
                     animation_class = MelangeEminenceHealAnimation
 
-                print(f"[MelangeHeal] Creating {animation_class.__name__} animation at ({target_animated.x:.1f}, {target_animated.y:.1f})")
 
                 # Create animation directly (bypass factory to pass heal_amount)
                 animation = animation_class(
@@ -1942,16 +1920,14 @@ class GraphicalRenderer:
 
                 if animation:
                     self.active_animations.append(animation)
-                    print(f"[MelangeHeal] Animation added to active_animations (count: {len(self.active_animations)})")
 
                     # Also show floating heal text
                     x = target_animated.x
                     y = target_animated.y - 20
                     self.floating_texts.append(FloatingText(x, y, f"+{heal}", COLOR_HEAL))
 
-                    print(f"[MelangeHeal] Animation created successfully!")
             else:
-                print(f"[MelangeHeal] ERROR: Could not find visual unit for animation")
+                pass
 
         elif event.event_type == "scalar_trap":
             # Scalar node trap triggered - standing wave explosion
@@ -1959,7 +1935,6 @@ class GraphicalRenderer:
             trap_pos = event.kwargs.get("trap_position")  # (y, x) in game coords
             damage = event.kwargs.get("damage_amount", 0)
 
-            print(f"[ScalarTrap] Processing scalar_trap event: {target.get_display_name() if target else 'None'} triggers trap at {trap_pos} for {damage} damage")
 
             target_visual = self._get_visual_unit(target)
 
@@ -1972,7 +1947,6 @@ class GraphicalRenderer:
                 trap_screen_x = GRID_OFFSET_X + trap_pos[1] * TILE_SIZE + TILE_SIZE // 2
                 trap_screen_y = GRID_OFFSET_Y + trap_pos[0] * TILE_SIZE + TILE_SIZE // 2
 
-                print(f"[ScalarTrap] Creating animation at screen coords ({trap_screen_x}, {trap_screen_y})")
 
                 # Create scalar node trigger animation
                 animation = ScalarNodeTriggerAnimation(
@@ -1983,7 +1957,6 @@ class GraphicalRenderer:
                     screen_flash_callback=self.trigger_screen_flash
                 )
                 self.active_animations.append(animation)
-                print(f"[ScalarTrap] Animation added to active_animations (count: {len(self.active_animations)})")
 
                 # Show damage floating text
                 x = target_animated.x
@@ -1991,9 +1964,8 @@ class GraphicalRenderer:
                 self.floating_texts.append(FloatingText(x, y, f"-{damage}", COLOR_DAMAGE))
                 target_animated.shake_intensity = 12
 
-                print(f"[ScalarTrap] Animation created successfully!")
             else:
-                print(f"[ScalarTrap] ERROR: Could not find visual unit or trap position for animation")
+                pass
 
         elif event.event_type == "trap_release":
             # Play trap release animation (jaw opening)
@@ -2005,14 +1977,13 @@ class GraphicalRenderer:
                 # Convert unit position to screen coordinates
                 release_x, release_y = self.camera.grid_to_screen(animated_unit.grid_x, animated_unit.grid_y)
 
-                print(f"[TrapRelease] {target.get_display_name()} released from Viseroy trap at grid ({animated_unit.grid_x}, {animated_unit.grid_y}), screen ({release_x}, {release_y})")
 
                 # Create JawRelease animation
                 from boneglaive.graphical.animations.mandible_foreman import JawRelease
                 jaw_release = JawRelease(release_x, release_y)
                 self.active_animations.append(jaw_release)
             else:
-                print(f"[TrapRelease] ERROR: Could not find visual unit for released unit")
+                pass
 
         elif event.event_type == "viseroy_tick":
             # Trap tick damage - jaws tighten animation
@@ -2026,7 +1997,6 @@ class GraphicalRenderer:
                 # Convert unit position to screen coordinates
                 tick_x, tick_y = self.camera.grid_to_screen(animated_unit.grid_x, animated_unit.grid_y)
 
-                print(f"[ViseroyTick] {target.get_display_name()} takes {damage} trap tick damage at grid ({animated_unit.grid_x}, {animated_unit.grid_y}), screen ({tick_x}, {tick_y})")
 
                 # Create JawTighten animation
                 from boneglaive.graphical.animations.mandible_foreman import JawTighten
@@ -2041,9 +2011,8 @@ class GraphicalRenderer:
                 # Add screen shake for impact
                 animated_unit.shake_intensity = 8
 
-                print(f"[ViseroyTick] JawTighten animation created successfully!")
             else:
-                print(f"[ViseroyTick] ERROR: Could not find visual unit for trapped target")
+                pass
 
         elif event.event_type == "retch":
             # Unit reached critical health - show retch animation
@@ -2058,7 +2027,6 @@ class GraphicalRenderer:
                 retch_x = animated_unit.x
                 retch_y = animated_unit.y
 
-                print(f"[Retch] {target.get_display_name()} retches at critical health at grid ({animated_unit.grid_x}, {animated_unit.grid_y}), screen ({retch_x}, {retch_y})")
 
                 # Create RetchAnimation
                 from boneglaive.graphical.animations.core import RetchAnimation
@@ -2073,9 +2041,8 @@ class GraphicalRenderer:
                 # Add screen shake for critical state
                 animated_unit.shake_intensity = 10
 
-                print(f"[Retch] RetchAnimation created successfully!")
             else:
-                print(f"[Retch] ERROR: Could not find visual unit for retching unit")
+                pass
 
         elif event.event_type == "autoclave_failure":
             # Autoclave failure - GLAIVEMAN charges but fizzles (no targets available)
@@ -2085,7 +2052,6 @@ class GraphicalRenderer:
             if visual_unit:
                 animated_unit = visual_unit.animated_unit
 
-                print(f"[AutoclaveFailure] {target.get_display_name()}'s Autoclave fails - no targets in range")
 
                 # Create AutoclaveFailureAnimation
                 from boneglaive.graphical.animations import AnimationFactory
@@ -2107,27 +2073,22 @@ class GraphicalRenderer:
 
                 if failure_animation:
                     self.active_animations.append(failure_animation)
-                    print(f"[AutoclaveFailure] Animation created successfully!")
                 else:
-                    print(f"[AutoclaveFailure] ERROR: Failed to create animation")
+                    pass
             else:
-                print(f"[AutoclaveFailure] ERROR: Could not find visual unit for GLAIVEMAN")
+                pass
 
         elif event.event_type == "partition_dissociation":
             # Play partition dissociation animation (emergency trigger)
-            print(f"[RENDERER DEBUG] *** RECEIVED partition_dissociation EVENT ***")
             protected_unit = event.target_unit  # Unit that was protected
             derelictionist = event.source_unit  # DERELICTIONIST who cast partition
-            print(f"  Protected unit: {protected_unit.get_display_name() if protected_unit else 'None'}")
-            print(f"  DERELICTIONIST: {derelictionist.get_display_name() if derelictionist else 'None'}")
+            pass  # Dereliction check
 
             protected_visual = self._get_visual_unit(protected_unit)
             derelictionist_visual = self._get_visual_unit(derelictionist)
-            print(f"  Protected visual found: {protected_visual is not None}")
-            print(f"  DERELICTIONIST visual found: {derelictionist_visual is not None}")
 
             if protected_visual and derelictionist_visual:
-                print(f"[PartitionDissociation] Creating dissociation animation for {protected_unit.get_display_name()}")
+                pass
 
                 from boneglaive.graphical.animations import PartitionDissociationAnimation
 
@@ -2141,27 +2102,23 @@ class GraphicalRenderer:
                 )
 
                 self.active_animations.append(dissociation_anim)
-                print(f"[PartitionDissociation] Dissociation animation CREATED and added to active_animations (count: {len(self.active_animations)})")
             else:
                 if not protected_visual:
-                    print(f"[PartitionDissociation] ERROR: Could not find visual unit for protected unit {protected_unit.get_display_name()}")
+                    pass
                 if not derelictionist_visual:
-                    print(f"[PartitionDissociation] ERROR: Could not find visual unit for DERELICTIONIST {derelictionist.get_display_name()}")
+                    pass
 
         elif event.event_type == "teleport_defection":
             # Play DERELICTIONIST defection teleport animation
-            print(f"[RENDERER DEBUG] *** RECEIVED teleport_defection EVENT ***")
             derelictionist = event.source_unit
             origin_pos = event.kwargs.get("origin_pos")  # (y, x) in game coords
             destination_pos = event.kwargs.get("destination_pos")  # (y, x) in game coords
-            print(f"  DERELICTIONIST: {derelictionist.get_display_name() if derelictionist else 'None'}")
-            print(f"  Origin: {origin_pos}, Destination: {destination_pos}")
+            pass  # Push trail check
 
             derelictionist_visual = self._get_visual_unit(derelictionist)
-            print(f"  DERELICTIONIST visual found: {derelictionist_visual is not None}")
 
             if derelictionist_visual and origin_pos and destination_pos:
-                print(f"[DefectTeleport] Creating defection teleport animation for {derelictionist.get_display_name()}")
+                pass
 
                 from boneglaive.graphical.animations.derelictionist import DerelictionistDefectTeleportAnimation
 
@@ -2175,14 +2132,13 @@ class GraphicalRenderer:
                 )
 
                 self.active_animations.append(teleport_anim)
-                print(f"[DefectTeleport] Teleport animation CREATED and added to active_animations (count: {len(self.active_animations)})")
             else:
                 if not derelictionist_visual:
-                    print(f"[DefectTeleport] ERROR: Could not find visual unit for DERELICTIONIST {derelictionist.get_display_name()}")
+                    pass
                 if not origin_pos:
-                    print(f"[DefectTeleport] ERROR: No origin position provided")
+                    pass
                 if not destination_pos:
-                    print(f"[DefectTeleport] ERROR: No destination position provided")
+                    pass
 
         elif event.event_type == "death":
             # Play death animation - blood explosion
@@ -2198,7 +2154,6 @@ class GraphicalRenderer:
                 )
                 # Screen shake for impact
                 self.trigger_screen_shake(8, 0.3)
-                print(f"[Death] {unit.get_display_name()} death animation triggered (blood explosion)")
 
         elif event.event_type == "attack":
             # Create basic attack animation from queued event
@@ -2406,11 +2361,11 @@ class GraphicalRenderer:
 
         # Update debris with collision detection (for PRY splash damage)
         if len(self.debris_particles) > 0 and not hasattr(self, '_debris_logged'):
-            print(f"[Renderer] Updating {len(self.debris_particles)} debris particles")
-            print(f"  debris_particles list: id={id(self.debris_particles)}")
+            pass
+            pass  # Debris created
             if self.debris_particles:
                 d = self.debris_particles[0]
-                print(f"  First debris: pos=({d.x:.1f}, {d.y:.1f}), vel=({d.vx:.1f}, {d.vy:.1f}), lifetime={d.lifetime:.2f}")
+                pass  # First debris details
             self._debris_logged = True
         remaining_debris = []
         debris_collision_count = 0
@@ -2428,7 +2383,7 @@ class GraphicalRenderer:
             else:
                 debris_removed_count += 1
         if debris_collision_count > 0 or debris_removed_count > 0:
-            print(f"[Debris] Collisions: {debris_collision_count}, Removed (lifetime): {debris_removed_count}, Remaining: {len(remaining_debris)}")
+            pass
         self.debris_particles = remaining_debris
 
         # Update active animations and check for impact effects
@@ -2517,15 +2472,12 @@ class GraphicalRenderer:
                     # Convert enemy position to screen coordinates
                     jaw_x, jaw_y = self.camera.grid_to_screen(enemy_pos[1], enemy_pos[0])  # (x, y) = (col, row)
 
-                    print(f"  [Renderer] ExpediteRush hit enemy at grid ({enemy_pos[1]}, {enemy_pos[0]})")
-                    print(f"  [Renderer] Creating JawClamp animation at enemy screen position ({jaw_x}, {jaw_y})")
 
                     jaw_animation = JawClamp(jaw_x, jaw_y)
                     if jaw_animation:
                         self.active_animations.append(jaw_animation)
-                        print(f"  [Animation] Successfully triggered JawClamp animation on Expedite enemy hit")
                     else:
-                        print(f"  [Animation] WARNING: Failed to create JawClamp animation")
+                        pass
 
                     # Clear the expedite enemy hit flag
                     game_unit.expedite_enemy_hit = None
@@ -2552,7 +2504,6 @@ class GraphicalRenderer:
             self.flush_pending_events()
         elif not self.has_active_animations() and hasattr(self.game_adapter, '_effects_to_show_after_damage') and self.game_adapter._effects_to_show_after_damage:
             # No pending damage events, but we have status icons to show
-            print(f"[Renderer] No pending events, but showing {len(self.game_adapter._effects_to_show_after_damage)} status effect icons")
             self._show_active_status_effects()
             # Note: List is cleared inside _show_active_status_effects() to prevent duplicates
 
@@ -2595,7 +2546,6 @@ class GraphicalRenderer:
             # ALWAYS queue basic attack animations during turn execution
             # This ensures attacks trigger AFTER units reach their destination
             self.pending_animation_events.append(event)
-            print(f"  [Renderer] Queued basic attack animation")
 
         elif event.event_type == "skill":
             # ALWAYS queue skill animations during turn execution
@@ -2603,26 +2553,23 @@ class GraphicalRenderer:
             # Movement events are processed in the same sync_state() call,
             # so we need to queue skills and let them flush after movement completes
             self.pending_animation_events.append(event)
-            print(f"  [Renderer] Queued skill animation: {event.kwargs.get('skill_name')}")
 
         elif event.event_type == "glaive_sweep":
             # ALWAYS queue glaive sweep animations during turn execution
             # This is the upgraded Autoclave counter-attack
             self.pending_animation_events.append(event)
-            print(f"  [Renderer] Queued Glaive Sweep counter-attack animation")
 
         elif event.event_type == "status_effect":
             # NOTE: Status effect events are NO LONGER handled here to prevent duplicate flashes.
             # All status effects (including trap-applied ones like shrapnel) are now detected
             # via _detect_status_effects_callback() and shown via _show_active_status_effects().
             # This ensures each effect flashes exactly ONCE after damage numbers complete.
-            print(f"  [Renderer] Ignoring status_effect event (will be detected via callback system)")
+            pass
 
         elif event.event_type == "partition_dissociation":
             # Partition dissociation is a dramatic emergency animation - show immediately
             # This takes priority and should not be queued
             self._show_event_immediately(event)
-            print(f"  [Renderer] Triggered partition dissociation animation immediately")
 
         elif event.event_type == "zone_create":
             # Zone creation (e.g., Selenic Backdraft from upgraded Demilune)
@@ -2631,10 +2578,9 @@ class GraphicalRenderer:
             zone_name = event.kwargs.get('zone_name')
             zone_tiles = event.kwargs.get('zone_tiles', [])
 
-            print(f"  [Renderer] Received zone_create event: zone_name={zone_name}, tiles={zone_tiles}")
 
             if zone_name and zone_tiles:
-                print(f"  [Renderer] Creating {zone_name} zone animation IMMEDIATELY on {len(zone_tiles)} tiles")
+                pass
 
                 # Find animated unit for caster
                 caster_animated = self._find_animated_unit_by_game_unit(event.source_unit)
@@ -2663,11 +2609,10 @@ class GraphicalRenderer:
                         # Add to background_animations - non-blocking, persistent effect
                         # Background animations don't block pending_animation_events from flushing
                         self.background_animations.append(zone_animation)
-                        print(f"  [Animation] Successfully created {zone_name} zone in BACKGROUND (non-blocking)")
                     else:
-                        print(f"  [Animation] WARNING: Failed to create {zone_name} zone animation")
+                        pass
                 else:
-                    print(f"  [Renderer] WARNING: Could not find animated unit for zone caster")
+                    pass
 
             # DON'T BLOCK - zone is independent background effect
 
@@ -2676,10 +2621,9 @@ class GraphicalRenderer:
             # Create building formation animation (one-time) and persistent building tiles (background)
             building_tiles = event.kwargs.get('building_tiles', [])
 
-            print(f"  [Renderer] Received building_create event: {len(building_tiles)} tiles")
 
             if building_tiles:
-                print(f"  [Renderer] Creating Derelict building animations on {len(building_tiles)} tiles")
+                pass
 
                 # Find animated unit for caster
                 caster_animated = self._find_animated_unit_by_game_unit(event.source_unit)
@@ -2707,9 +2651,8 @@ class GraphicalRenderer:
 
                     if formation_animation:
                         self.active_animations.append(formation_animation)
-                        print(f"  [Animation] Successfully created dust cloud formation animation")
                     else:
-                        print(f"  [Animation] WARNING: Failed to create dust cloud formation animation")
+                        pass
 
                     # 2. Building tiles persistent effect (background, non-blocking)
                     tiles_animation = AnimationFactory.create_animation(
@@ -2731,11 +2674,10 @@ class GraphicalRenderer:
                     if tiles_animation:
                         # Add to background_animations - non-blocking, persistent effect
                         self.background_animations.append(tiles_animation)
-                        print(f"  [Animation] Successfully created building tiles in BACKGROUND (non-blocking)")
                     else:
-                        print(f"  [Animation] WARNING: Failed to create building tiles animation")
+                        pass
                 else:
-                    print(f"  [Renderer] WARNING: Could not find animated unit for building caster")
+                    pass
 
             # Building formation is blocking, but tiles are background effect
 
@@ -2745,7 +2687,7 @@ class GraphicalRenderer:
             end_pos = event.kwargs.get('end_pos')
 
             if start_pos and end_pos:
-                print(f"  [Renderer] Creating Derelict push trail from {start_pos} to {end_pos}")
+                pass
 
                 from boneglaive.graphical.animations import AnimationFactory
 
@@ -2763,9 +2705,8 @@ class GraphicalRenderer:
 
                 if push_trail:
                     self.active_animations.append(push_trail)
-                    print(f"  [Animation] Successfully created push trail animation")
                 else:
-                    print(f"  [Animation] WARNING: Failed to create push trail animation")
+                    pass
 
             # Push trail is non-blocking visual effect
 
@@ -2788,7 +2729,6 @@ class GraphicalRenderer:
         if effect_name == 'derelicted':
             from boneglaive.graphical.animations.derelictionist import DerelictedApplicationAnimation
 
-            print(f"  [Renderer] Creating Derelicted application animation (in addition to icon flash)...")
             animation = DerelictedApplicationAnimation(
                 target_unit=animated_unit,
                 camera=self.camera,
@@ -2798,19 +2738,16 @@ class GraphicalRenderer:
             )
             if animation:
                 self.active_animations.append(animation)
-                print(f"  [Animation] Successfully triggered Derelicted application animation")
             else:
-                print(f"  [Animation] WARNING: Failed to create Derelicted application animation")
+                pass
             # Continue to also create the icon flash below
 
         # Regular status icon flash for all effects (including derelicted)
-        print(f"  [Renderer] Creating status icon flash for {effect_name}...")
         animation = StatusIconFlash(animated_unit, effect_name)
         if animation:
             self.active_animations.append(animation)
-            print(f"  [Animation] Successfully triggered status icon flash: {effect_name}")
         else:
-            print(f"  [Animation] WARNING: Failed to create status icon flash")
+            pass
 
     def _show_active_status_effects(self):
         """
@@ -2823,29 +2760,26 @@ class GraphicalRenderer:
 
         # Check if we have effects stored from the callback
         if not hasattr(self.game_adapter, '_effects_to_show_after_damage'):
-            print("[Renderer] No effects to show (no _effects_to_show_after_damage attribute)")
+            pass
             return
 
         effects_list = self.game_adapter._effects_to_show_after_damage
         if not effects_list:
-            print("[Renderer] No effects to show (empty list)")
+            pass
             return
 
-        print(f"[Renderer] Showing {len(effects_list)} status effect icons...")
 
         for unit_id, effect_name in effects_list:
             if unit_id in self.game_adapter.visual_units:
                 visual_unit = self.game_adapter.visual_units[unit_id]
                 animated_unit = visual_unit.animated_unit
                 game_unit = visual_unit.game_unit
-                print(f"[Renderer] Showing {effect_name} icon for {game_unit.get_display_name()}")
                 self._create_status_icon_flash(animated_unit, effect_name)
             else:
-                print(f"[Renderer] WARNING: Unit {unit_id} not found in visual_units")
+                pass
 
         # Clear the list immediately after showing to prevent duplicate flashes
         self.game_adapter._effects_to_show_after_damage.clear()
-        print(f"[Renderer] Cleared effects list to prevent duplicates")
 
     def _create_attack_animation(self, event):
         """
@@ -2860,15 +2794,13 @@ class GraphicalRenderer:
         attacker = event.source_unit
         attack_target = event.kwargs.get("attack_target")  # (y, x) in game coords
 
-        print(f"  [Renderer] Processing basic attack event: {attacker.get_display_name() if attacker else 'None'} → {attack_target}")
 
         # Find attacker visual unit
         attacker_animated = self._get_visual_unit(attacker)
         if attacker_animated:
             attacker_animated = attacker_animated.animated_unit
-            print(f"  [Renderer] Found attacker visual unit at ({attacker_animated.grid_x}, {attacker_animated.grid_y})")
         else:
-            print(f"  [Renderer] WARNING: Could not find visual unit for attacker!")
+            pass
             return
 
         # Find target unit if any
@@ -2878,11 +2810,10 @@ class GraphicalRenderer:
             target_grid_y = attack_target[0]
             target_unit = self._get_unit_at_grid(target_grid_x, target_grid_y)
             if not target_unit:
-                print(f"  [Renderer] WARNING: Could not find target unit at {attack_target}")
+                pass
                 # Continue anyway - animation will work without target
 
         # Create animation
-        print(f"  [Renderer] Creating basic melee attack animation...")
         animation = BasicMeleeAttackAnimation(
             attacker_unit=attacker_animated,
             target_unit=target_unit,
@@ -2891,12 +2822,10 @@ class GraphicalRenderer:
         )
         if animation:
             self.active_animations.append(animation)
-            print(f"  [Animation] Successfully triggered basic attack animation")
         else:
-            print(f"  [Animation] WARNING: Failed to create basic attack animation")
+            pass
 
         # Check if attacker is INTERFERER and trigger Neutron Illuminant passive flash
-        print(f"  [DEBUG] Checking for INTERFERER: attacker={attacker}, has type={hasattr(attacker, 'type') if attacker else False}")
         if attacker and hasattr(attacker, 'type') and attacker.type:
             from boneglaive.utils.constants import UnitType
             # Handle DLC units (integer enum values)
@@ -2904,22 +2833,20 @@ class GraphicalRenderer:
                 unit_type_name = attacker.type.name
             else:
                 unit_type_name = str(attacker.type)
-            print(f"  [DEBUG] Attacker unit type: {unit_type_name}")
             if attacker.type == UnitType.INTERFERER and attack_target:
-                print(f"  [Renderer] *** INTERFERER ATTACK DETECTED ***")
+                pass
 
                 # Check if this attack has carrier_rave flag (captured from game state BEFORE execution cleared it)
                 has_carrier_rave = event.kwargs.get("has_carrier_rave", False)
                 use_basic_attack = not has_carrier_rave  # Use dual carabiner swing for basic attacks
 
                 if has_carrier_rave:
-                    print(f"  [Renderer] *** CARRIER RAVE FLAG DETECTED - using triple strike animation ***")
+                    pass
 
                 from boneglaive.graphical.animations.animation_factory import AnimationFactory
 
                 if use_basic_attack and target_unit:
                     # Use dual carabiner swing for basic attacks with Neutron Illuminant flash
-                    print(f"  [Renderer] Using dual carabiner swing for basic attack with flash")
                     from boneglaive.graphical.animations.interferer import InterfererDualCarabinerAttack
 
                     carabiner_attack = InterfererDualCarabinerAttack(
@@ -2931,13 +2858,11 @@ class GraphicalRenderer:
                     )
                     if carabiner_attack:
                         self.active_animations.append(carabiner_attack)
-                        print(f"  [Animation] Successfully triggered INTERFERER dual carabiner swing with flash")
                     else:
-                        print(f"  [Animation] WARNING: Failed to create INTERFERER carabiner attack")
+                        pass
 
                 elif has_carrier_rave:
                     # Use triple strike animation
-                    print(f"  [Renderer] Creating KARRIER_RAVE_STRIKE animation (triple strike)")
 
                     # Convert target to screen coords
                     target_grid_x = attack_target[1]
@@ -2956,9 +2881,8 @@ class GraphicalRenderer:
 
                     if karrier_animation:
                         self.active_animations.append(karrier_animation)
-                        print(f"  [Animation] *** Successfully triggered KARRIER RAVE triple strike - added to active_animations (count: {len(self.active_animations)}) ***")
                     else:
-                        print(f"  [Animation] WARNING: Failed to create KARRIER RAVE strike animation")
+                        pass
                 else:
                     # Use normal Neutron Illuminant flash animation
                     # Determine attack direction (cardinal vs diagonal)
@@ -2971,7 +2895,6 @@ class GraphicalRenderer:
                     is_cardinal = (dy == 0 or dx == 0)
 
                     skill_name = "NEUTRON_ILLUMINANT_CARDINAL" if is_cardinal else "NEUTRON_ILLUMINANT_DIAGONAL"
-                    print(f"  [Renderer] Creating {skill_name} flash (direction: dy={dy}, dx={dx}, is_cardinal={is_cardinal})")
 
                     neutron_animation = AnimationFactory.create_animation(
                         skill_name=skill_name,
@@ -2985,29 +2908,26 @@ class GraphicalRenderer:
 
                     if neutron_animation:
                         self.active_animations.append(neutron_animation)
-                        print(f"  [Animation] *** Successfully triggered Neutron Illuminant flash - added to active_animations (count: {len(self.active_animations)}) ***")
                     else:
-                        print(f"  [Animation] WARNING: Failed to create Neutron Illuminant animation")
+                        pass
 
             # Check if attacker is MANDIBLE_FOREMAN and trigger JawClamp animation on hit
             elif attacker.type == UnitType.MANDIBLE_FOREMAN and attack_target and target_unit:
-                print(f"  [Renderer] *** MANDIBLE_FOREMAN ATTACK DETECTED ***")
+                pass
                 from boneglaive.graphical.animations.mandible_foreman import JawClamp
 
                 # Convert target position to screen coordinates
                 target_x, target_y = self.camera.grid_to_screen(target_unit.grid_x, target_unit.grid_y)
 
-                print(f"  [Renderer] Creating JawClamp animation at target position ({target_x}, {target_y})")
                 jaw_animation = JawClamp(target_x, target_y)
                 if jaw_animation:
                     self.active_animations.append(jaw_animation)
-                    print(f"  [Animation] Successfully triggered JawClamp animation on MANDIBLE_FOREMAN hit")
                 else:
-                    print(f"  [Animation] WARNING: Failed to create JawClamp animation")
+                    pass
 
             # Check if attacker is GLAIVEMAN and trigger polearm sweep animation
             elif attacker.type == UnitType.GLAIVEMAN and attack_target and target_unit:
-                print(f"  [Renderer] *** GLAIVEMAN ATTACK DETECTED ***")
+                pass
                 from boneglaive.graphical.animations.glaiveman import GlaivemanPolearmAttack
 
                 polearm_animation = GlaivemanPolearmAttack(
@@ -3018,13 +2938,12 @@ class GraphicalRenderer:
                 )
                 if polearm_animation:
                     self.active_animations.append(polearm_animation)
-                    print(f"  [Animation] Successfully triggered GLAIVEMAN polearm sweep animation")
                 else:
-                    print(f"  [Animation] WARNING: Failed to create GLAIVEMAN polearm animation")
+                    pass
 
             # Check if attacker is GRAYMAN and trigger psychic attack animation
             elif attacker.type == UnitType.GRAYMAN and attack_target and target_unit:
-                print(f"  [Renderer] *** GRAYMAN ATTACK DETECTED ***")
+                pass
                 from boneglaive.graphical.animations.grayman import GraymanPsychicAttack
 
                 psychic_animation = GraymanPsychicAttack(
@@ -3035,13 +2954,12 @@ class GraphicalRenderer:
                 )
                 if psychic_animation:
                     self.active_animations.append(psychic_animation)
-                    print(f"  [Animation] Successfully triggered GRAYMAN psychic attack animation")
                 else:
-                    print(f"  [Animation] WARNING: Failed to create GRAYMAN psychic animation")
+                    pass
 
             # Check if attacker is MARROW_CONDENSER and trigger bone ball attack animation
             elif attacker.type == UnitType.MARROW_CONDENSER and attack_target and target_unit:
-                print(f"  [Renderer] *** MARROW_CONDENSER ATTACK DETECTED ***")
+                pass
                 from boneglaive.graphical.animations.marrow_condenser import MarrowCondenserBoneAttack
 
                 bone_attack = MarrowCondenserBoneAttack(
@@ -3052,13 +2970,12 @@ class GraphicalRenderer:
                 )
                 if bone_attack:
                     self.active_animations.append(bone_attack)
-                    print(f"  [Animation] Successfully triggered MARROW_CONDENSER bone ball attack animation")
                 else:
-                    print(f"  [Animation] WARNING: Failed to create MARROW_CONDENSER bone attack")
+                    pass
 
             # Check if attacker is FOWL_CONTRIVANCE and trigger electromagnetic bolt attack animation
             elif attacker.type == UnitType.FOWL_CONTRIVANCE and attack_target and target_unit:
-                print(f"  [Renderer] *** FOWL_CONTRIVANCE ATTACK DETECTED ***")
+                pass
                 from boneglaive.graphical.animations.fowl_contrivance import FowlContrivanceElectromagneticAttack
 
                 em_attack = FowlContrivanceElectromagneticAttack(
@@ -3069,13 +2986,12 @@ class GraphicalRenderer:
                 )
                 if em_attack:
                     self.active_animations.append(em_attack)
-                    print(f"  [Animation] Successfully triggered FOWL_CONTRIVANCE electromagnetic bolt animation")
                 else:
-                    print(f"  [Animation] WARNING: Failed to create FOWL_CONTRIVANCE EM attack")
+                    pass
 
             # Check if attacker is DELPHIC_APPRAISER and trigger astral appraisal attack animation
             elif attacker.type == UnitType.DELPHIC_APPRAISER and attack_target and target_unit:
-                print(f"  [Renderer] *** DELPHIC_APPRAISER ATTACK DETECTED ***")
+                pass
                 from boneglaive.graphical.animations.delphic_appraiser import DelphicAppraiserAstralAttack
 
                 astral_attack = DelphicAppraiserAstralAttack(
@@ -3086,13 +3002,12 @@ class GraphicalRenderer:
                 )
                 if astral_attack:
                     self.active_animations.append(astral_attack)
-                    print(f"  [Animation] Successfully triggered DELPHIC_APPRAISER astral attack animation")
                 else:
-                    print(f"  [Animation] WARNING: Failed to create DELPHIC_APPRAISER astral attack")
+                    pass
 
             # Check if attacker is GAS_MACHINIST and trigger pressurized gas jet attack animation
             elif attacker.type == UnitType.GAS_MACHINIST and attack_target and target_unit:
-                print(f"  [Renderer] *** GAS_MACHINIST ATTACK DETECTED ***")
+                pass
                 from boneglaive.graphical.animations.gas_machinist import GasMachinistPressurizedAttack
 
                 gas_attack = GasMachinistPressurizedAttack(
@@ -3103,13 +3018,12 @@ class GraphicalRenderer:
                 )
                 if gas_attack:
                     self.active_animations.append(gas_attack)
-                    print(f"  [Animation] Successfully triggered GAS_MACHINIST pressurized gas attack animation")
                 else:
-                    print(f"  [Animation] WARNING: Failed to create GAS_MACHINIST gas attack")
+                    pass
 
             # Check if attacker is DERELICTIONIST and trigger psychic void attack animation
             elif attacker.type == UnitType.DERELICTIONIST and attack_target and target_unit:
-                print(f"  [Renderer] *** DERELICTIONIST ATTACK DETECTED ***")
+                pass
                 from boneglaive.graphical.animations.derelictionist import DerelictionistVoidAttack
 
                 void_attack = DerelictionistVoidAttack(
@@ -3120,13 +3034,12 @@ class GraphicalRenderer:
                 )
                 if void_attack:
                     self.active_animations.append(void_attack)
-                    print(f"  [Animation] Successfully triggered DERELICTIONIST void attack animation")
                 else:
-                    print(f"  [Animation] WARNING: Failed to create DERELICTIONIST void attack")
+                    pass
 
             # Check if attacker is POTPOURRIST and trigger aromatic potpourri scatter attack animation
             elif attacker.type == UnitType.POTPOURRIST and attack_target and target_unit:
-                print(f"  [Renderer] *** POTPOURRIST ATTACK DETECTED ***")
+                pass
                 from boneglaive.graphical.animations.potpourrist import PotpourristAromaticAttack
 
                 aromatic_attack = PotpourristAromaticAttack(
@@ -3137,16 +3050,15 @@ class GraphicalRenderer:
                 )
                 if aromatic_attack:
                     self.active_animations.append(aromatic_attack)
-                    print(f"  [Animation] Successfully triggered POTPOURRIST aromatic scatter animation")
                 else:
-                    print(f"  [Animation] WARNING: Failed to create POTPOURRIST aromatic attack")
+                    pass
 
             # Check if TARGET has Riposte active (PELOTARI counterattack)
             # Use captured flag from BEFORE attack execution cleared it
             target_has_riposte = event.kwargs.get("target_has_riposte", False)
 
             if target_has_riposte and event.target_unit:
-                print(f"  [Renderer] *** RIPOSTE COUNTERATTACK DETECTED on {event.target_unit.get_display_name()} ***")
+                pass
 
                 from boneglaive.graphical.animations.pelotari import RiposteAnimation
                 from boneglaive.dlc.pelotari.physics import calculate_linear_trajectory
@@ -3181,17 +3093,16 @@ class GraphicalRenderer:
 
                     if riposte_animation:
                         self.active_animations.append(riposte_animation)
-                        print(f"  [Animation] Successfully triggered Riposte counterattack with 8 pelotas")
                     else:
-                        print(f"  [Animation] WARNING: Failed to create Riposte animation")
+                        pass
                 else:
-                    print(f"  [Animation] WARNING: Could not find animated unit for Riposte target")
+                    pass
 
             if attacker.type not in [UnitType.INTERFERER, UnitType.MANDIBLE_FOREMAN, UnitType.GLAIVEMAN,
                                       UnitType.GRAYMAN, UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE,
                                       UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST, UnitType.DERELICTIONIST,
                                       UnitType.POTPOURRIST] or not attack_target:
-                print(f"  [DEBUG] Not a unit with special attack animation, or no attack target")
+                pass
 
     def _create_skill_animation(self, event):
         """
@@ -3205,15 +3116,13 @@ class GraphicalRenderer:
         caster = event.source_unit
         skill_target = event.kwargs.get("skill_target")  # (y, x) in game coords
 
-        print(f"  [Renderer] Processing skill event: {skill_name} from {caster.get_display_name() if caster else 'None'}")
 
         # Find visual units
         caster_animated = self._get_visual_unit(caster)
         if caster_animated:
             caster_animated = caster_animated.animated_unit
-            print(f"  [Renderer] Found caster visual unit at ({caster_animated.grid_x}, {caster_animated.grid_y})")
         else:
-            print(f"  [Renderer] WARNING: Could not find visual unit for caster!")
+            pass
 
         # Find target unit if any
         target_unit = None
@@ -3231,20 +3140,19 @@ class GraphicalRenderer:
                 # Find the AnimatedUnit corresponding to this game unit
                 target_unit = self._find_animated_unit_by_game_unit(target_game_unit)
                 if target_unit:
-                    print(f"  [Renderer] Found target visual unit via captured game unit: {target_unit.name}")
+                    pass
                     # CRITICAL: Use target's CURRENT position after movement, not queued position
                     # This fixes animations appearing at old positions when unit moves before skill executes
                     target_pos = (target_game_unit.y, target_game_unit.x)
                 else:
-                    print(f"  [Renderer] WARNING: Could not find AnimatedUnit for captured game unit")
+                    pass
             else:
                 # Fallback: try position lookup (for backwards compatibility with skills that don't capture target)
                 target_unit = self._get_unit_at_grid(target_grid_x, target_grid_y)
                 if target_unit:
                     target_game_unit = self.game_adapter.game.get_unit_at(skill_target[0], skill_target[1])
-                    print(f"  [Renderer] Found target unit at position {skill_target}")
                 else:
-                    print(f"  [Renderer] No target unit found at {skill_target}")
+                    pass
 
         # Check for critical hit (Judgement on low HP target)
         is_crit = False
@@ -3253,12 +3161,12 @@ class GraphicalRenderer:
             critical_threshold = int(target_game_unit.max_hp * CRITICAL_HEALTH_PERCENT)
             is_crit = target_game_unit.hp <= critical_threshold
             if is_crit:
-                print(f"  [Animation] CRITICAL HIT detected! Target HP: {target_game_unit.hp}/{target_game_unit.max_hp}")
+                pass
 
         # Get infused state from event (captured before skill execution)
         is_infused = event.kwargs.get("is_infused", False)
         if is_infused:
-            print(f"  [Animation] INFUSED skill detected - using enhanced visuals!")
+            pass
 
         # Get Matador bounce count if this is a Matador skill
         bounce_count = event.kwargs.get("bounce_count", 2)  # Default to 2 if not specified
@@ -3269,26 +3177,20 @@ class GraphicalRenderer:
             return  # Don't create the original skill animation
 
         # Create animation via factory
-        print(f"  [Renderer] Creating animation for {skill_name}...")
 
         # Extract additional kwargs to pass to factory (e.g., is_trap, trap_cone_positions, death_pos, etc.)
         extra_kwargs = {}
         if 'is_trap' in event.kwargs:
             extra_kwargs['is_trap'] = event.kwargs['is_trap']
-            print(f"  [Renderer] Trap mode detected: is_trap={extra_kwargs['is_trap']}")
         if 'trap_cone_positions' in event.kwargs:
             extra_kwargs['trap_cone_positions'] = event.kwargs['trap_cone_positions']
-            print(f"  [Renderer] Using pre-calculated trap cone positions")
         # Pass through death-related animation parameters
         if 'death_pos' in event.kwargs:
             extra_kwargs['death_pos'] = event.kwargs['death_pos']
-            print(f"  [Renderer] Death animation: death_pos={extra_kwargs['death_pos']}")
         if 'affected_allies' in event.kwargs:
             extra_kwargs['affected_allies'] = event.kwargs['affected_allies']
-            print(f"  [Renderer] Death animation: {len(event.kwargs['affected_allies'])} allies affected")
         if 'heal_amount' in event.kwargs:
             extra_kwargs['heal_amount'] = event.kwargs['heal_amount']
-            print(f"  [Renderer] Death animation: heal_amount={extra_kwargs['heal_amount']}")
 
         animation = AnimationFactory.create_animation(
             skill_name,
@@ -3309,9 +3211,8 @@ class GraphicalRenderer:
         )
         if animation:
             self.active_animations.append(animation)
-            print(f"  [Animation] Successfully triggered {skill_name} animation" + (" (CRITICAL!)" if is_crit else ""))
         else:
-            print(f"  [Animation] WARNING: Animation factory returned None for {skill_name}")
+            pass
 
     def _create_glaive_sweep_animation(self, event):
         """
@@ -3382,7 +3283,6 @@ class GraphicalRenderer:
             if visual_unit.animated_unit == animated_unit:
                 return visual_unit.game_unit
 
-        print(f"WARNING: Could not find game unit for {animated_unit.name}", flush=True)
         return None
 
     def _find_animated_unit_by_game_unit(self, game_unit):
@@ -3625,7 +3525,7 @@ class GraphicalRenderer:
         for text in self.floating_texts:
             text.draw(main_surface, self.font)
         if len(self.debris_particles) > 0 and not hasattr(self, '_debris_draw_logged'):
-            print(f"[Renderer] Drawing {len(self.debris_particles)} debris particles")
+            pass
             self._debris_draw_logged = True
         for debris in self.debris_particles:
             debris.draw(main_surface)
@@ -4175,7 +4075,7 @@ class GraphicalRenderer:
                     )
                 except Exception as e:
                     # Fallback to text if sprite loading fails
-                    print(f"Could not load sprite for respawn ghost preview: {e}")
+                    pass  # Sprite load failed
                     ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
                     ghost_surf.fill((100, 255, 150, 60))  # Green tint
                     if hasattr(self.selected_dead_unit, 'unit_type'):
@@ -4238,7 +4138,7 @@ class GraphicalRenderer:
                             )
                         except Exception as e:
                             # Fallback to text if sprite loading fails
-                            print(f"Could not load sprite for queued respawn ghost: {e}")
+                            pass  # Sprite load failed
                             ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
                             ghost_surf.fill((100, 255, 150, 60))  # Green tint
                             if hasattr(dead_unit, 'unit_type'):
@@ -4316,7 +4216,7 @@ class GraphicalRenderer:
                     )
                 except Exception as e:
                     # Fallback to text if sprite loading fails
-                    print(f"Could not load sprite for ghost preview: {e}")
+                    pass  # Sprite load failed
                     ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
                     if pos_valid:
                         ghost_surf.fill((100, 200, 255, 80))
@@ -4511,7 +4411,7 @@ class GraphicalRenderer:
             for unit in player2_units:
                 # Check if unit is immune to status effects (GRAYMAN with Stasiality)
                 if unit.is_immune_to_effects():
-                    print(f"[FirstTurnBuff] {unit.get_display_name()} is immune to first turn bonus due to Stasiality")
+                    pass
                     continue
 
                 # Add the move bonus (+1)
@@ -4530,19 +4430,17 @@ class GraphicalRenderer:
                         visual_unit = self.game_adapter.visual_units[unit_id]
                         animated_unit = visual_unit.animated_unit
                         self._create_status_icon_flash(animated_unit, "first_turn_move_bonus")
-                        print(f"[FirstTurnBuff] Created status icon flash for {unit.get_display_name()}")
                     else:
-                        print(f"[FirstTurnBuff] WARNING: Could not find visual unit for {unit.get_display_name()}, unit_id={unit_id}")
+                        pass
 
             # Log the buff application
             message_log.add_system_message("Player 2 units receive +1 move range for going second!")
             self.combat_log.add_message("Player 2 units receive +1 move range for going second!", "system")
-            print(f"[FirstTurnBuff] Applied +1 move range to {len(player2_units)} player 2 units")
 
     def execute_turn(self):
         """Execute the current turn (process all planned actions)."""
         if not self.game_adapter.game:
-            print("ERROR: No game instance")
+            pass  # No game instance
             return
 
         # Start motor animation
@@ -4671,7 +4569,6 @@ class GraphicalRenderer:
                 self._apply_player2_first_turn_buff()
                 self.game_adapter.game.is_player2_first_turn = False
 
-            print(f"[AI] Waiting 3 seconds before AI turn...")
             self.combat_log.add_message("AI is thinking...", "system")
 
             # Wait 3 seconds before AI processes its turn
@@ -4684,7 +4581,6 @@ class GraphicalRenderer:
                 self.draw()
                 pygame.display.flip()
 
-            print(f"[AI] Processing AI turn...")
 
             # Process AI turn (this will set unit actions)
             self.game_adapter.ai_interface.process_turn()
@@ -4694,7 +4590,7 @@ class GraphicalRenderer:
 
             # Check if AI won - stop processing if game is over
             if self.game_adapter.game.winner:
-                print(f"[AI] Game over detected - AI won!")
+                pass
                 return
 
     def draw_target_pips(self, surface: pygame.Surface):
@@ -5147,7 +5043,6 @@ class GraphicalRenderer:
         self.respawn_window.show(ready_dead_units)
 
         self.combat_log.add_message(f"Select unit to respawn ({len(ready_dead_units)} available)", "system")
-        print(f"[Respawn] Showing {len(ready_dead_units)} units ready for respawn")
 
     def confirm_respawn_unit_selection(self):
         """Confirm unit selection and enter location selection mode."""
@@ -5172,7 +5067,6 @@ class GraphicalRenderer:
                 self.game_adapter.game.current_player
             )
             self.respawn_valid_tiles = valid_tiles
-            print(f"[Respawn] {len(valid_tiles)} valid spawn locations")
 
         self.combat_log.add_message(
             f"Select respawn location for {selected_unit.greek_id}",
@@ -5220,7 +5114,6 @@ class GraphicalRenderer:
         # Hide respawn window
         self.respawn_window.hide()
 
-        print("[Respawn] Exited respawn mode")
 
     def show_game_over_window(self):
         """Show the game over window when a player wins."""
@@ -5241,11 +5134,9 @@ class GraphicalRenderer:
         is_victory = (winner == 1)
 
         self.game_over_window.show(is_victory, winner_name, winner_gp, loser_name, loser_gp, winner_player=winner)
-        print(f"[Game Over] {winner_name} wins with {winner_gp} GP!")
 
     def return_to_main_menu(self):
         """Return to the main menu."""
-        print("[Game Over] Returning to main menu...")
 
         # Close the game over window
         self.game_over_window.hide()
@@ -5261,7 +5152,6 @@ class GraphicalRenderer:
         if not self.game_adapter.game:
             return
 
-        print("[Concede] Player conceding...")
 
         # Hide the concede dialog
         self.concede_dialog.hide()
@@ -5306,7 +5196,6 @@ class GraphicalRenderer:
         self.setup_unit_help.update(display_unit)
 
         self.combat_log.add_message(f"Player {current_player}, select and place your units!", "system")
-        print(f"[Setup] Player {current_player} setup mode started - {units_remaining} units remaining")
 
     def confirm_unit_type_selection(self):
         """Confirm unit type selection and enter placement mode."""
@@ -5340,7 +5229,6 @@ class GraphicalRenderer:
                         self.game_adapter.game.is_valid_position(y, x)):
                         valid_tiles.append((y, x))
             self.setup_valid_tiles = valid_tiles
-            print(f"[Setup] {len(valid_tiles)} valid placement tiles")
 
         # Hide setup window
         self.setup_window.hide()
@@ -5492,7 +5380,6 @@ class GraphicalRenderer:
                     animated_unit.target_y = new_y
                     animated_unit.is_moving = False
 
-        print("[Setup] Exited setup mode")
 
     def _toggle_fullscreen(self):
         """Toggle between fullscreen and windowed mode."""
@@ -5576,21 +5463,18 @@ def main():
     ui_adapter = GraphicalUIAdapter(renderer)
 
     # Initialize game with real game logic
-    print("Initializing game...")
-    print(f"Network mode: {network_mode}")
+    pass  # Network mode set
     # skip_setup=False means game starts in setup phase
     adapter.initialize_game(skip_setup=False, map_name=selected_map, network_mode=network_mode, ui_adapter=ui_adapter)
-    print(f"Game created - starting in setup phase on map: {selected_map}")
 
     # Set up terrain change callback so renderer marks tiles dirty when terrain changes
     if adapter.game and adapter.game.map:
         adapter.game.map.terrain_change_callback = renderer.mark_tile_dirty
-        print("Terrain change callback registered")
+        pass  # Terrain callback registered
 
     # Sync units from game
-    print("Syncing units from game to renderer...")
+    pass  # Syncing units
     renderer.sync_units_from_game()
-    print(f"Created {len(renderer.units)} visual units")
 
     # Add welcome messages to combat log
     renderer.combat_log.add_message("Welcome to Boneglaive!", "system")

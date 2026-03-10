@@ -1671,8 +1671,6 @@ class ExpediteRush:
             self.target_y = GRID_OFFSET_Y + self.target_grid_y * self.tile_size + self.tile_size // 2
 
         # Debug: Log initial state
-        print(f"[ExpediteRush INIT] Foreman's ACTUAL final grid position from game logic: ({self.target_grid_x}, {self.target_grid_y})")
-        print(f"[ExpediteRush INIT] Animation: start screen ({start_x}, {start_y}) -> final screen ({self.target_x}, {self.target_y})")
 
         # Calculate rush direction (normalize to unit vector)
         dx = self.target_x - start_x
@@ -1707,7 +1705,6 @@ class ExpediteRush:
                 from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
                 self.enemy_screen_x = GRID_OFFSET_X + target_unit.grid_x * self.tile_size + self.tile_size // 2
                 self.enemy_screen_y = GRID_OFFSET_Y + target_unit.grid_y * self.tile_size + self.tile_size // 2
-            print(f"[ExpediteRush INIT] Enemy target at screen ({self.enemy_screen_x}, {self.enemy_screen_y})")
 
         # Steam particles
         self.steam_particles = []
@@ -1745,7 +1742,6 @@ class ExpediteRush:
                 # Store FOREMAN's starting position for restoration later
                 self.foreman_original_x = self.foreman.x
                 self.foreman_original_y = self.foreman.y
-                print(f"[ExpediteRush CHARGING->RUSHING] Starting rush from ({self.current_x}, {self.current_y})")
                 # No sound for rush - charge sound covers the action
 
         elif self.phase == "rushing":
@@ -1840,12 +1836,10 @@ class ExpediteRush:
                     self.foreman.grid_x = game_unit.x
                     self.foreman.grid_y = game_unit.y
 
-                    print(f"[ExpediteRush RUSHING->IMPACT] Synced to game position: grid ({game_unit.x}, {game_unit.y}) -> screen ({correct_x}, {correct_y})")
                 else:
                     # Fallback to animation target if game_unit not available
                     self.foreman.x = self.target_x
                     self.foreman.y = self.target_y
-                    print(f"[ExpediteRush RUSHING->IMPACT] Using animation target: screen ({self.target_x}, {self.target_y})")
 
                 play_sound("expedite_impact")
 
@@ -1901,7 +1895,6 @@ class ExpediteRush:
                     self.foreman.x = GRID_OFFSET_X + self.foreman.grid_x * self.tile_size + self.tile_size // 2
                     self.foreman.y = GRID_OFFSET_Y + self.foreman.grid_y * self.tile_size + self.tile_size // 2
 
-                print(f"[ExpediteRush COMPLETE] Synced foreman visual position to grid ({self.foreman.grid_x}, {self.foreman.grid_y}) -> screen ({self.foreman.x}, {self.foreman.y})")
                 self.active = False
                 return False
 

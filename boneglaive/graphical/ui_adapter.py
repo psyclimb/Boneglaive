@@ -28,12 +28,10 @@ class GraphicalUIAdapter:
         """Start action execution indicator."""
         self.spinner_active = True
         # Could show "Executing Turn..." overlay
-        print("  [Spinner] Turn execution started")
 
     def stop_spinner(self):
         """Stop action execution indicator."""
         self.spinner_active = False
-        print("  [Spinner] Turn execution complete")
 
     def advance_spinner(self):
         """Advance spinner animation (called during long operations)."""
@@ -51,7 +49,6 @@ class GraphicalUIAdapter:
             target: Target unit
             damage: Damage dealt
         """
-        print(f"  [Anim] Attack: {attacker.get_display_name()} -> {target.get_display_name()} ({damage} dmg)")
 
         # Find animated units
         attacker_animated = self.renderer._find_animated_unit_by_game_unit(attacker)
@@ -90,7 +87,6 @@ class GraphicalUIAdapter:
             skill_name: Name of skill
             target_pos: Target position (y, x) in game coords
         """
-        print(f"  [Anim] Skill: {user.get_display_name()} uses {skill_name}")
 
         # Find animated units
         user_animated = self.renderer._find_animated_unit_by_game_unit(user)
@@ -119,7 +115,6 @@ class GraphicalUIAdapter:
 
         if animation:
             self.renderer.active_animations.append(animation)
-            print(f"    [Animation] Queued {skill_name} animation")
 
         # Flash user unit
         user_animated.flash_alpha = 200
@@ -132,7 +127,6 @@ class GraphicalUIAdapter:
             unit: Unit moving
             path: List of (y, x) positions in game coords
         """
-        print(f"  [Anim] Move: {unit.get_display_name()} along path (length {len(path)})")
 
         # Find animated unit
         unit_animated = self.renderer._find_animated_unit_by_game_unit(unit)
@@ -154,7 +148,6 @@ class GraphicalUIAdapter:
         Args:
             unit: Unit that died
         """
-        print(f"  [Anim] Death: {unit.get_display_name()}")
 
         # Find animated unit
         unit_animated = self.renderer._find_animated_unit_by_game_unit(unit)
