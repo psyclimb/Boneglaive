@@ -2300,6 +2300,36 @@ class Game:
                     # Distribute healing evenly among all affected allies
                     if affected_allies:
                         heal_per_ally = bone_tithe_hp // len(affected_allies)
+
+                        # ASCII animation for death healing effect
+                        if ui and hasattr(ui, 'renderer'):
+                            import time
+                            from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+
+                            # Phase 1: Explosion at death location
+                            explosion_sequence = ['@', '*', '#', '*', '.']
+                            ui.renderer.animate_attack_sequence(
+                                dying_unit.y, dying_unit.x,
+                                explosion_sequence,
+                                1,  # Red color for blood/marrow burst
+                                0.4
+                            )
+
+                            # Phase 2: Bone chunks arrive at each ally (no projectile path)
+                            for target in affected_allies:
+                                # Show bone chunk arrival sequence at ally position
+                                bone_arrival_sequence = ['*', '#', '*']
+                                ui.renderer.animate_attack_sequence(
+                                    target.y, target.x,
+                                    bone_arrival_sequence,
+                                    7,  # White color for bone chunks
+                                    0.2
+                                )
+
+                            # Brief pause between distribution and absorption
+                            sleep_with_animation_speed(0.1)
+
+                        # Apply healing and show absorption effect
                         for target in affected_allies:
                             actual_heal = target.heal(heal_per_ally, "bone nourishment")
                             message_log.add_message(
@@ -2307,6 +2337,34 @@ class Game:
                                 MessageType.ABILITY,
                                 player=dying_unit.player
                             )
+
+                            # Phase 3: Absorption glow on allies (ASCII mode)
+                            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                                # Show healing number with flashing effect (green color)
+                                if hasattr(ui.renderer, 'draw_damage_text') and actual_heal > 0:
+                                    import curses
+                                    healing_text = f"+{actual_heal}"
+
+                                    # Make healing text prominent with flashing effect (green color)
+                                    for i in range(3):
+                                        # First clear the area
+                                        ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(healing_text), 7)
+                                        # Draw with alternating bold/normal for a flashing effect
+                                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, attrs)  # Green color
+                                        ui.renderer.refresh()
+                                        sleep_with_animation_speed(0.1)
+
+                                    # Final healing display (stays on screen slightly longer)
+                                    ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, curses.A_BOLD)
+                                    ui.renderer.refresh()
+                                    sleep_with_animation_speed(0.3)
+
+                                # Flash ally with red glow (marrow absorption)
+                                tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
+                                color_ids = [1, 7, 1, 7]  # Red/white flash for marrow energy
+                                durations = [0.1] * 4
+                                ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
 
                     # Animation is triggered through game_state sync system for graphical mode
 

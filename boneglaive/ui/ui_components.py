@@ -6740,15 +6740,15 @@ class UnitSelectionMenuComponent(UIComponent):
         # Base unit types
         base_units = [
             UnitType.GLAIVEMAN,
-            UnitType.GRAYMAN,
             UnitType.MANDIBLE_FOREMAN,
-            UnitType.POTPOURRIST,
+            UnitType.GRAYMAN,
             UnitType.MARROW_CONDENSER,
-            UnitType.INTERFERER,
             UnitType.FOWL_CONTRIVANCE,
-            UnitType.DELPHIC_APPRAISER,
             UnitType.GAS_MACHINIST,
-            UnitType.DERELICTIONIST
+            UnitType.DELPHIC_APPRAISER,
+            UnitType.INTERFERER,
+            UnitType.DERELICTIONIST,
+            UnitType.POTPOURRIST
         ]
 
         # Add DLC units dynamically

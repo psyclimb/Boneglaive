@@ -925,14 +925,55 @@ class GraeExchangeSkill(ActiveSkill):
             attacker_name=user.get_display_name(),
             target_name=target.get_display_name()
         )
-        
+
+        # Store target position for echo spawning (needed before animation)
+        banished_pos = (target.y, target.x)
+
         # Play animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Animation will be handled by the new banishment animation
-            pass
-        
-        # Store target position for echo spawning
-        banished_pos = (target.y, target.x)
+            # Phase 1: Ritual - GRAYMAN taps cane 3 times on ground
+            ritual_animation = ui.asset_manager.get_skill_animation_sequence('grae_exchange_ritual')
+            if ritual_animation:
+                ui.renderer.animate_attack_sequence(
+                    user.y, user.x,
+                    ritual_animation,
+                    7,  # White color for mystical ritual
+                    0.6
+                )
+
+            # Phase 2: Void Connection - beam from GRAYMAN to target
+            void_animation = ui.asset_manager.get_skill_animation_sequence('grae_exchange_void')
+            if void_animation:
+                ui.renderer.animate_path(
+                    user.y, user.x,
+                    target_pos[0], target_pos[1],
+                    void_animation,
+                    6,  # Cyan/blue for otherworldly void effect
+                    0.4
+                )
+
+            # Phase 3: Banishment - target dissolves into void
+            banish_animation = ui.asset_manager.get_skill_animation_sequence('grae_exchange_banish')
+            if banish_animation:
+                ui.renderer.animate_attack_sequence(
+                    target_pos[0], target_pos[1],
+                    banish_animation,
+                    1,  # Red color transitioning as target vanishes
+                    0.5
+                )
+
+            # Brief pause before echo manifestation
+            sleep_with_animation_speed(0.1)
+
+            # Phase 4: Echo Manifestation - echo appears at target location
+            manifest_animation = ui.asset_manager.get_skill_animation_sequence('grae_exchange_manifest')
+            if manifest_animation:
+                ui.renderer.animate_attack_sequence(
+                    banished_pos[0], banished_pos[1],
+                    manifest_animation,
+                    3 if user.player == 1 else 4,  # Player color for echo
+                    0.5
+                )
 
         # Log banishment message
         message_log.add_message(

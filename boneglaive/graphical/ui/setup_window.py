@@ -77,6 +77,7 @@ class SetupWindow:
             UnitType.INTERFERER,
             UnitType.DERELICTIONIST,
             UnitType.POTPOURRIST,
+            UnitType.PELOTARI,
         ]
 
         # Add DLC units dynamically
@@ -99,6 +100,7 @@ class SetupWindow:
             UnitType.INTERFERER: "INTERFERER",
             UnitType.DERELICTIONIST: "DERELICTIONIST",
             UnitType.POTPOURRIST: "POTPOURRIST",
+            UnitType.PELOTARI: "PELOTARI",
         }
 
         # Add DLC unit display names dynamically

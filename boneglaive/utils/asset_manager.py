@@ -146,7 +146,10 @@ class AssetManager:
             'delta_config_well_collapse': ['@', '0', 'O', 'o', ':', '.', ' '],  # Well collapse at destination
 
             'estrange': ['~', '=', '=', '~', '-', '-', '~', '='],  # Dramatic pulsing beam
-            'grae_exchange': ['/', '_', '*', 'ψ', 'Ψ'],  # Echo creation effect
+            'grae_exchange_ritual': ['|', '.', '|', '.', '|', '.'],  # GRAYMAN tapping cane on ground
+            'grae_exchange_void': ['~', ':', '≈', '∼'],  # Reality distortion beam to target
+            'grae_exchange_banish': ['@', '*', ':', '.', ' '],  # Target dissolving into void
+            'grae_exchange_manifest': [' ', '.', ':', 'ψ', 'Ψ'],  # Echo materializing
             'marrow_healing': ['<', '3', '<', '3', '<', '+', '+', '*'],  # Blood plasma healing animation
             
             # FOWL_CONTRIVANCE reworked animations - rail artillery platform
