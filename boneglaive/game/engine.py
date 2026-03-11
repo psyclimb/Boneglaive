@@ -4719,6 +4719,13 @@ class Game:
                                     player=taunter.player
                                 )
                             else:
+                                # Mark the unit whose geas is breaking for graphical animation
+                                unit.geas_breaking_for_animation = True
+                                # Track ALL units whose geas broke (accumulate in a list)
+                                if not hasattr(taunter, 'geas_heal_sources'):
+                                    taunter.geas_heal_sources = []
+                                taunter.geas_heal_sources.append(unit)
+
                                 # Show geas breaking animation on taunted unit (ASCII mode only)
                                 if not (hasattr(self, 'ui') and hasattr(self.ui, '__class__') and self.ui.__class__.__name__ == 'GraphicalUIAdapter'):
                                     if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer') and hasattr(self.ui, 'asset_manager'):

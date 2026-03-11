@@ -137,7 +137,7 @@ SKILL_UPGRADES = {
         },
         "Granite Geas": {
             "name": "Granite Geas",
-            "description": "Target's attack is treated as 2 when attacking POTPOURRIST.",
+            "description": "Chains to enemies who are adjacent to each other.",
             "type": "buff",
             "cost": 1
         }

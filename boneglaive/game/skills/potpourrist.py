@@ -767,6 +767,10 @@ class GraniteGeasSkill(ActiveSkill):
             target.taunt_responded_this_turn = False
             target.geas_affected = True  # For status icon display
 
+            # Mark unit for graphical animation (renderer will detect this)
+            target.granite_geas_chain_hit = True  # Also mark primary target
+            target.granite_geas_infused = enhanced
+
             # Check for Granite Geas upgrade (attack reduction)
             from boneglaive.game.upgrades import UpgradeManager
             granite_geas_upgraded = UpgradeManager.is_skill_upgraded(user, "Granite Geas")
@@ -798,5 +802,93 @@ class GraniteGeasSkill(ActiveSkill):
                 MessageType.ABILITY,
                 player=target.player
             )
+
+        # Chain to adjacent enemies if upgrade is active
+        from boneglaive.game.upgrades import UpgradeManager
+        if UpgradeManager.is_skill_upgraded(user, "Granite Geas"):
+            # Track which units have been hit to avoid infinite loops
+            hit_units = {target}
+            # Queue of units to process
+            to_process = [target]
+
+            while to_process:
+                current_target = to_process.pop(0)
+
+                # Find all enemies adjacent to current target
+                adjacent_positions = [
+                    (current_target.y - 1, current_target.x),
+                    (current_target.y + 1, current_target.x),
+                    (current_target.y, current_target.x - 1),
+                    (current_target.y, current_target.x + 1),
+                    (current_target.y - 1, current_target.x - 1),
+                    (current_target.y - 1, current_target.x + 1),
+                    (current_target.y + 1, current_target.x - 1),
+                    (current_target.y + 1, current_target.x + 1)
+                ]
+
+                for adj_y, adj_x in adjacent_positions:
+                    adj_unit = game.get_unit_at(adj_y, adj_x)
+                    if (adj_unit and adj_unit.player != user.player and
+                        adj_unit.is_alive() and adj_unit not in hit_units):
+
+                        # Show Granite Geas strike animation for chained target (ASCII version only)
+                        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                            # Show impact on chained target
+                            impact_animation = ui.asset_manager.get_skill_animation_sequence('granite_geas_impact')
+                            if not impact_animation:
+                                impact_animation = ['*', '#', '@', '#', '*', '.']
+
+                            for frame in impact_animation:
+                                ui.renderer.draw_tile(adj_unit.y, adj_unit.x, frame, 7, curses.A_BOLD)
+                                ui.renderer.refresh()
+                                sleep_with_animation_speed(0.06)
+
+                            # Flash the chained target
+                            if hasattr(ui.renderer, 'flash_tile'):
+                                tile_ids = [ui.asset_manager.get_unit_tile(adj_unit.type)] * 4
+                                color_ids = [6 if adj_unit.player == 1 else 10, 3 if adj_unit.player == 1 else 4] * 2
+                                durations = [0.1] * 4
+                                ui.renderer.flash_tile(adj_unit.y, adj_unit.x, tile_ids, color_ids, durations)
+
+                            # Redraw board after animation
+                            if hasattr(ui, 'draw_board'):
+                                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
+                        # Deal damage
+                        game.current_attacker = user
+                        old_hp = adj_unit.hp
+                        adj_unit.hp = max(0, adj_unit.hp - damage)
+                        game.current_attacker = None
+
+                        # Apply taunt if not immune
+                        if not adj_unit.is_immune_to_effects():
+                            adj_unit.taunted_by = user
+                            adj_unit.taunt_duration = taunt_duration
+                            adj_unit.taunt_responded_this_turn = False
+                            adj_unit.geas_affected = True
+                            adj_unit.geas_attack_reduction = False
+
+                            # Mark unit for graphical animation (renderer will detect this)
+                            adj_unit.granite_geas_chain_hit = True
+                            adj_unit.granite_geas_infused = enhanced
+
+                            # Show geas binding animation for chained target (ASCII version only)
+                            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                                geas_binding = ui.asset_manager.get_skill_animation_sequence('geas_binding')
+                                if not geas_binding:
+                                    geas_binding = [',', '.', ':', '|', 'I', '#', '#', '0', '0']
+
+                                for frame in geas_binding:
+                                    ui.renderer.draw_tile(adj_unit.y, adj_unit.x, frame, 7, curses.A_BOLD)
+                                    ui.renderer.refresh()
+                                    sleep_with_animation_speed(0.08)
+
+                                # Redraw board after geas animation
+                                if hasattr(ui, 'draw_board'):
+                                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
+                        # Mark as hit and add to queue for further chaining
+                        hit_units.add(adj_unit)
+                        to_process.append(adj_unit)
 
         return True

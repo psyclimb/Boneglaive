@@ -535,18 +535,20 @@ class GameStateAdapter:
                         ))
                 elif hp_delta > 0:
                     # Healing - check if it's from geas break or Melange Eminence
-                    current_taunted = visual_unit._get_taunted_units(game_unit, self.game)
-                    last_taunted = visual_unit.last_taunted_units
 
                     # Check if this is Melange Eminence passive healing (POTPOURRIST only)
                     is_melange_heal = False
+                    geas_break_units = []
+
                     from boneglaive.utils.constants import UnitType
                     if game_unit.type == UnitType.POTPOURRIST:
-                        # Melange Eminence heals at start of turn
-                        # It heals 1 HP normally, 2 HP when holding potpourri
-                        if hp_delta in (1, 2):
-                            # This is likely Melange Eminence
-                            # TODO: Add more robust detection if needed
+                        # Check if POTPOURRIST has geas_heal_sources list (set when geas breaks)
+                        if hasattr(game_unit, 'geas_heal_sources') and game_unit.geas_heal_sources:
+                            geas_break_units = game_unit.geas_heal_sources
+                            # Clear the marker
+                            game_unit.geas_heal_sources = []
+                        elif hp_delta in (1, 2):
+                            # Melange Eminence heals 1 HP normally, 2 HP when holding potpourri
                             is_melange_heal = True
                             is_infused = getattr(game_unit, 'potpourri_held', False)
 
@@ -559,38 +561,36 @@ class GameStateAdapter:
                             heal_amount=hp_delta,
                             infused=is_infused
                         ))
-                    else:
-                        # Check for geas break: either taunt was removed OR duration decreased
-                        geas_break_unit = None
-                        if self.game:
-                            for unit in self.game.units:
-                                unit_id = id(unit)
-                                # Was this unit taunted before?
-                                if unit_id in last_taunted:
-                                    last_duration = last_taunted[unit_id]
-                                    current_duration = current_taunted.get(unit_id, 0)
+                    elif geas_break_units:
+                        # Geas break heals - create animation for EACH breaking unit
+                        # Each unit contributes 4 HP of healing (or whatever remains if hitting max HP)
+                        # Total heal is hp_delta, divide evenly for display purposes
+                        remaining_heal = hp_delta
+                        num_units = len(geas_break_units)
 
-                                    # If duration decreased or taunt was cleared, that's a geas break
-                                    if current_duration < last_duration:
-                                        geas_break_unit = unit
-                                        break
+                        for i, geas_break_unit in enumerate(geas_break_units):
+                            # For even distribution of heal display
+                            if i == num_units - 1:
+                                # Last unit gets any remainder
+                                unit_heal = remaining_heal
+                            else:
+                                unit_heal = hp_delta // num_units
+                                remaining_heal -= unit_heal
 
-                        if geas_break_unit:
-                            # Geas break heal - special animation
                             events.append(AnimationEvent(
                                 "geas_heal",
                                 source_unit=geas_break_unit,  # Unit that had geas
                                 target_unit=game_unit,  # Potpourrist healing
-                                heal_amount=hp_delta
+                                heal_amount=unit_heal  # Show portion of heal from this unit
                             ))
-                        else:
-                            # Regular heal
-                            events.append(AnimationEvent(
-                                "heal",
-                                source_unit=None,
-                                target_unit=game_unit,
-                                heal_amount=hp_delta
-                            ))
+                    else:
+                        # Regular heal
+                        events.append(AnimationEvent(
+                            "heal",
+                            source_unit=None,
+                            target_unit=game_unit,
+                            heal_amount=hp_delta
+                        ))
 
                 visual_unit.last_hp = current_hp
 
@@ -673,6 +673,34 @@ class GameStateAdapter:
                                         affected_allies=affected_allies_data,
                                         heal_amount=heal_per_ally
                                     ))
+
+            # Detect Granite Geas chain hit (marked by skill when chaining)
+            if hasattr(game_unit, 'granite_geas_chain_hit') and game_unit.granite_geas_chain_hit:
+                # This unit was hit by Granite Geas (either primary or chained)
+                # Create animation event for it
+                infused = getattr(game_unit, 'granite_geas_infused', False)
+
+                # Find the caster (POTPOURRIST who cast Granite Geas)
+                caster = game_unit.taunted_by if hasattr(game_unit, 'taunted_by') else None
+
+                if caster:
+                    events.append(AnimationEvent(
+                        "skill",
+                        source_unit=caster,
+                        target_unit=game_unit,
+                        skill_name="GRANITE_GEAS",
+                        skill_target=(game_unit.y, game_unit.x),
+                        is_infused=infused
+                    ))
+
+                # Clear the marker so we don't re-trigger the animation
+                game_unit.granite_geas_chain_hit = False
+                if hasattr(game_unit, 'granite_geas_infused'):
+                    delattr(game_unit, 'granite_geas_infused')
+
+            # Clear geas breaking marker if set (used for detecting which unit's geas broke)
+            if hasattr(game_unit, 'geas_breaking_for_animation') and game_unit.geas_breaking_for_animation:
+                game_unit.geas_breaking_for_animation = False
 
             # Detect position changes
             # NOTE: Game uses (y, x) = (row, col), we need (x, y) = (col, row)
@@ -1019,6 +1047,10 @@ class GameStateAdapter:
 
             # Update trapped_by tracking
             visual_unit.last_trapped_by = current_trapped_by
+
+            # Clean up any leftover geas_heal_sources list (safety measure)
+            if hasattr(game_unit, 'geas_heal_sources'):
+                game_unit.geas_heal_sources = []
 
             # Update taunted units snapshot at end of each sync cycle
             # This ensures we have the "before" state for next cycle's geas heal detection
