@@ -481,13 +481,54 @@ class Unit:
                     available.append(skill)
         return available
     
-    def tick_cooldowns(self) -> None:
+    def is_adjacent_to_upgraded_stasiality(self, game) -> bool:
+        """
+        Check if this unit is adjacent to an enemy GRAYMAN (or echo) with upgraded Stasiality.
+        Used to determine if cooldowns should be frozen.
+        """
+        if not game:
+            return False
+
+        from boneglaive.utils.constants import UnitType
+        from boneglaive.game.upgrades import UpgradeManager
+
+        # Check all 8 adjacent tiles
+        adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        for dy, dx in adjacent_offsets:
+            adj_y = self.y + dy
+            adj_x = self.x + dx
+
+            # Check if position is valid
+            if not game.is_valid_position(adj_y, adj_x):
+                continue
+
+            # Get unit at adjacent position
+            adjacent_unit = game.get_unit_at(adj_y, adj_x)
+            if not adjacent_unit:
+                continue
+
+            # Check if it's an enemy GRAYMAN (or echo) with upgraded Stasiality
+            if (adjacent_unit.player != self.player and
+                adjacent_unit.type == UnitType.GRAYMAN and
+                adjacent_unit.is_alive() and
+                UpgradeManager.is_skill_upgraded(adjacent_unit, "Stasiality")):
+                return True
+
+        return False
+
+    def tick_cooldowns(self, game=None) -> None:
         """
         Reduce cooldowns for all skills by 1 turn.
         This is called at the end of a player's turn, only for that player's units.
         A skill with cooldown=1 can be used every turn, cooldown=2 every other turn, etc.
         Movement penalties are handled separately in reset_movement_penalty.
+
+        If adjacent to an enemy GRAYMAN with upgraded Stasiality, cooldowns are frozen.
         """
+        # Check if cooldowns are frozen by upgraded Stasiality
+        if game and self.is_adjacent_to_upgraded_stasiality(game):
+            return  # Don't tick cooldowns if adjacent to upgraded Stasiality
+
         # Tick skill cooldowns
         for skill in self.active_skills:
             skill.tick_cooldown()

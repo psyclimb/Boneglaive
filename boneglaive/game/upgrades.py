@@ -67,7 +67,7 @@ SKILL_UPGRADES = {
     "GRAYMAN": {
         "Stasiality": {
             "name": "Stasiality",
-            "description": "GRAYMAN becomes completely inert. Move range reduced to 0. Delta Config cooldown reduced by 6. Græ Exchange cooldown reduced by 1. +1 PRT.",
+            "description": "Enemy unit cooldowns don't decrement when adjacent to the GRAYMAN or one of his GRAYMAN echoes.",
             "type": "sidegrade",
             "cost": 1
         },

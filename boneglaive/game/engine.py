@@ -4419,7 +4419,7 @@ class Game:
                 
                 # Reduce cooldowns for skills ONLY for units belonging to current player
                 if unit.player == self.current_player:
-                    unit.tick_cooldowns()
+                    unit.tick_cooldowns(self)
                     
                     # NOTE: Jawline duration is already decremented in process_status_effects
                     # We don't decrement it here to avoid double-counting and making the effect expire too quickly
