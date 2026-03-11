@@ -61,9 +61,9 @@ class Skill:
         if self.current_cooldown > 0:
             return False
 
-        # Echo units cannot use skills (they can only do basic attacks)
-        # EXCEPTION: Echoes CAN use Græ Exchange if the skill is upgraded
-        if hasattr(user, 'is_echo') and user.is_echo:
+        # Doppelganger units cannot use skills (they can only do basic attacks)
+        # EXCEPTION: Doppelgangers CAN use Græ Exchange if the skill is upgraded
+        if hasattr(user, 'is_doppelganger') and user.is_doppelganger:
             from boneglaive.utils.debug import logger
 
             # Check if this is Græ Exchange skill
@@ -72,17 +72,17 @@ class Skill:
                 if hasattr(user, 'original_unit') and user.original_unit:
                     from boneglaive.game.upgrades import UpgradeManager
                     if not UpgradeManager.is_skill_upgraded(user.original_unit, "Græ Exchange"):
-                        logger.debug(f"Echo cannot use Græ Exchange - skill not upgraded")
+                        logger.debug(f"Doppelganger cannot use Græ Exchange - skill not upgraded")
                         return False
-                    # Upgrade active - allow echo to use Græ Exchange
-                    logger.debug(f"Echo {user.get_display_name()} can use upgraded Græ Exchange")
+                    # Upgrade active - allow doppelganger to use Græ Exchange
+                    logger.debug(f"Doppelganger {user.get_display_name()} can use upgraded Græ Exchange")
                 else:
                     # No original unit reference - block
-                    logger.debug(f"Echo has no original_unit reference - blocking skill")
+                    logger.debug(f"Doppelganger has no original_unit reference - blocking skill")
                     return False
             else:
-                # Not Græ Exchange - block all other skills for echoes
-                logger.debug(f"Skill cannot be used by echo unit: {user.get_display_name()}")
+                # Not Græ Exchange - block all other skills for doppelgangers
+                logger.debug(f"Skill cannot be used by doppelganger unit: {user.get_display_name()}")
                 return False
 
         # Additional checks can be implemented in subclasses

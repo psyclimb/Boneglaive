@@ -67,7 +67,7 @@ SKILL_UPGRADES = {
     "GRAYMAN": {
         "Stasiality": {
             "name": "Stasiality",
-            "description": "Enemy unit cooldowns don't decrement when adjacent to the GRAYMAN or one of his GRAYMAN echoes.",
+            "description": "Enemy unit cooldowns don't decrement when adjacent to the GRAYMAN or one of his GRAYMAN doppelgangers.",
             "type": "sidegrade",
             "cost": 1
         },

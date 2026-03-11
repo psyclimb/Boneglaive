@@ -795,13 +795,13 @@ class EstrangeSkill(ActiveSkill):
 
 
 class GraeExchangeSkill(ActiveSkill):
-    """Active skill for GRAYMAN. Banishes target enemy and replaces them with a GRAYMAN echo."""
+    """Active skill for GRAYMAN. Banishes target enemy and replaces them with a GRAYMAN doppelganger."""
 
     def __init__(self):
         super().__init__(
             name="Græ Exchange",
             key="G",
-            description="Banish target enemy unit and replace them with a GRAYMAN echo for 2 turns.",
+            description="Banish target enemy unit and replace them with a GRAYMAN doppelganger for 2 turns.",
             target_type=TargetType.ENEMY,
             cooldown=3,
             range_=5
@@ -825,9 +825,9 @@ class GraeExchangeSkill(ActiveSkill):
 
         # Check if target is immune to banishment (GRAYMAN with Stasiality)
         if target_unit.type == UnitType.GRAYMAN:
-            # GRAYMAN units (including echoes) cannot be banished
-            is_echo = hasattr(target_unit, 'is_echo') and target_unit.is_echo
-            if target_unit.is_immune_to_effects() or is_echo:
+            # GRAYMAN units (including doppelgangers) cannot be banished
+            is_doppelganger = hasattr(target_unit, 'is_doppelganger') and target_unit.is_doppelganger
+            if target_unit.is_immune_to_effects() or is_doppelganger:
                 return False
 
         # Use the correct starting position (current position or planned move position)
@@ -882,7 +882,7 @@ class GraeExchangeSkill(ActiveSkill):
         return True
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        """Execute the Græ Exchange skill - banish target enemy and replace with echo."""
+        """Execute the Græ Exchange skill - banish target enemy and replace with doppelganger."""
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         import time
@@ -901,9 +901,9 @@ class GraeExchangeSkill(ActiveSkill):
 
         # Check if target is immune to banishment due to Stasiality
         if target.type == UnitType.GRAYMAN:
-            # GRAYMAN units (including echoes) are immune to banishment
-            is_echo = hasattr(target, 'is_echo') and target.is_echo
-            if target.is_immune_to_effects() or is_echo:
+            # GRAYMAN units (including doppelgangers) are immune to banishment
+            is_doppelganger = hasattr(target, 'is_doppelganger') and target.is_doppelganger
+            if target.is_immune_to_effects() or is_doppelganger:
                 message_log.add_message(
                     f"{target.get_display_name()} is immune to banishment due to Stasiality",
                     MessageType.ABILITY,
@@ -922,7 +922,7 @@ class GraeExchangeSkill(ActiveSkill):
             target_name=target.get_display_name()
         )
 
-        # Store target position for echo spawning (needed before animation)
+        # Store target position for doppelganger spawning (needed before animation)
         banished_pos = (target.y, target.x)
 
         # Play animation if UI is available
@@ -958,16 +958,16 @@ class GraeExchangeSkill(ActiveSkill):
                     0.5
                 )
 
-            # Brief pause before echo manifestation
+            # Brief pause before doppelganger manifestation
             sleep_with_animation_speed(0.1)
 
-            # Phase 4: Echo Manifestation - echo appears at target location
+            # Phase 4: Doppelganger Manifestation - doppelganger appears at target location
             manifest_animation = ui.asset_manager.get_skill_animation_sequence('grae_exchange_manifest')
             if manifest_animation:
                 ui.renderer.animate_attack_sequence(
                     banished_pos[0], banished_pos[1],
                     manifest_animation,
-                    3 if user.player == 1 else 4,  # Player color for echo
+                    3 if user.player == 1 else 4,  # Player color for doppelganger
                     0.5
                 )
 
@@ -987,42 +987,42 @@ class GraeExchangeSkill(ActiveSkill):
             game.units.remove(target)
             game._remove_from_unit_grid(target)
 
-        # Create GRAYMAN echo at the banished target's location
+        # Create GRAYMAN doppelganger at the banished target's location
         from boneglaive.game.units import Unit
-        echo_unit = Unit(user.type, user.player, banished_pos[0], banished_pos[1])
-        echo_unit.initialize_skills()
-        echo_unit.set_game_reference(game)
+        doppelganger_unit = Unit(user.type, user.player, banished_pos[0], banished_pos[1])
+        doppelganger_unit.initialize_skills()
+        doppelganger_unit.set_game_reference(game)
 
-        # Set echo properties
-        echo_unit.is_echo = True
-        echo_unit.echo_duration = 2  # Echo lasts 2 turns
-        echo_unit.original_unit = user
-        echo_unit.hp = 5
-        echo_unit.max_hp = 5
-        echo_unit.attack = 3
+        # Set doppelganger properties
+        doppelganger_unit.is_doppelganger = True
+        doppelganger_unit.doppelganger_duration = 2  # Doppelganger lasts 2 turns
+        doppelganger_unit.original_unit = user
+        doppelganger_unit.hp = 12
+        doppelganger_unit.max_hp = 12
+        doppelganger_unit.attack = 3
 
-        # Store the banished unit in the echo so we can return them later
-        echo_unit.banished_unit = target
+        # Store the banished unit in the doppelganger so we can return them later
+        doppelganger_unit.banished_unit = target
 
         # Visual identifier
         if hasattr(user, 'greek_id') and user.greek_id:
-            echo_unit.greek_id = user.greek_id.lower()
+            doppelganger_unit.greek_id = user.greek_id.lower()
 
-        # Copy upgraded_skills from the original unit to the echo
+        # Copy upgraded_skills from the original unit to the doppelganger
         if hasattr(user, 'upgraded_skills'):
-            echo_unit.upgraded_skills = set(user.upgraded_skills)
+            doppelganger_unit.upgraded_skills = set(user.upgraded_skills)
 
-        # Add echo to game
-        game.units.append(echo_unit)
+        # Add doppelganger to game
+        game.units.append(doppelganger_unit)
 
-        # CRITICAL: Add echo to spatial grid so get_unit_at() can find it
-        game._update_unit_grid(echo_unit)
+        # CRITICAL: Add doppelganger to spatial grid so get_unit_at() can find it
+        game._update_unit_grid(doppelganger_unit)
 
-        logger.info(f"ECHO SPAWNED from banishment: {echo_unit.type.name} at position ({banished_pos[0]}, {banished_pos[1]})")
-        
-        # Log echo spawn
+        logger.info(f"DOPPELGANGER SPAWNED from banishment: {doppelganger_unit.type.name} at position ({banished_pos[0]}, {banished_pos[1]})")
+
+        # Log doppelganger spawn
         message_log.add_message(
-            f"A GRAYMAN echo manifests in {target.get_display_name()}'s place",
+            f"A GRAYMAN doppelganger manifests in {target.get_display_name()}'s place",
             MessageType.ABILITY,
             player=user.player
         )

@@ -38,9 +38,9 @@ class LOTOChecker:
             blocked.add('move')
             blocked.add('skill')  # Viseroy trap blocks both movement and skills
 
-        if hasattr(unit, 'is_echo') and unit.is_echo:
+        if hasattr(unit, 'is_doppelganger') and unit.is_doppelganger:
             blocked.add('move')
-            blocked.add('upgrade')  # Echoes cannot be upgraded
+            blocked.add('upgrade')  # Doppelgangers cannot be upgraded
 
             # Check if Græ Exchange is upgraded
             grae_exchange_upgraded = hasattr(unit, 'upgraded_skills') and 'Græ Exchange' in unit.upgraded_skills
@@ -110,12 +110,12 @@ class LOTOChecker:
         if LOTOChecker.is_action_blocked(unit, 'skill'):
             return True
 
-        # Special case: Echoes with upgraded Græ Exchange
-        if hasattr(unit, 'is_echo') and unit.is_echo:
+        # Special case: Doppelgangers with upgraded Græ Exchange
+        if hasattr(unit, 'is_doppelganger') and unit.is_doppelganger:
             grae_exchange_upgraded = hasattr(unit, 'upgraded_skills') and 'Græ Exchange' in unit.upgraded_skills
 
             if grae_exchange_upgraded:
-                # Delta Config and Estrange are blocked for echoes even with upgraded Græ Exchange
+                # Delta Config and Estrange are blocked for doppelgangers even with upgraded Græ Exchange
                 if skill_name in ["Delta Config", "Estrange"]:
                     return True
 

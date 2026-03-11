@@ -1594,13 +1594,13 @@ class Matador(ActiveSkill):
         Returns:
             int: Number of bounces (2-8)
         """
-        # Get all enemy units including dead (exclude summons and echoes)
+        # Get all enemy units including dead (exclude summons and doppelgangers)
         # Dead units count as maximum HP loss
         all_enemy_units = [
             u for u in game.units
             if u.player != user.player
             and not getattr(u, 'is_summon', False)
-            and not getattr(u, 'is_echo', False)
+            and not getattr(u, 'is_doppelganger', False)
         ]
 
         if not all_enemy_units:

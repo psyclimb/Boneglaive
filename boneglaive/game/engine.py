@@ -1696,10 +1696,10 @@ class Game:
         return True
     
     def can_move_to(self, unit, y, x):
-        # Echo units cannot move
-        if unit.is_echo:
+        # Doppelganger units cannot move
+        if unit.is_doppelganger:
             from boneglaive.utils.debug import logger
-            logger.debug(f"{unit.get_display_name()} cannot move because it is an echo")
+            logger.debug(f"{unit.get_display_name()} cannot move because it is a doppelganger")
             return False
 
         # If unit is trapped by a MANDIBLE_FOREMAN, it cannot move
@@ -1933,8 +1933,8 @@ class Game:
         if unit.trapped_by is not None:
             return []
             
-        # If unit is an echo, return empty list (echoes can't move)
-        if unit.is_echo:
+        # If unit is a doppelganger, return empty list (doppelgangers can't move)
+        if unit.is_doppelganger:
             return []
         
         moves = []
@@ -2288,10 +2288,10 @@ class Game:
 
                             target = self.get_unit_at(tile_y, tile_x)
                             if target and target.is_alive() and target.player == dying_unit.player:
-                                # Skip summons (echoes and vapors)
+                                # Skip summons (doppelgangers and vapors)
                                 if target.type == UnitType.HEINOUS_VAPOR:
                                     continue
-                                if hasattr(target, 'is_echo') and target.is_echo:
+                                if hasattr(target, 'is_doppelganger') and target.is_doppelganger:
                                     continue
                                 # Check for heal prevention (Auction Curse)
                                 if not (hasattr(target, 'auction_curse_no_heal') and target.auction_curse_no_heal):
@@ -2515,9 +2515,9 @@ class Game:
         if dying_unit.type == UnitType.DELPHIC_APPRAISER:
             self._check_and_remove_valuation_oracle_if_no_appraiser_remaining(dying_unit.player)
 
-        # Handle Echo death by triggering chain reactions
-        if dying_unit.is_echo:
-            self._trigger_echo_death_effect(dying_unit, ui)
+        # Handle Doppelganger death by triggering chain reactions
+        if dying_unit.is_doppelganger:
+            self._trigger_doppelganger_death_effect(dying_unit, ui)
         
     
     def process_buff_durations(self, ui=None):
@@ -3271,7 +3271,7 @@ class Game:
         # Process Neural Shunt random actions for affected units
         self._process_neural_shunt_actions()
         
-        # NOTE: Echo expiration moved to AFTER action execution to fix attack resolution bug
+        # NOTE: Doppelganger expiration moved to AFTER action execution to fix attack resolution bug
         # Echoes now expire at the end of turn, allowing their final attacks to complete
         
         # Create a single list of units with actions, ordered by timestamp
@@ -3660,15 +3660,15 @@ class Game:
                         raw_damage = effective_attack
                         
                         # Apply defense to damage
-                        # GRAYMAN's attacks bypass defense (both original and echo)
-                        if unit.type == UnitType.GRAYMAN or (hasattr(unit, 'is_echo') and unit.is_echo and unit.type == UnitType.GRAYMAN):
+                        # GRAYMAN's attacks bypass defense (both original and doppelganger)
+                        if unit.type == UnitType.GRAYMAN or (hasattr(unit, 'is_doppelganger') and unit.is_doppelganger and unit.type == UnitType.GRAYMAN):
                             damage = raw_damage  # Bypass defense (PRT handled by HP setter)
                             
                             from boneglaive.utils.message_log import message_log, MessageType
-                            # Different messages for original GRAYMAN vs echo
-                            if hasattr(unit, 'is_echo') and unit.is_echo:
+                            # Different messages for original GRAYMAN vs doppelganger
+                            if hasattr(unit, 'is_doppelganger') and unit.is_doppelganger:
                                 message_log.add_message(
-                                    f"The echo's psychic attack bypasses {target.get_display_name()}'s defenses",
+                                    f"The doppelganger's psychic attack bypasses {target.get_display_name()}'s defenses",
                                     MessageType.ABILITY,
                                     player=unit.player,
                                     target_name=target.get_display_name()
@@ -4391,22 +4391,22 @@ class Game:
                     # Kill the vapor using expire() to bypass invulnerability
                     vapor_unit.expire()
 
-        # Process echo expiration AFTER all actions have been executed
-        # This ensures echo attacks complete before the echo dies
+        # Process doppelganger expiration AFTER all actions have been executed
+        # This ensures doppelganger attacks complete before the doppelganger dies
         for unit in list(self.units):  # Create a copy of the list to safely modify during iteration
-            if unit.is_alive() and unit.is_echo and unit.player == self.current_player:
+            if unit.is_alive() and unit.is_doppelganger and unit.player == self.current_player:
                 # Only decrement duration on the owner's turn
-                unit.echo_duration -= 1
-                logger.debug(f"Echo {unit.get_display_name()} duration decremented to {unit.echo_duration}")
+                unit.doppelganger_duration -= 1
+                logger.debug(f"Doppelganger {unit.get_display_name()} duration decremented to {unit.doppelganger_duration}")
 
-                # If duration reached zero, the echo expires
-                if unit.echo_duration <= 0:
-                    logger.debug(f"Echo {unit.get_display_name()} expires after actions completed")
+                # If duration reached zero, the doppelganger expires
+                if unit.doppelganger_duration <= 0:
+                    logger.debug(f"Doppelganger {unit.get_display_name()} expires after actions completed")
 
                     # Trigger explosion effect (deals damage to adjacent enemies)
-                    self._trigger_echo_death_effect(unit, ui)
+                    self._trigger_doppelganger_death_effect(unit, ui)
 
-                    # Kill the echo
+                    # Kill the doppelganger
                     unit.hp = 0
 
         # Clear all actions and update skill cooldowns
@@ -6263,33 +6263,33 @@ class Game:
         logger.info(f"Test mode {'enabled' if self.test_mode else 'disabled'}")
         return self.test_mode
         
-    def _trigger_echo_death_effect(self, echo_unit, ui=None, processed_echoes=None):
+    def _trigger_doppelganger_death_effect(self, doppelganger_unit, ui=None, processed_doppelgangers=None):
         """
-        Handle the death effect when an echo unit is destroyed.
+        Handle the death effect when an doppelganger unit is destroyed.
         Echoes explode and deal 3 damage to all adjacent units when destroyed.
 
         Args:
-            echo_unit: The echo unit that was destroyed
+            doppelganger_unit: The doppelganger unit that was destroyed
             ui: Optional UI reference for animations
-            processed_echoes: Set of echo units already processed (prevents infinite loops)
+            processed_doppelgangers: Set of doppelganger units already processed (prevents infinite loops)
         """
         import time
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
 
-        # Initialize processed_echoes set if not provided
-        if processed_echoes is None:
-            processed_echoes = set()
+        # Initialize processed_doppelgangers set if not provided
+        if processed_doppelgangers is None:
+            processed_doppelgangers = set()
 
-        # Check if this echo has already been processed (prevents infinite loop)
-        if echo_unit in processed_echoes:
-            logger.debug(f"Echo {echo_unit.get_display_name()} already processed, skipping to prevent infinite loop")
+        # Check if this doppelganger has already been processed (prevents infinite loop)
+        if doppelganger_unit in processed_doppelgangers:
+            logger.debug(f"Doppelganger {doppelganger_unit.get_display_name()} already processed, skipping to prevent infinite loop")
             return
 
-        # Mark this echo as processed
-        processed_echoes.add(echo_unit)
+        # Mark this doppelganger as processed
+        processed_doppelgangers.add(doppelganger_unit)
 
-        logger.debug(f"Echo {echo_unit.get_display_name()} destroyed, triggering death effect")
+        logger.debug(f"Doppelganger {doppelganger_unit.get_display_name()} destroyed, triggering death effect")
 
         # CRITICAL: Collect affected units BEFORE returning banished unit
         # This prevents the just-returned unit from being caught in the explosion
@@ -6301,23 +6301,23 @@ class Game:
                 continue
 
             # Skip friendly units - no friendly fire
-            if unit.player == echo_unit.player:
+            if unit.player == doppelganger_unit.player:
                 continue
 
-            # Skip the echo itself (it's already dying)
-            if unit == echo_unit:
+            # Skip the doppelganger itself (it's already dying)
+            if unit == doppelganger_unit:
                 continue
 
-            # Calculate distance to echo
-            distance = self.chess_distance(echo_unit.y, echo_unit.x, unit.y, unit.x)
+            # Calculate distance to doppelganger
+            distance = self.chess_distance(doppelganger_unit.y, doppelganger_unit.x, unit.y, unit.x)
             if distance <= 1:  # Adjacent including diagonals
-                # Verify GRAYMAN units and GRAYMAN echoes are immune to explosion effect (including banishment)
-                # Both regular GRAYMAN and GRAYMAN echoes have Stasiality
+                # Verify GRAYMAN units and GRAYMAN doppelgangers are immune to explosion effect (including banishment)
+                # Both regular GRAYMAN and GRAYMAN doppelgangers have Stasiality
                 if unit.type == UnitType.GRAYMAN:
-                    # All GRAYMAN units (including echoes) have Stasiality
-                    is_echo = hasattr(unit, 'is_echo') and unit.is_echo
-                    if unit.is_immune_to_effects() or is_echo:
-                        logger.debug(f"GRAYMAN {'echo' if is_echo else ''} {unit.get_display_name()} immune to banishment due to Stasiality")
+                    # All GRAYMAN units (including doppelgangers) have Stasiality
+                    is_doppelganger = hasattr(unit, 'is_doppelganger') and unit.is_doppelganger
+                    if unit.is_immune_to_effects() or is_doppelganger:
+                        logger.debug(f"GRAYMAN {'doppelganger' if is_doppelganger else ''} {unit.get_display_name()} immune to banishment due to Stasiality")
 
                         # Add message about immunity
                         message_log.add_message(
@@ -6331,16 +6331,16 @@ class Game:
 
         # NOW return the banished unit AFTER we've collected affected units
         # This prevents the just-returned unit from being hit by the explosion
-        if hasattr(echo_unit, 'banished_unit') and echo_unit.banished_unit:
-            banished = echo_unit.banished_unit
+        if hasattr(doppelganger_unit, 'banished_unit') and doppelganger_unit.banished_unit:
+            banished = doppelganger_unit.banished_unit
 
-            # IMPORTANT: Remove echo from spatial grid BEFORE returning banished unit
+            # IMPORTANT: Remove doppelganger from spatial grid BEFORE returning banished unit
             # This prevents collision detection from displacing the banished unit
-            self._remove_from_unit_grid(echo_unit)
+            self._remove_from_unit_grid(doppelganger_unit)
 
-            # Return the banished unit to the game at the echo's position
-            banished.y = echo_unit.y
-            banished.x = echo_unit.x
+            # Return the banished unit to the game at the doppelganger's position
+            banished.y = doppelganger_unit.y
+            banished.x = doppelganger_unit.x
 
             # Clear the banished flag so they can award GP normally if killed later
             if hasattr(banished, 'is_banished'):
@@ -6374,25 +6374,25 @@ class Game:
             # No units affected by explosion
             return
 
-        # Log the explosion with a more dramatic message for the GRAYMAN echo
+        # Log the explosion with a more dramatic message for the GRAYMAN doppelganger
         message_log.add_message(
-            f"{echo_unit.get_display_name()} collapses into a psychic void, tearing through spacetime",
+            f"{doppelganger_unit.get_display_name()} collapses into a psychic void, tearing through spacetime",
             MessageType.ABILITY,  # Use ABILITY type to ensure player color is used
-            player=echo_unit.player
+            player=doppelganger_unit.player
         )
         
         # Follow up with the affected units information
         if affected_units:
             pass  # Remove the summary message
         
-        # Animation for echo explosion
+        # Animation for doppelganger explosion
         if ui and hasattr(ui, 'renderer'):
             import time
 
-            # Center explosion animation at echo position
+            # Center explosion animation at doppelganger position
             center_animation = ['P', '*', 'O', '0', '~', 'O', '#', ',', '.']
             ui.renderer.animate_attack_sequence(
-                echo_unit.y, echo_unit.x,
+                doppelganger_unit.y, doppelganger_unit.x,
                 center_animation,
                 6,  # Yellow/explosion color
                 0.08  # Duration (slightly faster for more dramatic effect)
@@ -6405,7 +6405,7 @@ class Game:
                     if dy == 0 and dx == 0:  # Skip the center (already animated)
                         continue
                     
-                    new_y, new_x = echo_unit.y + dy, echo_unit.x + dx
+                    new_y, new_x = doppelganger_unit.y + dy, doppelganger_unit.x + dx
                     # Only include positions that are valid (on the board)
                     if self.is_valid_position(new_y, new_x):
                         adjacent_positions.append((new_y, new_x))
@@ -6431,15 +6431,15 @@ class Game:
 
         # Check if Græ Exchange is upgraded (units hit by explosion are also banished)
         is_grae_upgraded = False
-        if hasattr(echo_unit, 'original_unit') and echo_unit.original_unit:
-            original_grayman = echo_unit.original_unit
+        if hasattr(doppelganger_unit, 'original_unit') and doppelganger_unit.original_unit:
+            original_grayman = doppelganger_unit.original_unit
             from boneglaive.game.upgrades import UpgradeManager
             is_grae_upgraded = UpgradeManager.is_skill_upgraded(original_grayman, "Græ Exchange")
 
         # Apply damage (or banishment if upgraded) to affected units
         for unit in affected_units:
             if is_grae_upgraded:
-                # UPGRADED: Banish units hit by the explosion AND create echoes
+                # UPGRADED: Banish units hit by the explosion AND create doppelgangers
                 # Store unit's current position before banishing
                 banish_pos = (unit.y, unit.x)
                 logger.debug(f"Banishing {unit.get_display_name()} at position {banish_pos}")
@@ -6455,58 +6455,58 @@ class Game:
                 else:
                     logger.warning(f"Unit {unit.get_display_name()} not in units list?")
 
-                # Create a new GRAYMAN echo at the banished unit's position
+                # Create a new GRAYMAN doppelganger at the banished unit's position
                 from boneglaive.game.units import Unit
-                new_echo = Unit(UnitType.GRAYMAN, echo_unit.player, banish_pos[0], banish_pos[1])
-                new_echo.initialize_skills()
-                new_echo.set_game_reference(self)
+                new_doppelganger = Unit(UnitType.GRAYMAN, doppelganger_unit.player, banish_pos[0], banish_pos[1])
+                new_doppelganger.initialize_skills()
+                new_doppelganger.set_game_reference(self)
 
-                # Set echo properties
-                new_echo.is_echo = True
-                new_echo.echo_duration = 2  # Echo lasts 2 turns
-                new_echo.original_unit = echo_unit.original_unit if hasattr(echo_unit, 'original_unit') else echo_unit
-                new_echo.hp = 5
-                new_echo.max_hp = 5
-                new_echo.attack = 3
+                # Set doppelganger properties
+                new_doppelganger.is_doppelganger = True
+                new_doppelganger.doppelganger_duration = 2  # Doppelganger lasts 2 turns
+                new_doppelganger.original_unit = doppelganger_unit.original_unit if hasattr(doppelganger_unit, 'original_unit') else doppelganger_unit
+                new_doppelganger.hp = 5
+                new_doppelganger.max_hp = 5
+                new_doppelganger.attack = 3
 
-                # Store the banished unit in the new echo so we can return them later
-                new_echo.banished_unit = unit
+                # Store the banished unit in the new doppelganger so we can return them later
+                new_doppelganger.banished_unit = unit
 
                 # Visual identifier (use lowercase greek or add suffix)
-                if hasattr(echo_unit, 'greek_id') and echo_unit.greek_id:
-                    # Create a unique identifier for this echo
-                    new_echo.greek_id = echo_unit.greek_id.lower()
-                elif hasattr(echo_unit, 'original_unit') and echo_unit.original_unit and hasattr(echo_unit.original_unit, 'greek_id') and echo_unit.original_unit.greek_id:
-                    new_echo.greek_id = echo_unit.original_unit.greek_id.lower()
+                if hasattr(doppelganger_unit, 'greek_id') and doppelganger_unit.greek_id:
+                    # Create a unique identifier for this doppelganger
+                    new_doppelganger.greek_id = doppelganger_unit.greek_id.lower()
+                elif hasattr(doppelganger_unit, 'original_unit') and doppelganger_unit.original_unit and hasattr(doppelganger_unit.original_unit, 'greek_id') and doppelganger_unit.original_unit.greek_id:
+                    new_doppelganger.greek_id = doppelganger_unit.original_unit.greek_id.lower()
 
                 # Copy upgraded_skills from the original GRAYMAN
-                if hasattr(echo_unit, 'original_unit') and echo_unit.original_unit and hasattr(echo_unit.original_unit, 'upgraded_skills'):
-                    new_echo.upgraded_skills = set(echo_unit.original_unit.upgraded_skills)
+                if hasattr(doppelganger_unit, 'original_unit') and doppelganger_unit.original_unit and hasattr(doppelganger_unit.original_unit, 'upgraded_skills'):
+                    new_doppelganger.upgraded_skills = set(doppelganger_unit.original_unit.upgraded_skills)
 
-                # Add new echo to game
-                self.units.append(new_echo)
-                self._update_unit_grid(new_echo)
+                # Add new doppelganger to game
+                self.units.append(new_doppelganger)
+                self._update_unit_grid(new_doppelganger)
 
-                # CRITICAL: Mark new echo as already processed to prevent immediate chain explosion
-                # New echoes spawned from this explosion should not explode in the same chain
-                processed_echoes.add(new_echo)
+                # CRITICAL: Mark new doppelganger as already processed to prevent immediate chain explosion
+                # New doppelgangers spawned from this explosion should not explode in the same chain
+                processed_doppelgangers.add(new_doppelganger)
 
-                logger.info(f"ECHO SPAWNED from explosion banishment: {new_echo.get_display_name()} at position {banish_pos}")
+                logger.info(f"ECHO SPAWNED from explosion banishment: {new_doppelganger.get_display_name()} at position {banish_pos}")
 
-                # Log the banishment and echo creation
+                # Log the banishment and doppelganger creation
                 message_log.add_message(
                     f"{unit.get_display_name()} is banished by the psychic explosion!",
                     MessageType.ABILITY,
-                    player=echo_unit.player
+                    player=doppelganger_unit.player
                 )
                 message_log.add_message(
-                    f"A GRAYMAN echo manifests in {unit.get_display_name()}'s place",
+                    f"A GRAYMAN doppelganger manifests in {unit.get_display_name()}'s place",
                     MessageType.ABILITY,
-                    player=echo_unit.player
+                    player=doppelganger_unit.player
                 )
             else:
                 # NORMAL: Just apply damage
-                # Echo explosion damage
+                # Doppelganger explosion damage
                 damage = 3
                 # Apply defense reduction for explosions
                 effective_defense = unit.get_effective_stats()['defense']
@@ -6520,11 +6520,11 @@ class Game:
 
                 # Log the damage using combat message format to ensure player color
                 message_log.add_combat_message(
-                    attacker_name=echo_unit.get_display_name(),
+                    attacker_name=doppelganger_unit.get_display_name(),
                     target_name=unit.get_display_name(),
                     damage=damage,
                     ability="explosion",
-                    attacker_player=echo_unit.player,
+                    attacker_player=doppelganger_unit.player,
                     target_player=unit.player
                 )
 
@@ -6582,9 +6582,9 @@ class Game:
                     # Check if unit was killed
                     if unit.hp <= 0 and previous_hp > 0:
                         # Use centralized death handling
-                        self.handle_unit_death(unit, echo_unit, cause="explosion", ui=ui)
+                        self.handle_unit_death(unit, doppelganger_unit, cause="explosion", ui=ui)
                 
-                # Check if this was a MANDIBLE_FOREMAN or another echo
+                # Check if this was a MANDIBLE_FOREMAN or another doppelganger
                 if unit.type == UnitType.MANDIBLE_FOREMAN:
                     # Release trapped units
                     for trapped_unit in self.units:
@@ -6596,10 +6596,10 @@ class Game:
                                 MessageType.ABILITY,
                                 target_name=trapped_unit.get_display_name()
                             )
-                elif unit.is_echo:
-                    # Chain reaction - trigger this echo's death effect too
-                    # Pass the processed_echoes set to prevent infinite loops
-                    self._trigger_echo_death_effect(unit, ui, processed_echoes)
+                elif unit.is_doppelganger:
+                    # Chain reaction - trigger this doppelganger's death effect too
+                    # Pass the processed_doppelgangers set to prevent infinite loops
+                    self._trigger_doppelganger_death_effect(unit, ui, processed_doppelgangers)
     
     
     def _show_wall_attack_animation(self, ui, unit, wall_position, damage):

@@ -168,7 +168,7 @@ class SetupUnitHelp:
             UnitType.GRAYMAN: {
                 'difficulty': 1,  # Out of 5
                 'role': 'Escape Artist / Disabler / Summoner',
-                'overview': 'A gray alien-human hybrid that exists outside normal causality, rendering it immune to all external manipulation. This highly mobile ranged unit weaponizes existential isolation to permanently weaken enemies while creating psychic echoes across the battlefield.',
+                'overview': 'A gray alien-human hybrid that exists outside normal causality, rendering it immune to all external manipulation. This highly mobile ranged unit weaponizes existential isolation to permanently weaken enemies while creating psychic doppelgangers across the battlefield.',
                 'passive': {
                     'name': 'STASIALITY',
                     'desc': 'Exists in a state of permanent stasis outside normal spacetime, granting absolute immunity to all status effects, stat modifications, forced movement, and terrain effects.'
@@ -184,7 +184,7 @@ class SetupUnitHelp:
                     },
                     {
                         'name': 'GRÆ EXCHANGE',
-                        'desc': 'Banishes a target enemy unit and replaces them with a GRAYMAN echo that can attack and explode on death.'
+                        'desc': 'Banishes a target enemy unit and replaces them with a GRAYMAN doppelganger that can attack and explode on death.'
                     }
                 ]
             },

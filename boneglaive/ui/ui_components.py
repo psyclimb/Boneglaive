@@ -810,7 +810,7 @@ class UnitHelpComponent(UIComponent):
                     'existence outside normal causality, rendering it immune to all external manipulation. Using alien',
                     'propulsion technology adapted for combat, the GRAYMAN travels via delta configuration—instantaneous',
                     'point-to-point spatial reconfiguration. The unit weaponizes existential isolation to permanently',
-                    'weaken enemies while creating psychic echoes that maintain battlefield presence across multiple',
+                    'weaken enemies while creating psychic doppelgangers that maintain battlefield presence across multiple',
                     'locations simultaneously.',
                     '',
                     'Role: Escape Artist / Disabler / Summoner',
@@ -858,14 +858,14 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'GRÆ EXCHANGE (Active) [Key: G]',
-                        'description': 'The GRAYMAN performs a dimensional exchange, temporarily banishing a target enemy unit from reality while simultaneously manifesting a psychic echo in their place. The banished unit is displaced into a temporal void for 1 turn, completely removed from the battlefield. The echo that replaces them possesses 5 HP and 3 attack but cannot move or use skills—only basic attacks. When the echo is destroyed or expires, it detonates in a psychic explosion dealing 3 damage to all adjacent enemies, after which the banished unit returns to the echo\'s last position.',
+                        'description': 'The GRAYMAN performs a dimensional exchange, temporarily banishing a target enemy unit from reality while simultaneously manifesting a psychic doppelganger in their place. The banished unit is displaced into a temporal void for 1 turn, completely removed from the battlefield. The doppelganger that replaces them possesses 12 HP and 3 attack but cannot move or use skills—only basic attacks. When the doppelganger is destroyed or expires, it detonates in a psychic explosion dealing 3 damage to all adjacent enemies, after which the banished unit returns to the doppelganger\'s last position.',
                         'details': [
                             'Type: Active',
                             'Range: 5',
                             'Target: Enemy unit',
-                            'Effect: Banishes target for 1 turn; creates Echo (ψ) with 5 HP, 3 ATK at target\'s position',
+                            'Effect: Banishes target for 1 turn; creates Doppelganger (ψ) with 12 HP, 3 ATK at target\'s position',
                             'Cooldown: 3 turns',
-                            'Special: Echo is immobile and cannot use skills; explodes for 3 damage to adjacent enemies on death; banished unit returns when echo expires or dies; requires line of sight'
+                            'Special: Doppelganger is immobile and cannot use skills; explodes for 3 damage to adjacent enemies on death; banished unit returns when doppelganger expires or dies; requires line of sight'
                         ]
                     }
                 ],
@@ -875,7 +875,7 @@ class UnitHelpComponent(UIComponent):
                     '- Estrange permanently weakens key enemy units; prioritize high-value targets',
                     '- Græ Exchange temporarily removes dangerous enemies while creating a combat presence',
                     '- Banish high-value targets at critical moments to disrupt enemy strategy',
-                    '- Position echoes to maximize explosion damage when they expire',
+                    '- Position doppelgangers to maximize explosion damage when they expire',
                     '- Stay at maximum range (5) to avoid retaliation due to 0 defense'
                 ],
                 'tactical': [
@@ -885,10 +885,10 @@ class UnitHelpComponent(UIComponent):
                 ]
             },
             'GRAYMAN_ECHO': {
-                'title': 'GRAYMAN ECHO',
+                'title': 'GRAYMAN DOPPELGANGER',
                 'overview': [
-                    'GRAYMAN echoes are temporary psychic projections manifested through the Græ Exchange skill.',
-                    'When the GRAYMAN banishes an enemy unit to the temporal void, an echo takes their place,',
+                    'GRAYMAN doppelgangers are temporary psychic projections manifested through the Græ Exchange skill.',
+                    'When the GRAYMAN banishes an enemy unit to the temporal void, a doppelganger takes their place,',
                     'maintaining battlefield control while the original target remains displaced. These immobile',
                     'entities can perform basic attacks and explode when destroyed, serving as both combat units',
                     'and area denial threats that guard the position until the banished unit returns.',
@@ -896,7 +896,7 @@ class UnitHelpComponent(UIComponent):
                     'Role: Area Controller / Temporary Replacement'
                 ],
                 'stats': [
-                    'HP: 5',
+                    'HP: 12',
                     'Attack: 3',
                     'Defense: 0',
                     'Movement: 0',
@@ -921,7 +921,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'DEATH EXPLOSION (On Death)',
-                        'description': 'When destroyed or when its duration expires, the echo detonates in a psychic explosion dealing 3 damage to all adjacent enemy units. After the explosion, the banished unit returns from the void to reclaim their position.',
+                        'description': 'When destroyed or when its duration expires, the doppelganger detonates in a psychic explosion dealing 3 damage to all adjacent enemy units. After the explosion, the banished unit returns from the void to reclaim their position.',
                         'details': [
                             'Type: On Death/Expiration',
                             'Range: All adjacent tiles',
@@ -936,17 +936,17 @@ class UnitHelpComponent(UIComponent):
                     }
                 ],
                 'tips': [
-                    '- Echo replaces banished enemy at their exact position',
+                    '- Doppelganger replaces banished enemy at their exact position',
                     '- Use to temporarily remove key threats while maintaining board control',
-                    '- Explosion threat forces enemies to keep distance from the echo',
-                    '- Remember the banished unit will return when the echo expires',
+                    '- Explosion threat forces enemies to keep distance from the doppelganger',
+                    '- Remember the banished unit will return when the doppelganger expires',
                     '- Cannot use skills, only basic attacks within range 1'
                 ],
                 'tactical': [
                     '- Strong against: Melee units, clustered formations, key enemy pieces',
                     '- Limitations: Cannot move, no skills, 1-turn duration, low HP',
                     '- Strategic value: Temporarily neutralizes threats while providing combat presence',
-                    '- Timing consideration: Banished unit returns at echo\'s position when it expires'
+                    '- Timing consideration: Banished unit returns at doppelganger\'s position when it expires'
                 ]
             },
             UnitType.MARROW_CONDENSER: {
@@ -3511,8 +3511,8 @@ class GameModeManager(UIComponent):
                     )
                     return
                 
-                # Check if unit is an echo (cannot move)
-                if cursor_manager.selected_unit.is_echo:
+                # Check if unit is a doppelganger (cannot move)
+                if cursor_manager.selected_unit.is_doppelganger:
                     # Don't show a message, just silently return
                     return
 
@@ -3597,10 +3597,10 @@ class GameModeManager(UIComponent):
                     )
                     return
                 
-                # Check if unit is an echo
-                # Echoes CAN use skills if Græ Exchange is upgraded
-                if cursor_manager.selected_unit.is_echo:
-                    # Check if this echo can use Græ Exchange (upgrade active)
+                # Check if unit is a doppelganger
+                # Doppelgangers CAN use skills if Græ Exchange is upgraded
+                if cursor_manager.selected_unit.is_doppelganger:
+                    # Check if this doppelganger can use Græ Exchange (upgrade active)
                     from boneglaive.game.upgrades import UpgradeManager
                     from boneglaive.utils.constants import UnitType
 
@@ -3615,9 +3615,9 @@ class GameModeManager(UIComponent):
                         )
 
                     if not can_use_grae_exchange:
-                        # Echo cannot use any skills - silently return
+                        # Doppelganger cannot use any skills - silently return
                         return
-                    # Otherwise, allow echo to proceed to skill menu
+                    # Otherwise, allow doppelganger to proceed to skill menu
                     # (only Græ Exchange will be available, others will be grayed out)
 
                 # Check if unit is recharging from Gaussian Dusk
@@ -5035,7 +5035,7 @@ class AnimationComponent(UIComponent):
 
             # Account for GRAYMAN units that bypass defense
             from boneglaive.utils.constants import UnitType
-            if attacker.type == UnitType.GRAYMAN or (hasattr(attacker, 'is_echo') and attacker.is_echo and attacker.type == UnitType.GRAYMAN):
+            if attacker.type == UnitType.GRAYMAN or (hasattr(attacker, 'is_doppelganger') and attacker.is_doppelganger and attacker.type == UnitType.GRAYMAN):
                 # GRAYMAN units bypass defense completely
                 display_damage = effective_attack
             else:
@@ -5186,7 +5186,7 @@ class ActionMenuComponent(UIComponent):
         unit_has_action = (unit.attack_target or unit.skill_target or unit.selected_skill)
 
         # Add standard actions with consistent labeling
-        # Disable move for trapped units, Jawline-affected units, recharging units, Neural Shunt, echoes, or if already moved
+        # Disable move for trapped units, Jawline-affected units, recharging units, Neural Shunt, doppelgangers, or if already moved
         # Note: units CAN move even if they have attack/skill planned (move executes first)
         # EXCEPTION: DERELICTIONIST can move after using a skill (Severance passive)
 
@@ -5198,7 +5198,7 @@ class ActionMenuComponent(UIComponent):
         unit_can_move = (unit is not None and
                         not unit_is_recharging and  # Recharging blocks ALL actions
                         unit.trapped_by is None and
-                        not unit.is_echo and
+                        not unit.is_doppelganger and
                         not unit.move_target and  # Can't move if already planned a move
                         (not (unit.skill_target and unit.selected_skill) or derelictionist_severance_exception) and  # Severance exception
                         not (hasattr(unit, 'jawline_affected') and unit.jawline_affected) and
@@ -5230,33 +5230,33 @@ class ActionMenuComponent(UIComponent):
         # Add skill action
         unit_has_skills = unit is not None and hasattr(unit, 'active_skills') and len(unit.get_available_skills()) > 0
 
-        # Check if echo can use skills (if Græ Exchange is upgraded)
-        echo_can_use_skills = False
-        if unit and hasattr(unit, 'is_echo') and unit.is_echo:
+        # Check if doppelganger can use skills (if Græ Exchange is upgraded)
+        doppelganger_can_use_skills = False
+        if unit and hasattr(unit, 'is_doppelganger') and unit.is_doppelganger:
             from boneglaive.game.upgrades import UpgradeManager
             if (unit.type == UnitType.GRAYMAN and
                 hasattr(unit, 'original_unit') and
                 unit.original_unit):
                 # Check if Græ Exchange is upgraded
-                echo_can_use_skills = UpgradeManager.is_skill_upgraded(
+                doppelganger_can_use_skills = UpgradeManager.is_skill_upgraded(
                     unit.original_unit,
                     "Græ Exchange"
                 )
 
         # Allow skills to be used even when a move is planned (the unit can cast from the new position)
         # Disable skills when recharging, under Neural Shunt, or with actions
-        # EXCEPTION: Echoes can use skills if Græ Exchange is upgraded
+        # EXCEPTION: Doppelgangers can use skills if Græ Exchange is upgraded
         unit_can_use_skills = (unit_has_skills and
                               not unit_is_recharging and  # Recharging blocks ALL actions
                               unit.trapped_by is None and
-                              (not unit.is_echo or echo_can_use_skills) and  # Allow echoes if upgrade active
+                              (not unit.is_doppelganger or doppelganger_can_use_skills) and  # Allow doppelgangers if upgrade active
                               not unit_has_action and
                               not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected))
         self.actions.append({
             'key': 's',
             'label': 'kills',  # Will be displayed as [S]kills without space
             'action': GameAction.SKILL_MODE,
-            'enabled': unit_can_use_skills  # Enabled if unit has available skills, is not trapped, and not an echo
+            'enabled': unit_can_use_skills  # Enabled if unit has available skills, is not trapped, and not a doppelganger
         })
         
         # Reset selected index
@@ -5348,9 +5348,9 @@ class ActionMenuComponent(UIComponent):
 
             # Add Delta Config skill
             delta_config_skill = next((skill for skill in available_skills if skill.name == "Delta Config"), None)
-            # For echoes, check can_use() to properly gray out skills they can't use
+            # For doppelgangers, check can_use() to properly gray out skills they can't use
             delta_config_enabled = delta_config_skill is not None
-            if delta_config_enabled and hasattr(unit, 'is_echo') and unit.is_echo:
+            if delta_config_enabled and hasattr(unit, 'is_doppelganger') and unit.is_doppelganger:
                 # Echo must pass can_use() check (which it won't for Delta Config)
                 delta_config_enabled = delta_config_skill.can_use(unit, None, self.game_ui.game)
             self.actions.append({
@@ -5363,9 +5363,9 @@ class ActionMenuComponent(UIComponent):
 
             # Add Estrange skill
             estrange_skill = next((skill for skill in available_skills if skill.name == "Estrange"), None)
-            # For echoes, check can_use() to properly gray out skills they can't use
+            # For doppelgangers, check can_use() to properly gray out skills they can't use
             estrange_enabled = estrange_skill is not None
-            if estrange_enabled and hasattr(unit, 'is_echo') and unit.is_echo:
+            if estrange_enabled and hasattr(unit, 'is_doppelganger') and unit.is_doppelganger:
                 # Echo must pass can_use() check (which it won't for Estrange)
                 estrange_enabled = estrange_skill.can_use(unit, None, self.game_ui.game)
             self.actions.append({
@@ -5378,10 +5378,10 @@ class ActionMenuComponent(UIComponent):
 
             # Add Græ Exchange skill
             grae_exchange_skill = next((skill for skill in available_skills if skill.name == "Græ Exchange"), None)
-            # For echoes, check can_use() to properly gray out skills they can't use
+            # For doppelgangers, check can_use() to properly gray out skills they can't use
             grae_exchange_enabled = grae_exchange_skill is not None
-            if grae_exchange_enabled and hasattr(unit, 'is_echo') and unit.is_echo:
-                # Echo must pass can_use() check (will pass if upgraded)
+            if grae_exchange_enabled and hasattr(unit, 'is_doppelganger') and unit.is_doppelganger:
+                # Doppelganger must pass can_use() check (will pass if upgraded)
                 grae_exchange_enabled = grae_exchange_skill.can_use(unit, None, self.game_ui.game)
             self.actions.append({
                 'key': 'g',
@@ -6495,9 +6495,9 @@ class InputManager(UIComponent):
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.MANDIBLE_FOREMAN)
                 return
             elif unit_type == UnitType.GRAYMAN:
-                # Check if this is an echo or regular GRAYMAN
-                if hasattr(cursor_manager.selected_unit, 'is_echo') and cursor_manager.selected_unit.is_echo:
-                    # Show GRAYMAN echo help
+                # Check if this is a doppelganger or regular GRAYMAN
+                if hasattr(cursor_manager.selected_unit, 'is_doppelganger') and cursor_manager.selected_unit.is_doppelganger:
+                    # Show GRAYMAN doppelganger help
                     self.game_ui.unit_help_component.toggle_unit_help('GRAYMAN_ECHO')
                 else:
                     # Show regular GRAYMAN unit help

@@ -275,13 +275,13 @@ STATUS_EFFECTS = {
         "duration_key": "gaussian_dusk_recharge",
         "check": lambda u: hasattr(u, 'gaussian_dusk_recharge') and u.gaussian_dusk_recharge > 0
     },
-    "is_echo": {
-        "name": "Echo",
+    "is_doppelganger": {
+        "name": "Doppelganger",
         "type": "buff",
-        "icon": "EC",
-        "description": "Temporary echo created by Grae Exchange",
-        "duration_key": "echo_duration",
-        "check": lambda u: u.is_echo
+        "icon": "DG",
+        "description": "Temporary doppelganger created by Grae Exchange",
+        "duration_key": "doppelganger_duration",
+        "check": lambda u: u.is_doppelganger
     },
     "potpourri_held": {
         "name": "Infused",

@@ -384,12 +384,12 @@ class MatadorAnimation:
         # Get caster's player number
         caster_player = self.caster_unit.player
 
-        # Get all enemy units (excluding summons and echoes)
+        # Get all enemy units (excluding summons and doppelgangers)
         all_enemy_units = [
             u for u in self.game.units
             if u.player != caster_player
             and not getattr(u, 'is_summon', False)
-            and not getattr(u, 'is_echo', False)
+            and not getattr(u, 'is_doppelganger', False)
         ]
 
         if not all_enemy_units:

@@ -111,8 +111,8 @@ class Unit:
         self.shredded_original_defense = 0  # Store original defense to restore later
         
         # Græ Exchange echo properties
-        self.is_echo = False  # Whether this unit is an echo created by Græ Exchange
-        self.echo_duration = 0  # Number of OWNER'S turns the echo remains (decremented only on owner's turn)
+        self.is_doppelganger = False  # Whether this unit is a doppelganger created by Græ Exchange
+        self.doppelganger_duration = 0  # Number of OWNER'S turns the doppelganger remains (decremented only on owner's turn)
         self.original_unit = None  # Reference to the original unit that created this echo
         
         # FOWL_CONTRIVANCE properties
@@ -315,9 +315,9 @@ class Unit:
         stats['move_range'] = max(0, base_movement)
         
         
-        # If unit is an echo (from Græ Exchange), set its attack to at least 2
-        if self.is_echo:
-            # For GRAYMAN echoes, use half attack but with a minimum of 2
+        # If unit is a doppelganger (from Græ Exchange), set its attack to at least 2
+        if self.is_doppelganger:
+            # For GRAYMAN doppelgangers, use half attack but with a minimum of 2
             halved_attack = stats['attack'] // 2
             stats['attack'] = max(2, halved_attack)
             # Echo cannot move
@@ -425,7 +425,7 @@ class Unit:
                 display_type = "DELPHIC APPRAISER"
         
         # For echo units, change name to "ECHO {TYPE}"
-        if self.is_echo:
+        if self.is_doppelganger:
             if self.greek_id:
                 return f"ECHO {display_type} {self.greek_id}"
             else:
@@ -940,8 +940,8 @@ class Unit:
         if hasattr(self, 'is_banished') and self.is_banished:
             return
 
-        # Don't award GP for echoes (they are temporary summons)
-        if hasattr(self, 'is_echo') and self.is_echo:
+        # Don't award GP for doppelgangers (they are temporary summons)
+        if hasattr(self, 'is_doppelganger') and self.is_doppelganger:
             return
 
         # Check if this unit is GP-eligible (not a summon/echo)

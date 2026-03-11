@@ -764,11 +764,11 @@ class UIRenderer:
                         # No special symbol for GRAYMAN skills
                         # (Previously showed | for Græ Exchange, but this was removed)
                             
-                        # Check for echo units (priority over estranged)
-                        if hasattr(unit, 'is_echo') and unit.is_echo:
-                            # Use lowercase psi symbol to show it's an echo of GRAYMAN's Ψ
+                        # Check for doppelganger units (priority over estranged)
+                        if hasattr(unit, 'is_doppelganger') and unit.is_doppelganger:
+                            # Use lowercase psi symbol to show it's a doppelganger of GRAYMAN's Ψ
                             tile = f"ψ"
-                            # Use dim attribute for echo units to make them appear faint
+                            # Use dim attribute for doppelganger units to make them appear faint
                             attributes = curses.A_DIM
                         # Check for estranged units
                         elif hasattr(unit, 'estranged') and unit.estranged:
@@ -1586,8 +1586,8 @@ class UIRenderer:
             if hasattr(unit, 'auction_curse_dot') and unit.auction_curse_dot:
                 duration = getattr(unit, 'auction_curse_dot_duration', '?')
                 negative_effects.append(f"Auction Curse({duration})")
-            if hasattr(unit, 'echo_duration') and unit.echo_duration > 0:
-                positive_effects.append(f"Echo({unit.echo_duration})")
+            if hasattr(unit, 'doppelganger_duration') and unit.doppelganger_duration > 0:
+                positive_effects.append(f"Doppelganger({unit.doppelganger_duration})")
             if hasattr(unit, 'vapor_duration') and unit.vapor_duration > 0 and unit.type == UnitType.HEINOUS_VAPOR:
                 vapor_type = getattr(unit, 'vapor_type', 'Vapor')
                 positive_effects.append(f"{vapor_type}({unit.vapor_duration})")
@@ -1638,9 +1638,9 @@ class UIRenderer:
                 positive_effects.append(f"Tactical Momentum({unit.status_tactical_momentum_duration})")
             if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
                 positive_effects.append("First Turn Bonus")
-            if hasattr(unit, 'is_echo') and unit.is_echo and not (hasattr(unit, 'echo_duration') and unit.echo_duration > 0):
+            if hasattr(unit, 'is_doppelganger') and unit.is_doppelganger and not (hasattr(unit, 'doppelganger_duration') and unit.doppelganger_duration > 0):
                 # Only show if not already shown with duration
-                positive_effects.append("Echo")
+                positive_effects.append("Doppelganger")
             if hasattr(unit, 'is_invulnerable') and unit.is_invulnerable:
                 positive_effects.append("Invulnerable")
             if hasattr(unit, 'diverge_return_position') and unit.diverge_return_position:
@@ -1900,9 +1900,9 @@ class UIRenderer:
                 # Alive unit - use Unit properties
                 unit = unit_or_dead
 
-                # Special handling for echo units
-                if hasattr(unit, 'is_echo') and unit.is_echo:
-                    symbol = 'ψ'  # Lowercase psi for echoes
+                # Special handling for doppelganger units
+                if hasattr(unit, 'is_doppelganger') and unit.is_doppelganger:
+                    symbol = 'ψ'  # Lowercase psi for doppelgangers
                 # Special handling for HEINOUS_VAPOR - use their specific symbol
                 elif unit.type == UnitType.HEINOUS_VAPOR and hasattr(unit, 'vapor_symbol') and unit.vapor_symbol:
                     symbol = unit.vapor_symbol  # 1, 0, 2, 3 etc.

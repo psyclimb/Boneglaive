@@ -287,7 +287,7 @@ class SkillBar:
                 # Check if all skills are blocked
                 if LOTOChecker.is_action_blocked(game_unit, 'skill'):
                     slot.blocked_actions = blocked_actions
-                # Check if this specific skill is blocked (e.g., Delta Config/Estrange for echoes, Infuse when already active)
+                # Check if this specific skill is blocked (e.g., Delta Config/Estrange for doppelgangers, Infuse when already active)
                 elif LOTOChecker.is_skill_blocked(game_unit, skill.name):
                     slot.blocked_actions = {'skill'}  # Mark as blocked even if no general block exists
                 self.skill_slots.append(slot)

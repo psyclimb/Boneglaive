@@ -1837,7 +1837,7 @@ class SimpleAI:
     def _process_grayman(self, unit: 'Unit', use_coordination: bool = False) -> None:
         """
         Process actions for a Grayman unit.
-        Implements intelligent skill usage focusing on teleportation, phasing, and echo creation.
+        Implements intelligent skill usage focusing on teleportation, phasing, and doppelganger creation.
         
         Args:
             unit: The Grayman unit to process
@@ -2206,18 +2206,18 @@ class SimpleAI:
                 score = self._calculate_position_safety(unit, y, x)
                 
                 # Echo value at current position (only small consideration)
-                echo_value = 0
+                doppelganger_value = 0
                 
-                # Check if there are enemies in attack range from current position for echo value
+                # Check if there are enemies in attack range from current position for doppelganger value
                 for enemy in self.game.units:
                     if enemy.player != unit.player and enemy.is_alive():
                         distance = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
                         attack_range = unit.get_effective_stats()['attack_range']
                         if distance <= attack_range:
-                            echo_value += 5  # Small bonus, safety is primary concern
+                            doppelganger_value += 5  # Small bonus, safety is primary concern
                 
-                # Add echo value to score (with lower weight than safety)
-                score += echo_value * 0.2
+                # Add doppelganger value to score (with lower weight than safety)
+                score += doppelganger_value * 0.2
                 
                 # If this is safer than our current best, update
                 if score > best_score:
@@ -2773,7 +2773,7 @@ class SimpleAI:
             
     def _evaluate_grae_exchange_skill(self, unit: 'Unit', target: 'Unit', skill) -> Tuple[Optional[Tuple[int, int]], float]:
         """
-        Evaluate the value of using Græ Exchange skill to create an echo and teleport.
+        Evaluate the value of using Græ Exchange skill to create a doppelganger and teleport.
         Finds the best position to teleport to and returns its score.
         
         Args:
@@ -2799,7 +2799,7 @@ class SimpleAI:
         # Get current health percentage
         health_percent = unit.hp / unit.max_hp
         
-        # Current position value - how useful is it to leave an echo here?
+        # Current position value - how useful is it to leave a doppelganger here?
         current_pos_value = 0
         
         # Check if there are enemies in attack range from current position
@@ -2816,7 +2816,7 @@ class SimpleAI:
                     else:
                         current_pos_value += 8   # Increased from 5
         
-        # If no enemies in range, the echo would be useless
+        # If no enemies in range, the doppelganger would be useless
         if enemies_in_range == 0:
             current_pos_value = 0
         

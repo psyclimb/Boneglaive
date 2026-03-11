@@ -769,8 +769,8 @@ class AnimatedUnit:
         # Draw sprite or fallback to circle (for non-vapor units)
         elif self.sprite:
             # Check if this is a GRAYMAN ECHO (ethereal rendering)
-            is_echo = (hasattr(self.game_unit, 'is_echo') and
-                       self.game_unit.is_echo)
+            is_doppelganger = (hasattr(self.game_unit, 'is_doppelganger') and
+                       self.game_unit.is_doppelganger)
 
             # Determine which sprite to use and its position
             # Combine wind_up_rotation and respawn_rotation if both are active
@@ -826,9 +826,9 @@ class AnimatedUnit:
                     glitch_alpha = random.randint(140, 200)  # Brighter glitch range
                     karrier_sprite.set_alpha(glitch_alpha)
 
-            # Apply echo effect if needed
-            elif is_echo:
-                # Performance: Cache EVERYTHING about echo sprites, including the loaded sprite
+            # Apply doppelganger effect if needed
+            elif is_doppelganger:
+                # Performance: Cache EVERYTHING about doppelganger sprites, including the loaded sprite
                 banished_unit_type_name = "fallback"
 
                 if hasattr(self.game_unit, 'banished_unit') and self.game_unit.banished_unit:
@@ -836,21 +836,21 @@ class AnimatedUnit:
                     banished_unit_type = banished_unit.type
                     banished_unit_type_name = str(banished_unit_type).split('.')[-1].lower()
 
-                # Create cache key for this specific echo
-                cache_key = f'_echo_final_{banished_unit_type_name}_{total_rotation}'
+                # Create cache key for this specific doppelganger
+                cache_key = f'_doppelganger_final_{banished_unit_type_name}_{total_rotation}'
 
-                # Check if we already have this exact echo sprite cached
+                # Check if we already have this exact doppelganger sprite cached
                 if not hasattr(self, cache_key):
                     # Load or use default sprite
-                    echo_base_sprite = sprite_to_use  # Default
+                    doppelganger_base_sprite = sprite_to_use  # Default
 
                     # Only try to load banished sprite if we have the info
                     if banished_unit_type_name != "fallback":
                         # Check if we've already loaded this base sprite before
-                        base_cache_key = f'_echo_base_{banished_unit_type_name}'
+                        base_cache_key = f'_doppelganger_base_{banished_unit_type_name}'
                         if hasattr(self, base_cache_key):
                             # Reuse previously loaded sprite
-                            echo_base_sprite = getattr(self, base_cache_key)
+                            doppelganger_base_sprite = getattr(self, base_cache_key)
                         else:
                             # Load the sprite ONCE and cache it
                             sprite_path = f"graphics/units/{banished_unit_type_name}.svg"
@@ -861,30 +861,30 @@ class AnimatedUnit:
                                             import cairosvg
                                             from io import BytesIO
                                             png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-                                            echo_base_sprite = pygame.image.load(BytesIO(png_data))
+                                            doppelganger_base_sprite = pygame.image.load(BytesIO(png_data))
                                         except ImportError:
                                             pass
                                     else:
-                                        echo_base_sprite = pygame.image.load(sprite_path)
-                                        echo_base_sprite = pygame.transform.smoothscale(echo_base_sprite, (TILE_SIZE, TILE_SIZE))
+                                        doppelganger_base_sprite = pygame.image.load(sprite_path)
+                                        doppelganger_base_sprite = pygame.transform.smoothscale(doppelganger_base_sprite, (TILE_SIZE, TILE_SIZE))
                                     # Cache the loaded base sprite
-                                    setattr(self, base_cache_key, echo_base_sprite)
+                                    setattr(self, base_cache_key, doppelganger_base_sprite)
                                 except Exception:
                                     pass
 
                     # Apply rotation if needed
                     if total_rotation != 0:
-                        echo_base_sprite = pygame.transform.rotate(echo_base_sprite, -total_rotation)
+                        doppelganger_base_sprite = pygame.transform.rotate(doppelganger_base_sprite, -total_rotation)
 
                     # Create flipped doppelganger version
-                    echo_sprite = pygame.transform.flip(echo_base_sprite, True, False)
-                    echo_sprite.set_alpha(180)  # ~70% opacity
+                    doppelganger_sprite = pygame.transform.flip(doppelganger_base_sprite, True, False)
+                    doppelganger_sprite.set_alpha(180)  # ~70% opacity
 
                     # Cache the final processed sprite
-                    setattr(self, cache_key, echo_sprite)
-                    setattr(self, f'{cache_key}_rect', echo_sprite.get_rect())
+                    setattr(self, cache_key, doppelganger_sprite)
+                    setattr(self, f'{cache_key}_rect', doppelganger_sprite.get_rect())
 
-                # Use cached echo sprite
+                # Use cached doppelganger sprite
                 cached_sprite = getattr(self, cache_key)
                 cached_rect = getattr(self, f'{cache_key}_rect')
                 cached_rect.center = (final_x, final_y)

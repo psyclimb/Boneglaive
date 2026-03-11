@@ -639,11 +639,11 @@ class GameStateAdapter:
                                             if (other_game and other_game.is_alive() and
                                                 other_game.y == tile_y and other_game.x == tile_x and
                                                 other_game.player == game_unit.player):
-                                                # Skip summons (echoes and vapors)
+                                                # Skip summons (doppelgangers and vapors)
                                                 from boneglaive.utils.constants import UnitType
                                                 if other_game.type == UnitType.HEINOUS_VAPOR:
                                                     break
-                                                if hasattr(other_game, 'is_echo') and other_game.is_echo:
+                                                if hasattr(other_game, 'is_doppelganger') and other_game.is_doppelganger:
                                                     break
                                                 # Check if this ally can be healed (not cursed)
                                                 if not (hasattr(other_game, 'auction_curse_no_heal') and other_game.auction_curse_no_heal):
@@ -1143,18 +1143,18 @@ class GameStateAdapter:
             self.animation_queue.clear()
 
         # Check for dead GRAYMAN ECHO units (before returning events)
-        # Detect echo deaths and trigger explosion animation
-        dead_echo_ids = []
+        # Detect doppelganger deaths and trigger explosion animation
+        dead_doppelganger_ids = []
         for unit_id, visual_unit in list(self.visual_units.items()):
             game_unit = visual_unit.game_unit
 
-            # Check if this is a dead echo
-            if (hasattr(game_unit, 'is_echo') and
-                game_unit.is_echo and
+            # Check if this is a dead doppelganger
+            if (hasattr(game_unit, 'is_doppelganger') and
+                game_unit.is_doppelganger and
                 not game_unit.is_alive()):
 
-                # Check if we haven't already triggered death animation for this echo
-                if not hasattr(visual_unit, 'echo_death_animated') or not visual_unit.echo_death_animated:
+                # Check if we haven't already triggered death animation for this doppelganger
+                if not hasattr(visual_unit, 'doppelganger_death_animated') or not visual_unit.doppelganger_death_animated:
                     # Queue death explosion animation
                     events.append(AnimationEvent(
                         "skill",
@@ -1165,8 +1165,8 @@ class GameStateAdapter:
                     ))
 
                     # Mark as animated to prevent re-triggering
-                    visual_unit.echo_death_animated = True
-                    dead_echo_ids.append(unit_id)
+                    visual_unit.doppelganger_death_animated = True
+                    dead_doppelganger_ids.append(unit_id)
 
         # Check for triggered Fragcrest traps
         if hasattr(self.game, 'triggered_fragcrest_traps') and self.game.triggered_fragcrest_traps:

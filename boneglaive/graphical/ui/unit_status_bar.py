@@ -107,9 +107,9 @@ class UnitCard:
             # Alive unit
             unit = self.game_unit
 
-            # Special handling for echo units
-            if hasattr(unit, 'is_echo') and unit.is_echo:
-                return 'ψ'  # Lowercase psi for echoes
+            # Special handling for doppelganger units
+            if hasattr(unit, 'is_doppelganger') and unit.is_doppelganger:
+                return 'ψ'  # Lowercase psi for doppelgangers
 
             # Special handling for HEINOUS_VAPOR
             from boneglaive.utils.constants import UnitType

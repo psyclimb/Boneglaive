@@ -576,12 +576,12 @@ class GraphicalRenderer:
                 # Check if this is a respawning unit (not a brand new unit or vapor)
                 from boneglaive.utils.constants import UnitType
                 is_vapor = hasattr(game_unit, 'type') and game_unit.type == UnitType.HEINOUS_VAPOR
-                is_echo = hasattr(game_unit, 'is_echo') and game_unit.is_echo
+                is_doppelganger = hasattr(game_unit, 'is_doppelganger') and game_unit.is_doppelganger
                 is_respawn = hasattr(game_unit, '_just_respawned') and game_unit._just_respawned
 
-                # Trigger respawn animation ONLY for actual respawns (not vapors, echoes, or initial spawns)
-                # Vapors and echoes have their own spawn animations
-                if is_respawn and not is_vapor and not is_echo:
+                # Trigger respawn animation ONLY for actual respawns (not vapors, doppelgangers, or initial spawns)
+                # Vapors and doppelgangers have their own spawn animations
+                if is_respawn and not is_vapor and not is_doppelganger:
                     pass
 
                     # Create respawn animation IMMEDIATELY (not queued)

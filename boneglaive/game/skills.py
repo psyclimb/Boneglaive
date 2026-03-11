@@ -62,10 +62,10 @@ class Skill:
         if self.current_cooldown > 0:
             return False
         
-        # Echo units cannot use skills (they can only do basic attacks)
-        if hasattr(user, 'is_echo') and user.is_echo:
+        # Doppelganger units cannot use skills (they can only do basic attacks)
+        if hasattr(user, 'is_doppelganger') and user.is_doppelganger:
             from boneglaive.utils.debug import logger
-            logger.debug(f"Skill cannot be used by echo unit: {user.get_display_name()}")
+            logger.debug(f"Skill cannot be used by doppelganger unit: {user.get_display_name()}")
             return False
             
         # Protection Zone check for enemy targeting skills - only if game and target_pos are provided
@@ -1045,13 +1045,13 @@ class EstrangeSkill(ActiveSkill):
         return True
 
 class GraeExchangeSkill(ActiveSkill):
-    """Active skill for GRAYMAN. Creates an echo that can attack but not move."""
-    
+    """Active skill for GRAYMAN. Creates a doppelganger that can attack but not move."""
+
     def __init__(self):
         super().__init__(
             name="Græ Exchange",
             key="G",
-            description="Create an echo at current position and teleport away. Echo can attack but not move.",
+            description="Create a doppelganger at current position and teleport away. Doppelganger can attack but not move.",
             target_type=TargetType.AREA,
             cooldown=4,
             range_=3
@@ -1079,7 +1079,7 @@ class GraeExchangeSkill(ActiveSkill):
         user.y, user.x = target_pos
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} creates an echo and teleports from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})!",
+            f"{user.get_display_name()} creates a doppelganger and teleports from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})!",
             MessageType.ABILITY,
             player=user.player
         )

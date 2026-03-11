@@ -522,8 +522,8 @@ class AnimationFactory:
                     camera=camera
                 )
             elif anim_class.__name__ == "GraymanEchoDeathExplosionAnimation":
-                # GRAYMAN ECHO death explosion - psychic explosion affecting 3x3 area
-                # Requires: caster_unit (dead echo), camera, standard callbacks
+                # GRAYMAN DOPPELGANGER death explosion - psychic explosion affecting 3x3 area
+                # Requires: caster_unit (dead doppelganger), camera, standard callbacks
                 animation = anim_class(
                     caster_unit=caster_unit,
                     target_unit=None,

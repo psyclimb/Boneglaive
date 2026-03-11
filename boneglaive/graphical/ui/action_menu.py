@@ -668,7 +668,7 @@ class ActionMenu:
                 else:
                     button.has_upgrade_points = False
 
-                # Check if upgrade is blocked (e.g., for echoes)
+                # Check if upgrade is blocked (e.g., for doppelgangers)
                 if selected_unit and LOTOChecker.is_action_blocked(selected_unit, 'upgrade'):
                     button.blocked_actions = blocked_actions
                     button.enabled = False

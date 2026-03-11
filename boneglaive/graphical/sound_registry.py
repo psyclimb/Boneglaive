@@ -42,7 +42,7 @@ SKILL_SOUNDS = {
     "ESTRANGE": "estrange",
     "GRAE_EXCHANGE": "grae_exchange",
     "GRÆ_EXCHANGE": "grae_exchange",
-    "GRAYMAN_ECHO_DEATH": "grayman_echo_death",
+    "GRAYMAN_DOPPELGANGER_DEATH": "grayman_doppelganger_death",
 
     # MARROW CONDENSER skills
     "OSSIFY": "ossify",

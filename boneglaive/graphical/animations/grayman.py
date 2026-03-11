@@ -636,8 +636,8 @@ class DeltaConfigAnimation:
 
 class GraeExchangeAnimation:
     """
-    Græ Exchange animation - banish target enemy and replace with echo.
-    Metallic cane ritual that summons a soul-stealing cube, then spawns GRAYMAN echo.
+    Græ Exchange animation - banish target enemy and replace with doppelganger.
+    Metallic cane ritual that summons a soul-stealing cube, then spawns GRAYMAN doppelganger.
     Uses GRAYMAN sprite color scheme (grays, purples from psi orbs).
     """
 
@@ -688,12 +688,12 @@ class GraeExchangeAnimation:
             self.target_y = GRID_OFFSET_Y + self.target_grid_y * TILE_SIZE + TILE_SIZE // 2
 
         # Animation phases - keeping same total duration (1.4s) for sound sync
-        self.phase = "cane_tap"  # cane_tap, cube_form, soul_extract, echo_spawn
+        self.phase = "cane_tap"  # cane_tap, cube_form, soul_extract, doppelganger_spawn
         self.timer = 0
         self.cane_tap_duration = 0.4    # First tap (sound 1)
         self.cube_form_duration = 0.5    # 2nd + 3rd tap + cube forms (sound 2)
         self.soul_extract_duration = 0.3  # Soul extraction (sound 3)
-        self.echo_spawn_duration = 0.2   # Echo materializes
+        self.doppelganger_spawn_duration = 0.2   # Echo materializes
 
         # GRAYMAN sprite colors (exact from SVG)
         self.color_psi_outer = (170, 119, 255)  # #aa77ff - Psi orb outer
@@ -720,7 +720,7 @@ class GraeExchangeAnimation:
         self.third_tap_spawned = False
         self.cube_particles_spawned = False
         self.soul_particles_spawned = False
-        self.echo_particles_spawned = False
+        self.doppelganger_particles_spawned = False
 
     def update(self, delta_time):
         """Update animation state."""
@@ -847,14 +847,14 @@ class GraeExchangeAnimation:
                 self.soul_particles_spawned = True
 
             if self.timer >= self.soul_extract_duration:
-                self.phase = "echo_spawn"
+                self.phase = "doppelganger_spawn"
                 self.timer = 0
 
-        elif self.phase == "echo_spawn":
-            # Phase 4: Cube explodes, echo materializes
-            progress = self.timer / self.echo_spawn_duration
+        elif self.phase == "doppelganger_spawn":
+            # Phase 4: Cube explodes, doppelganger materializes
+            progress = self.timer / self.doppelganger_spawn_duration
 
-            if not self.echo_particles_spawned:
+            if not self.doppelganger_particles_spawned:
                 # Cube explosion particles (gray cloak colors)
                 for _ in range(30):
                     angle = random.uniform(0, 2 * math.pi)
@@ -884,9 +884,9 @@ class GraeExchangeAnimation:
                                       lifetime=0.3, size=2, color=self.color_cloak_shadow)
                     self.particle_emitter.particles.append(particle)
 
-                self.echo_particles_spawned = True
+                self.doppelganger_particles_spawned = True
 
-            if self.timer >= self.echo_spawn_duration:
+            if self.timer >= self.doppelganger_spawn_duration:
                 return False  # Animation complete
 
         return True  # Animation still active
@@ -1049,9 +1049,9 @@ class GraeExchangeAnimation:
             pygame.draw.circle(surface, (*self.color_psi_inner, vortex_intensity),
                              (int(self.target_x), int(self.target_y)), int(20 * (1.0 - progress * 0.5)))
 
-        elif self.phase == "echo_spawn":
-            # Phase 4: Cube explodes, echo materializes
-            progress = self.timer / self.echo_spawn_duration
+        elif self.phase == "doppelganger_spawn":
+            # Phase 4: Cube explodes, doppelganger materializes
+            progress = self.timer / self.doppelganger_spawn_duration
 
             # Cube fragments exploding outward (if early in phase)
             if progress < 0.3:
@@ -1082,15 +1082,15 @@ class GraeExchangeAnimation:
             # Echo materialization (purple orb flash)
             if progress > 0.2:
                 mat_progress = (progress - 0.2) / 0.8
-                echo_radius = int(30 * mat_progress)
-                if echo_radius > 2:
+                doppelganger_radius = int(30 * mat_progress)
+                if doppelganger_radius > 2:
                     # Outer purple glow
                     glow_alpha = int(120 * mat_progress)
                     pygame.draw.circle(surface, (*self.color_psi_outer, glow_alpha),
-                                     (int(self.target_x), int(self.target_y)), echo_radius)
+                                     (int(self.target_x), int(self.target_y)), doppelganger_radius)
 
                     # Inner brighter core
-                    core_radius = int(echo_radius * 0.6)
+                    core_radius = int(doppelganger_radius * 0.6)
                     pygame.draw.circle(surface, (*self.color_psi_inner, int(180 * mat_progress)),
                                      (int(self.target_x), int(self.target_y)), core_radius)
 
@@ -1762,11 +1762,11 @@ class GraymanEchoDeathExplosionAnimation:
                  particle_emitter, debris_list, screen_shake_callback,
                  screen_flash_callback, units_list, camera, game=None):
         """
-        Initialize GRAYMAN ECHO death explosion animation.
+        Initialize GRAYMAN DOPPELGANGER death explosion animation.
 
         Args:
-            caster_unit: Dead echo unit (at death position)
-            target_pos: (grid_y, grid_x) - echo death position
+            caster_unit: Dead doppelganger unit (at death position)
+            target_pos: (grid_y, grid_x) - doppelganger death position
             camera: Camera instance for coordinate conversion
             particle_emitter: Particle emitter for effects
             screen_shake_callback: Callback for screen shake
@@ -1778,7 +1778,7 @@ class GraymanEchoDeathExplosionAnimation:
         self.screen_shake_callback = screen_shake_callback
         self.game = game
 
-        # Convert echo position to screen coords
+        # Convert doppelganger position to screen coords
         # CRITICAL: target_pos is (grid_y, grid_x), but grid_to_screen takes (grid_x, grid_y)!
         grid_y, grid_x = target_pos
         self.center_x, self.center_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
@@ -1824,7 +1824,7 @@ class GraymanEchoDeathExplosionAnimation:
         """Phase 1: Charge - Brief buildup."""
         self.phase = "charge"
         self.timer = 0
-        play_sound("echo_death_charge")
+        play_sound("doppelganger_death_charge")
 
         # Light screen shake
         self.screen_shake_callback(3, 0.3)
@@ -1833,7 +1833,7 @@ class GraymanEchoDeathExplosionAnimation:
         """Phase 2: Explosion - Main burst."""
         self.phase = "explosion"
         self.timer = 0
-        play_sound("echo_death_explosion")
+        play_sound("doppelganger_death_explosion")
 
         # Create expanding wave from center
         self.psychic_wave = PsychicWave(self.center_x, self.center_y)
@@ -1858,7 +1858,7 @@ class GraymanEchoDeathExplosionAnimation:
         """Phase 3: Dissipate - Fade out."""
         self.phase = "dissipate"
         self.timer = 0
-        play_sound("echo_death_dissipate")
+        play_sound("doppelganger_death_dissipate")
 
     def update(self, delta_time):
         """Update animation state. MUST return True/False."""

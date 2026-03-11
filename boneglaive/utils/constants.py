@@ -74,7 +74,7 @@ UNIT_SYMBOLS = {
 }
 
 # GP (Game Points) System
-# Units that award GP when killed (main units only, no summons/echoes)
+# Units that award GP when killed (main units only, no summons/doppelgangers)
 GP_ELIGIBLE_UNITS = {
     UnitType.GLAIVEMAN,
     UnitType.MANDIBLE_FOREMAN,
