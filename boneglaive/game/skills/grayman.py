@@ -545,12 +545,6 @@ class EstrangeSkill(ActiveSkill):
         self.damage = 3  # Increased from 2 to 3
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        # Check for upgrade and update range dynamically
-        if game:
-            from boneglaive.game.upgrades import UpgradeManager
-            is_upgraded = UpgradeManager.is_skill_upgraded(user, "Estrange")
-            self.range = 7 if is_upgraded else 5
-
         # Basic validation
         if not super().can_use(user, target_pos, game):
             return False
@@ -731,7 +725,26 @@ class EstrangeSkill(ActiveSkill):
         if not target.is_immune_to_effects():
             # Apply the estranged effect permanently (no duration)
             target.estranged = True
-            
+
+            # Check if Estrange is upgraded
+            from boneglaive.game.upgrades import UpgradeManager
+            is_upgraded = UpgradeManager.is_skill_upgraded(user, "Estrange")
+
+            # If upgraded, reduce target's max HP by 25%
+            if is_upgraded:
+                # Only apply max HP reduction if not already applied
+                if not hasattr(target, 'estranged_original_max_hp'):
+                    # Store original max HP for potential cleansing
+                    target.estranged_original_max_hp = target.max_hp
+
+                    # Calculate new max HP (75% of original)
+                    new_max_hp = int(target.max_hp * 0.75)
+                    target.max_hp = new_max_hp
+
+                    # Adjust current HP if it exceeds new max HP
+                    if target.hp > new_max_hp:
+                        target.hp = new_max_hp
+
             # Log the effect application - using WARNING type for yellow text
             message_log.add_message(
                 f"{target.get_display_name()} is phased out of normal spacetime",

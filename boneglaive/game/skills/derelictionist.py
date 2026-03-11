@@ -365,6 +365,10 @@ class VagalRunSkill(ActiveSkill):
 
         if hasattr(target, 'estranged') and target.estranged:
             target.estranged = False
+            # Restore original max HP if it was reduced by upgraded Estrange
+            if hasattr(target, 'estranged_original_max_hp'):
+                target.max_hp = target.estranged_original_max_hp
+                delattr(target, 'estranged_original_max_hp')
             cleared_effects.append("Estrangement")
 
         if hasattr(target, 'gaussian_dusk_recharge') and target.gaussian_dusk_recharge > 0:

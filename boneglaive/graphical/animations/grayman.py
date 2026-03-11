@@ -1132,7 +1132,7 @@ class EstrangeBeam:
 
         # Visual properties
         self.beam_width = 0
-        self.max_beam_width = 12  # Thinner beam
+        self.max_beam_width = 4  # Narrow beam
 
         # Purple/lavender colors from Grayman's orbs
         self.color_outer = (170, 119, 255)  # #aa77ff
@@ -1148,6 +1148,10 @@ class EstrangeBeam:
 
         # Impact particles spawned flag
         self.impact_spawned = False
+
+        # Energy tendrils for endpoints
+        self.tendrils = []
+        self.generate_tendrils()
 
     def generate_warp_points(self):
         """Generate sine wave distortion points along beam path."""
@@ -1169,6 +1173,116 @@ class EstrangeBeam:
             wave2 = math.sin(t * math.pi * 2.5 - self.timer * 8) * 10
             offset = wave1 + wave2
             self.warp_offset.append(offset)
+
+    def generate_tendrils(self):
+        """Generate energy tendrils that extend from beam endpoints."""
+        self.tendrils = []
+        # Create 6 tendrils at source
+        for i in range(6):
+            angle = (i / 6) * 2 * math.pi + random.uniform(-0.3, 0.3)
+            length = random.uniform(15, 30)
+            self.tendrils.append({
+                'endpoint': 'source',
+                'angle': angle,
+                'base_length': length,
+                'phase_offset': random.uniform(0, 2 * math.pi)
+            })
+        # Create 6 tendrils at target
+        for i in range(6):
+            angle = (i / 6) * 2 * math.pi + random.uniform(-0.3, 0.3)
+            length = random.uniform(15, 30)
+            self.tendrils.append({
+                'endpoint': 'target',
+                'angle': angle,
+                'base_length': length,
+                'phase_offset': random.uniform(0, 2 * math.pi)
+            })
+
+    def draw_gradient_beam_segment(self, surface, x1, y1, x2, y2, width, t_position, pulse_factor):
+        """
+        Draw a single beam segment with gradient layers and alpha blending.
+
+        Args:
+            surface: Pygame surface to draw on
+            x1, y1: Start position
+            x2, y2: End position
+            width: Base width of the beam
+            t_position: Position along beam (0.0 to 1.0) for tapering
+            pulse_factor: Brightness multiplier
+        """
+        # Calculate taper factor (fade at both ends)
+        # Create S-curve for smooth tapering
+        taper_start = 0.15  # Start fading at 15% from source
+        taper_end = 0.85    # Start fading at 85% toward target
+
+        if t_position < taper_start:
+            taper = t_position / taper_start
+        elif t_position > taper_end:
+            taper = (1.0 - t_position) / (1.0 - taper_end)
+        else:
+            taper = 1.0
+
+        # Smooth the taper curve
+        taper = taper * taper * (3.0 - 2.0 * taper)  # Smoothstep
+
+        tapered_width = width * taper
+        if tapered_width < 1:
+            return
+
+        # Draw multiple gradient layers for soft edges
+        # Create a temporary surface for alpha-blended layers
+        # Calculate bounding box
+        min_x = min(x1, x2) - tapered_width * 2
+        max_x = max(x1, x2) + tapered_width * 2
+        min_y = min(y1, y2) - tapered_width * 2
+        max_y = max(y1, y2) + tapered_width * 2
+        surf_width = max(int(max_x - min_x), 1)
+        surf_height = max(int(max_y - min_y), 1)
+
+        # Create alpha surface
+        alpha_surf = pygame.Surface((surf_width, surf_height), pygame.SRCALPHA)
+        local_x1 = int(x1 - min_x)
+        local_y1 = int(y1 - min_y)
+        local_x2 = int(x2 - min_x)
+        local_y2 = int(y2 - min_y)
+
+        # Outer glow (widest, most transparent)
+        outer_width = int(tapered_width * 1.8)
+        outer_alpha = int(40 * pulse_factor * taper)
+        if outer_width >= 1:
+            pygame.draw.line(alpha_surf, (*self.color_outer, outer_alpha),
+                           (local_x1, local_y1), (local_x2, local_y2), outer_width)
+
+        # Middle outer layer
+        mid_outer_width = int(tapered_width * 1.4)
+        mid_outer_alpha = int(80 * pulse_factor * taper)
+        if mid_outer_width >= 1:
+            pygame.draw.line(alpha_surf, (*self.color_outer, mid_outer_alpha),
+                           (local_x1, local_y1), (local_x2, local_y2), mid_outer_width)
+
+        # Main beam (solid)
+        main_width = int(tapered_width)
+        pulsed_outer = tuple(int(c * pulse_factor) for c in self.color_outer)
+        if main_width >= 1:
+            pygame.draw.line(alpha_surf, (*pulsed_outer, 255),
+                           (local_x1, local_y1), (local_x2, local_y2), main_width)
+
+        # Inner beam
+        inner_width = int(tapered_width * 0.6)
+        pulsed_inner = tuple(int(c * pulse_factor) for c in self.color_inner)
+        if inner_width >= 1:
+            pygame.draw.line(alpha_surf, (*pulsed_inner, 255),
+                           (local_x1, local_y1), (local_x2, local_y2), inner_width)
+
+        # Bright core (only in beam phase)
+        if self.phase == "beam":
+            core_width = max(1, int(tapered_width * 0.2))
+            pulsed_bright = tuple(int(c * pulse_factor) for c in self.color_bright)
+            pygame.draw.line(alpha_surf, (*pulsed_bright, 255),
+                           (local_x1, local_y1), (local_x2, local_y2), core_width)
+
+        # Blit the alpha surface to main surface
+        surface.blit(alpha_surf, (int(min_x), int(min_y)))
 
     def update(self, delta_time):
         """Update beam animation state."""
@@ -1275,29 +1389,40 @@ class EstrangeBeam:
         return True  # Animation still active
 
     def draw(self, surface):
-        """Draw the estrangement beam with warping effect."""
+        """Draw the estrangement beam with warping effect and gradient fades."""
         if self.phase == "charge":
             # Draw charging glow at source
             progress = self.timer / self.charge_duration
-            glow_radius = int(15 * progress)
+            glow_radius = int(20 * progress)
 
-            # Outer glow
-            glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (*self.color_outer, int(100 * progress)),
-                             (glow_radius, glow_radius), glow_radius)
-            surface.blit(glow_surf, (int(self.source_x - glow_radius),
-                                    int(self.source_y - glow_radius)))
+            # Outer glow (largest, most transparent)
+            if glow_radius > 0:
+                glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*self.color_outer, int(60 * progress)),
+                                 (glow_radius, glow_radius), glow_radius)
+                surface.blit(glow_surf, (int(self.source_x - glow_radius),
+                                        int(self.source_y - glow_radius)))
+
+            # Middle glow
+            mid_radius = int(glow_radius * 0.7)
+            if mid_radius > 0:
+                glow_surf2 = pygame.Surface((mid_radius * 2, mid_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf2, (*self.color_outer, int(120 * progress)),
+                                 (mid_radius, mid_radius), mid_radius)
+                surface.blit(glow_surf2, (int(self.source_x - mid_radius),
+                                         int(self.source_y - mid_radius)))
 
             # Inner glow
-            inner_radius = int(glow_radius * 0.6)
-            glow_surf2 = pygame.Surface((inner_radius * 2, inner_radius * 2), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf2, (*self.color_inner, int(150 * progress)),
-                             (inner_radius, inner_radius), inner_radius)
-            surface.blit(glow_surf2, (int(self.source_x - inner_radius),
-                                     int(self.source_y - inner_radius)))
+            inner_radius = int(glow_radius * 0.4)
+            if inner_radius > 0:
+                glow_surf3 = pygame.Surface((inner_radius * 2, inner_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf3, (*self.color_inner, int(200 * progress)),
+                                 (inner_radius, inner_radius), inner_radius)
+                surface.blit(glow_surf3, (int(self.source_x - inner_radius),
+                                         int(self.source_y - inner_radius)))
 
         elif self.phase in ["beam", "impact", "fade"]:
-            # Draw warped beam
+            # Draw warped beam with gradient fades
             if self.beam_width > 2:
                 # Calculate pulsating brightness (oscillates between 0.6 and 1.0)
                 pulse_factor = 0.6 + 0.4 * (math.sin(self.pulse_timer * 20) * 0.5 + 0.5)
@@ -1312,12 +1437,13 @@ class EstrangeBeam:
                     perp_x = -dy / distance
                     perp_y = dx / distance
 
-                    # Draw beam as series of warped segments
+                    # Draw beam as series of warped segments with gradient rendering
                     num_segments = len(self.warp_offset)
                     if num_segments > 1:
                         for i in range(num_segments - 1):
                             t1 = i / (num_segments - 1)
                             t2 = (i + 1) / (num_segments - 1)
+                            t_mid = (t1 + t2) / 2.0
 
                             # Base positions along beam
                             x1 = self.source_x + dx * t1
@@ -1334,38 +1460,87 @@ class EstrangeBeam:
                             x2 += perp_x * offset2
                             y2 += perp_y * offset2
 
-                            # Apply pulse factor to colors
-                            pulsed_outer = tuple(int(c * pulse_factor) for c in self.color_outer)
-                            pulsed_inner = tuple(int(c * pulse_factor) for c in self.color_inner)
-                            pulsed_bright = tuple(int(c * pulse_factor) for c in self.color_bright)
+                            # Draw segment with gradient and tapering
+                            self.draw_gradient_beam_segment(surface, x1, y1, x2, y2,
+                                                           self.beam_width, t_mid, pulse_factor)
 
-                            # Draw thick outer beam
-                            pygame.draw.line(surface, pulsed_outer,
-                                          (int(x1), int(y1)), (int(x2), int(y2)),
-                                          int(self.beam_width))
+                    # Draw energy tendrils at endpoints
+                    if self.phase in ["beam", "impact"]:
+                        for tendril in self.tendrils:
+                            # Calculate tendril parameters
+                            wiggle = math.sin(self.pulse_timer * 8 + tendril['phase_offset']) * 0.4
+                            current_angle = tendril['angle'] + wiggle
+                            length_multiplier = 0.5 + 0.5 * math.sin(self.pulse_timer * 10 + tendril['phase_offset'])
+                            current_length = tendril['base_length'] * length_multiplier
 
-                            # Draw thinner inner beam
-                            pygame.draw.line(surface, pulsed_inner,
-                                          (int(x1), int(y1)), (int(x2), int(y2)),
-                                          int(self.beam_width * 0.5))
+                            # Get endpoint position
+                            if tendril['endpoint'] == 'source':
+                                base_x, base_y = self.source_x, self.source_y
+                                # Fade out tendrils at source as beam progresses
+                                alpha_factor = 0.5 if self.phase == "beam" else 0.3
+                            else:  # target
+                                base_x, base_y = self.target_x, self.target_y
+                                # Brighten tendrils at target during impact
+                                alpha_factor = 0.7 if self.phase == "impact" else 0.4
 
-                            # Draw bright core
-                            if self.phase == "beam":
-                                pygame.draw.line(surface, pulsed_bright,
-                                              (int(x1), int(y1)), (int(x2), int(y2)), 2)
+                            # Calculate tendril end position
+                            end_x = base_x + math.cos(current_angle) * current_length
+                            end_y = base_y + math.sin(current_angle) * current_length
+
+                            # Draw tendril as thin line with alpha
+                            alpha = int(150 * alpha_factor * length_multiplier)
+                            if alpha > 5:  # Only draw if visible
+                                color = (*self.color_inner, alpha)
+
+                                # Calculate bounding box for tendril surface
+                                min_x = min(base_x, end_x)
+                                max_x = max(base_x, end_x)
+                                min_y = min(base_y, end_y)
+                                max_y = max(base_y, end_y)
+                                width = max(int(max_x - min_x) + 4, 4)
+                                height = max(int(max_y - min_y) + 4, 4)
+
+                                # Create surface for alpha blending
+                                tendril_surf = pygame.Surface((width, height), pygame.SRCALPHA)
+                                # Draw line relative to surface origin
+                                local_base_x = int(base_x - min_x + 2)
+                                local_base_y = int(base_y - min_y + 2)
+                                local_end_x = int(end_x - min_x + 2)
+                                local_end_y = int(end_y - min_y + 2)
+                                pygame.draw.line(tendril_surf, color,
+                                               (local_base_x, local_base_y),
+                                               (local_end_x, local_end_y), 2)
+                                surface.blit(tendril_surf, (int(min_x - 2), int(min_y - 2)))
+
+                                # Draw tiny glow at tendril tip
+                                tip_radius = 2
+                                tip_surf = pygame.Surface((tip_radius * 2, tip_radius * 2), pygame.SRCALPHA)
+                                pygame.draw.circle(tip_surf, color,
+                                                 (tip_radius, tip_radius), tip_radius)
+                                surface.blit(tip_surf, (int(end_x - tip_radius),
+                                                       int(end_y - tip_radius)))
 
         # Draw impact flash
         if self.phase == "impact":
             flash_progress = self.timer / self.impact_duration
             if flash_progress < 0.3:  # Flash for first 30% of impact phase
                 flash_alpha = int(255 * (1.0 - flash_progress / 0.3))
-                flash_radius = int(30 * (1.0 + flash_progress))
+                flash_radius = int(35 * (1.0 + flash_progress))
 
+                # Outer flash
                 flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
-                pygame.draw.circle(flash_surf, (*self.color_bright, flash_alpha),
+                pygame.draw.circle(flash_surf, (*self.color_outer, flash_alpha // 2),
                                  (flash_radius, flash_radius), flash_radius)
                 surface.blit(flash_surf, (int(self.target_x - flash_radius),
                                          int(self.target_y - flash_radius)))
+
+                # Inner flash
+                inner_flash_radius = int(flash_radius * 0.6)
+                flash_surf2 = pygame.Surface((inner_flash_radius * 2, inner_flash_radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(flash_surf2, (*self.color_bright, flash_alpha),
+                                 (inner_flash_radius, inner_flash_radius), inner_flash_radius)
+                surface.blit(flash_surf2, (int(self.target_x - inner_flash_radius),
+                                          int(self.target_y - inner_flash_radius)))
 
 
 # ============================================================================

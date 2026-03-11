@@ -79,7 +79,7 @@ SKILL_UPGRADES = {
         },
         "Estrange": {
             "name": "Estrange",
-            "description": "Range increased from 5 to 7.",
+            "description": "Also reduces the target's max HP by 25%.",
             "type": "buff",
             "cost": 1
         },

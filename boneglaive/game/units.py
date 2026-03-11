@@ -1406,6 +1406,10 @@ class Unit:
                     if hasattr(unit, 'estranged') and unit.estranged:
                         def clear_estranged():
                             unit.estranged = False
+                            # Restore original max HP if it was reduced by upgraded Estrange
+                            if hasattr(unit, 'estranged_original_max_hp'):
+                                unit.max_hp = unit.estranged_original_max_hp
+                                delattr(unit, 'estranged_original_max_hp')
                         available_effects.append(("Estrangement", clear_estranged))
 
                     # Pry movement penalty (base or upgraded)
