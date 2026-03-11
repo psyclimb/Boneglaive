@@ -1143,9 +1143,15 @@ class GraphicalRenderer:
 
                     # Check if clicking on combat log to open expanded view (only when not in setup mode)
                     if not self.setup_mode:
-                        combat_log_x = LEFT_PANEL_WIDTH + 10
-                        combat_log_y = GRID_OFFSET_Y + GAME_BOARD_HEIGHT + 10
-                        combat_log_rect = pygame.Rect(combat_log_x, combat_log_y, 900, 90)
+                        # Use same scaled values as drawing code to ensure click area matches visual
+                        from boneglaive.graphical.ui.scale_utils import scale_manager
+                        log_spacing = scale_manager.scale(10)
+                        log_height = scale_manager.scale(90, 'y')
+
+                        combat_log_x = LEFT_PANEL_WIDTH + log_spacing
+                        combat_log_y = GRID_OFFSET_Y + GAME_BOARD_HEIGHT + log_spacing
+                        combat_log_width = GAME_BOARD_WIDTH - log_spacing * 2
+                        combat_log_rect = pygame.Rect(combat_log_x, combat_log_y, combat_log_width, log_height)
                         if combat_log_rect.collidepoint(event.pos):
                             # Open expanded message log
                             self.message_log_window.show(self.combat_log.messages)

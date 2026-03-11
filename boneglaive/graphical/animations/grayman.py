@@ -637,7 +637,8 @@ class DeltaConfigAnimation:
 class GraeExchangeAnimation:
     """
     Græ Exchange animation - banish target enemy and replace with echo.
-    Reality-tearing beam that banishes the target and spawns a GRAYMAN echo.
+    Metallic cane ritual that summons a soul-stealing cube, then spawns GRAYMAN echo.
+    Uses GRAYMAN sprite color scheme (grays, purples from psi orbs).
     """
 
     def __init__(self, caster_unit, target_pos, particle_emitter, camera=None, game=None, units_list=None):
@@ -687,132 +688,200 @@ class GraeExchangeAnimation:
             self.target_y = GRID_OFFSET_Y + self.target_grid_y * TILE_SIZE + TILE_SIZE // 2
 
         # Animation phases - keeping same total duration (1.4s) for sound sync
-        self.phase = "charge"  # charge, beam, banish, echo_spawn
+        self.phase = "cane_tap"  # cane_tap, cube_form, soul_extract, echo_spawn
         self.timer = 0
-        self.charge_duration = 0.4  # Same as old ritual duration
-        self.beam_duration = 0.5    # Same as old split duration
-        self.banish_duration = 0.3   # Combines old teleport_out + part of in
-        self.echo_spawn_duration = 0.2  # Remaining time
+        self.cane_tap_duration = 0.4    # First tap (sound 1)
+        self.cube_form_duration = 0.5    # 2nd + 3rd tap + cube forms (sound 2)
+        self.soul_extract_duration = 0.3  # Soul extraction (sound 3)
+        self.echo_spawn_duration = 0.2   # Echo materializes
 
-        # Purple/lavender colors from Grayman's orbs
-        self.color_outer = (170, 119, 255)  # #aa77ff
-        self.color_inner = (221, 187, 255)  # #ddbbff
-        self.color_bright = (255, 255, 255)
-        self.color_cloak = (74, 74, 90)     # #4a4a5a - Cloak fabric
-        self.color_skin = (154, 154, 170)   # #9a9aaa - Gray skin
+        # GRAYMAN sprite colors (exact from SVG)
+        self.color_psi_outer = (170, 119, 255)  # #aa77ff - Psi orb outer
+        self.color_psi_inner = (221, 187, 255)  # #ddbbff - Psi orb inner
+        self.color_cloak = (74, 74, 90)         # #4a4a5a - Cloak fabric
+        self.color_cloak_shadow = (58, 58, 74)  # #3a3a4a - Cloak shadows
+        self.color_skin = (154, 154, 170)       # #9a9aaa - Gray skin
+        self.color_cane_shaft = (122, 122, 138) # #7a7a8a - Cane shaft (nose/mouth accent)
+        self.color_boots = (42, 42, 58)         # #2a2a3a - Boots/darker
 
-        # Beam effect properties
-        self.beam_width = 0
-        self.max_beam_width = 15
+        # Cane properties
+        self.cane_tap_count = 0  # Tracks which tap we're on (1, 2, 3)
+        self.cane_height = 40  # Cane length
+        self.cane_raise_offset = 0  # Y offset for cane lifting animation
+
+        # Cube properties
+        self.cube_formation_progress = 0  # 0 to 1
+        self.cube_size = 30  # Cube dimension
+        self.cube_rotation = 0  # Rotation angle
 
         # Flags
-        self.charge_particles_spawned = False
-        self.beam_particles_spawned = False
-        self.banish_particles_spawned = False
+        self.first_tap_spawned = False
+        self.second_tap_spawned = False
+        self.third_tap_spawned = False
+        self.cube_particles_spawned = False
+        self.soul_particles_spawned = False
         self.echo_particles_spawned = False
 
     def update(self, delta_time):
         """Update animation state."""
         self.timer += delta_time
 
-        if self.phase == "charge":
-            # Charge phase - building energy at caster
-            if not self.charge_particles_spawned:
-                play_sound("grae_exchange_ritual")  # Keep same sound timing
+        if self.phase == "cane_tap":
+            # Phase 1: First cane tap at caster location
+            if not self.first_tap_spawned:
+                play_sound("grae_exchange_ritual")  # Sound event 1
 
-                # Spawn charging particles at caster
-                for _ in range(20):
-                    angle = random.uniform(0, 2 * math.pi)
-                    distance = random.uniform(30, 60)
+                # Spawn impact particles at caster (concentric ripple)
+                for i in range(20):
+                    angle = (i / 20) * 2 * math.pi
+                    distance = random.uniform(20, 40)
                     x = self.source_x + math.cos(angle) * distance
                     y = self.source_y + math.sin(angle) * distance
-                    # Particles move toward center
-                    vx = -math.cos(angle) * 100
-                    vy = -math.sin(angle) * 100
-                    color = self.color_outer if random.random() > 0.5 else self.color_inner
-                    particle = Particle(x, y, vx, vy, lifetime=0.4, size=4, color=color)
+                    vx = math.cos(angle) * 80
+                    vy = math.sin(angle) * 80
+                    color = self.color_psi_outer if random.random() > 0.5 else self.color_psi_inner
+                    particle = Particle(x, y, vx, vy, lifetime=0.4, size=3, color=color)
                     self.particle_emitter.particles.append(particle)
-                self.charge_particles_spawned = True
+                self.first_tap_spawned = True
+                self.cane_tap_count = 1
 
-            if self.timer >= self.charge_duration:
-                self.phase = "beam"
+            # Animate cane raising slightly for next tap
+            progress = self.timer / self.cane_tap_duration
+            self.cane_raise_offset = -5 * math.sin(progress * math.pi)
+
+            if self.timer >= self.cane_tap_duration:
+                self.phase = "cube_form"
                 self.timer = 0
-                play_sound("grae_exchange_split")  # Keep same sound timing
+                play_sound("grae_exchange_split")  # Sound event 2
 
-        elif self.phase == "beam":
-            # Beam phase - fire reality-tearing beam at target
-            progress = self.timer / self.beam_duration
-            self.beam_width = self.max_beam_width * min(1.0, progress * 2)
+        elif self.phase == "cube_form":
+            # Phase 2: Second & third taps + cube forms at target
+            progress = self.timer / self.cube_form_duration
 
-            # Spawn beam particles along path
-            if random.random() < 0.4:
-                t = random.uniform(0.2, 0.8)
-                x = self.source_x + (self.target_x - self.source_x) * t
-                y = self.source_y + (self.target_y - self.source_y) * t
+            # Second tap at ~0.15s into this phase
+            if progress >= 0.3 and not self.second_tap_spawned:
+                # Smaller ripple for second tap
+                for i in range(12):
+                    angle = (i / 12) * 2 * math.pi
+                    distance = random.uniform(15, 25)
+                    x = self.source_x + math.cos(angle) * distance
+                    y = self.source_y + math.sin(angle) * distance
+                    vx = math.cos(angle) * 60
+                    vy = math.sin(angle) * 60
+                    color = self.color_psi_inner
+                    particle = Particle(x, y, vx, vy, lifetime=0.3, size=2, color=color)
+                    self.particle_emitter.particles.append(particle)
+                self.second_tap_spawned = True
+                self.cane_tap_count = 2
 
-                # Add perpendicular offset for beam width
-                dx = self.target_x - self.source_x
-                dy = self.target_y - self.source_y
-                length = math.sqrt(dx*dx + dy*dy)
-                if length > 0:
-                    perp_x = -dy / length
-                    perp_y = dx / length
-                    offset = random.uniform(-20, 20)
-                    x += perp_x * offset
-                    y += perp_y * offset
+            # Third tap at ~0.3s into this phase
+            if progress >= 0.6 and not self.third_tap_spawned:
+                # Even smaller ripple for third tap
+                for i in range(8):
+                    angle = (i / 8) * 2 * math.pi
+                    distance = random.uniform(10, 20)
+                    x = self.source_x + math.cos(angle) * distance
+                    y = self.source_y + math.sin(angle) * distance
+                    vx = math.cos(angle) * 40
+                    vy = math.sin(angle) * 40
+                    color = self.color_psi_inner
+                    particle = Particle(x, y, vx, vy, lifetime=0.2, size=2, color=color)
+                    self.particle_emitter.particles.append(particle)
+                self.third_tap_spawned = True
+                self.cane_tap_count = 3
 
-                color = random.choice([self.color_outer, self.color_inner, self.color_cloak])
-                particle = Particle(x, y, 0, 0, lifetime=0.3, size=4, color=color)
-                self.particle_emitter.particles.append(particle)
+            # Cube forms at target throughout this phase
+            self.cube_formation_progress = min(1.0, progress)
+            self.cube_rotation = progress * 90  # Quarter turn as it forms
 
-            if self.timer >= self.beam_duration:
-                self.phase = "banish"
-                self.timer = 0
-                play_sound("grae_exchange_teleport")  # Keep same sound timing
-
-        elif self.phase == "banish":
-            # Banish phase - target implodes and vanishes
-            if not self.banish_particles_spawned:
-                # Implosion particles - move inward
-                for i in range(30):
-                    angle = (i / 30) * 2 * math.pi
-                    distance = random.uniform(40, 80)
+            # Spawn cube formation particles
+            if not self.cube_particles_spawned and progress > 0.2:
+                # Particles at cube corners as it forms
+                for i in range(8):
+                    angle = (i / 8) * 2 * math.pi
+                    distance = self.cube_size * 0.7
                     x = self.target_x + math.cos(angle) * distance
                     y = self.target_y + math.sin(angle) * distance
-                    # Particles move toward center
-                    vx = -math.cos(angle) * 150
-                    vy = -math.sin(angle) * 150
-                    color = random.choice([self.color_outer, self.color_inner, self.color_skin])
-                    particle = Particle(x, y, vx, vy, lifetime=0.4, size=5, color=color)
+                    color = self.color_psi_outer if i % 2 == 0 else self.color_skin
+                    particle = Particle(x, y, 0, 0, lifetime=0.5, size=3, color=color)
+                    self.particle_emitter.particles.append(particle)
+                self.cube_particles_spawned = True
+
+            if self.timer >= self.cube_form_duration:
+                self.phase = "soul_extract"
+                self.timer = 0
+                play_sound("grae_exchange_teleport")  # Sound event 3
+
+        elif self.phase == "soul_extract":
+            # Phase 3: Cube spins faster, soul wisps spiral in, target dissolves
+            progress = self.timer / self.soul_extract_duration
+            self.cube_rotation += delta_time * 360  # Full rotation per second
+
+            # Spawn soul extraction particles
+            if not self.soul_particles_spawned:
+                # Pale blue-white wisps spiraling into cube
+                for i in range(25):
+                    angle = (i / 25) * 2 * math.pi
+                    distance = random.uniform(40, 70)
+                    x = self.target_x + math.cos(angle) * distance
+                    y = self.target_y + math.sin(angle) * distance
+                    # Move toward cube center
+                    vx = -math.cos(angle) * 120
+                    vy = -math.sin(angle) * 120
+                    color = self.color_psi_inner  # Pale purple for soul
+                    particle = Particle(x, y, vx, vy, lifetime=0.4, size=4, color=color)
                     self.particle_emitter.particles.append(particle)
 
-                self.banish_particles_spawned = True
+                # Additional implosion particles in gray (dissolving body)
+                for i in range(20):
+                    angle = random.uniform(0, 2 * math.pi)
+                    distance = random.uniform(30, 50)
+                    x = self.target_x + math.cos(angle) * distance
+                    y = self.target_y + math.sin(angle) * distance
+                    vx = -math.cos(angle) * 100
+                    vy = -math.sin(angle) * 100
+                    color = self.color_skin
+                    particle = Particle(x, y, vx, vy, lifetime=0.3, size=3, color=color)
+                    self.particle_emitter.particles.append(particle)
 
-            if self.timer >= self.banish_duration:
+                self.soul_particles_spawned = True
+
+            if self.timer >= self.soul_extract_duration:
                 self.phase = "echo_spawn"
                 self.timer = 0
 
         elif self.phase == "echo_spawn":
-            # Echo spawn phase - purple materialization at target position
+            # Phase 4: Cube explodes, echo materializes
+            progress = self.timer / self.echo_spawn_duration
+
             if not self.echo_particles_spawned:
-                # Spawn materialization particles
-                for _ in range(25):
+                # Cube explosion particles (gray cloak colors)
+                for _ in range(30):
                     angle = random.uniform(0, 2 * math.pi)
-                    speed = random.uniform(50, 150)
+                    speed = random.uniform(80, 180)
                     vx = math.cos(angle) * speed
                     vy = math.sin(angle) * speed
-                    color = random.choice([self.color_outer, self.color_inner, self.color_bright])
+                    color = random.choice([self.color_cloak, self.color_skin, self.color_cloak_shadow])
                     particle = Particle(self.target_x, self.target_y, vx, vy,
                                       lifetime=0.4, size=4, color=color)
                     self.particle_emitter.particles.append(particle)
 
-                # Ring of particles expanding
-                for i in range(12):
-                    angle = (i / 12) * 2 * math.pi
+                # Purple orb flash (signature GRAYMAN)
+                for i in range(15):
+                    angle = (i / 15) * 2 * math.pi
                     vx = math.cos(angle) * 100
                     vy = math.sin(angle) * 100
                     particle = Particle(self.target_x, self.target_y, vx, vy,
-                                      lifetime=0.3, size=3, color=self.color_inner)
+                                      lifetime=0.3, size=3, color=self.color_psi_outer)
+                    self.particle_emitter.particles.append(particle)
+
+                # Expanding gray ring
+                for i in range(12):
+                    angle = (i / 12) * 2 * math.pi
+                    vx = math.cos(angle) * 120
+                    vy = math.sin(angle) * 120
+                    particle = Particle(self.target_x, self.target_y, vx, vy,
+                                      lifetime=0.3, size=2, color=self.color_cloak_shadow)
                     self.particle_emitter.particles.append(particle)
 
                 self.echo_particles_spawned = True
@@ -823,158 +892,221 @@ class GraeExchangeAnimation:
         return True  # Animation still active
 
     def draw(self, surface):
-        """Draw the Græ Exchange animation."""
-        if self.phase == "charge":
-            # Draw charging glow at caster
-            progress = self.timer / self.charge_duration
+        """Draw the Græ Exchange animation - cane ritual + soul cube."""
+        if self.phase == "cane_tap":
+            # Phase 1: Draw metallic cane tapping at caster location
+            progress = self.timer / self.cane_tap_duration
 
-            # Pulsing glow
-            glow_radius = int(20 + 10 * math.sin(self.timer * 15))
-            glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (*self.color_outer, int(120 * progress)),
-                             (glow_radius, glow_radius), glow_radius)
-            surface.blit(glow_surf, (int(self.source_x - glow_radius),
-                                    int(self.source_y - glow_radius)))
+            # Draw cane with animated raise/lower
+            cane_bottom_x = int(self.source_x + 15)  # Offset to side slightly
+            cane_bottom_y = int(self.source_y + 20 + self.cane_raise_offset)
+            cane_top_x = cane_bottom_x
+            cane_top_y = int(cane_bottom_y - self.cane_height)
 
-            # Inner glow
-            inner_radius = int(glow_radius * 0.6)
-            glow_surf2 = pygame.Surface((inner_radius * 2, inner_radius * 2), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf2, (*self.color_inner, int(180 * progress)),
-                             (inner_radius, inner_radius), inner_radius)
-            surface.blit(glow_surf2, (int(self.source_x - inner_radius),
-                                     int(self.source_y - inner_radius)))
+            # Cane shaft (thin gray line)
+            pygame.draw.line(surface, self.color_cane_shaft,
+                           (cane_bottom_x, cane_bottom_y),
+                           (cane_top_x, cane_top_y), 3)
 
-            # Draw psi symbol at source
-            size = int(15 * progress)
-            if size > 3:
-                # Draw triangular psi shape
-                points = [
-                    (int(self.source_x), int(self.source_y - size)),
-                    (int(self.source_x - size * 0.5), int(self.source_y + size * 0.3)),
-                    (int(self.source_x + size * 0.5), int(self.source_y + size * 0.3))
+            # Ornate sphere at top of cane (gray skin color)
+            sphere_radius = 5
+            pygame.draw.circle(surface, self.color_skin,
+                             (cane_top_x, cane_top_y), sphere_radius)
+            # Highlight on sphere
+            pygame.draw.circle(surface, (200, 200, 220),
+                             (cane_top_x - 2, cane_top_y - 2), 2)
+
+            # Impact ripples when cane hits ground
+            if abs(self.cane_raise_offset) < 1:  # Cane is touching ground
+                ripple_progress = (self.timer % 0.3) / 0.3  # Ripple animation
+                for i in range(3):
+                    ripple_radius = int((i + ripple_progress) * 20)
+                    if ripple_radius < 60:
+                        ripple_alpha = int(150 * (1.0 - ripple_progress))
+                        pygame.draw.circle(surface, (*self.color_psi_outer, ripple_alpha),
+                                         (cane_bottom_x, cane_bottom_y),
+                                         ripple_radius, 2)
+
+        elif self.phase == "cube_form":
+            # Phase 2: Draw cane taps (smaller) + cube forming at target
+            progress = self.timer / self.cube_form_duration
+
+            # Continue drawing cane at caster (with smaller taps 2 & 3)
+            cane_bottom_x = int(self.source_x + 15)
+            cane_bottom_y = int(self.source_y + 20)
+            cane_top_x = cane_bottom_x
+            cane_top_y = int(cane_bottom_y - self.cane_height)
+
+            # Cane (fading out as cube forms)
+            cane_alpha = int(200 * (1.0 - progress * 0.5))
+            cane_surf = pygame.Surface((80, 60), pygame.SRCALPHA)
+            pygame.draw.line(cane_surf, (*self.color_cane_shaft, cane_alpha),
+                           (40, 60), (40, 20), 3)
+            pygame.draw.circle(cane_surf, (*self.color_skin, cane_alpha), (40, 20), 5)
+            surface.blit(cane_surf, (cane_bottom_x - 40, cane_bottom_y - 60))
+
+            # Draw forming cube at target
+            if self.cube_formation_progress > 0:
+                # Rotate cube as it forms
+                angle_rad = math.radians(self.cube_rotation)
+                half_size = self.cube_size // 2
+
+                # Calculate 8 cube vertices (3D projection)
+                vertices = []
+                for dx in [-1, 1]:
+                    for dy in [-1, 1]:
+                        for dz in [-1, 1]:
+                            # Simple isometric projection
+                            x = dx * half_size
+                            y = dy * half_size
+                            z = dz * half_size
+
+                            # Rotate around Y axis
+                            x_rot = x * math.cos(angle_rad) - z * math.sin(angle_rad)
+                            z_rot = x * math.sin(angle_rad) + z * math.cos(angle_rad)
+
+                            # Project to 2D (isometric)
+                            screen_x = int(self.target_x + x_rot + z_rot * 0.5)
+                            screen_y = int(self.target_y + y + z_rot * 0.3)
+                            vertices.append((screen_x, screen_y))
+
+                # Draw cube edges with formation progress
+                formation_alpha = int(200 * self.cube_formation_progress)
+
+                # Define edge connections (which vertices connect)
+                edges = [
+                    (0, 1), (2, 3), (4, 5), (6, 7),  # Horizontal edges
+                    (0, 2), (1, 3), (4, 6), (5, 7),  # Vertical edges
+                    (0, 4), (1, 5), (2, 6), (3, 7)   # Depth edges
                 ]
-                pygame.draw.lines(surface, self.color_bright, False, points, 2)
 
-        elif self.phase == "beam":
-            # Draw reality-tearing beam
-            progress = self.timer / self.beam_duration
+                # Draw edges
+                for i, (v1, v2) in enumerate(edges):
+                    edge_progress = min(1.0, self.cube_formation_progress * 1.5 - i * 0.05)
+                    if edge_progress > 0:
+                        x1, y1 = vertices[v1]
+                        x2, y2 = vertices[v2]
+                        # Interpolate edge drawing
+                        x_draw = int(x1 + (x2 - x1) * edge_progress)
+                        y_draw = int(y1 + (y2 - y1) * edge_progress)
+                        pygame.draw.line(surface, (*self.color_skin, formation_alpha),
+                                       (x1, y1), (x_draw, y_draw), 2)
 
-            if self.beam_width > 2:
-                # Calculate beam direction
-                dx = self.target_x - self.source_x
-                dy = self.target_y - self.source_y
-                distance = math.sqrt(dx*dx + dy*dy)
+                # Draw glowing corner points (psi orb color)
+                for vertex in vertices:
+                    if self.cube_formation_progress > 0.3:
+                        glow_size = int(4 * self.cube_formation_progress)
+                        pygame.draw.circle(surface, (*self.color_psi_outer, formation_alpha),
+                                         vertex, glow_size)
 
-                if distance > 0:
-                    # Draw thick outer beam with pulsing
-                    pulse = 0.7 + 0.3 * math.sin(self.timer * 20)
+                # Draw faces (semi-transparent)
+                if self.cube_formation_progress > 0.7:
+                    face_alpha = int(80 * (self.cube_formation_progress - 0.7) / 0.3)
+                    # Draw front face
+                    face_points = [vertices[0], vertices[1], vertices[3], vertices[2]]
+                    pygame.draw.polygon(surface, (*self.color_cloak, face_alpha), face_points)
 
-                    # Outer purple beam
-                    pygame.draw.line(surface, tuple(int(c * pulse) for c in self.color_outer),
-                                  (int(self.source_x), int(self.source_y)),
-                                  (int(self.target_x), int(self.target_y)),
-                                  int(self.beam_width))
+        elif self.phase == "soul_extract":
+            # Phase 3: Draw spinning cube sucking in soul wisps
+            progress = self.timer / self.soul_extract_duration
 
-                    # Inner lighter beam
-                    pygame.draw.line(surface, tuple(int(c * pulse) for c in self.color_inner),
-                                  (int(self.source_x), int(self.source_y)),
-                                  (int(self.target_x), int(self.target_y)),
-                                  int(self.beam_width * 0.6))
+            # Draw fully-formed, spinning cube
+            angle_rad = math.radians(self.cube_rotation)
+            half_size = self.cube_size // 2
 
-                    # Bright core
-                    pygame.draw.line(surface, self.color_bright,
-                                  (int(self.source_x), int(self.source_y)),
-                                  (int(self.target_x), int(self.target_y)), 2)
+            # Calculate cube vertices (same as before but fully formed)
+            vertices = []
+            for dx in [-1, 1]:
+                for dy in [-1, 1]:
+                    for dz in [-1, 1]:
+                        x = dx * half_size
+                        y = dy * half_size
+                        z = dz * half_size
+                        x_rot = x * math.cos(angle_rad) - z * math.sin(angle_rad)
+                        z_rot = x * math.sin(angle_rad) + z * math.cos(angle_rad)
+                        screen_x = int(self.target_x + x_rot + z_rot * 0.5)
+                        screen_y = int(self.target_y + y + z_rot * 0.3)
+                        vertices.append((screen_x, screen_y))
 
-                    # Reality tear effect - jagged lines alongside beam
-                    perpendicular_x = -dy / distance
-                    perpendicular_y = dx / distance
+            # Draw cube edges (now pulsing with absorbed soul energy)
+            pulse = 0.7 + 0.3 * math.sin(self.timer * 15)
+            edge_color = tuple(int(c * pulse) for c in self.color_psi_outer)
+            edges = [
+                (0, 1), (2, 3), (4, 5), (6, 7),
+                (0, 2), (1, 3), (4, 6), (5, 7),
+                (0, 4), (1, 5), (2, 6), (3, 7)
+            ]
+            for v1, v2 in edges:
+                pygame.draw.line(surface, edge_color, vertices[v1], vertices[v2], 3)
 
-                    for i in range(3):
-                        offset = (i - 1) * 25
-                        tear_x1 = self.source_x + perpendicular_x * offset
-                        tear_y1 = self.source_y + perpendicular_y * offset
-                        tear_x2 = self.target_x + perpendicular_x * offset
-                        tear_y2 = self.target_y + perpendicular_y * offset
+            # Glowing corner points pulsing brighter
+            for vertex in vertices:
+                glow_size = int(5 + 3 * pulse)
+                pygame.draw.circle(surface, self.color_psi_inner, vertex, glow_size)
 
-                        # Draw jagged line
-                        num_segments = 8
-                        points = []
-                        for j in range(num_segments + 1):
-                            t = j / num_segments
-                            x = tear_x1 + (tear_x2 - tear_x1) * t
-                            y = tear_y1 + (tear_y2 - tear_y1) * t
-                            # Add random offset for jaggedness
-                            jitter = math.sin(t * math.pi * 3 + self.timer * 10) * 5
-                            x += perpendicular_x * jitter
-                            y += perpendicular_y * jitter
-                            points.append((int(x), int(y)))
-
-                        if len(points) >= 2:
-                            pygame.draw.lines(surface, self.color_cloak, False, points, 1)
-
-        elif self.phase == "banish":
-            # Draw implosion at target
-            progress = self.timer / self.banish_duration
-
-            # Collapsing vortex
-            vortex_radius = int(40 * (1.0 - progress))
-            if vortex_radius > 2:
-                # Draw spiral
-                num_spirals = 3
-                for spiral in range(num_spirals):
-                    points = []
-                    for i in range(20):
-                        angle = (i / 20) * 2 * math.pi + (spiral * 2 * math.pi / num_spirals) + self.timer * 10
-                        r = vortex_radius * (1.0 - i / 20)
-                        x = self.target_x + math.cos(angle) * r
-                        y = self.target_y + math.sin(angle) * r
-                        points.append((int(x), int(y)))
-
-                    if len(points) >= 2:
-                        color = self.color_outer if spiral % 2 == 0 else self.color_inner
-                        pygame.draw.lines(surface, color, False, points, 2)
-
-                # Central void
-                void_radius = int(15 * progress)
-                if void_radius > 0:
-                    void_surf = pygame.Surface((void_radius * 2, void_radius * 2), pygame.SRCALPHA)
-                    pygame.draw.circle(void_surf, (0, 0, 0, int(200 * progress)),
-                                     (void_radius, void_radius), void_radius)
-                    surface.blit(void_surf, (int(self.target_x - void_radius),
-                                            int(self.target_y - void_radius)))
+            # Central soul vortex (target dissolving into cube)
+            vortex_intensity = int(150 * progress)
+            pygame.draw.circle(surface, (*self.color_psi_inner, vortex_intensity),
+                             (int(self.target_x), int(self.target_y)), int(20 * (1.0 - progress * 0.5)))
 
         elif self.phase == "echo_spawn":
-            # Draw echo materialization
+            # Phase 4: Cube explodes, echo materializes
             progress = self.timer / self.echo_spawn_duration
 
-            # Growing echo form
-            echo_radius = int(25 * progress)
-            if echo_radius > 2:
-                echo_surf = pygame.Surface((echo_radius * 2, echo_radius * 2), pygame.SRCALPHA)
+            # Cube fragments exploding outward (if early in phase)
+            if progress < 0.3:
+                explosion_progress = progress / 0.3
+                angle_rad = math.radians(self.cube_rotation)
+                half_size = int(self.cube_size * (1.0 + explosion_progress * 2))  # Expanding
 
-                # Outer glow
-                pygame.draw.circle(echo_surf, (*self.color_outer, int(100 * progress)),
-                                 (echo_radius, echo_radius), echo_radius)
+                vertices = []
+                for dx in [-1, 1]:
+                    for dy in [-1, 1]:
+                        for dz in [-1, 1]:
+                            x = dx * half_size
+                            y = dy * half_size
+                            z = dz * half_size
+                            x_rot = x * math.cos(angle_rad) - z * math.sin(angle_rad)
+                            z_rot = x * math.sin(angle_rad) + z * math.cos(angle_rad)
+                            screen_x = int(self.target_x + x_rot + z_rot * 0.5)
+                            screen_y = int(self.target_y + y + z_rot * 0.3)
+                            vertices.append((screen_x, screen_y))
 
-                # Inner form
-                inner_radius = int(echo_radius * 0.6)
-                pygame.draw.circle(echo_surf, (*self.color_inner, int(150 * progress)),
-                                 (echo_radius, echo_radius), inner_radius)
+                # Fading cube fragments
+                frag_alpha = int(200 * (1.0 - explosion_progress))
+                edges = [(0, 1), (2, 3), (4, 5), (6, 7), (0, 2), (1, 3), (4, 6), (5, 7)]
+                for v1, v2 in edges:
+                    pygame.draw.line(surface, (*self.color_cloak, frag_alpha),
+                                   vertices[v1], vertices[v2], 2)
 
-                surface.blit(echo_surf, (int(self.target_x - echo_radius),
-                                        int(self.target_y - echo_radius)))
+            # Echo materialization (purple orb flash)
+            if progress > 0.2:
+                mat_progress = (progress - 0.2) / 0.8
+                echo_radius = int(30 * mat_progress)
+                if echo_radius > 2:
+                    # Outer purple glow
+                    glow_alpha = int(120 * mat_progress)
+                    pygame.draw.circle(surface, (*self.color_psi_outer, glow_alpha),
+                                     (int(self.target_x), int(self.target_y)), echo_radius)
 
-            # Psi symbol forming
-            if progress > 0.5:
-                symbol_alpha = int((progress - 0.5) * 2 * 255)
-                symbol_size = 15
-                points = [
-                    (int(self.target_x), int(self.target_y - symbol_size)),
-                    (int(self.target_x - symbol_size * 0.5), int(self.target_y + symbol_size * 0.3)),
-                    (int(self.target_x + symbol_size * 0.5), int(self.target_y + symbol_size * 0.3))
-                ]
-                pygame.draw.lines(surface, (*self.color_bright, symbol_alpha), False, points, 2)
+                    # Inner brighter core
+                    core_radius = int(echo_radius * 0.6)
+                    pygame.draw.circle(surface, (*self.color_psi_inner, int(180 * mat_progress)),
+                                     (int(self.target_x), int(self.target_y)), core_radius)
+
+                # Psi symbol forming at center
+                if progress > 0.5:
+                    symbol_alpha = int((progress - 0.5) * 2 * 255)
+                    symbol_size = 12
+                    points = [
+                        (int(self.target_x), int(self.target_y - symbol_size)),
+                        (int(self.target_x - symbol_size * 0.5), int(self.target_y + symbol_size * 0.3)),
+                        (int(self.target_x + symbol_size * 0.5), int(self.target_y + symbol_size * 0.3))
+                    ]
+                    # Draw psi symbol with alpha
+                    for i, (p1, p2) in enumerate(zip(points, points[1:] + [points[0]])):
+                        if i < 2:  # Only draw first two sides (not closing the triangle)
+                            pygame.draw.line(surface, (*self.color_psi_inner, symbol_alpha), p1, p2, 2)
 
 
 class EstrangeBeam:

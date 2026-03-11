@@ -876,7 +876,7 @@ class GraeExchangeSkill(ActiveSkill):
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{user.get_display_name()} prepares Græ Exchange targeting {target.get_display_name()}",
+            f"{user.get_display_name()}'s cane gleams as they prepare to replace {target.get_display_name()}",
             MessageType.ABILITY,
             player=user.player,
             target_name=target.get_display_name()
@@ -919,7 +919,7 @@ class GraeExchangeSkill(ActiveSkill):
 
         # Log the banishment
         message_log.add_message(
-            f"{user.get_display_name()} performs Græ Exchange on {target.get_display_name()}",
+            f"{user.get_display_name()} banishes {target.get_display_name()} and summons a doppelgänger in their place",
             MessageType.ABILITY,
             player=user.player,
             attacker_name=user.get_display_name(),

@@ -144,8 +144,8 @@ class HelpPage:
 
         unit_data = self.unit_help_data[self.unit_type]
 
-        # Estimate height needed
-        estimated_height = 2000  # Start with generous estimate
+        # Estimate height needed - increased to handle units with many skills
+        estimated_height = 4000  # Generous estimate to prevent cutoff
         self.content_surface = pygame.Surface((CONTENT_WIDTH, estimated_height), pygame.SRCALPHA)
 
         y = 0
