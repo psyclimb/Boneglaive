@@ -78,13 +78,6 @@ from boneglaive.graphical.animations.gas_machinist import (
     AerosolizeArmsAnimation,
     VaporAOETickAnimation,
 )
-from boneglaive.graphical.animations.pelotari import (
-    MatadorAnimation,
-    RiposteAnimation,
-    PoachAnimation,
-    BackhandAnimation,
-    BackhandReflectionAnimation,
-)
 from boneglaive.graphical.animations.core_animations import (
     RespawnAnimation,
 )
@@ -198,12 +191,6 @@ class AnimationFactory:
         "DERELICT_PUSH_TRAIL": (DerelictPushTrail, {}),  # Push trail for base Derelict skill
         "DERELICT_BUILDING_FORMATION": (DerelictBuildingFormation, {}),  # Dust cloud animation
         "DERELICT_BUILDING_TILES": (DerelictBuildingTiles, {}),  # Persistent building tiles
-
-        # PELOTARI skills (DLC)
-        "MATADOR": (MatadorAnimation, {}),
-        "POACH": (PoachAnimation, {}),
-        "BACKHAND": (BackhandAnimation, {}),
-        "BACKHAND_REFLECTION": (BackhandReflectionAnimation, {}),
 
         # Core game events
         "RESPAWN": (RespawnAnimation, {}),

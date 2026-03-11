@@ -121,22 +121,6 @@ from .gas_machinist import (
     VaporAOETickAnimation,
 )
 
-from .pelotari import (
-    MatadorAnimation,
-    PoachAnimation,
-    BackhandAnimation,
-    BackhandReflectionAnimation,
-    EstrangeBall,
-    ExpediteBall,
-    AuctionCurseBall,
-    PryBall,
-    NeuralShuntBall,
-    GraniteGeasBall,
-    InfusedGraniteGeasBall,
-    JudgementBall,
-    JudgementCritBall,
-)
-
 from .animation_factory import AnimationFactory
 
 __all__ = [
@@ -233,20 +217,6 @@ __all__ = [
     'DivergeAnimationUpgraded',
     'AerosolizeArmsAnimation',
     'VaporAOETickAnimation',
-    # Pelotari (DLC)
-    'MatadorAnimation',
-    'PoachAnimation',
-    'BackhandAnimation',
-    'BackhandReflectionAnimation',
-    'EstrangeBall',
-    'ExpediteBall',
-    'AuctionCurseBall',
-    'PryBall',
-    'NeuralShuntBall',
-    'GraniteGeasBall',
-    'InfusedGraniteGeasBall',
-    'JudgementBall',
-    'JudgementCritBall',
     # Factory
     'AnimationFactory',
 ]

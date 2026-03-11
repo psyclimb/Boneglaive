@@ -45,10 +45,6 @@ from boneglaive.game.skills.potpourrist import (
     MelangeEminence, InfuseSkill, DemiluneSkill, GraniteGeasSkill
 )
 
-from boneglaive.game.skills.pelotari import (
-    Riposte, Poach, Backhand, Matador
-)
-
 # Define the skills available for each unit type
 UNIT_SKILLS = {
     "GLAIVEMAN": {
@@ -90,9 +86,5 @@ UNIT_SKILLS = {
     "POTPOURRIST": {
         "passive": MelangeEminence(),
         "active": [InfuseSkill(), DemiluneSkill(), GraniteGeasSkill()]
-    },
-    "PELOTARI": {
-        "passive": Riposte(),
-        "active": [Poach(), Backhand(), Matador()]
     }
 }

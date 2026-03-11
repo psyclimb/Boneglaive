@@ -36,7 +36,6 @@ class UnitType(Enum):
     INTERFERER = 10  # The telecommunications engineer turned assassin
     DERELICTIONIST = 11  # The psychological abandonment therapist
     POTPOURRIST = 12  # The tank with potpourri-enhanced healing
-    PELOTARI = 13  # Jai alai specialist with ricochet ball mechanics
 
 # Unit stats: (hp, attack, defense, move_range, attack_range)
 UNIT_STATS = {
@@ -52,8 +51,7 @@ UNIT_STATS = {
     UnitType.DELPHIC_APPRAISER: (20, 5, 0, 4, 1),
     UnitType.INTERFERER: (18, 4, 0, 4, 1),
     UnitType.DERELICTIONIST: (18, 6, 0, 4, 1),
-    UnitType.POTPOURRIST: (24, 5, 0, 3, 1),
-    UnitType.PELOTARI: (18, 4, 0, 3, 4)
+    UnitType.POTPOURRIST: (24, 5, 0, 3, 1)
 }
 
 UNIT_SYMBOLS = {
@@ -69,8 +67,7 @@ UNIT_SYMBOLS = {
     UnitType.DELPHIC_APPRAISER: 'A',  # A for Appraiser
     UnitType.INTERFERER: 'R',  # R for Radioactive interference
     UnitType.DERELICTIONIST: 'D',  # D for DERELICTIONIST
-    UnitType.POTPOURRIST: 'P',  # P for POTPOURRIST
-    UnitType.PELOTARI: 'J'  # J for Jai alai
+    UnitType.POTPOURRIST: 'P'  # P for POTPOURRIST
 }
 
 # GP (Game Points) System
@@ -85,8 +82,7 @@ GP_ELIGIBLE_UNITS = {
     UnitType.MARROW_CONDENSER,
     UnitType.DERELICTIONIST,
     UnitType.FOWL_CONTRIVANCE,
-    UnitType.GAS_MACHINIST,
-    UnitType.PELOTARI
+    UnitType.GAS_MACHINIST
 }
 
 # Attack visual effects
@@ -103,8 +99,7 @@ ATTACK_EFFECTS = {
     UnitType.DELPHIC_APPRAISER: "$",  # Currency symbol (evaluation)
     UnitType.INTERFERER: "x",  # Plutonium carabiner cross (melee)
     UnitType.DERELICTIONIST: "o",  # Psychological void (melee)
-    UnitType.POTPOURRIST: "I",  # Pedestal strike (melee)
-    UnitType.PELOTARI: "o"  # Jai alai ball (ranged)
+    UnitType.POTPOURRIST: "I"  # Pedestal strike (melee)
 }
 
 # Greek alphabet for unit identification
@@ -149,8 +144,7 @@ UNIT_DISPLAY_NAMES = {
     UnitType.DELPHIC_APPRAISER: 'DELPHIC APPRAISER',
     UnitType.INTERFERER: 'INTERFERER',
     UnitType.DERELICTIONIST: 'DERELICTIONIST',
-    UnitType.POTPOURRIST: 'POTPOURRIST',
-    UnitType.PELOTARI: 'PELOTARI'
+    UnitType.POTPOURRIST: 'POTPOURRIST'
 }
 
 # Status effect symbols
