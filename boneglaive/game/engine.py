@@ -4905,6 +4905,9 @@ class Game:
                         unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
                         logger.info(f"RESPAWN: {dead_unit.greek_id} ({unit_type_name}) is ready to respawn")
 
+            # Process Infuse upgrade: restore buff durations for POTPOURRIST holding potpourri
+            self._process_infuse_buff_preservation()
+
             # In single player mode, automatically toggle between player 1 and 2
             # In multiplayer modes, the multiplayer manager handles player switching
             if not self.local_multiplayer:
@@ -7266,7 +7269,76 @@ class Game:
             message_log.add_system_message("The cool autumn air crisps up all units")
             
             logger.info(f"Crisp Air bonus applied to {crisp_air_applied} units")
-    
+
+    def _process_infuse_buff_preservation(self):
+        """
+        Freeze buff durations for POTPOURRIST with upgraded Infuse holding potpourri.
+        This captures the duration before decrements and restores it after, making durations appear frozen.
+
+        Applicable buffs: Parallax, Investment, Partition, Severance, First Turn Bonus,
+        Karrier Rave, Trauma Processing, Site Inspection, Ossify, Valuation Oracle
+        """
+        from boneglaive.game.upgrades import UpgradeManager
+
+        for unit in self.units:
+            if not unit.is_alive():
+                continue
+
+            # Check if this is a POTPOURRIST with upgraded Infuse holding potpourri
+            if (unit.type == UnitType.POTPOURRIST and
+                hasattr(unit, 'potpourri_held') and unit.potpourri_held and
+                UpgradeManager.is_skill_upgraded(unit, "Infuse")):
+
+                # Store buff durations that should be frozen (captured before they were decremented)
+                # On the next turn after decrements, we restore these saved values
+
+                # If we already have frozen values, restore them (this means decrements happened)
+                if hasattr(unit, '_infuse_frozen_durations'):
+                    # Restore all frozen durations
+                    for attr_name, frozen_value in unit._infuse_frozen_durations.items():
+                        if hasattr(unit, attr_name):
+                            setattr(unit, attr_name, frozen_value)
+
+                # Now capture current values for next turn (before decrements happen)
+                frozen_durations = {}
+
+                if hasattr(unit, 'partition_shield_duration') and unit.partition_shield_duration >= 0:
+                    frozen_durations['partition_shield_duration'] = unit.partition_shield_duration
+
+                if hasattr(unit, 'market_futures_duration') and unit.market_futures_duration >= 0:
+                    frozen_durations['market_futures_duration'] = unit.market_futures_duration
+
+                if hasattr(unit, 'severance_duration') and unit.severance_duration >= 0:
+                    frozen_durations['severance_duration'] = unit.severance_duration
+
+                if hasattr(unit, 'first_turn_move_bonus_duration') and unit.first_turn_move_bonus_duration >= 0:
+                    frozen_durations['first_turn_move_bonus_duration'] = unit.first_turn_move_bonus_duration
+
+                if hasattr(unit, 'carrier_rave_duration') and unit.carrier_rave_duration >= 0:
+                    frozen_durations['carrier_rave_duration'] = unit.carrier_rave_duration
+
+                if hasattr(unit, 'trauma_processing_duration') and unit.trauma_processing_duration >= 0:
+                    frozen_durations['trauma_processing_duration'] = unit.trauma_processing_duration
+
+                if hasattr(unit, 'status_site_inspection_duration') and unit.status_site_inspection_duration >= 0:
+                    frozen_durations['status_site_inspection_duration'] = unit.status_site_inspection_duration
+
+                if hasattr(unit, 'status_site_inspection_partial_duration') and unit.status_site_inspection_partial_duration >= 0:
+                    frozen_durations['status_site_inspection_partial_duration'] = unit.status_site_inspection_partial_duration
+
+                if hasattr(unit, 'ossify_duration') and unit.ossify_duration >= 0:
+                    frozen_durations['ossify_duration'] = unit.ossify_duration
+
+                if hasattr(unit, 'valuation_oracle_duration') and unit.valuation_oracle_duration >= 0:
+                    frozen_durations['valuation_oracle_duration'] = unit.valuation_oracle_duration
+
+                unit._infuse_frozen_durations = frozen_durations
+
+            else:
+                # Not holding potpourri or Infuse not upgraded, clear any frozen state
+                if hasattr(unit, '_infuse_frozen_durations'):
+                    delattr(unit, '_infuse_frozen_durations')
+
     def _process_potpourri_bowl_healing(self, unit, ui=None):
         """Process potpourri bowl aura healing for a unit."""
         from boneglaive.game.map import TerrainType

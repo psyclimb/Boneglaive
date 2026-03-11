@@ -125,7 +125,7 @@ SKILL_UPGRADES = {
         },
         "Infuse": {
             "name": "Infuse",
-            "description": "Half of infused Demilune's damage pierces defense. Infused Granite Geas deals +1 damage.",
+            "description": "Positive status effects don't decrement while infused.",
             "type": "buff",
             "cost": 1
         },
