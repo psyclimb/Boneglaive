@@ -645,10 +645,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.GLAIVEMAN: {
                 'title': 'GLAIVEMAN',
                 'overview': [
-                    'The GLAIVEMAN is a versatile melee warrior wielding a polearm and sacred spinning glaives.',
-                    'Balanced between offense and defense, this unit excels at close combat with mobility options',
-                    'and area control. The GLAIVEMAN serves as a reliable frontline fighter with powerful',
-                    'retaliatory abilities.',
+                    'The GLAIVEMAN is a versatile melee warrior wielding a polearm and sacred spinning glaives. Balanced between offense and defense, this unit excels at close combat with mobility options and area control. The GLAIVEMAN serves as a reliable frontline fighter with powerful retaliatory abilities.',
                     '',
                     'Role: Frontline Fighter / Disabler / Displacer / Escape Artist',
                     'Difficulty: **'
@@ -724,10 +721,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.MANDIBLE_FOREMAN: {
                 'title': 'MANDIBLE FOREMAN',
                 'overview': [
-                    'The MANDIBLE FOREMAN is a mechanical supervisor wielding industrial jaw contraptions for area',
-                    'control and battlefield management. This durable frontline unit excels at trapping and immobilizing',
-                    'enemies while providing tactical support to allies in open terrain. The MANDIBLE FOREMAN serves',
-                    'as a close-range specialist focused on movement denial and crowd control.',
+                    'The MANDIBLE FOREMAN is a mechanical supervisor wielding industrial jaw contraptions for area control and battlefield management. This durable frontline unit excels at trapping and immobilizing enemies while providing tactical support to allies in open terrain. The MANDIBLE FOREMAN serves as a close-range specialist focused on movement denial and crowd control.',
                     '',
                     'Role: Frontline Fighter / Disabler',
                     'Difficulty: **'
@@ -805,13 +799,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.GRAYMAN: {
                 'title': 'GRAYMAN',
                 'overview': [
-                    'The GRAYMAN is a gray alien-human hybrid that exists in a liminal state between species, between',
-                    'dimensions, and between moments. Neither fully gray nor fully man, this entity occupies an ambiguous',
-                    'existence outside normal causality, rendering it immune to all external manipulation. Using alien',
-                    'propulsion technology adapted for combat, the GRAYMAN travels via delta configuration—instantaneous',
-                    'point-to-point spatial reconfiguration. The unit weaponizes existential isolation to permanently',
-                    'weaken enemies while creating psychic doppelgangers that maintain battlefield presence across multiple',
-                    'locations simultaneously.',
+                    'The GRAYMAN is a gray alien-human hybrid that exists in a liminal state between species, between dimensions, and between moments. Neither fully gray nor fully man, this entity occupies an ambiguous existence outside normal causality, rendering it immune to all external manipulation. Using alien propulsion technology adapted for combat, the GRAYMAN travels via delta configuration—instantaneous point-to-point spatial reconfiguration. The unit weaponizes existential isolation to permanently weaken enemies while creating psychic doppelgangers that maintain battlefield presence across multiple locations simultaneously.',
                     '',
                     'Role: Escape Artist / Disabler / Summoner',
                     'Difficulty: *'
@@ -887,11 +875,7 @@ class UnitHelpComponent(UIComponent):
             'GRAYMAN_ECHO': {
                 'title': 'GRAYMAN DOPPELGANGER',
                 'overview': [
-                    'GRAYMAN doppelgangers are temporary psychic projections manifested through the Græ Exchange skill.',
-                    'When the GRAYMAN banishes an enemy unit to the temporal void, a doppelganger takes their place,',
-                    'maintaining battlefield control while the original target remains displaced. These immobile',
-                    'entities can perform basic attacks and explode when destroyed, serving as both combat units',
-                    'and area denial threats that guard the position until the banished unit returns.',
+                    'GRAYMAN doppelgangers are temporary psychic projections manifested through the Græ Exchange skill. When the GRAYMAN banishes an enemy unit to the temporal void, a doppelganger takes their place, maintaining battlefield control while the original target remains displaced. These immobile entities can perform basic attacks and explode when destroyed, serving as both combat units and area denial threats that guard the position until the banished unit returns.',
                     '',
                     'Role: Area Controller / Temporary Replacement'
                 ],
@@ -952,13 +936,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.MARROW_CONDENSER: {
                 'title': 'MARROW CONDENSER',
                 'overview': [
-                    'The MARROW CONDENSER is a quadrupedal bone manipulator that transforms the battlefield into',
-                    'a calcified fortress. By condensing and weaponizing bone marrow, this tank creates impassable',
-                    'wall structures that trap enemies inside killzones. Each death within the Marrow Dike\'s domain',
-                    'triggers Dominion—a permanent evolutionary upgrade that enhances both the unit\'s stats and',
-                    'active skills. The MARROW CONDENSER grows exponentially stronger throughout battle, draining',
-                    'life force from trapped enemies while reinforcing its skeletal structure into an increasingly',
-                    'impenetrable form.',
+                    'The MARROW CONDENSER is a quadrupedal bone manipulator that transforms the battlefield into a calcified fortress. By condensing and weaponizing bone marrow, this tank creates impassable wall structures that trap enemies inside killzones. Each death within the Marrow Dike\'s domain triggers Dominion—a permanent evolutionary upgrade that enhances both the unit\'s stats and active skills. The MARROW CONDENSER grows exponentially stronger throughout battle, draining life force from trapped enemies while reinforcing its skeletal structure into an increasingly impenetrable form.',
                     '',
                     'Role: Tank / Frontline Fighter / Displacer',
                     'Difficulty: ***'
@@ -1029,13 +1007,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.FOWL_CONTRIVANCE: {
                 'title': 'FOWL CONTRIVANCE',
                 'overview': [
-                    'The FOWL CONTRIVANCE is a mechanical peacock rail artillery platform that transforms the',
-                    'battlefield through devastating long-range bombardment and explosive infrastructure. Upon',
-                    'deployment, this unit establishes a permanent rail network that detonates catastrophically',
-                    'whenever any FOWL CONTRIVANCE falls, blasting enemies on rails and embedding shrapnel in',
-                    'adjacent units. This heavy artillery platform excels at indirect fire support—raining mortar',
-                    'shells, unleashing piercing rail cannon shots, and deploying directional fragmentation bursts',
-                    'that shred clustered enemies.',
+                    'The FOWL CONTRIVANCE is a mechanical peacock rail artillery platform that transforms the battlefield through devastating long-range bombardment and explosive infrastructure. Upon deployment, this unit establishes a permanent rail network that detonates catastrophically whenever any FOWL CONTRIVANCE falls, blasting enemies on rails and embedding shrapnel in adjacent units. This heavy artillery platform excels at indirect fire support—raining mortar shells, unleashing piercing rail cannon shots, and deploying directional fragmentation bursts that shred clustered enemies.',
                     '',
                     'Role: Burst Damage / Displacer',
                     'Difficulty: ***'
@@ -1109,11 +1081,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.GAS_MACHINIST: {
                 'title': 'GAS MACHINIST',
                 'overview': [
-                    'The GAS MACHINIST is an industrial chemist who deploys autonomous HEINOUS VAPOR entities',
-                    'in 3x3 areas that passively affect all units within each turn. The GAS MACHINIST generates',
-                    'Effluvium charges that extend vapor duration. Vapors can be split into specialized forms,',
-                    'or the GAS MACHINIST can dissolve entirely into vapor, reforming when the gases dissipate.',
-                    'The GAS MACHINIST excels at area control and sustained utility through vapor deployment.',
+                    'The GAS MACHINIST is an industrial chemist who deploys autonomous HEINOUS VAPOR entities in 3x3 areas that passively affect all units within each turn. The GAS MACHINIST generates Effluvium charges that extend vapor duration. Vapors can be split into specialized forms, or the GAS MACHINIST can dissolve entirely into vapor, reforming when the gases dissipate. The GAS MACHINIST excels at area control and sustained utility through vapor deployment.',
                     '',
                     'Role: Summoner / Utility / Healer',
                     'Difficulty: ****'
@@ -1191,14 +1159,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.DELPHIC_APPRAISER: {
                 'title': 'DELPHIC APPRAISER',
                 'overview': [
-                    'The DELPHIC APPRAISER is an antique dealer with oracular sight who perceives the "astral',
-                    'value" (1-9) of every furniture piece on the battlefield. These metaphysical appraisals',
-                    'manifest as glowing numbers visible only to the APPRAISER, revealing the hidden cosmic worth',
-                    'of mundane objects. The APPRAISER weaponizes this supernatural perception to gain tactical',
-                    'bonuses from proximity to appraised furniture, imbue objects with teleportation energy,',
-                    'curse enemies with escalating value-based damage, and collapse furniture worth to create',
-                    'reality sinkholes. The APPRAISER thrives on furniture-rich maps where random astral values',
-                    'create unpredictable opportunities for devastating combos and tactical repositioning.',
+                    'The DELPHIC APPRAISER is an antique dealer with oracular sight who perceives the "astral value" (1-9) of every furniture piece on the battlefield. These metaphysical appraisals manifest as glowing numbers visible only to the APPRAISER, revealing the hidden cosmic worth of mundane objects. The APPRAISER weaponizes this supernatural perception to gain tactical bonuses from proximity to appraised furniture, imbue objects with teleportation energy, curse enemies with escalating value-based damage, and collapse furniture worth to create reality sinkholes. The APPRAISER thrives on furniture-rich maps where random astral values create unpredictable opportunities for devastating combos and tactical repositioning.',
                     '',
                     'Role: Utility / Displacer / Disabler / Burst Damage / Escape Artist',
                     'Difficulty: ****'
@@ -1275,11 +1236,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.INTERFERER: {
                 'title': 'INTERFERER',
                 'overview': [
-                    'The INTERFERER is a telecommunications engineer turned assassin who weaponized a remote',
-                    'radio tower array into a directed energy weapon system. This glass cannon "phones home" to',
-                    'the tower network, triangulating transmissions to coordinate precise strikes, neural hijacking,',
-                    'and electromagnetic warfare. In close combat, the INTERFERER attacks with plutonium-tipped',
-                    'carabiners that create radioactive hazard zones on impact.',
+                    'The INTERFERER is a telecommunications engineer turned assassin who weaponized a remote radio tower array into a directed energy weapon system. This glass cannon "phones home" to the tower network, triangulating transmissions to coordinate precise strikes, neural hijacking, and electromagnetic warfare. In close combat, the INTERFERER attacks with plutonium-tipped carabiners that create radioactive hazard zones on impact.',
                     '',
                     'Role: Burst Damage / Disabler',
                     'Difficulty: **'
@@ -1349,11 +1306,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.DERELICTIONIST: {
                 'title': 'DERELICTIONIST',
                 'overview': [
-                    'The DERELICTIONIST is a psychological abandonment therapist who weaponized distance-based',
-                    'therapeutic techniques into a tactical support system. By manipulating interpersonal distance',
-                    'and inducing controlled dissociation, this healer specializes in trauma processing, protective',
-                    'partitioning, and abandonment therapy. The farther allies are from the DERELICTIONIST, the more',
-                    'profound the therapeutic effect—but close proximity forces painful abreactive trauma processing.',
+                    'The DERELICTIONIST is a psychological abandonment therapist who weaponized distance-based therapeutic techniques into a tactical support system. By manipulating interpersonal distance and inducing controlled dissociation, this healer specializes in trauma processing, protective partitioning, and abandonment therapy. The farther allies are from the DERELICTIONIST, the more profound the therapeutic effect—but close proximity forces painful abreactive trauma processing.',
                     '',
                     'Role: Utility / Healer / Disabler / Displacer',
                     'Difficulty: ***'
@@ -1423,13 +1376,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.POTPOURRIST: {
                 'title': 'POTPOURRIST',
                 'overview': [
-                    'The POTPOURRIST is a durable tank unit who wields a heavy granite pedestal as both weapon',
-                    'and incense burner. The pedestal releases aromatic vapors that provide continuous healing and',
-                    'tactical advantages in combat. This unit specializes in persistent regeneration and damage',
-                    'mitigation through disorienting debuffs. By infusing their blend into concentrated potpourri,',
-                    'the POTPOURRIST can double their natural healing and empower their offensive abilities.',
-                    'The POTPOURRIST excels at outlasting opponents through exceptional sustain, defensive debuffs,',
-                    'and magical bindings that force enemies into unfavorable tactical decisions.',
+                    'The POTPOURRIST is a durable tank unit who wields a heavy granite pedestal as both weapon and incense burner. The pedestal releases aromatic vapors that provide continuous healing and tactical advantages in combat. This unit specializes in persistent regeneration and damage mitigation through disorienting debuffs. By infusing their blend into concentrated potpourri, the POTPOURRIST can double their natural healing and empower their offensive abilities. The POTPOURRIST excels at outlasting opponents through exceptional sustain, defensive debuffs, and magical bindings that force enemies into unfavorable tactical decisions.',
                     '',
                     'Role: Tank / Frontline Fighter',
                     'Difficulty: *'
@@ -1503,10 +1450,7 @@ class UnitHelpComponent(UIComponent):
             'HEINOUS_VAPOR_BROACHING': {
                 'title': 'BROACHING GAS (1)',
                 'overview': [
-                    'BROACHING GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Broaching',
-                    'Gas skill. This vapor specializes in dual-purpose area control, dealing 2 damage to enemies',
-                    'while randomly cleansing one negative status effect from each ally within its 3x3 area of',
-                    'influence each turn.',
+                    'BROACHING GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Broaching Gas skill. This vapor specializes in dual-purpose area control, dealing 2 damage to enemies while randomly cleansing one negative status effect from each ally within its 3x3 area of influence each turn.',
                     '',
                     'Role: Utility / Area Controller'
                 ],
@@ -1580,9 +1524,7 @@ class UnitHelpComponent(UIComponent):
             'HEINOUS_VAPOR_SAFT_E': {
                 'title': 'SAFT-E-GAS (0)',
                 'overview': [
-                    'SAFT-E-GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Saft-E-Gas',
-                    'skill. This vapor specializes in defensive area control, blocking ranged attacks while',
-                    'healing allied units within its 3x3 protective area.',
+                    'SAFT-E-GAS is a HEINOUS VAPOR entity summoned by the GAS MACHINIST using the Saft-E-Gas skill. This vapor specializes in defensive area control, blocking ranged attacks while healing allied units within its 3x3 protective area.',
                     '',
                     'Role: Utility / Area Controller'
                 ],
@@ -1656,9 +1598,7 @@ class UnitHelpComponent(UIComponent):
             'HEINOUS_VAPOR_COOLANT': {
                 'title': 'COOLANT GAS (2)',
                 'overview': [
-                    'COOLANT GAS is a HEINOUS VAPOR entity created by the GAS MACHINIST using the Diverge',
-                    'skill. This vapor specializes in healing, providing 3 HP healing per turn to allies',
-                    'within its 3x3 area of influence.',
+                    'COOLANT GAS is a HEINOUS VAPOR entity created by the GAS MACHINIST using the Diverge skill. This vapor specializes in healing, providing 3 HP healing per turn to allies within its 3x3 area of influence.',
                     '',
                     'Role: Utility / Area Controller'
                 ],
@@ -1717,9 +1657,7 @@ class UnitHelpComponent(UIComponent):
             'HEINOUS_VAPOR_CUTTING': {
                 'title': 'CUTTING GAS (%)',
                 'overview': [
-                    'CUTTING GAS is a HEINOUS VAPOR entity created by the GAS MACHINIST using the Diverge',
-                    'skill. This vapor specializes in offensive area control, dealing 3 piercing damage per',
-                    'turn to all enemies within its 3x3 area of influence.',
+                    'CUTTING GAS is a HEINOUS VAPOR entity created by the GAS MACHINIST using the Diverge skill. This vapor specializes in offensive area control, dealing 3 piercing damage per turn to all enemies within its 3x3 area of influence.',
                     '',
                     'Role: Utility / Area Controller'
                 ],
@@ -1778,9 +1716,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.HEINOUS_VAPOR: {
                 'title': 'HEINOUS VAPOR',
                 'overview': [
-                    'HEINOUS VAPOR entities are summoned by the GAS MACHINIST and serve as battlefield',
-                    'manipulators with diverse abilities. Each vapor type has unique properties and',
-                    'effects based on the skill used to create it.',
+                    'HEINOUS VAPOR entities are summoned by the GAS MACHINIST and serve as battlefield manipulators with diverse abilities. Each vapor type has unique properties and effects based on the skill used to create it.',
                     '',
                     'Role: Summoned Entity / Area Control / Support'
                 ],

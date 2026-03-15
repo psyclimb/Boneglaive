@@ -162,7 +162,7 @@ class HelpPage:
                 for wrapped in wrapped_lines:
                     text_surface = self.small_font.render(wrapped, True, COLOR_TEXT)
                     self.content_surface.blit(text_surface, (0, y))
-                    y += text_surface.get_height() + 4
+                    y += text_surface.get_height() + 8
             else:
                 y += PARAGRAPH_SPACING
 
@@ -176,7 +176,7 @@ class HelpPage:
         for stat in unit_data['stats']:
             stat_text = self.small_font.render(stat, True, COLOR_TEXT_DIM)
             self.content_surface.blit(stat_text, (10, y))
-            y += stat_text.get_height() + 4
+            y += stat_text.get_height() + 8
 
         y += SECTION_SPACING
 
@@ -211,7 +211,7 @@ class HelpPage:
             for wrapped in wrapped_desc:
                 desc_text = self.small_font.render(wrapped, True, COLOR_TEXT)
                 self.content_surface.blit(desc_text, (10, y))
-                y += desc_text.get_height() + 4
+                y += desc_text.get_height() + 8
 
             y += 8
 
@@ -220,7 +220,7 @@ class HelpPage:
                 # Check if this detail mentions a status effect icon
                 detail_text = self.small_font.render(f"  • {detail}", True, COLOR_TEXT_DIM)
                 self.content_surface.blit(detail_text, (20, y))
-                y += detail_text.get_height() + 4
+                y += detail_text.get_height() + 8
 
             y += SECTION_SPACING
 
@@ -238,7 +238,7 @@ class HelpPage:
             for wrapped in wrapped_tip:
                 tip_text = self.small_font.render(wrapped, True, COLOR_TEXT)
                 self.content_surface.blit(tip_text, (10, y))
-                y += tip_text.get_height() + 4
+                y += tip_text.get_height() + 8
 
         y += SECTION_SPACING
 
@@ -252,7 +252,7 @@ class HelpPage:
             for wrapped in wrapped_note:
                 note_text = self.small_font.render(wrapped, True, COLOR_TEXT)
                 self.content_surface.blit(note_text, (10, y))
-                y += note_text.get_height() + 4
+                y += note_text.get_height() + 8
 
         # Trim surface to actual height
         actual_height = y + MARGIN
