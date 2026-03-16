@@ -12,6 +12,10 @@ from .font_utils import render_fitted_text
 # Colors - matching bone/industrial theme
 COLOR_BG_TOP = (42, 42, 47)  # Panel top
 COLOR_BG_BOTTOM = (26, 26, 31)  # Panel bottom (gradient)
+COLOR_BG_SKILL_TOP = (90, 60, 130)  # Purple gradient top for skill queued
+COLOR_BG_SKILL_BOTTOM = (60, 40, 90)  # Purple gradient bottom for skill queued
+COLOR_BG_ATTACK_TOP = (130, 50, 50)  # Red gradient top for attack queued
+COLOR_BG_ATTACK_BOTTOM = (90, 30, 30)  # Red gradient bottom for attack queued
 COLOR_PLAYER1 = (100, 255, 100)  # Green
 COLOR_PLAYER2 = (100, 150, 255)  # Blue
 COLOR_TEXT = (240, 232, 216)  # Bone white text
@@ -20,6 +24,8 @@ COLOR_BORDER = (90, 84, 79)  # Metal border
 COLOR_BORDER_ACTIVE = (184, 168, 149)  # Bone border for active
 COLOR_BORDER_ACTED = (70, 70, 70)  # Darker for acted units
 COLOR_BORDER_SELECTED = (255, 200, 100)  # Gold for selected
+COLOR_BORDER_SKILL = (140, 80, 200)  # Purple border for skill queued (matching spinning tools)
+COLOR_BORDER_ATTACK = (255, 80, 80)  # Red border for attack queued (matching spinning glaives)
 COLOR_BORDER_DEAD = (60, 60, 60)
 COLOR_HP_BAR_BG = (40, 40, 40)
 COLOR_HP_BAR_FULL = (100, 255, 100)
@@ -137,6 +143,18 @@ class UnitCard:
             (hasattr(self.game_unit, 'skill_target') and self.game_unit.skill_target)
         )
 
+    def has_queued_skill(self) -> bool:
+        """Check if unit has specifically queued a skill."""
+        if self.is_dead:
+            return False
+        return hasattr(self.game_unit, 'skill_target') and self.game_unit.skill_target
+
+    def has_queued_attack(self) -> bool:
+        """Check if unit has specifically queued an attack."""
+        if self.is_dead:
+            return False
+        return hasattr(self.game_unit, 'attack_target') and self.game_unit.attack_target
+
     def draw(self, surface: pygame.Surface, x: int, y: int, font, small_font,
              is_selected: bool, player_color: tuple):
         """
@@ -152,31 +170,64 @@ class UnitCard:
         """
         self.rect = pygame.Rect(x, y, UNIT_CARD_WIDTH, UNIT_CARD_HEIGHT)
 
-        # Determine border color based on state
+        # Check if unit has queued skill or attack for colored background
+        has_skill_queued = self.has_queued_skill()
+        has_attack_queued = self.has_queued_attack()
+
+        # Determine border color and background colors based on state
+        # Priority: skill takes precedence over attack if both are queued
         if self.is_dead:
             border_color = COLOR_BORDER_DEAD
             bg_alpha = 150
+            bg_top = COLOR_BG_TOP
+            bg_bottom = COLOR_BG_BOTTOM
         elif is_selected:
             border_color = COLOR_BORDER_SELECTED
             bg_alpha = 220
+            # Use purple background if skill queued, red if attack queued
+            if has_skill_queued:
+                bg_top = COLOR_BG_SKILL_TOP
+                bg_bottom = COLOR_BG_SKILL_BOTTOM
+            elif has_attack_queued:
+                bg_top = COLOR_BG_ATTACK_TOP
+                bg_bottom = COLOR_BG_ATTACK_BOTTOM
+            else:
+                bg_top = COLOR_BG_TOP
+                bg_bottom = COLOR_BG_BOTTOM
+        elif has_skill_queued:
+            # Purple background and border for skill queued
+            border_color = COLOR_BORDER_SKILL
+            bg_alpha = 220
+            bg_top = COLOR_BG_SKILL_TOP
+            bg_bottom = COLOR_BG_SKILL_BOTTOM
+        elif has_attack_queued:
+            # Red background and border for attack queued
+            border_color = COLOR_BORDER_ATTACK
+            bg_alpha = 220
+            bg_top = COLOR_BG_ATTACK_TOP
+            bg_bottom = COLOR_BG_ATTACK_BOTTOM
         elif self.is_active():
             border_color = player_color
             bg_alpha = 200
+            bg_top = COLOR_BG_TOP
+            bg_bottom = COLOR_BG_BOTTOM
         else:
             border_color = COLOR_BORDER_ACTED
             bg_alpha = 180
+            bg_top = COLOR_BG_TOP
+            bg_bottom = COLOR_BG_BOTTOM
 
-        # Draw shadow (2px offset)
+        # Draw shadow (2px offset) - enhanced for more dimensionality
         shadow_rect = self.rect.copy()
         shadow_rect.x += 2
         shadow_rect.y += 2
         shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
-        pygame.draw.rect(shadow_surf, (0, 0, 0, 60), shadow_surf.get_rect(), border_radius=3)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=3)
         surface.blit(shadow_surf, shadow_rect.topleft)
 
-        # Draw gradient background
+        # Draw gradient background (purple if skill queued, red if attack queued, normal otherwise)
         from .menu_components import draw_gradient_rect, draw_glow_rect
-        draw_gradient_rect(surface, self.rect, COLOR_BG_TOP, COLOR_BG_BOTTOM, alpha=bg_alpha)
+        draw_gradient_rect(surface, self.rect, bg_top, bg_bottom, alpha=bg_alpha)
 
         # Draw glow effect if hovered or selected
         if self.hovered or is_selected:

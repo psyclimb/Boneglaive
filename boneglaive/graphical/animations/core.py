@@ -452,49 +452,55 @@ class AnimatedUnit:
         except Exception as e:
             pass
 
-    def _create_red_glaive_sprite(self):
-        """Create a red six-pointed glaive sprite for attack indication."""
-        size = 50  # Increased from 40 for longer blades
-        surface = pygame.Surface((size, size), pygame.SRCALPHA)
-        center = size // 2
+    def _create_red_glaive_sprites(self):
+        """Create red six-pointed glaive sprites for attack indication (3 glaives to match tool orbit pattern)."""
+        glaives = []
+        size = 24  # Match tool size for consistency
 
-        # Red color scheme
-        blade_color = (255, 80, 80)  # Crimson red
-        blade_highlight = (255, 120, 120)  # Bright red
-        hub_color = (180, 40, 40)  # Dark red/maroon
+        # Create 3 identical glaive sprites
+        for _ in range(3):
+            surface = pygame.Surface((size, size), pygame.SRCALPHA)
+            center = size // 2
 
-        # Draw six pointed blades radiating from center
-        blade_length = size // 2 - 2  # Longer blades due to larger size
-        for i in range(6):
-            angle = (i * 60) * math.pi / 180
+            # Red color scheme
+            blade_color = (255, 80, 80)  # Crimson red
+            blade_highlight = (255, 120, 120)  # Bright red
+            hub_color = (180, 40, 40)  # Dark red/maroon
 
-            # Blade tip
-            tip_x = center + math.cos(angle) * blade_length
-            tip_y = center + math.sin(angle) * blade_length
+            # Draw six pointed blades radiating from center (scaled down for 24x24)
+            blade_length = size // 2 - 2
+            for i in range(6):
+                angle = (i * 60) * math.pi / 180
 
-            # Blade sides (slightly offset for width)
-            angle_offset = 15 * math.pi / 180
-            side1_x = center + math.cos(angle - angle_offset) * (blade_length * 0.7)
-            side1_y = center + math.sin(angle - angle_offset) * (blade_length * 0.7)
-            side2_x = center + math.cos(angle + angle_offset) * (blade_length * 0.7)
-            side2_y = center + math.sin(angle + angle_offset) * (blade_length * 0.7)
+                # Blade tip
+                tip_x = center + math.cos(angle) * blade_length
+                tip_y = center + math.sin(angle) * blade_length
 
-            # Draw blade triangle
-            pygame.draw.polygon(surface, blade_color,
-                              [(center, center), (tip_x, tip_y), (side1_x, side1_y)])
-            pygame.draw.polygon(surface, blade_color,
-                              [(center, center), (tip_x, tip_y), (side2_x, side2_y)])
+                # Blade sides (slightly offset for width)
+                angle_offset = 15 * math.pi / 180
+                side1_x = center + math.cos(angle - angle_offset) * (blade_length * 0.7)
+                side1_y = center + math.sin(angle - angle_offset) * (blade_length * 0.7)
+                side2_x = center + math.cos(angle + angle_offset) * (blade_length * 0.7)
+                side2_y = center + math.sin(angle + angle_offset) * (blade_length * 0.7)
 
-            # Highlight edge
-            pygame.draw.line(surface, blade_highlight,
-                           (center, center), (tip_x, tip_y), 2)
+                # Draw blade triangle
+                pygame.draw.polygon(surface, blade_color,
+                                  [(center, center), (tip_x, tip_y), (side1_x, side1_y)])
+                pygame.draw.polygon(surface, blade_color,
+                                  [(center, center), (tip_x, tip_y), (side2_x, side2_y)])
 
-        # Center hub
-        pygame.draw.circle(surface, blade_highlight, (center, center), 6)
-        pygame.draw.circle(surface, blade_color, (center, center), 6, 2)
-        pygame.draw.circle(surface, hub_color, (center, center), 3)
+                # Highlight edge
+                pygame.draw.line(surface, blade_highlight,
+                               (center, center), (tip_x, tip_y), 1)
 
-        return surface
+            # Center hub (scaled down)
+            pygame.draw.circle(surface, blade_highlight, (center, center), 3)
+            pygame.draw.circle(surface, blade_color, (center, center), 3, 1)
+            pygame.draw.circle(surface, hub_color, (center, center), 2)
+
+            glaives.append(surface)
+
+        return glaives
 
     def _create_purple_tool_sprites(self):
         """Create purple tool sprites (wrench, hammer, screwdriver) for skill indication."""
@@ -699,25 +705,40 @@ class AnimatedUnit:
         import time
         import math
 
-        # Attack glow: Spinning red glaive rotating around unit's center
+        # Attack glow: Red glaives orbiting around unit (opposite direction from tools)
         if has_attack:
-            # Create/cache red glaive sprite
-            if not hasattr(self, '_red_glaive_sprite'):
-                self._red_glaive_sprite = self._create_red_glaive_sprite()
+            # Create/cache red glaive sprites
+            if not hasattr(self, '_red_glaive_sprites'):
+                self._red_glaive_sprites = self._create_red_glaive_sprites()
 
-            # Use the accumulated rotation from update() method
-            # This ensures smooth continuous rotation
-            rotated_glaive = pygame.transform.rotate(self._red_glaive_sprite, -self.glaive_rotation)
-            rotated_glaive.set_alpha(200)  # Visible opacity
+            # Draw 3 glaives orbiting around the unit at different positions (opposite direction from tools)
+            orbit_radius = self.radius + 15  # Same orbit as tools
+            num_glaives = 3
 
-            # Draw glaive centered on unit
-            glaive_rect = rotated_glaive.get_rect(center=(final_x, final_y))
-            surface.blit(rotated_glaive, glaive_rect)
+            for i, glaive_sprite in enumerate(self._red_glaive_sprites):
+                # Each glaive is offset by 120 degrees (360/3)
+                angle_offset = (360 / num_glaives) * i
+                # Negative glaive_rotation for opposite direction from tools
+                glaive_angle = -self.glaive_rotation + angle_offset
 
-            # Add subtle red glow aura around the spinning glaive
-            glow_size = 70
+                # Calculate position on orbit
+                angle_rad = math.radians(glaive_angle)
+                glaive_x = final_x + math.cos(angle_rad) * orbit_radius
+                glaive_y = final_y + math.sin(angle_rad) * orbit_radius
+
+                # Each glaive also spins on its own axis (opposite direction)
+                glaive_self_rotation = -self.glaive_rotation * 2  # Spin faster than orbit (opposite direction)
+                rotated_glaive = pygame.transform.rotate(glaive_sprite, -glaive_self_rotation)
+                rotated_glaive.set_alpha(200)
+
+                # Draw glaive
+                glaive_rect = rotated_glaive.get_rect(center=(int(glaive_x), int(glaive_y)))
+                surface.blit(rotated_glaive, glaive_rect)
+
+            # Add subtle red glow in center
+            glow_size = 60
             glow_surf = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
-            pygame.draw.circle(glow_surf, (255, 100, 100, 40),
+            pygame.draw.circle(glow_surf, (255, 100, 100, 30),
                              (glow_size // 2, glow_size // 2), glow_size // 2)
             glow_rect = glow_surf.get_rect(center=(final_x, final_y))
             surface.blit(glow_surf, glow_rect)

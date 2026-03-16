@@ -7,16 +7,24 @@ import pygame
 from typing import Optional, List, Tuple
 from .scrollbar import Scrollbar
 
-# Colors
-COLOR_OVERLAY = (0, 0, 0, 180)  # Semi-transparent black overlay
-COLOR_WINDOW_BG = (30, 34, 42)
-COLOR_WINDOW_BORDER = (100, 100, 100)
-COLOR_TITLE_BG = (40, 44, 52)
-COLOR_TEXT = (255, 255, 255)
-COLOR_TEXT_DIM = (180, 180, 180)
-COLOR_SELECTED = (60, 100, 140)
-COLOR_HOVER = (50, 54, 62)
-COLOR_GOLD = (255, 215, 0)
+# Colors - matching bone/industrial theme
+COLOR_OVERLAY = (0, 0, 0, 200)  # Semi-transparent black overlay
+COLOR_WINDOW_BG_TOP = (42, 42, 47)  # Panel top
+COLOR_WINDOW_BG_BOTTOM = (26, 26, 31)  # Panel bottom (gradient)
+COLOR_WINDOW_BORDER = (90, 84, 79)  # Metal border
+COLOR_TITLE_BG_TOP = (50, 50, 55)  # Title bar gradient top
+COLOR_TITLE_BG_BOTTOM = (38, 38, 43)  # Title bar gradient bottom
+COLOR_TEXT = (240, 232, 216)  # Bone white text
+COLOR_TEXT_DIM = (180, 160, 165)  # Muted bone
+COLOR_SELECTED_TOP = (90, 74, 79)  # Selected item gradient top
+COLOR_SELECTED_BOTTOM = (64, 48, 53)  # Selected item gradient bottom
+COLOR_HOVER_TOP = (74, 74, 79)  # Hover item gradient top
+COLOR_HOVER_BOTTOM = (50, 50, 55)  # Hover item gradient bottom
+COLOR_ITEM_BG_TOP = (42, 42, 47)  # Normal item gradient top
+COLOR_ITEM_BG_BOTTOM = (30, 30, 35)  # Normal item gradient bottom
+COLOR_BORDER_HOVER = (184, 168, 149)  # Bone border on hover
+COLOR_BORDER_GLOW = (255, 170, 119)  # Orange glow
+COLOR_BONE_HAND = (232, 232, 232)  # Skeletal hand bone color (#E8E8E8)
 COLOR_INFO = (180, 200, 220)
 
 # Import scaling utilities
@@ -248,10 +256,14 @@ class RespawnWindow:
         if not self.visible:
             return
 
+        # Import gradient helpers
+        from .menu_components import draw_gradient_rect
+
         # Draw semi-transparent overlay (cached for performance)
         if self._overlay_cache is None or self._overlay_cache.get_size() != (screen_width, screen_height):
-            self._overlay_cache = pygame.Surface((screen_width, screen_height), pygame.SRCALPHA)
-            self._overlay_cache.fill(COLOR_OVERLAY)
+            self._overlay_cache = pygame.Surface((screen_width, screen_height))
+            self._overlay_cache.set_alpha(200)
+            self._overlay_cache.fill((0, 0, 0))
         surface.blit(self._overlay_cache, (0, 0))
 
         # Calculate window position (centered)
@@ -259,21 +271,28 @@ class RespawnWindow:
         window_y = (screen_height - WINDOW_HEIGHT) // 2
         self.window_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, WINDOW_HEIGHT)
 
-        # Draw window background
-        pygame.draw.rect(surface, COLOR_WINDOW_BG, self.window_rect)
-        pygame.draw.rect(surface, COLOR_WINDOW_BORDER, self.window_rect, 3)
+        # Draw shadow for window
+        shadow_rect = self.window_rect.copy()
+        shadow_rect.x += 4
+        shadow_rect.y += 4
+        shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+        pygame.draw.rect(shadow_surf, (0, 0, 0, 120), shadow_surf.get_rect(), border_radius=8)
+        surface.blit(shadow_surf, shadow_rect.topleft)
 
-        # Draw title bar
-        title_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, 50)
-        pygame.draw.rect(surface, COLOR_TITLE_BG, title_rect)
-        pygame.draw.line(surface, COLOR_WINDOW_BORDER,
-                        (window_x, window_y + 50),
-                        (window_x + WINDOW_WIDTH, window_y + 50), 2)
+        # Draw window background with gradient
+        draw_gradient_rect(surface, self.window_rect, COLOR_WINDOW_BG_TOP, COLOR_WINDOW_BG_BOTTOM)
+        pygame.draw.rect(surface, COLOR_WINDOW_BORDER, self.window_rect, 3, border_radius=8)
+
+        # Draw title bar with gradient
+        title_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, 60)
+        draw_gradient_rect(surface, title_rect, COLOR_TITLE_BG_TOP, COLOR_TITLE_BG_BOTTOM)
+        pygame.draw.rect(surface, COLOR_BONE_HAND, title_rect, 3)
 
         # Draw title text
-        title_text = self.font.render("SELECT UNIT TO RESPAWN", True, COLOR_GOLD)
-        title_rect_text = title_text.get_rect(center=(window_x + WINDOW_WIDTH // 2, window_y + 25))
-        surface.blit(title_text, title_rect_text)
+        title_text = self.font.render("SELECT UNIT TO RESPAWN", True, COLOR_BONE_HAND)
+        title_x = window_x + (WINDOW_WIDTH - title_text.get_width()) // 2
+        title_y = window_y + (60 - title_text.get_height()) // 2
+        surface.blit(title_text, (title_x, title_y))
 
         # Draw unit list
         self._draw_unit_list(surface, window_x, window_y + 60)
@@ -283,6 +302,8 @@ class RespawnWindow:
 
     def _draw_unit_list(self, surface: pygame.Surface, x: int, y: int):
         """Draw the scrollable list of dead units."""
+        from .menu_components import draw_gradient_rect, draw_glow_rect
+
         content_height = WINDOW_HEIGHT - 110  # Space for title and instructions
         visible_items = content_height // ITEM_HEIGHT
 
@@ -300,17 +321,40 @@ class RespawnWindow:
 
             self.item_rects.append(item_rect)
 
-            # Determine background color
+            # Determine gradient colors and border
+            show_glow = False
             if i == self.selected_index:
-                bg_color = COLOR_SELECTED
+                bg_top = COLOR_SELECTED_TOP
+                bg_bottom = COLOR_SELECTED_BOTTOM
+                border_color = COLOR_BORDER_HOVER
+                show_glow = True
             elif i == self.hovered_index:
-                bg_color = COLOR_HOVER
+                bg_top = COLOR_HOVER_TOP
+                bg_bottom = COLOR_HOVER_BOTTOM
+                border_color = COLOR_BORDER_HOVER
+                show_glow = True
             else:
-                bg_color = COLOR_WINDOW_BG
+                bg_top = COLOR_ITEM_BG_TOP
+                bg_bottom = COLOR_ITEM_BG_BOTTOM
+                border_color = COLOR_WINDOW_BORDER
 
-            # Draw item background
-            pygame.draw.rect(surface, bg_color, item_rect)
-            pygame.draw.rect(surface, COLOR_WINDOW_BORDER, item_rect, 2)
+            # Draw item shadow
+            shadow_rect = item_rect.copy()
+            shadow_rect.x += 2
+            shadow_rect.y += 2
+            shadow_surf = pygame.Surface((shadow_rect.width, shadow_rect.height), pygame.SRCALPHA)
+            pygame.draw.rect(shadow_surf, (0, 0, 0, 76), shadow_surf.get_rect(), border_radius=5)
+            surface.blit(shadow_surf, shadow_rect.topleft)
+
+            # Draw item background with gradient
+            draw_gradient_rect(surface, item_rect, bg_top, bg_bottom)
+
+            # Draw glow effect if selected or hovered
+            if show_glow:
+                draw_glow_rect(surface, item_rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
+
+            # Draw item border
+            pygame.draw.rect(surface, border_color, item_rect, 2, border_radius=5)
 
             # Draw unit sprite (left side) - get from cache, don't load
             sprite = self.sprite_cache.get(dead_unit.unit_type)

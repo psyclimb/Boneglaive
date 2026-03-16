@@ -431,7 +431,7 @@ class SetupWindow:
 
         # Draw title with muted bone color for "Select Units", player color for player number
         title_color = (180, 160, 165)  # Muted bone
-        player_color = COLOR_GOLD if self.setup_player == 1 else (100, 200, 255)
+        player_color = (100, 255, 100) if self.setup_player == 1 else (100, 150, 255)  # Green for P1, Blue for P2
 
         # Render player number in player color, rest in bone color
         player_text = render_fitted_text(
@@ -827,8 +827,8 @@ class SetupPlacementBar:
 
         # Draw bar background with bone theme
         pygame.draw.rect(screen, COLOR_WINDOW_BG, bar_rect)
-        # Border color matches current player (gold for P1, blue for P2)
-        COLOR_PLAYER1 = COLOR_GOLD  # Gold
+        # Border color matches current player (green for P1, blue for P2)
+        COLOR_PLAYER1 = (100, 255, 100)  # Green
         COLOR_PLAYER2 = (100, 150, 255)  # Blue
         player_color = COLOR_PLAYER1 if current_player == 1 else COLOR_PLAYER2
         pygame.draw.rect(screen, player_color, bar_rect, 3)
