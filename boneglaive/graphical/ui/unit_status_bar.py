@@ -340,9 +340,11 @@ class UnitCard:
                 surface.blit(ready_text, ready_rect)
 
     def _draw_hp_bar(self, surface: pygame.Surface, x: int, y: int):
-        """Draw HP bar for alive units."""
+        """Draw HP bar for alive units with gradient."""
         if self.is_dead or not hasattr(self.game_unit, 'hp'):
             return
+
+        from .menu_components import draw_gradient_rect
 
         current_hp = self.game_unit.hp
         max_hp = self.game_unit.max_hp
@@ -352,24 +354,38 @@ class UnitCard:
         bar_width = UNIT_CARD_WIDTH - 10
         bar_x = x + 5
 
-        # Draw background
-        pygame.draw.rect(surface, COLOR_HP_BAR_BG,
-                        (bar_x, y, bar_width, HP_BAR_HEIGHT))
+        # Draw background with subtle shadow
+        bg_rect = pygame.Rect(bar_x, y, bar_width, HP_BAR_HEIGHT)
+        pygame.draw.rect(surface, COLOR_HP_BAR_BG, bg_rect, border_radius=2)
 
-        # Draw HP fill
+        # Draw HP fill with gradient
         if current_hp > 0:
             fill_width = int(bar_width * hp_percent)
+            fill_rect = pygame.Rect(bar_x, y, fill_width, HP_BAR_HEIGHT)
 
-            # Choose color based on HP percentage
+            # Choose gradient colors based on HP percentage
             if hp_percent > 0.6:
-                hp_color = COLOR_HP_BAR_FULL
+                # Green gradient
+                color_top = (120, 255, 120)  # Brighter green
+                color_bottom = (80, 200, 80)  # Darker green
             elif hp_percent > 0.3:
-                hp_color = COLOR_HP_BAR_MID
+                # Orange gradient
+                color_top = (255, 220, 120)  # Brighter orange
+                color_bottom = (200, 160, 80)  # Darker orange
             else:
-                hp_color = COLOR_HP_BAR_LOW
+                # Red gradient
+                color_top = (255, 120, 120)  # Brighter red
+                color_bottom = (200, 80, 80)  # Darker red
 
-            pygame.draw.rect(surface, hp_color,
-                           (bar_x, y, fill_width, HP_BAR_HEIGHT))
+            draw_gradient_rect(surface, fill_rect, color_top, color_bottom)
+
+            # Add subtle highlight on top edge
+            if HP_BAR_HEIGHT >= 3:
+                pygame.draw.line(surface, (255, 255, 255, 100),
+                               (bar_x, y), (bar_x + fill_width, y), 1)
+
+        # Draw border with rounded corners
+        pygame.draw.rect(surface, (80, 80, 80), bg_rect, 1, border_radius=2)
 
     def contains_point(self, pos: Tuple[int, int]) -> bool:
         """Check if position is inside this card."""
