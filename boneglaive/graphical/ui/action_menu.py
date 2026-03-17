@@ -105,7 +105,7 @@ class ActionButton:
         # Draw gradient background
         draw_gradient_rect(surface, self.rect, bg_top, bg_bottom)
 
-        # Add colored overlay for execute/concede buttons
+        # Add colored overlay for execute/concede/upgrade buttons
         if execute_or_concede_special:
             overlay_surf = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
             if self.action == "execute":
@@ -116,14 +116,63 @@ class ActionButton:
                 overlay_surf.fill((*COLOR_DANGER, alpha))
             surface.blit(overlay_surf, self.rect.topleft)
 
+        # Add pulsating golden overlay for upgrade button when points available
+        if self.action == "upgrade" and self.has_upgrade_points:
+            import time
+            import math
+            overlay_surf = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+            pulse = (math.sin(time.time() * 2.5) + 1) / 2  # 0 to 1 pulsation
+            alpha = int(40 + pulse * 80)  # 40 to 120 alpha
+            overlay_surf.fill((255, 215, 0, alpha))  # Gold color
+            surface.blit(overlay_surf, self.rect.topleft)
+
+        # Add pulsating bone white overlay for respawn button when respawns available
+        if self.action == "respawn" and self.has_respawns_available:
+            import time
+            import math
+            overlay_surf = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+            pulse = (math.sin(time.time() * 2.5) + 1) / 2  # 0 to 1 pulsation
+            alpha = int(40 + pulse * 80)  # 40 to 120 alpha
+            overlay_surf.fill((240, 232, 216, alpha))  # Bone white color
+            surface.blit(overlay_surf, self.rect.topleft)
+
         # Draw glow effect on hover/active
         if show_glow:
             draw_glow_rect(surface, self.rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
 
-        # Draw border
-        border_color = COLOR_BORDER_HOVER if (self.hovered or self.active) else COLOR_BORDER
-        border_width = 2
-        pygame.draw.rect(surface, border_color, self.rect, border_width, border_radius=5)
+        # Draw border (with special pulsating borders for upgrade/respawn buttons)
+        if self.action == "upgrade" and self.has_upgrade_points:
+            import time
+            import math
+            pulse = (math.sin(time.time() * 2.5) + 1) / 2  # 0 to 1 pulsation
+            # Interpolate between darker and brighter gold
+            gold_dark = (180, 140, 0)
+            gold_bright = (255, 215, 0)
+            border_color = (
+                int(gold_dark[0] + (gold_bright[0] - gold_dark[0]) * pulse),
+                int(gold_dark[1] + (gold_bright[1] - gold_dark[1]) * pulse),
+                int(gold_dark[2] + (gold_bright[2] - gold_dark[2]) * pulse)
+            )
+            border_width = 3  # Thicker border for emphasis
+            pygame.draw.rect(surface, border_color, self.rect, border_width, border_radius=5)
+        elif self.action == "respawn" and self.has_respawns_available:
+            import time
+            import math
+            pulse = (math.sin(time.time() * 2.5) + 1) / 2  # 0 to 1 pulsation
+            # Interpolate between darker and brighter bone white
+            bone_dark = (180, 170, 160)
+            bone_bright = (240, 232, 216)
+            border_color = (
+                int(bone_dark[0] + (bone_bright[0] - bone_dark[0]) * pulse),
+                int(bone_dark[1] + (bone_bright[1] - bone_dark[1]) * pulse),
+                int(bone_dark[2] + (bone_bright[2] - bone_dark[2]) * pulse)
+            )
+            border_width = 3  # Thicker border for emphasis
+            pygame.draw.rect(surface, border_color, self.rect, border_width, border_radius=5)
+        else:
+            border_color = COLOR_BORDER_HOVER if (self.hovered or self.active) else COLOR_BORDER
+            border_width = 2
+            pygame.draw.rect(surface, border_color, self.rect, border_width, border_radius=5)
 
         # Draw tank treads icon on move button - ALWAYS visible
         if self.action == "move":
@@ -157,8 +206,7 @@ class ActionButton:
 
                 surface.blit(colored_icon, (icon_x, icon_y))
 
-        # Draw skeletal hand icon on respawn button - ALWAYS visible, glows when respawns available
-        respawn_glow_data = None
+        # Draw skeletal hand icon on respawn button - ALWAYS visible
         if self.action == "respawn":
             import math
             import time
@@ -193,42 +241,6 @@ class ActionButton:
                     grey_tint = (100, 100, 100, 255)  # Grey tint
                     colored_icon.fill(grey_tint, special_flags=pygame.BLEND_RGBA_MULT)
 
-                # Only draw glow if respawns are available
-                if self.has_respawns_available:
-                    # Pulsating glow effect for the hand
-                    time_val = time.time()
-                    pulse = (math.sin(time_val * 2.5) + 1) / 2  # 0 to 1 pulsating (slightly slower)
-
-                    # Draw white glow halo around the hand (subtle)
-                    white_color = (255, 255, 255)
-                    glow_alpha = int(40 + pulse * 60)  # 40 to 100 alpha
-
-                    # Create glow surface
-                    glow_size = 36  # Slightly larger than icon for halo effect
-                    glow_surface = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
-
-                    # Draw multiple expanding halos for soft glow
-                    for i in range(3):
-                        radius = 14 + i * 3 + int(pulse * 2)  # Pulsing radius
-                        alpha = glow_alpha // (i + 1)
-                        pygame.draw.circle(glow_surface, (*white_color, alpha),
-                                         (glow_size // 2, glow_size // 2), radius)
-
-                    # Blit glow
-                    glow_x = icon_x + 14 - glow_size // 2
-                    glow_y = icon_y + 14 - glow_size // 2
-                    surface.blit(glow_surface, (glow_x, glow_y), special_flags=pygame.BLEND_RGBA_ADD)
-
-                    # Store data for particle effects (keeping pattern consistent)
-                    respawn_glow_data = {
-                        'time_val': time_val,
-                        'pulse': pulse,
-                        'white_color': white_color,
-                        'x': icon_x + 14,  # Center of icon
-                        'y': icon_y + 14,
-                        'type': 'respawn'
-                    }
-
                 # Draw dark shadow/outline behind the skeletal hand icon for contrast
                 # Create a darkened version by drawing the icon multiple times with slight offsets
                 shadow_color = (0, 0, 0, 180)  # Dark shadow
@@ -243,8 +255,7 @@ class ActionButton:
                 # Draw the skeletal hand icon on top
                 surface.blit(colored_icon, (icon_x, icon_y))
 
-        # Draw lightning bolt icon on upgrade button - ALWAYS visible, glows when upgrade points available
-        upgrade_glow_data = None
+        # Draw lightning bolt icon on upgrade button - ALWAYS visible
         if self.action == "upgrade":
             import math
             import time
@@ -278,42 +289,6 @@ class ActionButton:
                     # Tint grey when no upgrade points
                     grey_tint = (100, 100, 100, 255)  # Grey tint
                     colored_icon.fill(grey_tint, special_flags=pygame.BLEND_RGBA_MULT)
-
-                # Only draw glow if upgrade points are available
-                if self.has_upgrade_points:
-                    # Pulsating glow effect for the lightning bolt
-                    time_val = time.time()
-                    pulse = (math.sin(time_val * 2.5) + 1) / 2  # 0 to 1 pulsating (same as respawn)
-
-                    # Draw gold glow halo around the lightning bolt (subtle)
-                    gold_color = (180, 140, 40)  # Darker, more bronze-gold
-                    glow_alpha = int(40 + pulse * 60)  # 40 to 100 alpha (same as respawn)
-
-                    # Create glow surface
-                    glow_size = 36  # Slightly larger than icon for halo effect
-                    glow_surface = pygame.Surface((glow_size, glow_size), pygame.SRCALPHA)
-
-                    # Draw multiple expanding halos for soft glow
-                    for i in range(3):
-                        radius = 14 + i * 3 + int(pulse * 2)  # Pulsing radius
-                        alpha = glow_alpha // (i + 1)
-                        pygame.draw.circle(glow_surface, (*gold_color, alpha),
-                                         (glow_size // 2, glow_size // 2), radius)
-
-                    # Blit glow
-                    glow_x = icon_x + 14 - glow_size // 2
-                    glow_y = icon_y + 14 - glow_size // 2
-                    surface.blit(glow_surface, (glow_x, glow_y), special_flags=pygame.BLEND_RGBA_ADD)
-
-                    # Store data for particle effects (keeping pattern consistent)
-                    upgrade_glow_data = {
-                        'time_val': time_val,
-                        'pulse': pulse,
-                        'gold_color': gold_color,
-                        'x': icon_x + 14,  # Center of icon
-                        'y': icon_y + 14,
-                        'type': 'upgrade'
-                    }
 
                 # Draw dark shadow/outline behind the lightning bolt icon for contrast
                 # Create a darkened version by drawing the icon multiple times with slight offsets
@@ -540,9 +515,8 @@ class ActionButton:
         if loto_renderer and self.blocked_actions:
             loto_renderer.draw_loto_overlay(surface, self.rect, self.blocked_actions, scale=0.6)
 
-        # Return particle data to be drawn later (after all buttons)
-        # Prioritize upgrade glow data if both are present
-        return upgrade_glow_data if upgrade_glow_data else respawn_glow_data
+        # No particle data needed anymore (using full-button overlays instead)
+        return None
 
     def contains_point(self, pos: Tuple[int, int]) -> bool:
         """Check if position is inside this button."""

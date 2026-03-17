@@ -960,15 +960,16 @@ class AnimatedUnit:
 
 
 class FloatingText:
-    """Floating damage/heal numbers."""
+    """Floating damage/heal numbers with Autoclave-style animation."""
     def __init__(self, x, y, text, color):
         self.x = x
         self.y = y
         self.text = text
         self.color = color
         self.lifetime = 1.5
+        self.max_lifetime = 1.5
         self.vy = -60
-        self.timer = 0  # For delayed text
+        self.timer = 0  # For delayed text and oscillation timing
 
     def update(self, delta_time):
         # Handle delayed text (negative timer means waiting)
@@ -976,9 +977,11 @@ class FloatingText:
             self.timer += delta_time
             return True  # Keep alive but don't move yet
 
+        # Update position with arc trajectory
         self.y += self.vy * delta_time
         self.vy += 100 * delta_time
         self.lifetime -= delta_time
+        self.timer += delta_time  # Track time for oscillation
         return self.lifetime > 0
 
     def draw(self, surface, font):
@@ -987,13 +990,55 @@ class FloatingText:
             return
         if self.lifetime <= 0:
             return
-        alpha = int(255 * (self.lifetime / 1.5))
-        color = (*self.color[:3], alpha)
 
-        # Create text with alpha
-        text_surf = font.render(self.text, True, self.color)
+        # Fully opaque (no transparency)
+        alpha = 255
+
+        # Flashing outline effect
+        flash_speed = 6  # flashes per second
+        flash_progress = (self.timer * flash_speed) % 1.0
+        outline_intensity = (1.0 - abs(flash_progress - 0.5) * 2)  # 0 to 1 to 0
+
+        # Oscillating vertical offset (sine wave bounce)
+        oscillation = math.sin(self.timer * 10) * 5
+        display_y = int(self.y + oscillation)
+
+        # Create larger, bolder font (matching Autoclave style)
+        font_size = 48
+        try:
+            display_font = pygame.font.Font(None, font_size)
+        except:
+            display_font = pygame.font.SysFont('Arial', font_size, bold=True)
+
+        # Calculate outline color that flashes (dark to bright)
+        outline_base_dark = (
+            max(0, self.color[0] // 4),
+            max(0, self.color[1] // 4),
+            max(0, self.color[2] // 4)
+        )
+        outline_base_bright = (
+            min(255, self.color[0] // 2),
+            min(255, self.color[1] // 2),
+            min(255, self.color[2] // 2)
+        )
+        # Interpolate between dark and bright based on flash
+        outline_color = (
+            int(outline_base_dark[0] + (outline_base_bright[0] - outline_base_dark[0]) * outline_intensity),
+            int(outline_base_dark[1] + (outline_base_bright[1] - outline_base_dark[1]) * outline_intensity),
+            int(outline_base_dark[2] + (outline_base_bright[2] - outline_base_dark[2]) * outline_intensity)
+        )
+
+        # Draw 4-corner outline/shadow with flashing effect
+        outline_surf = display_font.render(self.text, True, outline_color)
+        outline_surf.set_alpha(alpha)
+        for dx, dy in [(-2, -2), (2, -2), (-2, 2), (2, 2)]:
+            outline_rect = outline_surf.get_rect(center=(int(self.x + dx), display_y + dy))
+            surface.blit(outline_surf, outline_rect)
+
+        # Draw main text
+        text_surf = display_font.render(self.text, True, self.color)
         text_surf.set_alpha(alpha)
-        text_rect = text_surf.get_rect(center=(int(self.x), int(self.y)))
+        text_rect = text_surf.get_rect(center=(int(self.x), display_y))
         surface.blit(text_surf, text_rect)
 
 
