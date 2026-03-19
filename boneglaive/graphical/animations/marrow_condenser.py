@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, COLOR_DAMAGE, COLOR_SKILL
+from boneglaive.graphical.sound_helper import play_sound
 
 
 # ============================================================================
@@ -296,6 +297,9 @@ class OssifyAnimation:
         self.phase = "compression"
         self.timer = 0
 
+        # Play compression sound
+        play_sound("ossify_compression")
+
         # Create staggered compression rings
         for i in range(5):
             self.rings.append(CompressingRings(self.center_x, self.center_y, delay=i * 0.1))
@@ -323,6 +327,9 @@ class OssifyAnimation:
         self.phase = "ossification"
         self.timer = 0
 
+        # Play crystallization sound
+        play_sound("ossify_crystallize")
+
         # Create hexagonal plates
         self.plates = OssifiedPlates(self.center_x, self.center_y)
 
@@ -340,6 +347,9 @@ class OssifyAnimation:
         """Phase 3: Hardened - Final defensive shell with intensity glow."""
         self.phase = "hardened"
         self.timer = 0
+
+        # Play hardening sound
+        play_sound("ossify_harden")
 
         # Brief white flash at hardening completion
         self.screen_flash_callback((255, 255, 255), 0.15)
@@ -824,6 +834,9 @@ class BoneTitheAnimation:
         self.phase = "extraction"
         self.timer = 0
 
+        # Play extraction sound
+        play_sound("bone_tithe_extraction")
+
         # Create extraction tendrils
         self.tendrils = ExtractionTendrils(self.center_x, self.center_y)
 
@@ -844,6 +857,9 @@ class BoneTitheAnimation:
         """Phase 2: Draining - Marrow particles stream from enemies."""
         self.phase = "draining"
         self.timer = 0
+
+        # Play draining sound
+        play_sound("bone_tithe_drain")
 
         # Create marrow particles for each enemy
         for enemy_data in self.adjacent_enemies:
@@ -870,6 +886,9 @@ class BoneTitheAnimation:
         """Phase 3: Absorption - Marrow absorbed with empowerment."""
         self.phase = "absorption"
         self.timer = 0
+
+        # Play absorption sound
+        play_sound("bone_tithe_absorb")
 
         # Create absorption burst
         self.absorption_burst = AbsorptionBurst(self.center_x, self.center_y, self.hp_gained)
@@ -996,6 +1015,9 @@ class BoneTitheDeathHealAnimation:
         self.phase = "explosion"
         self.timer = 0
 
+        # Play explosion sound
+        play_sound("bone_tithe_death_explosion")
+
         # SVG-accurate MARROW CONDENSER colors
         MUSCLE_RED = (200, 80, 80)      # #c85050
         DARK_BLOOD = (139, 0, 0)        # #8b0000
@@ -1047,6 +1069,9 @@ class BoneTitheDeathHealAnimation:
         self.phase = "distribution"
         self.timer = 0
 
+        # Play distribution sound
+        play_sound("bone_tithe_death_distribute")
+
         # Create diverse projectiles for each ally
         for ally_data in self.affected_allies:
             ally_unit = ally_data['unit']
@@ -1093,6 +1118,9 @@ class BoneTitheDeathHealAnimation:
         """Phase 3: Absorption - NOURISHING IMPACT - allies absorb marrow energy."""
         self.phase = "absorption"
         self.timer = 0
+
+        # Play absorption sound
+        play_sound("bone_tithe_death_heal")
 
         # Initialize glow and impact effects for each ally
         for ally_data in self.affected_allies:
@@ -2050,6 +2078,9 @@ class MarrowDikeAnimation:
         self.phase = "fracture"
         self.timer = 0
 
+        # Play fracture sound
+        play_sound("marrow_dike_fracture")
+
         # Create cracks with staggered timing
         if not self.cracks_created:
             for i, wall_data in enumerate(self.wall_positions):
@@ -2066,6 +2097,9 @@ class MarrowDikeAnimation:
         self.phase = "eruption"
         self.timer = 0
 
+        # Play eruption sound
+        play_sound("marrow_dike_erupt")
+
         # Create eruptions with staggered timing
         if not self.eruptions_created:
             for i, wall_data in enumerate(self.wall_positions):
@@ -2078,6 +2112,9 @@ class MarrowDikeAnimation:
         """Phase 3: Solidification - Walls complete hardening."""
         self.phase = "solidification"
         self.timer = 0
+
+        # Play solidification sound
+        play_sound("marrow_dike_solidify")
 
         # Create wall network effect
         wall_screen_positions = [w['screen'] for w in self.wall_positions]

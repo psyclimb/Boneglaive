@@ -203,6 +203,26 @@ MULTI_EVENT_SOUNDS = {
     "jawline_upgraded_roll": "sounds/skills/jawline_upgraded_roll.wav",      # Rolling/rumbling
     "jawline_upgraded_deploy": "sounds/skills/jawline_upgraded_deploy.wav",  # Traps bursting outward
     "jawline_upgraded_snap": "sounds/skills/jawline_upgraded_snap.wav",      # Multiple traps snapping
+
+    # MARROW CONDENSER - Ossify (3 events)
+    "ossify_compression": "sounds/skills/ossify_compression.wav",    # Bone structure compressing inward
+    "ossify_crystallize": "sounds/skills/ossify_crystallize.wav",    # Crystalline bone structure forming
+    "ossify_harden": "sounds/skills/ossify_harden.wav",              # Final defensive shell hardening
+
+    # MARROW CONDENSER - Bone Tithe (3 events)
+    "bone_tithe_extraction": "sounds/skills/bone_tithe_extraction.wav",  # Tendrils shooting outward
+    "bone_tithe_drain": "sounds/skills/bone_tithe_drain.wav",            # Marrow draining from enemies
+    "bone_tithe_absorb": "sounds/skills/bone_tithe_absorb.wav",          # Marrow absorption with empowerment
+
+    # MARROW CONDENSER - Marrow Dike (3 events)
+    "marrow_dike_fracture": "sounds/skills/marrow_dike_fracture.wav",  # Ground cracking at wall positions
+    "marrow_dike_erupt": "sounds/skills/marrow_dike_erupt.wav",        # Walls erupting from ground
+    "marrow_dike_solidify": "sounds/skills/marrow_dike_solidify.wav",  # Walls hardening with network glow
+
+    # MARROW CONDENSER - Bone Tithe Death Heal (upgraded passive, 3 events)
+    "bone_tithe_death_explosion": "sounds/skills/bone_tithe_death_explosion.wav",    # Gore eruption on death
+    "bone_tithe_death_distribute": "sounds/skills/bone_tithe_death_distribute.wav",  # Viscera flying to allies
+    "bone_tithe_death_heal": "sounds/skills/bone_tithe_death_heal.wav",              # Allies absorbing marrow energy
 }
 
 
