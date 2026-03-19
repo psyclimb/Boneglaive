@@ -538,7 +538,7 @@ class BigArcSkill(ActiveSkill):
 
         # Log that the skill has been queued
         message_log.add_message(
-            f"{user.get_display_name()} loads mortar shells for an artillery barrage",
+            f"{user.get_display_name()} chambers a big one",
             MessageType.ABILITY,
             player=user.player
         )
@@ -575,7 +575,7 @@ class BigArcSkill(ActiveSkill):
 
         # Log the skill activation
         message_log.add_message(
-            f"{user.get_display_name()}'s mortar barrage rains down",
+            f"{user.get_display_name()}'s payload arrives",
             MessageType.ABILITY,
             player=user.player
         )

@@ -1,0 +1,325 @@
+#+TITLE: Boneglaive Combat Log Messages
+#+AUTHOR: Extracted from skill files
+#+DATE: 2026-03-19
+
+* Overview
+This document catalogs all combat log messages from Boneglaive's skill system.
+Messages are organized by unit type and include skill-related text that appears
+in the game's combat log during gameplay.
+
+Note: Variables in curly braces {like_this} are dynamically replaced with actual
+game values during runtime.
+
+* DELPHIC APPRAISER
+
+** Empowerment (Passive)
+- "{ally.get_display_name()} is empowered by the DELPHIC APPRAISER"
+
+** Market Futures
+- "{user.get_display_name()} prepares to infuse the {target_name} with Market Futures"
+- "{target_unit.get_display_name()} is immune to Market Futures due to Stasiality"
+- "{user.get_display_name()} imbues {target_unit.get_display_name()} with Market Futures"
+- "{user.get_display_name()} infuses the {furniture_name} with Market Futures"
+- "{ally.get_display_name()}'s fortune shifts" (incomplete in source)
+- "{ally.get_display_name()} activates Market Futures teleport"
+- "{ally.get_display_name()} is immune to investment effects due to Stasiality"
+- "Market Futures grants {ally.get_display_name()} a maturing investment effect"
+
+** Auction Curse
+- "{user.get_display_name()} prepares to cast Auction Curse"
+- "{user.get_display_name()} opens a twisted auction for {target_unit.get_display_name()}"
+- "{user.get_display_name()} rolls deftly!"
+- "{target_unit.get_display_name()} is immune to Auction Curse due to Stasiality"
+- "{target_unit.get_display_name()} has his vitality stunted"
+
+** Divine Depreciation
+- "{user.get_display_name()} prepares to cast Divine Depreciation"
+- "{user.get_display_name()} rolls deftly!"
+- "{user.get_display_name()} casts Divine Depreciation on the {furniture_name}"
+- "The {furniture_name}'s value collapses" (incomplete in source)
+- "{unit.get_display_name()} is immune to Divine Depreciation"
+- "{unit.get_display_name()}'s pull effect occurs" (incomplete in source)
+- "{unit.get_display_name()} is pulled {steps_taken} spaces from ({original_y}, {original_x}) to ({new_y}, {new_x}) by the {furniture_name.lower()}"
+
+** Astral Anchor
+- "{user.get_display_name()}'s anchor activates" (incomplete in source)
+- "{user.get_display_name()} cannot find a nearby anchor"
+- "{user.get_display_name()} rerolls the astral values"
+- "{user.get_display_name()}'s new roll" (incomplete in source)
+
+* DERELICTIONIST
+
+** Vagal Run
+- "{user.get_display_name()} prepares to cleanse {target_name}"
+- "{target.get_display_name()} is immune to Vagal Run"
+- "{target.get_display_name()} heals for #HEAL_{actual_heal}# HP"
+- "{user.get_display_name()} rocks {target.get_display_name()}"
+- "{target.get_display_name()} becomes anchored by abandonment"
+- "{target.get_display_name()}'s anchored effect" (incomplete in source)
+
+** Derelict
+- "{user.get_display_name()} prepares to derelict {target_name}"
+- "{target.get_display_name()} is immune to Derelict"
+- "{target.get_display_name()} was pushed {push_distance} tiles from ({original_y}, {original_x}) to ({final_y}, {final_x})"
+- "{target.get_display_name()} heals for #HEAL_{actual_heal}# HP"
+- "{target.get_display_name()} is immune to Derelict"
+- "{target.get_display_name()} becomes anchored by abandonment"
+- "An old decrepit building forms around {target.get_display_name()}"
+- "{displaced_unit.get_display_name()} is displaced by the building"
+
+** Partition
+- "{user.get_display_name()} prepares to partition {target_name}"
+- "{target.get_display_name()} is immune to Partition due to Stasiality"
+- "{target.get_display_name()} is partitioned from battle"
+
+* FOWL CONTRIVANCE
+
+** Rail Network (Passive)
+- "{user.get_display_name()} establishes a rail network across the battlefield"
+- "The rail network collapses and vanishes from the battlefield"
+
+** Rail Cannon
+- "{user.get_display_name()}'s rail cannon effect" (incomplete in source)
+- "The rail beam strikes" (incomplete in source)
+- "{unit.get_display_name()} is erased by the rail cannon"
+- "{unit.get_display_name()}'s effect" (incomplete in source)
+- "The rail cannon misfires" (incomplete in source)
+
+** Mortar Strike
+- "{user.get_display_name()} loads mortar shells for an artillery barrage"
+- "{user.get_display_name()}'s mortar strikes" (incomplete in source)
+- "The mortar barrage strikes empty ground"
+- "The shell continues underground through a mirrored parabola, erupting at ({second_center_y},{second_center_x})"
+- "The underground explosion obliterates the {terrain_name} at ({second_center_y},{second_center_x})"
+- "{unit_at_target.get_display_name()} is violently displaced from ({orig_y},{orig_x}) to ({new_y},{new_x})"
+- "A {terrain_name} shifts to ({target_y},{target_x}), matching the enemy formation imprint"
+
+** Fragcrest
+- "{user.get_display_name()} unfolds its tail and aims a fragmentation burst at {target_unit.get_display_name()}"
+- "{user.get_display_name()}'s fragmentation effect" (incomplete in source)
+- "{user.get_display_name()}'s targeting" (incomplete in source)
+- "{unit.get_display_name()} is immune to shrapnel due to Stasiality"
+- "Shrapnel embeds deeply in {unit.get_display_name()}"
+- "The fragmentation burst finds no targets"
+- "{target.get_display_name()} collides with an obstacle and cannot be displaced"
+- "{target.get_display_name()} is displaced from ({orig_y},{orig_x}) to ({final_y},{final_x}) before colliding with an obstacle"
+- "{target.get_display_name()} is blasted backward from ({orig_y},{orig_x}) to ({final_y},{final_x})"
+
+* GAS MACHINIST
+
+** Vapor Redirection (Passive)
+- "{user.get_display_name()}'s vapor redirect" (incomplete in source)
+
+** Broaching Gas
+- "{user.get_display_name()} prepares to spin out a Broaching Gas"
+- "{vapor_unit.get_display_name()} is expelled to position ({target_pos[0]}, {target_pos[1]})"
+
+** Saft-E-Gas
+- "{user.get_display_name()} prepares to spin out a Saft-E-Gas"
+- "{vapor_unit.get_display_name()} is expelled to position ({target_pos[0]}, {target_pos[1]})"
+
+** Diverge
+- "{user.get_display_name()} prepares to diverge"
+- "{user.get_display_name()} prepares to diverge {target_unit.get_display_name()}"
+- "Diverge failed: no valid positions for vapor entities"
+- "Limited space - both vapors will be created at the same position"
+- "Diverge failed: no valid positions for vapor entities"
+- "{user.get_display_name()} splits into {coolant_gas.get_display_name()}, {cutting_gas.get_display_name()}, and {calibration_gas.get_display_name()}"
+- "{user.get_display_name()} splits into {coolant_gas.get_display_name()} and {cutting_gas.get_display_name()}"
+- "{user.get_display_name()} splits {target_unit.get_display_name()} into {coolant_gas.get_display_name()}, {cutting_gas.get_display_name()}, and {calibration_gas.get_display_name()}"
+- "{user.get_display_name()} diverges vapor into {coolant_gas.get_display_name()}, {cutting_gas.get_display_name()}, and {calibration_gas.get_display_name()}"
+- "{user.get_display_name()} splits {target_unit.get_display_name()} into {coolant_gas.get_display_name()} and {cutting_gas.get_display_name()}"
+- "{user.get_display_name()} diverges vapor into {coolant_gas.get_display_name()} and {cutting_gas.get_display_name()}"
+
+** Aerosolize
+- "{user.get_display_name()} prepares to aerosolize {target_unit.get_display_name()}"
+- "{target_unit.get_display_name()} is immune to disarm due to Stasiality"
+- "{target_unit.get_display_name()} is disarmed by aerosolized effluvium"
+- "Aerosolize Arms failed: no valid positions for LIVING AEROSOL"
+- "{aerosol_unit.get_display_name()} materializes under Player {target_unit.player}'s control" (incomplete in source)
+
+* GLAIVEMAN
+
+** Autoclave (Passive)
+- "{user.get_display_name()}'s Autoclave activates"
+- "{user.get_display_name()} absorbs life essence, healing for {healing} HP"
+- "{user.get_display_name()}'s glaive is prepared for another counter attack"
+- "{user.get_display_name()}'s glaive swings in a wide arc"
+
+** Pry
+- "{user.get_display_name()} readies to pry {target.get_display_name()} skyward"
+- "Pry failed: target no longer valid."
+- "{user.get_display_name()} pries {target.get_display_name()} skyward with their glaive"
+- "{target.get_display_name()} is immune to Pry's movement penalty due to Stasiality"
+- "{target.get_display_name()}'s movement is SEVERELY reduced"
+- "{target.get_display_name()}'s movement is reduced"
+- "{target.get_display_name()} is staggered by the impact"
+
+** Vault
+- "{user.get_display_name()} prepares to vault to position ({target_pos[0]}, {target_pos[1]})"
+- "{user.get_display_name()}'s Vault fizzles - no room to land!"
+- "{user.get_display_name()} twists mid-flight, landing at ({displaced_pos[0]}, {displaced_pos[1]})"
+- "{user.get_display_name()}'s Glaive Vault blocked - position occupied!"
+- "{user.get_display_name()} vaults from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]})"
+- "{adjacent_unit.get_display_name()} takes {defense_reduced_damage} landing damage"
+
+** Judgement
+- "{user.get_display_name()} readies a sacred glaive to throw at {target.get_display_name()}"
+- "{user.get_display_name()} hurls a sacred glaive"
+- "The sacred glaive bypasses {target.get_display_name()}'s defenses"
+- "The sacred glaive strikes with divine judgement"
+- "Divine judgement rendered! The sacred glaive returns to {user.get_display_name()}"
+
+* GRAYMAN
+
+** Delta Configuration
+- "Cannot teleport to this position."
+- "{user.get_display_name()} energizes and assumes the Delta Configuration to ({target_pos[0]}, {target_pos[1]})"
+
+** Grae Absorption
+- "{user.get_display_name()}'s grae absorption" (incomplete in source)
+- "{user.get_display_name()} creates an electromagnetic well, capturing {enemy_names}"
+- "{user.get_display_name()} de-energizes"
+
+** Grae Exchange
+- "{user.get_display_name()}'s exchange effect" (incomplete in source)
+- "{user.get_display_name()}'s configuration shifts" (incomplete in source)
+- "The electromagnetic well warps from ({original_pos[0]}, {original_pos[1]}) to ({target_pos[0]}, {target_pos[1]}), releasing its cargo"
+- "{user.get_display_name()} and the distant point at ({original_pos[0]}, {original_pos[1]}) snap to position ({target_pos[0]}, {target_pos[1]})"
+
+** Estrange
+- "{user.get_display_name()} charges the estrangement beam targeting {target.get_display_name()}"
+- "{user.get_display_name()} fires an estrangement beam at {target.get_display_name()}"
+- "The estrangement beam bypasses {target.get_display_name()}'s defenses"
+- "{target.get_display_name()} is phased out of normal spacetime"
+- "{target.get_display_name()} is immune to Estrange due to Stasiality"
+
+** Dominion
+- "{user.get_display_name()}'s dominion effect" (incomplete in source)
+- "{user.get_display_name()}'s targeting" (incomplete in source)
+- "{target.get_display_name()} is immune to banishment due to Stasiality"
+- "{user.get_display_name()} banishes {target.get_display_name()} and summons a doppelgänger in their place"
+- "{target.get_display_name()} is banished to the void!"
+- "A GRAYMAN doppelganger manifests in {target.get_display_name()}'s place" (incomplete in source)
+
+* INTERFERER
+
+** Neutron Emission (Passive)
+- "Neutron radiation spreads from the impact"
+- "{immune_unit.get_display_name()} is immune to radiation due to Stasiality"
+
+** Neural Shunt
+- "{user.get_display_name()} coordinates a neural interference triangulation"
+- "{target.get_display_name()} is immune to Neural Shunt due to Stasiality"
+- "{target.get_display_name()}'s targeting is disabled" (incomplete in source)
+
+** Karrier Wave
+- "{user.get_display_name()} synchronizes with the karrier wave transmission"
+- "{user.get_display_name()} rides the karrier wave out of phase"
+- "{user.get_display_name()} becomes untargetable"
+
+* MANDIBLE FOREMAN
+
+** Viseroy (Passive)
+- (Passive skill - trap mechanics handled in engine)
+
+** Expedite
+- "{user.get_display_name()} expedites his M.O. to position ({target_pos[0]}, {target_pos[1]})"
+- "{user.get_display_name()} steams forward"
+- "{user.get_display_name()}'s Expedite blocked - position occupied!"
+- "{enemy_hit.get_display_name()} is trapped in {user.get_display_name()}'s mechanical jaws"
+- "{enemy_hit.get_display_name()} is disarmed by enhanced mechanical jaws"
+- "{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality"
+
+** Site Inspection
+- "{user.get_display_name()} prepares to inspect the site around ({target_pos[0]}, {target_pos[1]})"
+- "{user.get_display_name()} begins inspecting the site around ({target_pos[0]}, {target_pos[1]})"
+- "{ally.get_display_name()} is immune to Site Inspection due to Stasiality"
+- "{ally.get_display_name()} gains +1 attack, +1 movement, +1 defense from clear Site Inspection"
+- "{ally.get_display_name()} gains +1 attack and movement from clear Site Inspection"
+- "{ally.get_display_name()} gains +1 movement, +1 defense from partially obstructed Site Inspection"
+- "{ally.get_display_name()} gains +1 movement from partially obstructed Site Inspection"
+- "{ally.get_display_name()} gains +1 defense from obstructed Site Inspection"
+- "{ally.get_display_name()}'s full Site Inspection effect refreshed"
+- "{ally.get_display_name()}'s partial Site Inspection effect refreshed"
+- "{ally.get_display_name()}'s Site Inspection upgraded to full effect"
+- "{ally.get_display_name()} retains full Site Inspection effect"
+- "Multiple obstructions prevent effective site analysis ({impassable_count} terrain features detected)"
+- "Site Inspection reveals {len(revealed_nodes)} standing wave patterns"
+- "Site Inspection reveals {len(revealed_traps)} Fragcrest traps"
+
+** Jawline
+- "{user.get_display_name()} prepares to deploy a JAWLINE network"
+- "{user.get_display_name()} deploys JAWLINE network"
+- "{target.get_display_name()} is immune to Jawline's immobilization due to Stasiality"
+- "{target.get_display_name()} is immobilized by the Jawline tether"
+
+* MARROW CONDENSER
+
+** Ossification
+- "{user.get_display_name()} prepares to ossify their bones."
+- "{user.get_display_name()}'s ossification effect" (incomplete in source)
+
+** Marrow Dike
+- "{user.get_display_name()} prepares to create a Marrow Dike."
+- "A section of {owner.get_display_name()}'s marrow wall forms"
+- "{unit_at_tile.get_display_name()} is immune to Marrow Dike"
+- "{unit.get_display_name()} is pulled from ({from_y}, {from_x}) inside the Marrow Dike to ({new_y}, {new_x})."
+- "{unit.get_display_name()} tumbles down the edge of the Marrow Dike for {actual_damage} damage."
+- "{user.get_display_name()} shores up a Marrow Dike and fills it with plasma."
+- "{unit_at_pos.get_display_name()} ignores the Marrow Dike"
+- "{unit_at_pos.get_display_name()} slogs through the Marrow Dike."
+- "{user.get_display_name()} creates a Marrow Dike."
+
+** Bone Tithe
+- "{user.get_display_name()} needs at least {min_health_needed+1} HP to use Bone Tithe."
+- "{user.get_display_name()} prepares to collect the Bone Tithe."
+- "{user.get_display_name()} extracts the Bone Tithe from nearby entities."
+- "{user.get_display_name()}'s tithe effect" (incomplete in source)
+- "{user.get_display_name()} compacts bone marrow into himself, gaining {hp_gained} max HP."
+
+* POTPOURRIST
+
+** Melange Eminence (Passive)
+- "{user.get_display_name()} sucks up an extra potent fume of the clovey melange"
+- "{user.get_display_name()} inhales the restorative melange and heals for #HEAL_{actual_heal}# HP"
+
+** Infuse
+- "{user.get_display_name()} begins mixing a potent blend of potpourri"
+- "{user.get_display_name()} infuses the blend with aromatic power"
+
+** Demilune
+- "{user.get_display_name()} readies a mighty swing"
+- "{user.get_display_name()} infuses Demilune with his fragrant blend"
+- "{user.get_display_name()} swings the granite pedestal and creates a selenic backdraft"
+- "{user.get_display_name()} swings the granite pedestal in a crescent sweep"
+- "{target.get_display_name()}'s power wanes"
+- "{target.get_display_name()} is immune to Lunacy due to Stasiality"
+
+** Granite Geas
+- "{user.get_display_name()} raises the anointed granite pedestal high into the air over {target.get_display_name()}"
+- "{user.get_display_name()} infuses Granite Geas with his fragrant blend"
+- "{user.get_display_name()} comes down hard on {target.get_display_name()} with a ton of oiled granite"
+- "{target.get_display_name()} is bound by a redolent geas"
+- "{target.get_display_name()} is immune to the geas due to stasiality"
+
+* Notes
+
+** Message Formatting
+- Messages prefixed with #HEAL_# indicate healing values shown in green
+- Variables in curly braces are replaced at runtime with actual values
+- Some messages appear incomplete in the source (marked with "incomplete in source")
+- Messages may have variants for upgraded vs base skill versions
+
+** Common Patterns
+- Immunity messages reference "Stasiality" (GRAYMAN's passive)
+- Position coordinates use (y, x) format
+- Player colors and names are dynamically inserted
+- Combat damage messages use add_combat_message() helper
+- Ability activation messages use add_message() with MessageType.ABILITY
+
+** Technical Details
+- Messages extracted from: boneglaive/game/skills/*.py
+- Total message count: ~213 distinct message_log calls
+- Each unit has multiple skills with unique messages
+- Messages support both ASCII and graphical game modes
