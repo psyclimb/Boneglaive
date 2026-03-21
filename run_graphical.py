@@ -7,11 +7,17 @@ Usage:
     python run_graphical.py --skip-menu    # Skip menu, start game directly
 """
 import sys
+import os
 import argparse
 
 # Ensure we can import boneglaive modules
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent))
+
+# Change to script directory so relative paths work from anywhere
+script_dir = Path(__file__).parent.resolve()
+os.chdir(script_dir)
+
+sys.path.insert(0, str(script_dir))
 
 from boneglaive.graphical.ui import MenuManager
 from boneglaive.graphical.renderer import GraphicalRenderer
