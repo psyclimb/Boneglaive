@@ -645,7 +645,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.GLAIVEMAN: {
                 'title': 'GLAIVEMAN',
                 'overview': [
-                    'The GLAIVEMAN is a versatile melee warrior wielding a polearm and sacred spinning glaives. Balanced between offense and defense, this unit excels at close combat with mobility options and area control. The GLAIVEMAN serves as a reliable frontline fighter with powerful retaliatory abilities.',
+                    'The GLAIVEMAN is a versatile melee warrior wielding a polearm and sacred spinning glaives. Balanced between offense and defense, this unit excels at close combat with mobility options. The GLAIVEMAN serves as a reliable frontline fighter with powerful retaliatory abilities.',
                     '',
                     'Role: Frontline Fighter / Disabler / Displacer / Escape Artist',
                     'Difficulty: **'
@@ -661,61 +661,50 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'AUTOCLAVE (Passive)',
-                        'description': 'When the GLAIVEMAN is brought to critical health or takes damage while already at critical health, he unleashes a desperate cross-shaped retaliation in four cardinal directions (range 3). The burst deals 8 damage to all enemies in its path and heals the GLAIVEMAN for half the total damage dealt. This ability can only trigger once per life and requires at least one enemy within range to activate. Resets on respawn.',
+                        'description': 'When the GLAIVEMAN is brought to critical health or takes damage while already at critical health, he unleashes a desperate cross-shaped retaliation in four cardinal directions with range 3. The burst deals 8 damage to all enemies in its path and heals the GLAIVEMAN for half the total damage dealt. Can only trigger once per life and requires at least one enemy within range to activate. Resets on respawn.',
                         'details': [
-                            'Type: Passive',
-                            'Range: 3 (cross-shaped in 4 directions)',
-                            'Damage: 8',
-                            'Effect: Heals for 50% of total damage dealt',
-                            'Special: Once per life; resets on respawn; triggers on critical health; requires enemy in range; pierces through terrain'
+                            'Range: 3',
+                            'Damage: 8'
                         ]
                     },
                     {
                         'name': 'PRY (Active) [Key: P]',
-                        'description': 'The GLAIVEMAN pries an adjacent enemy straight up into the ceiling or skybox, causing them to crash down with falling debris. The primary target takes 6 damage and is staggered by the brutal impact, suffering -1 movement for 2 turns (Pried). All adjacent enemies take 3 splash damage from the falling debris.',
+                        'description': 'The GLAIVEMAN pries an adjacent enemy straight up into the ceiling, causing them to crash down with falling debris. The primary target takes 6 damage and is staggered by the brutal impact, suffering -1 movement for 2 turns with Pried. All adjacent enemies take 3 splash damage from the falling debris.',
                         'details': [
-                            'Type: Active',
                             'Range: 1',
-                            'Damage: 6 (primary target), 3 (splash to adjacent enemies)',
-                            'Effect: Pried (/) (Staggered, -1 movement for 2 turns)',
-                            'Cooldown: 3 turns',
-                            'Special: Requires line of sight; splash damage affects all adjacent enemies of target'
+                            'Damage: 6, 3 splash',
+                            'Cooldown: 3 turns'
                         ]
                     },
                     {
                         'name': 'VAULT (Active) [Key: V]',
                         'description': 'The GLAIVEMAN performs an athletic vault, leaping over obstacles and units to land on any empty passable tile within range 2. This movement ignores pathing restrictions and does not require line of sight, allowing repositioning over impassable terrain and enemy units.',
                         'details': [
-                            'Type: Active',
                             'Range: 2',
-                            'Target: Empty passable terrain',
-                            'Cooldown: 4 turns',
-                            'Special: Ignores pathing; no line of sight required; leaps over obstacles and units'
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'JUDGEMENT (Active) [Key: J]',
-                        'description': 'The GLAIVEMAN hurls a sacred spinning glaive that pierces enemy defenses, dealing 4 damage. Against enemies at critical health, divine judgement activates and deals 8 damage (double damage). Requires line of sight to the target.',
+                        'description': 'The GLAIVEMAN hurls a sacred spinning glaive that pierces enemy defenses, dealing 4 damage. Against enemies at critical health, divine judgement activates and deals 8 damage. Requires line of sight to the target.',
                         'details': [
-                            'Type: Active',
                             'Range: 4',
-                            'Damage: 4 (base), 8 (critical health targets)',
-                            'Cooldown: 4 turns',
-                            'Special: Pierces defense; double damage to critical health enemies; requires line of sight'
+                            'Damage: 4, 8 to critical health',
+                            'Cooldown: 4 turns'
                         ]
                     }
                 ],
                 'tips': [
                     '- Use Pry to control enemy positioning and reduce their mobility',
                     '- Vault provides excellent positioning and escape options',
-                    '- Judgement is devastating against wounded enemies (double damage at critical health)',
+                    '- Judgement is devastating against wounded enemies',
                     '- Autoclave makes the GLAIVEMAN dangerous even when near death',
-                    '- Maintain front-line position to threaten multiple enemies with Pry range'
+                    '- Maintain front-line position to threaten enemies with Autoclave'
                 ],
                 'tactical': [
-                    '- Strong against: Clustered enemies (Pry splash), high-defense units (Judgement piercing)',
+                    '- Strong against: Clustered enemies, high-defense units',
                     '- Vulnerable to: Long-range attacks, status effects',
-                    '- Best positioning: Front-center to maximize Autoclave coverage'
+                    '- Best positioning: Front-center to maximize Pry coverage'
                 ]
             },
             UnitType.MANDIBLE_FOREMAN: {
@@ -737,49 +726,33 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'VISEROY (Passive)',
-                        'description': 'Every basic attack automatically traps the target in hydraulic mechanical jaws that crush incrementally. Trapped enemies cannot move or use skills as the jaws tighten each turn, dealing continuous damage until they escape or the MANDIBLE FOREMAN moves away.',
-                        'details': [
-                            'Type: Passive',
-                            'Special: Automatic on all attacks; trap persists until FOREMAN moves away or target dies'
-                        ]
+                        'description': 'Every basic attack automatically traps the target. Trapped enemies cannot move or use skills and take continuous damage each turn until the MANDIBLE FOREMAN moves away, is displaced, or is killed.',
+                        'details': []
                     },
                     {
                         'name': 'EXPEDITE (Active) [Key: E]',
-                        'description': 'The MANDIBLE FOREMAN rushes forward up to 4 tiles in a straight line, hydraulic systems screaming, stopping at the first enemy encountered. The collision deals 5 damage and immediately clamps the target in Viseroy jaws. This aggressive repositioning skill combines gap-closing with guaranteed trap application. Cannot target adjacent enemies—requires at least 1 tile of separation to build momentum.',
+                        'description': 'The MANDIBLE FOREMAN rushes forward up to 4 tiles in a straight line, stopping at the first enemy encountered. The collision deals 5 damage and applies Viseroy. Cannot target adjacent enemies.',
                         'details': [
-                            'Type: Active',
-                            'Range: 4 (minimum 2 tiles)',
+                            'Range: 4',
                             'Damage: 5',
-                            'Cooldown: 5 turns',
-                            'Special: Must move in straight lines (cardinal or diagonal); stops at first enemy; applies Viseroy trap; cannot target adjacent units'
+                            'Cooldown: 5 turns'
                         ]
                     },
                     {
                         'name': 'SITE INSPECTION (Active) [Key: S]',
-                        'description': 'The MANDIBLE FOREMAN conducts a tactical survey of a 3x3 area, evaluating terrain obstacles to determine operational efficiency. Clear worksites (0 terrain obstacles) grant allies +1 attack and +1 movement for 3 turns—full productivity. Partially obstructed areas (1 terrain obstacle) grant +1 attack only—reduced efficiency. Heavily obstructed sites (2+ obstacles) cannot be effectively analyzed. The inspection also reveals hidden INTERFERER scalar nodes within the surveyed area.',
+                        'description': 'The MANDIBLE FOREMAN surveys a 3x3 area. Areas with 0 terrain obstacles grant allies +1 attack and +1 movement for 3 turns. Areas with 1 terrain obstacle grant +1 attack only. Areas with 2+ terrain obstacles grant no effect. The inspection also reveals hidden traps.',
                         'details': [
-                            'Type: Active',
                             'Range: 3',
-                            'Target: 3x3 area',
-                            'Effect: Duration 3 turns',
-                            '  - 0 terrain: +1 attack & +1 movement (full)',
-                            '  - 1 terrain: +1 attack only (partial)',
-                            '  - 2+ terrain: No effect',
-                            'Cooldown: 4 turns',
-                            'Special: Reveals hidden scalar nodes'
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'JAWLINE (Active) [Key: J]',
-                        'description': 'The MANDIBLE FOREMAN deploys a network of smaller mechanical jaws across all 8 adjacent tiles, creating an immobilization field around their position. Each jaw snaps onto any adjacent enemy, dealing 4 damage and completely disabling movement for 2 turns. Enemies caught in the Jawline cannot move, attack, or use skills—total lockdown.',
+                        'description': 'The MANDIBLE FOREMAN deploys mechanical jaws across all 8 adjacent tiles. Each adjacent enemy takes 4 damage and is immobilized for 2 turns.',
                         'details': [
-                            'Type: Active',
-                            'Range: 0 (self)',
-                            'Target: All adjacent tiles (3x3 around self)',
+                            'Range: 0',
                             'Damage: 4',
-                            'Effect: Immobilized (2 turns)',
-                            'Cooldown: 3 turns',
-                            'Special: Affects all adjacent enemies; complete movement and action lockdown'
+                            'Cooldown: 3 turns'
                         ]
                     }
                 ],
@@ -792,14 +765,14 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'tactical': [
                     '- Strong against: Isolated units, melee-focused teams',
-                    '- Vulnerable to: Ranged attackers, immunity effects (GRAYMAN), heavily cluttered terrain',
-                    '- Best positioning: Frontline in moderately open areas, near chokepoints to maximize Jawline effectiveness'
+                    '- Vulnerable to: Ranged attackers, immunity effects, heavily cluttered terrain',
+                    '- Best positioning: Frontline in moderately open areas, near chokepoints'
                 ]
             },
             UnitType.GRAYMAN: {
                 'title': 'GRAYMAN',
                 'overview': [
-                    'The GRAYMAN is a gray alien-human hybrid that exists in a liminal state between species, between dimensions, and between moments. Neither fully gray nor fully man, this entity occupies an ambiguous existence outside normal causality, rendering it immune to all external manipulation. Using alien propulsion technology adapted for combat, the GRAYMAN travels via delta configuration—instantaneous point-to-point spatial reconfiguration. The unit weaponizes existential isolation to permanently weaken enemies while creating psychic doppelgangers that maintain battlefield presence across multiple locations simultaneously.',
+                    'The GRAYMAN is a gray alien-human hybrid occupying an unchangeable state, immune to all external manipulation. This ranged specialist teleports freely, weakens key targets, and creates doppelgangers that explode when destroyed.',
                     '',
                     'Role: Escape Artist / Disabler / Summoner',
                     'Difficulty: *'
@@ -815,45 +788,32 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'STASIALITY (Passive)',
-                        'description': 'The GRAYMAN exists in a state of permanent stasis outside normal spacetime, rendering it completely immutable. This grants absolute immunity to all status effects, stat modifications, forced movement, and terrain effects. The GRAYMAN cannot be buffed, debuffed, pushed, pulled, or otherwise manipulated by any external force.',
-                        'details': [
-                            'Type: Passive',
-                            'Effect: Stasiality (=) (Immunity to all effects and stat changes)'
-                        ]
+                        'description': 'The GRAYMAN exists in a state of permanent stasis outside normal spacetime, granting immunity to all status effects, stat modifications, forced movement, and terrain effects.',
+                        'details': []
                     },
                     {
                         'name': 'DELTA CONFIG (Active) [Key: D]',
-                        'description': 'The GRAYMAN engages delta configuration, an alien propulsion system that warps spacetime to pull two points together. Once the spatial fold is complete, the GRAYMAN snaps instantaneously to the destination coordinate. This allows teleportation to any unoccupied passable tile on the battlefield with no regard for distance, obstacles, or line of sight.',
+                        'description': 'The GRAYMAN teleports to any unoccupied passable tile on the battlefield with no regard for distance, obstacles, or line of sight.',
                         'details': [
-                            'Type: Active',
-                            'Range: Unlimited (entire battlefield)',
-                            'Target: Empty passable terrain',
-                            'Cooldown: 6 turns',
-                            'Special: Warps space to bring distant points together; no line of sight required'
+                            'Range: Unlimited',
+                            'Cooldown: 6 turns'
                         ]
                     },
                     {
                         'name': 'ESTRANGE (Active) [Key: E]',
-                        'description': 'The GRAYMAN fires a reality-warping beam that phases the target partially out of spacetime, dealing 3 defense-piercing damage. The beam applies Estrangement, a permanent debuff that reduces all of the target\'s stats by 2 (attack, defense, movement, attack range). This existential weakening never wears off and gradually compounds as multiple Estrangements are applied to the same target.',
+                        'description': 'The GRAYMAN fires a beam that deals 3 defense-piercing damage and applies Estrangement, reducing all of the target\'s stats by 2. Requires line of sight.',
                         'details': [
-                            'Type: Active',
                             'Range: 5',
-                            'Damage: 3 (pierces defense)',
-                            'Effect: Estranged (~) (Permanent -2 to all stats)',
-                            'Cooldown: 3 turns',
-                            'Special: Requires line of sight; effect is permanent and stackable'
+                            'Damage: 3',
+                            'Cooldown: 3 turns'
                         ]
                     },
                     {
                         'name': 'GRÆ EXCHANGE (Active) [Key: G]',
-                        'description': 'The GRAYMAN performs a dimensional exchange, temporarily banishing a target enemy unit from reality while simultaneously manifesting a psychic doppelganger in their place. The banished unit is displaced into a temporal void for 1 turn, completely removed from the battlefield. The doppelganger that replaces them possesses 12 HP and 3 attack but cannot move or use skills—only basic attacks. When the doppelganger is destroyed or expires, it detonates in a psychic explosion dealing 3 damage to all adjacent enemies, after which the banished unit returns to the doppelganger\'s last position.',
+                        'description': 'The GRAYMAN banishes a target enemy unit for 1 turn and creates a psychic doppelganger in their place with 12 HP and 3 attack. The doppelganger cannot move or use skills. When the doppelganger is destroyed or expires, it explodes for 3 damage to all adjacent enemies, and the banished unit returns. Requires line of sight.',
                         'details': [
-                            'Type: Active',
                             'Range: 5',
-                            'Target: Enemy unit',
-                            'Effect: Banishes target for 1 turn; creates Doppelganger (ψ) with 12 HP, 3 ATK at target\'s position',
-                            'Cooldown: 3 turns',
-                            'Special: Doppelganger is immobile and cannot use skills; explodes for 3 damage to adjacent enemies on death; banished unit returns when doppelganger expires or dies; requires line of sight'
+                            'Cooldown: 3 turns'
                         ]
                     }
                 ],
@@ -863,8 +823,7 @@ class UnitHelpComponent(UIComponent):
                     '- Estrange permanently weakens key enemy units; prioritize high-value targets',
                     '- Græ Exchange temporarily removes dangerous enemies while creating a combat presence',
                     '- Banish high-value targets at critical moments to disrupt enemy strategy',
-                    '- Position doppelgangers to maximize explosion damage when they expire',
-                    '- Stay at maximum range (5) to avoid retaliation due to 0 defense'
+                    '- Position doppelgangers to maximize explosion damage when they expire'
                 ],
                 'tactical': [
                     '- Strong against: Control-heavy teams, stationary units, long-term engagements',
@@ -891,31 +850,13 @@ class UnitHelpComponent(UIComponent):
                     {
                         'name': 'IMMOBILITY (Passive)',
                         'description': 'Cannot move from creation position.',
-                        'details': [
-                            'Type: Passive',
-                            'Range: Self',
-                            'Target: Self',
-                            'Line of Sight: No',
-                            'Damage: None',
-                            'Pierce: No',
-                            'Effects: Cannot move',
-                            'Cooldown: None',
-                            'Special: Fixed position for 2-turn duration'
-                        ]
+                        'details': []
                     },
                     {
                         'name': 'DEATH EXPLOSION (On Death)',
-                        'description': 'When destroyed or when its duration expires, the doppelganger detonates in a psychic explosion dealing 3 damage to all adjacent enemy units. After the explosion, the banished unit returns from the void to reclaim their position.',
+                        'description': 'When destroyed or when its duration expires, the doppelganger explodes, dealing 3 damage to all adjacent enemy units. The banished unit then returns to the doppelganger\'s position.',
                         'details': [
-                            'Type: On Death/Expiration',
-                            'Range: All adjacent tiles',
-                            'Target: Enemy units',
-                            'Line of Sight: No',
-                            'Damage: 3',
-                            'Pierce: No',
-                            'Effects: Psychic explosion',
-                            'Cooldown: None',
-                            'Special: Triggers when HP reaches 0 or duration expires; banished unit returns afterward'
+                            'Damage: 3'
                         ]
                     }
                 ],
@@ -936,7 +877,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.MARROW_CONDENSER: {
                 'title': 'MARROW CONDENSER',
                 'overview': [
-                    'The MARROW CONDENSER is a quadrupedal bone manipulator that transforms the battlefield into a calcified fortress. By condensing and weaponizing bone marrow, this tank creates impassable wall structures that trap enemies inside killzones. Each death within the Marrow Dike\'s domain triggers Dominion—a permanent evolutionary upgrade that enhances both the unit\'s stats and active skills. The MARROW CONDENSER grows exponentially stronger throughout battle, draining life force from trapped enemies while reinforcing its skeletal structure into an increasingly impenetrable form.',
+                    'The MARROW CONDENSER is a quadrupedal bone manipulator that creates wall structures to trap enemies. Each death within a Marrow Dike triggers Dominion, upgrading the unit\'s stats and active skills. This tank grows stronger throughout battle, draining life from trapped enemies while reinforcing its defenses.',
                     '',
                     'Role: Tank / Frontline Fighter / Displacer',
                     'Difficulty: ***'
@@ -952,42 +893,31 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'DOMINION (Passive)',
-                        'description': 'When any unit dies within the interior of a Marrow Dike, the MARROW CONDENSER absorbs their essence to trigger permanent evolutionary upgrades. The first death grants +1 movement. The second death grants +1 attack. The third death grants +1 defense. Additionally, each death upgrades one active skill in sequence (Marrow Dike → Ossify → Bone Tithe). All stat bonuses and skill upgrades are permanent and persist for the entire match.',
-                        'details': [
-                            'Type: Passive',
-                            'Special: 1st kill = +1 movement & upgrade Marrow Dike; 2nd kill = +1 attack & upgrade Ossify; 3rd kill = +1 defense & upgrade Bone Tithe'
-                        ]
+                        'description': 'When any unit dies within the interior of a Marrow Dike, the MARROW CONDENSER gains upgrades. The first death grants +1 movement. The second death grants +1 attack. The third death grants +1 defense. Additionally, each death upgrades one active skill in sequence: Marrow Dike → Ossify → Bone Tithe.',
+                        'details': []
                     },
                     {
                         'name': 'OSSIFY (Active) [Key: O]',
-                        'description': 'The MARROW CONDENSER compresses its skeletal structure into a nearly impenetrable ossified state for 2 turns, gaining +2 defense at the cost of -1 movement. When upgraded by Dominion, the defense bonus increases to +3.',
+                        'description': 'The MARROW CONDENSER hardens for 2 turns, gaining +2 defense at the cost of -1 movement. When upgraded, the defense bonus increases to +3.',
                         'details': [
-                            'Type: Active',
-                            'Effect: Ossified (O) (+2 defense, -1 movement for 2 turns; +3 defense when upgraded)',
                             'Cooldown: 3 turns'
                         ]
                     },
                     {
                         'name': 'MARROW DIKE (Active) [Key: M]',
-                        'description': 'The MARROW CONDENSER erupts bone marrow walls in a 5x5 perimeter around itself, creating an enclosed killzone. Enemy units on the perimeter tiles are pulled one tile inward into the interior. The walls last 3 turns and block movement and line of sight. When upgraded by Dominion, walls take an additional hit to destroy, and enemies starting their turn inside the interior suffer -1 movement (Mired).',
+                        'description': 'The MARROW CONDENSER creates bone marrow walls in a 5x5 perimeter around itself. Enemy units on the perimeter tiles are pulled one tile inward. The walls last 3 turns and block movement and line of sight. When upgraded, walls take an additional hit to destroy, and enemies starting their turn inside suffer -1 attack with Mired.',
                         'details': [
-                            'Type: Active',
-                            'Range: Self (5x5 perimeter)',
-                            'Effect: Creates walls for 3 turns; pulls perimeter enemies inward 1 tile',
-                            'Cooldown: 4 turns',
-                            'Special: Upgraded walls take an additional hit to destroy and apply Mired (~) (-1 movement) to enemies in interior'
+                            'Range: 5x5 perimeter',
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'BONE TITHE (Active) [Key: B]',
-                        'description': 'The MARROW CONDENSER extracts bone marrow from all adjacent enemies (3x3 area), dealing 1 damage to each and permanently increasing both max HP and current HP by +1 for each enemy hit. This HP gain is permanent and cumulative. When upgraded by Dominion, the damage scales with total Dominion kills (1 + kill count) and HP gain per enemy increases to +2.',
+                        'description': 'The MARROW CONDENSER drains all adjacent enemies, dealing 1 damage to each and increasing both max HP and current HP by +1 for each enemy hit. When upgraded, the damage scales with total Dominion kills and HP gain per enemy increases to +2.',
                         'details': [
-                            'Type: Active',
-                            'Range: Self (3x3 area - all adjacent tiles)',
-                            'Damage: 1 (upgraded: 1 + Dominion kill count)',
-                            'Effect: +1 permanent max HP & current HP per enemy hit (+2 when upgraded)',
-                            'Cooldown: 1 turn',
-                            'Special: HP increases are permanent and stack indefinitely'
+                            'Range: All adjacent tiles',
+                            'Damage: 1',
+                            'Cooldown: 1 turn'
                         ]
                     }
                 ],
@@ -1001,13 +931,13 @@ class UnitHelpComponent(UIComponent):
                 'tactical': [
                     '- Strong against: Melee units, sustained engagements, clustered enemies',
                     '- Vulnerable to: Long-range attackers, high mobility units, piercing damage',
-                    '- Best positioning: Center of enemy groups, chokepoints for wall placement, interior of Marrow Dike'
+                    '- Best positioning: Center of enemy groups, chokepoints for wall placement'
                 ]
             },
             UnitType.FOWL_CONTRIVANCE: {
                 'title': 'FOWL CONTRIVANCE',
                 'overview': [
-                    'The FOWL CONTRIVANCE is a mechanical peacock rail artillery platform that transforms the battlefield through devastating long-range bombardment and explosive infrastructure. Upon deployment, this unit establishes a permanent rail network that detonates catastrophically whenever any FOWL CONTRIVANCE falls, blasting enemies on rails and embedding shrapnel in adjacent units. This heavy artillery platform excels at indirect fire support—raining mortar shells, unleashing piercing rail cannon shots, and deploying directional fragmentation bursts that shred clustered enemies.',
+                    'The FOWL CONTRIVANCE is a mechanical peacock rail artillery platform. Upon deployment, this unit establishes a rail network that detonates when any FOWL CONTRIVANCE dies, damaging enemies on rails. This heavy artillery excels at long-range bombardment with mortar shells, piercing rail cannon shots, and directional fragmentation bursts.',
                     '',
                     'Role: Burst Damage / Displacer',
                     'Difficulty: ***'
@@ -1023,46 +953,36 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'RAIL GENESIS (Passive)',
-                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a permanent rail network across passable terrain. This infrastructure persists throughout the match and is shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 6 damage to all enemy units standing on rail tiles. When the last FOWL CONTRIVANCE dies, the rail network is destroyed and removed from the battlefield.',
+                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a rail network across passable terrain, shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 6 damage to all enemy units standing on rail tiles. When the last FOWL CONTRIVANCE dies, the rail network is removed.',
                         'details': [
-                            'Type: Passive',
-                            'Effect: Rail network across map; 6 damage to enemies on rails; network removed when last FOWL dies',
-                            'Special: Rail network is permanent until last FOWL dies; shared across all FOWL CONTRIVANCES; explodes on every FOWL death',
-                            'Damage: Fixed 6 damage (ignores defense)'
+                            'Damage: 6'
                         ]
                     },
                     {
                         'name': 'GAUSSIAN DUSK (Active) [Key: G]',
-                        'description': 'The FOWL CONTRIVANCE fires its rail cannon in a cardinal direction, unleashing a hypersonic projectile that pierces through all units and destructible terrain in a straight line across the entire map. The beam deals 9 defense-piercing damage to every unit hit and obliterates all destructible terrain in its path.',
+                        'description': 'The FOWL CONTRIVANCE fires its rail cannon in a cardinal direction, piercing through all units in a straight line across the entire map. Damage follows a bell curve based on target HP, peaking at 9 damage for targets near 50% HP. Destroys terrain at the beam midpoint.',
                         'details': [
-                            'Type: Active',
-                            'Range: Unlimited (entire map in cardinal direction)',
-                            'Damage: 9 (pierces defense)',
-                            'Cooldown: 4 turns',
-                            'Special: Destroys all destructible terrain in path; must fire in cardinal direction only'
+                            'Range: Unlimited',
+                            'Damage: 9',
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'PARABOL (Active) [Key: P]',
-                        'description': 'The FOWL CONTRIVANCE launches explosive mortar shells in a high arc to bombard a 3x3 area at range. The indirect fire ignores line of sight and cannot target adjacent tiles (minimum range 2). The center tile takes 8 damage while the surrounding 8 tiles each take 5 damage.',
+                        'description': 'The FOWL CONTRIVANCE launches a mortar shell to bombard a 3x3 area. The indirect fire ignores line of sight and cannot target adjacent tiles. The center tile takes 8 damage while the surrounding tiles each take 5 damage.',
                         'details': [
-                            'Type: Active',
-                            'Range: 6 (minimum range 2)',
-                            'Damage: 8 (center tile), 5 (surrounding 8 tiles)',
-                            'Cooldown: 4 turns',
-                            'Special: Ignores line of sight; cannot target adjacent tiles'
+                            'Range: 6',
+                            'Damage: 8 center, 5 surrounding',
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'FRAGCREST (Active) [Key: F]',
-                        'description': 'The FOWL CONTRIVANCE unfolds its mechanical tail feathers and fires a directional fragmentation burst in a 90-degree cone. The primary target takes 4 damage and is knocked back 2 tiles. All other enemies in the cone take 2 damage and are also knocked back. All hit enemies become embedded with Shrapnel, suffering 1 damage per turn for 3 turns. Requires line of sight to the primary target.',
+                        'description': 'The FOWL CONTRIVANCE fires a directional fragmentation burst in a 90-degree cone. The primary target takes 4 damage and is knocked back 2 tiles. All other enemies in the cone take 2 damage and are also knocked back. All hit enemies take Shrapnel, suffering 1 damage per turn for 3 turns. Requires line of sight to the primary target.',
                         'details': [
-                            'Type: Active',
                             'Range: 4',
-                            'Damage: 4 (primary target), 2 (cone targets); pushes enemies 2 tiles',
-                            'Effect: Shrapnel (x) (1 damage/turn for 3 turns)',
-                            'Cooldown: 3 turns',
-                            'Special: 90-degree cone; requires line of sight to primary target'
+                            'Damage: 4 primary, 2 cone',
+                            'Cooldown: 3 turns'
                         ]
                     }
                 ],
@@ -1070,18 +990,18 @@ class UnitHelpComponent(UIComponent):
                     '- Cardinal direction restriction requires careful positioning before firing Gaussian Dusk',
                     '- Parabol excels against clustered enemies and ignores line of sight restrictions',
                     '- Fragcrest provides crowd control through knockback and area denial via shrapnel',
-                    '- Low movement range demands deliberate positioning and rail network access'
+                    '- Low movement requires careful positioning near rail network'
                 ],
                 'tactical': [
                     '- Strong against: Clustered enemies, static formations, low-mobility units, units with high defence',
                     '- Vulnerable to: High-mobility rushers, units that can close distance quickly, area denial, high burst damage',
-                    '- Best positioning: Behind cover, near rail network access points for quick repositioning'
+                    '- Best positioning: Behind cover, near rail network'
                 ]
             },
             UnitType.GAS_MACHINIST: {
                 'title': 'GAS MACHINIST',
                 'overview': [
-                    'The GAS MACHINIST is an industrial chemist who deploys autonomous HEINOUS VAPOR entities in 3x3 areas that passively affect all units within each turn. The GAS MACHINIST generates Effluvium charges that extend vapor duration. Vapors can be split into specialized forms, or the GAS MACHINIST can dissolve entirely into vapor, reforming when the gases dissipate. The GAS MACHINIST excels at area control and sustained utility through vapor deployment.',
+                    'An industrial chemist who deploys autonomous vapor entities in areas that passively affect all units within each turn. This utility specialist excels at area control and sustained support through strategic vapor deployment.',
                     '',
                     'Role: Summoner / Utility / Healer',
                     'Difficulty: ****'
@@ -1098,48 +1018,32 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'EFFLUVIUM LATHE (Passive)',
-                        'description': 'The GAS MACHINIST\'s internal lathe generates 1 Effluvium charge at the start of each turn (max 4). When summoning or splitting vapors, all accumulated charges are consumed to extend the vapor\'s duration. The GAS MACHINIST begins each match with 1 charge. While diverged into vapor form, the lathe ceases production until the GAS MACHINIST reforms.',
-                        'details': [
-                            'Type: Passive',
-                            'Effect: Generates 1 charge/turn (max 4); starts with 1 charge',
-                            'Special: Charges consumed during vapor creation extend duration (1 charge = 1 turn); no generation while diverged'
-                        ]
+                        'description': 'The GAS MACHINIST generates 1 Effluvium charge at the start of each turn, up to a maximum of 4. When summoning or splitting vapors, all accumulated charges are consumed to extend the vapor\'s duration. Starts each match with 1 charge. No charges generate while diverged.',
+                        'details': []
                     },
                     {
                         'name': 'BROACHING GAS (Active) [Key: B]',
-                        'description': 'The GAS MACHINIST expels a HEINOUS VAPOR (symbol: 1) to an empty tile, creating a caustic gas cloud in a 3x3 area centered on the vapor. Each turn, the vapor automatically corrodes enemies within the cloud for 1 damage while randomly dissolving one random negative status effect from each ally in the cloud. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
+                        'description': 'The GAS MACHINIST deploys a HEINOUS VAPOR to an empty tile, creating a 3x3 gas cloud centered on the vapor. Each turn, the vapor damages enemies within the cloud for 1 damage and cleanses one random negative status effect from each ally in the cloud. The vapor persists for a duration equal to consumed Effluvium charges and is invulnerable.',
                         'details': [
-                            'Type: Active',
                             'Range: 4',
-                            'Target: Empty tile',
-                            'Area: 3x3 (centered on vapor)',
-                            'Damage: 1 per turn to enemies',
-                            'Cooldown: 3 turns',
-                            'Special: Cleanses one random negative ally status effect per turn; invulnerable; duration = charges'
+                            'Damage: 1 per turn',
+                            'Cooldown: 3 turns'
                         ]
                     },
                     {
                         'name': 'SAFT-E-GAS (Active) [Key: S]',
-                        'description': 'The GAS MACHINIST releases a HEINOUS VAPOR (symbol: 0) to an empty tile, forming a protective gas shield in a 3x3 area centered on the vapor. The vapor grants +1 defense to all allies within the cloud and heals them for 1 HP each turn. The vapor persists for a duration equal to consumed Effluvium charges and is completely invulnerable to all damage.',
+                        'description': 'The GAS MACHINIST deploys a HEINOUS VAPOR to an empty tile, creating a 3x3 gas cloud centered on the vapor. The vapor grants +1 defense to all allies within the cloud and heals them for 1 HP each turn. The vapor persists for a duration equal to consumed Effluvium charges and is invulnerable.',
                         'details': [
-                            'Type: Active',
                             'Range: 4',
-                            'Target: Empty tile',
-                            'Area: 3x3 (centered on vapor)',
-                            'Effect: +1 defense to allies; heals 1 HP/turn',
-                            'Cooldown: 3 turns',
-                            'Special: Invulnerable; duration = charges'
+                            'Cooldown: 3 turns'
                         ]
                     },
                     {
                         'name': 'DIVERGE (Active) [Key: D]',
-                        'description': 'The GAS MACHINIST violently splits an existing HEINOUS VAPOR or themselves into two specialized vapor entities that appear in adjacent spaces. The split creates Coolant Gas (symbol: 2), which heals allies for 3 HP per turn in a 3x3 area, and Cutting Gas (symbol: 3), which deals 3 piercing damage per turn to enemies in a 3x3 area. When targeting self, the GAS MACHINIST dissolves completely and is removed from the board until both vapors expire. When the last vapor dissipates, the GAS MACHINIST reforms at that vapor\'s final position. Both resulting vapors inherit duration from consumed Effluvium charges.',
+                        'description': 'The GAS MACHINIST splits an existing HEINOUS VAPOR or themselves into two specialized vapors that appear in adjacent spaces. The split creates Coolant Gas, which heals allies for 3 HP per turn in a 3x3 area, and Cutting Gas, which deals 3 piercing damage per turn to enemies in a 3x3 area. When targeting self, the GAS MACHINIST is removed from the board until both vapors expire, then reforms at the last vapor\'s position. Both vapors inherit duration from consumed Effluvium charges.',
                         'details': [
-                            'Type: Active',
                             'Range: 4',
-                            'Target: Self or owned HEINOUS VAPOR',
-                            'Cooldown: 4 turns',
-                            'Special: Coolant heals 3 HP/turn; Cutting deals 3 piercing damage/turn; self-targeting removes GAS MACHINIST from board; reforms at last vapor position; duration = charges'
+                            'Cooldown: 4 turns'
                         ]
                     }
                 ],
@@ -1148,7 +1052,7 @@ class UnitHelpComponent(UIComponent):
                     '- Use Broaching Gas for enemy damage and ally cleansing',
                     '- Deploy Saft-E-Gas defensively to block ranged attacks and heal',
                     '- Diverge gasses to extend their effectiveness',
-                    '- Self-diverge to become invulernable, maximize area control, or escape'
+                    '- Self-diverge to become invulnerable, maximize area control, or escape'
                 ],
                 'tactical': [
                     '- Strong against: Status effect users, ranged attackers, sustained damage teams',
@@ -1159,7 +1063,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.DELPHIC_APPRAISER: {
                 'title': 'DELPHIC APPRAISER',
                 'overview': [
-                    'The DELPHIC APPRAISER is an antique dealer with oracular sight who perceives the "astral value" (1-9) of every furniture piece on the battlefield. These metaphysical appraisals manifest as glowing numbers visible only to the APPRAISER, revealing the hidden cosmic worth of mundane objects. The APPRAISER weaponizes this supernatural perception to gain tactical bonuses from proximity to appraised furniture, imbue objects with teleportation energy, curse enemies with escalating value-based damage, and collapse furniture worth to create reality sinkholes. The APPRAISER thrives on furniture-rich maps where random astral values create unpredictable opportunities for devastating combos and tactical repositioning.',
+                    'The DELPHIC APPRAISER is an antique dealer with oracular sight who perceives the astral value (1-9) of every furniture piece on the battlefield. This utility specialist weaponizes furniture appraisals to teleport allies, curse enemies with damage-over-time, and collapse furniture values to create damaging pull effects. The APPRAISER thrives on furniture-rich maps where astral values create opportunities for tactical repositioning and area control.',
                     '',
                     'Role: Utility / Displacer / Disabler / Burst Damage / Escape Artist',
                     'Difficulty: ****'
@@ -1176,137 +1080,116 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'VALUATION ORACLE (Passive)',
-                        'description': 'The DELPHIC APPRAISER\'s oracular sight pierces the material realm to perceive the "astral value" (random 1-9, max 14) of every furniture piece when the match begins. When allies stand adjacent to furniture with astral value 9 or greater, they channel its potent metaphysical energy to enhance their combat capabilities, gaining +1 defense and +1 attack range. These bonuses persist as long as they remain adjacent to high-value furniture.',
-                        'details': [
-                            'Type: Passive',
-                            'Effect: Valuation Oracle (@); allies gain +1 defense and +1 attack range when adjacent to furniture with value ≥9'
-                        ]
+                        'description': 'The DELPHIC APPRAISER perceives the astral value of every furniture piece when the match begins. Values range from 1-9 and can reach a maximum of 14. Allies standing adjacent to furniture with astral value 9 or greater gain +1 defense and +1 attack range. These bonuses persist as long as they remain adjacent to high-value furniture.',
+                        'details': []
                     },
                     {
                         'name': 'MARKET FUTURES (Active) [Key: M]',
-                        'description': 'The DELPHIC APPRAISER infuses a furniture piece with temporal investment energy, transforming it into a shimmering teleportation anchor. Allies standing adjacent to the imbued furniture enter Parallax—a state where they exist simultaneously in their current location and the potential destination. While in Parallax, the ally can activate the anchor to teleport up to a distance equal to the furniture\'s astral value (1-14 tiles). Upon teleporting, the ally receives a maturing investment effect that grants +1 attack range for 3 turns and attack bonuses that grow over time: +1 attack (turn 1), +2 attack (turn 2), +3 attack (turn 3). The investment bonuses apply immediately before each basic attack. After one ally uses the anchor, it deactivates.',
+                        'description': 'The DELPHIC APPRAISER imbues a furniture piece with investment energy. Allies standing adjacent to the imbued furniture can activate it to teleport up to a distance equal to the furniture\'s astral value. Teleport range scales from 1-14 tiles. Upon teleporting, the ally gains +1 attack range for 3 turns and growing attack bonuses: +1 attack on turn 1, +2 attack on turn 2, +3 attack on turn 3. After one ally uses the imbued furniture, it deactivates.',
                         'details': [
-                            'Type: Active',
                             'Range: 4',
-                            'Target: Furniture piece',
-                            'Effect: Parallax (%) when adjacent to anchor; Investment ($) (3 turns) after teleport',
-                            'Cooldown: 6 turns',
-                            'Special: Teleport range = astral value (1-14); Investment grants +1 range (constant) and maturing attack (+1/+2/+3)'
+                            'Cooldown: 6 turns'
                         ]
                     },
                     {
                         'name': 'AUCTION CURSE (Active) [Key: A]',
-                        'description': 'The DELPHIC APPRAISER opens a twisted auction that surrounds the target enemy with astral auctioneers who manifest at nearby furniture (within 2 tiles). The curse duration equals the average astral value of surrounding furniture (rounded up, 1-14 turns). Each turn, the victim takes 1 damage as their life force is drained by the escalating bids, and all nearby furniture values inflate by +1 (capped at 14) as the market frenzy intensifies. The curse also prevents all healing.',
+                        'description': 'The DELPHIC APPRAISER curses a target enemy, dealing 1 damage per turn and preventing all healing. The curse duration equals the average astral value of furniture within 2 tiles of the target, rounded up. Duration ranges from 1-14 turns. Each turn the curse persists, all furniture within 2 tiles of the target inflates by +1 astral value, capped at 14.',
                         'details': [
-                            'Type: Active',
                             'Range: 3',
-                            'Target: Single enemy',
                             'Damage: 1 per turn',
-                            'Effect: Auction Curse (|); prevents healing; inflates nearby furniture +1 each turn (max 14)',
-                            'Cooldown: 3 turns',
-                            'Special: Duration = avg astral value (1-14 turns); furniture within 2 tiles inflates +1 every turn'
+                            'Cooldown: 3 turns'
                         ]
                     },
                     {
                         'name': 'DIVINE DEPRECIATION (Active) [Key: D]',
-                        'description': 'The DELPHIC APPRAISER dramatically reappraises a furniture piece as cosmically worthless, causing its astral value to collapse from its original value to 1. The sudden devaluation creates a reality sinkhole in a 7x7 area as the floor buckles inward. All enemies in the area take piercing damage (bypasses defense) equal to the average astral value of OTHER furniture in the area minus 1 (max 13 damage). The reality distortion pulls enemies toward the center—pull distance equals (original target value - 1) minus each unit\'s movement value (minimum 1 tile). High-mobility units resist the pull better. Finally, the market chaos rerolls all OTHER furniture astral values randomly (1-9).',
+                        'description': 'The DELPHIC APPRAISER collapses a furniture piece\'s astral value to 1, creating a 7x7 cascading sinkhole. All enemies in the area take piercing damage equal to the average astral value of other furniture in the area minus 1. Maximum damage is 13. Enemies are pulled toward the center by a distance equal to the original furniture value minus 1, then reduced by their movement value. Minimum pull is 1 tile. All other furniture in the area rerolls astral values randomly from 1-9.',
                         'details': [
-                            'Type: Active',
                             'Range: 3',
-                            'Target: Furniture piece',
                             'Area: 7x7',
-                            'Damage: (Average of other furniture) - 1 (pierces defense, max 13)',
-                            'Cooldown: 5 turns',
-                            'Special: Sets target value to 1; pull = (original value - 1) - move (min 1); rerolls other furniture'
+                            'Cooldown: 5 turns'
                         ]
                     }
                 ],
                 'tips': [
-                    '- Position near furniture to maintain Valuation Oracle bonuses',
-                    '- Use Market Futures to create tactical teleports for team mobility',
-                    '- Auction Curse works best in furniture-dense areas for maximum damage over time',
-                    '- Divine Depreciation is devastating in furniture-heavy zones - plan positioning carefully'
+                    '- Position allies near high-value furniture (9+) for defense and range bonuses',
+                    '- Use Market Futures on high-value furniture for longer teleport distances',
+                    '- Auction Curse scales with surrounding furniture density and values',
+                    '- Divine Depreciation damage and pull scale with furniture values in the area',
+                    '- High-mobility enemies resist the pull from Divine Depreciation better'
                 ],
                 'tactical': [
-                    '- Strong against: Static formations, low-mobility units, position-reliant strategies',
-                    '- Vulnerable to: High burst damage, open area engagements, mobility-based counters',
-                    '- Best positioning: Central furniture clusters, defensive positions near valuable terrain'
+                    '- Strong against: Static formations, low-mobility units, furniture-heavy maps',
+                    '- Vulnerable to: High burst damage, open area engagements without furniture',
+                    '- Best positioning: Near furniture clusters for Valuation Oracle bonuses'
                 ]
             },
             UnitType.INTERFERER: {
                 'title': 'INTERFERER',
                 'overview': [
-                    'The INTERFERER is a telecommunications engineer turned assassin who weaponized a remote radio tower array into a directed energy weapon system. This glass cannon "phones home" to the tower network, triangulating transmissions to coordinate precise strikes, neural hijacking, and electromagnetic warfare. In close combat, the INTERFERER attacks with plutonium-tipped carabiners that create radioactive hazard zones on impact.',
+                    'The INTERFERER is a telecommunications engineer who uses a remote radio tower array as a directed energy weapon. This glass cannon specializes in neural hijacking, phasing out of reality to avoid damage, and placing invisible traps. Basic attacks spread radiation in directional patterns that stack over time.',
                     '',
                     'Role: Burst Damage / Disabler',
                     'Difficulty: **'
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 3', 
+                    'Attack: 3',
                     'Defense: 0',
                     'Movement: 2',
-                    'Range: 1 (Melee)',
+                    'Range: 1',
                     'Symbol: R',
                     'Attack Symbol: x'
                 ],
                 'skills': [
                     {
                         'name': 'NEUTRON ILLUMINANT (Passive)',
-                        'description': 'When the INTERFERER strikes with plutonium-tipped carabiners, the impact creates a radiation burst that spreads in a directional pattern. If attacking along cardinal directions (up/down/left/right), radiation spreads diagonally from the INTERFERER\'s position. If attacking diagonally, radiation spreads cardinally. Each radiation stack deals 1 damage per turn for 2 turns, creating persistent hazard zones that accumulate with repeated attacks.',
+                        'description': 'Basic attacks create radiation bursts that spread in a directional pattern. Attacking along cardinal directions spreads radiation diagonally. Attacking diagonally spreads radiation cardinally. Each radiation stack deals 1 damage per turn for 2 turns and accumulates with repeated attacks.',
                         'details': [
-                            'Type: Passive'
+                            'Damage: 1 per turn for 2 turns'
                         ]
                     },
                     {
                         'name': 'NEURAL SHUNT (Active) [Key: N]',
-                        'description': 'The INTERFERER triangulates the tower array to transmit a concentrated neural interference signal directly into a target\'s brain, hijacking their motor functions for 1 turn. The transmission deals 8 damage from electromagnetic stress, and the afflicted unit performs random moves, attacks, or skills as their nervous system misfires under external control.',
+                        'description': 'The INTERFERER hijacks a target\'s motor functions for 1 turn, dealing 8 damage. The afflicted unit performs random moves, attacks, or skills.',
                         'details': [
-                            'Type: Active',
                             'Range: 1',
                             'Damage: 8',
-                            'Effect: Neural Shunt (?) (1 turn)',
                             'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'KARRIER RAVE (Active) [Key: K]',
-                        'description': 'The INTERFERER tunes into a carrier wave transmission from the tower array, riding the electromagnetic frequency to phase partially out of reality for 2 turns. While phased, the INTERFERER becomes untargetable by any attacks or skills. Upon returning to normal phase, the stored carrier wave energy amplifies the next melee attack, causing it to strike three times in rapid succession.',
+                        'description': 'The INTERFERER phases out of reality for 2 turns, becoming untargetable by any attacks or skills. Upon returning, the next melee attack strikes three times in rapid succession.',
                         'details': [
-                            'Type: Active',
-                            'Range: Self',
-                            'Effect: Karrier Rave (!) (2 turns); next attack strikes 3 times',
                             'Cooldown: 5 turns'
                         ]
                     },
                     {
                         'name': 'SCALAR NODE (Active) [Key: S]',
-                        'description': 'The INTERFERER triangulates coordinates with the tower array to create an invisible standing wave energy trap at a specific location (range 3). The trap placement is completely silent—no message appears when setting it. When any enemy ends their turn on the trapped tile, the standing wave collapses violently, dealing 8 damage and announcing the trap\'s detonation. The trap persists until triggered.',
+                        'description': 'The INTERFERER creates an invisible trap at a target location. The trap is completely silent when placed. When any enemy ends their turn on the trapped tile, it detonates and deals 8 damage. The trap persists until triggered.',
                         'details': [
-                            'Type: Active',
                             'Range: 3',
                             'Damage: 8',
-                            'Cooldown: 2 turns',
-                            'Special: Invisible trap; silent placement only; triggers when enemy ends turn on tile'
+                            'Cooldown: 2 turns'
                         ]
                     }
                 ],
                 'tips': [
-                    '- Use radiation spread to control enemy positioning and create damage zones',
-                    '- Neural Shunt can disrupt enemy plans by forcing random actions',
-                    '- Time Karrier Rave carefully to avoid counterattacks and set up triple strikes',
-                    '- Place Scalar Nodes on likely enemy movement paths for maximum effectiveness'
+                    '- Radiation spread creates persistent damage zones that force enemies to reposition',
+                    '- Neural Shunt disrupts enemy strategy by causing random actions',
+                    '- Use Karrier Rave to avoid burst damage and set up triple-strike attacks',
+                    '- Place Scalar Nodes on likely enemy movement paths or retreat routes'
                 ],
                 'tactical': [
-                    '- Strong against: High-HP units (radiation damage), ranged units (closing distance), predictable formations',
-                    '- Vulnerable to: Area attacks (low defense), burst damage (glass cannon), detection abilities',
-                    '- Best positioning: Behind cover, flanking positions, near enemy movement corridors'
+                    '- Strong against: High-HP units, predictable formations, static enemies',
+                    '- Vulnerable to: Area attacks, burst damage before phasing',
+                    '- Best positioning: Behind cover, flanking positions for radiation spread'
                 ]
             },
             UnitType.DERELICTIONIST: {
                 'title': 'DERELICTIONIST',
                 'overview': [
-                    'The DERELICTIONIST is a psychological abandonment therapist who weaponized distance-based therapeutic techniques into a tactical support system. By manipulating interpersonal distance and inducing controlled dissociation, this healer specializes in trauma processing, protective partitioning, and abandonment therapy. The farther allies are from the DERELICTIONIST, the more profound the therapeutic effect—but close proximity forces painful abreactive trauma processing.',
+                    'The DERELICTIONIST is a distance-based healer who manipulates interpersonal distance to provide powerful healing and protective effects that scale with range. This utility specialist clears status effects, pushes allies to safety while healing them, and shields allies from fatal damage. Healing effectiveness increases with distance from the DERELICTIONIST.',
                     '',
                     'Role: Utility / Healer / Disabler / Displacer',
                     'Difficulty: ***'
@@ -1322,61 +1205,50 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'SEVERANCE (Passive)',
-                        'description': 'After using any active skill, the DERELICTIONIST enters a dissociative state that grants +1 movement range for a single move, allowing tactical repositioning after skill use. The unit cannot move twice in one turn.',
-                        'details': [
-                            'Type: Passive',
-                            'Effect: Severance (\\) (+1 movement after skill use)'
-                        ]
+                        'description': 'After using any active skill, the DERELICTIONIST gains +1 movement range for a single move. Allows movement after issuing a skill. The unit cannot move twice in one turn.',
+                        'details': []
                     },
                     {
                         'name': 'VAGAL RUN (Active) [Key: V]',
-                        'description': 'The DERELICTIONIST stimulates an ally\'s vagus nerve to trigger abreactive trauma processing, immediately clearing all status effects. The therapeutic response varies with distance: at close range (1-3 tiles), the ally suffers 3 piercing abreactive damage that cannot kill; at medium range (4-5 tiles), damage decreases to 2-1; at neutral range (exactly 6 tiles), no immediate effect occurs; at therapeutic distance (7+ tiles), the ally heals for (distance - 6) HP and enters a Derelicted state. After 3 turns, a delayed secondary abreaction repeats the distance-based effect and clears status effects again.',
+                        'description': 'The DERELICTIONIST clears all status effects from an ally. The effect varies with distance: 1-3 tiles deals 3 piercing damage that cannot kill, 4 tiles deals 2 damage, 5 tiles deals 1 damage, 6 tiles has no effect, 7+ tiles heals for distance minus 6 HP. After 3 turns, the distance-based effect repeats and clears status effects again.',
                         'details': [
-                            'Type: Active',
                             'Range: 3',
-                            'Effect: Clears all status (immediate + after 3 turns); Derelicted (&) (1 turn) at distance 7+',
-                            'Cooldown: 4 turns',
-                            'Special: Distance-based: 1-3 tiles = 3 damage; 4 tiles = 2 damage; 5 tiles = 1 damage; 6 tiles = no effect; 7+ tiles = heal (distance - 6); piercing damage cannot kill'
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'DERELICT (Active) [Key: D]',
-                        'description': 'The DERELICTIONIST forcefully pushes an ally away in a straight line (up to 4 tiles), inducing therapeutic abandonment. The ally heals for an amount equal to the final distance between them and the DERELICTIONIST after the push resolves. The traumatic separation applies the Derelicted status for 1 turn. Obstacles and map boundaries can interrupt the push, affecting final distance and healing.',
+                        'description': 'The DERELICTIONIST pushes an ally away in a straight line up to 4 tiles. The ally heals for an amount equal to the final distance between them and the DERELICTIONIST after the push resolves. Obstacles and map boundaries can interrupt the push, affecting final distance and healing.',
                         'details': [
-                            'Type: Active',
                             'Range: 3',
-                            'Effect: Push (4 tiles); heal = final distance; Derelicted (&) (1 turn)',
                             'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'PARTITION (Active) [Key: P]',
-                        'description': 'The DERELICTIONIST creates a protective psychological partition on an ally, reducing all incoming damage by 1 for 3 turns. This defensive dissociation has an emergency intervention capability: if the ally would receive fatal damage while the shield is active, the ally dissociates completely to ignore all damage that turn, then the partition collapses. When emergency intervention triggers, the shield ends, the DERELICTIONIST teleports exactly 4 tiles away (abandoning the ally), and the ally enters a Derelicted state from the traumatic abandonment.',
+                        'description': 'The DERELICTIONIST shields an ally, reducing all incoming damage by 1 for 3 turns. If the ally would receive fatal damage while the shield is active, the ally ignores all damage that turn and the partition ends. When this emergency effect triggers, the DERELICTIONIST teleports 4 tiles away.',
                         'details': [
-                            'Type: Active',
                             'Range: 3',
-                            'Effect: Partition ()) (3 turns); -1 incoming damage',
-                            'Cooldown: 4 turns',
-                            'Special: Emergency: ally dissociates to ignore fatal damage once; ends shield; teleports DERELICTIONIST 4 tiles; applies Derelicted (&) to ally'
+                            'Cooldown: 4 turns'
                         ]
                     }
                 ],
                 'tips': [
-                    '- Use Severance to reposition after skills for optimal healing distances.',
-                    '- Vagal Run at distance 7+ provides powerful heal-over-time effects.',
-                    '- Derelict can be used defensively to push allies out of danger while healing.',
-                    '- Partition emergency intervention can save critically wounded allies.'
+                    '- Use Severance to reposition after skills for optimal healing distances',
+                    '- Vagal Run at distance 7+ provides powerful healing and delayed second trigger',
+                    '- Derelict pushes allies out of danger while healing based on final distance',
+                    '- Partition emergency intervention can save critically wounded allies'
                 ],
                 'tactical': [
-                    '- Strong against: Status effect teams, burst damage, sustained fights.',
-                    '- Vulnerable to: Mobility denial.',
-                    '- Best positioning: Mid-range support with flexible positioning for optimal skill distances.'
+                    '- Strong against: Status effect teams, burst damage, sustained fights',
+                    '- Vulnerable to: Mobility denial',
+                    '- Best positioning: Mid-range support with space to create distance'
                 ]
             },
             UnitType.POTPOURRIST: {
                 'title': 'POTPOURRIST',
                 'overview': [
-                    'The POTPOURRIST is a durable tank unit who wields a heavy granite pedestal as both weapon and incense burner. The pedestal releases aromatic vapors that provide continuous healing and tactical advantages in combat. This unit specializes in persistent regeneration and damage mitigation through disorienting debuffs. By infusing their blend into concentrated potpourri, the POTPOURRIST can double their natural healing and empower their offensive abilities. The POTPOURRIST excels at outlasting opponents through exceptional sustain, defensive debuffs, and magical bindings that force enemies into unfavorable tactical decisions.',
+                    'The POTPOURRIST is a durable tank who wields a granite pedestal as both weapon and incense burner. This unit heals continuously each turn and can infuse potpourri to double healing and empower offensive skills. The POTPOURRIST specializes in damage mitigation through debuffs that reduce incoming damage and magical bindings that force enemies to attack or grant healing.',
                     '',
                     'Role: Tank / Frontline Fighter',
                     'Difficulty: *'
@@ -1392,59 +1264,44 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'MELANGE EMINENCE (Passive)',
-                        'description': 'The POTPOURRIST\'s aromatic blend continuously restores vitality through inhalation. This natural regenerative process occurs at the start of every turn (including enemy turns) and cannot be suppressed by any curse or healing prevention effect. When infused with potpourri, the enhanced fragrance doubles the restorative power.',
-                        'details': [
-                            'Type: Passive',
-                            'Base healing: 1 HP per turn',
-                            'Enhanced healing: 2 HP per turn while holding potpourri'
-                        ]
+                        'description': 'The POTPOURRIST heals 1 HP at the start of every turn, including enemy turns. This healing cannot be suppressed by any curse or healing prevention effect. When infused with potpourri, healing increases to 2 HP per turn.',
+                        'details': []
                     },
                     {
                         'name': 'INFUSE (Active) [Key: I]',
-                        'description': 'The POTPOURRIST infuses their aromatic blend into a concentrated potpourri mixture, intensifying the healing vapors. This self-targeting ability enhances Melange Eminence\'s regeneration (from 1 HP to 2 HP per turn) and empowers both Demilune and Granite Geas with additional effects. The potpourri lasts 2 turns and goes on cooldown when consumed or when it expires.',
+                        'description': 'The POTPOURRIST infuses potpourri for 2 turns, doubling Melange Eminence healing from 1 HP to 2 HP per turn and empowering Demilune and Granite Geas with additional effects. Goes on cooldown when consumed or when it expires.',
                         'details': [
-                            'Type: Active',
-                            'Range: Self',
-                            'Effect: Infusion (*)',
-                            'Duration: 2 turns',
                             'Cooldown: 1 turn'
                         ]
                     },
                     {
                         'name': 'DEMILUNE (Active) [Key: D]',
-                        'description': 'The POTPOURRIST swings their granite pedestal in a wide crescent arc, striking enemies in a forward half-moon pattern (3 tiles ahead plus 2 diagonal sides). The impact releases disorienting potpourri vapors that induce Lunacy, a maddening effect that halves all damage the afflicted enemy deals to the POTPOURRIST for 2 turns (rounded down). When enhanced with potpourri, the concentrated blend extends Lunacy to 3 turns, prolonging the maddening effect. This consumes the potpourri.',
+                        'description': 'The POTPOURRIST swings their pedestal in a forward crescent arc, striking enemies in 3 tiles ahead plus 2 diagonal sides. Hit enemies suffer Lunacy, halving all damage they deal to the POTPOURRIST for 2 turns. When enhanced with potpourri, Lunacy lasts 3 turns and damage increases by 1. Consumes infusion.',
                         'details': [
-                            'Type: Active',
-                            'Target: Adjacent tile',
-                            'Damage: 3 (4 if enhanced with potpourri)',
-                            'Effect: Lunacy (() (2 turns)',
-                            'Cooldown: 3 turns',
-                            'Special: Lunacy affects both attacks and skills'
+                            'Damage: 3, 4 if enhanced',
+                            'Cooldown: 3 turns'
                         ]
                     },
                     {
                         'name': 'GRANITE GEAS (Active) [Key: G]',
-                        'description': 'The POTPOURRIST strikes an enemy with their pedestal, marking them with aromatic oils that form a magical binding. This geas compels the marked target to focus their aggression on the POTPOURRIST—if the target fails to attack or use a skill against the POTPOURRIST during their turn, the binding breaks and releases fragrant fumes that the POTPOURRIST inhales for 4 HP of healing. When enhanced with potpourri, the geas lasts 2 turns instead of 1, potentially yielding up to 8 HP if ignored both turns. This consumes the potpourri.',
+                        'description': 'The POTPOURRIST strikes an enemy with their pedestal, marking them with a magical binding for 1 turn. If the target fails to attack or use a skill against the POTPOURRIST during their turn, the binding breaks and heals the POTPOURRIST for 4 HP. When enhanced with potpourri, the geas lasts 2 turns for up to 8 HP total healing. Consumes infusion.',
                         'details': [
-                            'Type: Active',
                             'Range: 1',
-                            'Target: Single enemy',
                             'Damage: 5',
-                            'Effect: Geas (:) (1-2 turns); heals 4 HP per turn if ignored',
                             'Cooldown: 3 turns'
                         ]
                     }
                 ],
                 'tips': [
-                    '- Use Infuse early to maximize total regeneration over the match',
-                    '- Lunacy debuff significantly reduces incoming damage - use proactively',
-                    '- Granite Geas forces enemies into bad trades or grants free healing',
-                    '- High HP pool and constant regeneration allow aggressive front line play'
+                    '- Infuse before engaging to gain enhanced healing during combat',
+                    '- Use Demilune to debuff multiple enemies simultaneously',
+                    '- Granite Geas punishes enemies who ignore you and rewards positioning',
+                    '- Melange Eminence healing stacks with other healing sources'
                 ],
                 'tactical': [
-                    '- Strong against: Sustained damage teams, low-damage units, attrition-based strategies',
-                    '- Vulnerable to: Burst damage, multi-target focus fire, high-damage alpha strikes',
-                    '- Best positioning: Front line, absorbing attacks, protecting fragile allies'
+                    '- Strong against: Sustained damage teams, low-damage units, attrition strategies',
+                    '- Vulnerable to: Negative status effects, multi-target focus fire',
+                    '- Best positioning: Front line, absorbing attacks and protecting allies'
                 ]
             },
             'HEINOUS_VAPOR_BROACHING': {
