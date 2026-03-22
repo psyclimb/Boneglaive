@@ -475,24 +475,26 @@ class MarrowDikeSkill(ActiveSkill):
                 unit.y = new_y
                 unit.x = new_x
 
-                # Deal pull damage (3 base, or equal to MARROW CONDENSER's attack if manually upgraded, respects defense, min 1)
-                pull_damage = user.get_effective_stats()['attack'] if manual_upgraded else 3
-                actual_damage = max(1, pull_damage - unit.get_effective_stats()['defense'])
-                previous_hp = unit.hp
-                unit.hp = max(0, unit.hp - actual_damage)
+                # Only deal pull damage to enemies, not allies
+                if unit.player != user.player:
+                    # Deal pull damage (3 base, or equal to MARROW CONDENSER's attack if manually upgraded, respects defense, min 1)
+                    pull_damage = user.get_effective_stats()['attack'] if manual_upgraded else 3
+                    actual_damage = max(1, pull_damage - unit.get_effective_stats()['defense'])
+                    previous_hp = unit.hp
+                    unit.hp = max(0, unit.hp - actual_damage)
 
-                # Log the pull damage
-                message_log.add_message(
-                    f"{unit.get_display_name()} tumbles down the edge of the Marrow Dike for {actual_damage} damage.",
-                    MessageType.ABILITY,
-                    player=user.player,
-                    target_name=unit.get_display_name()
-                )
+                    # Log the pull damage
+                    message_log.add_message(
+                        f"{unit.get_display_name()} tumbles down the edge of the Marrow Dike for {actual_damage} damage.",
+                        MessageType.ABILITY,
+                        player=user.player,
+                        target_name=unit.get_display_name()
+                    )
 
-                # Check if unit was killed by pull damage
-                if unit.hp <= 0 and previous_hp > 0:
-                    # Use centralized death handling - this will trigger DOMINION since unit is now inside
-                    game.handle_unit_death(unit, user, cause="marrow_dike_pull", ui=ui)
+                    # Check if unit was killed by pull damage
+                    if unit.hp <= 0 and previous_hp > 0:
+                        # Use centralized death handling - this will trigger DOMINION since unit is now inside
+                        game.handle_unit_death(unit, user, cause="marrow_dike_pull", ui=ui)
         
         # Now store the previous terrain and place the dike walls as actual terrain
         for tile_y, tile_x in dike_tiles:

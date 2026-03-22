@@ -99,13 +99,22 @@ class MessageLogWindow:
         elif "DOMINION:" in text or "absorbs power from the fallen" in text:
             return COLOR_TEXT_DOMINION  # Bright magenta for Dominion upgrades
 
-        # Check for debuff/warning messages
+        # Check message type for warnings (highest priority for status effects)
+        if msg_type == 'warning':
+            return COLOR_TEXT_WARNING  # Yellow for all warning messages
+
+        # Check for debuff/warning messages by content
         elif ("movement reduced" in text or "debuff" in text.lower() or
               ("penalty" in text.lower() and "due to Stasiality" not in text) or
               "displaced from" in text or "collides with" in text or
               ("immobilized" in text and "immune to" not in text) or
               ("trapped in" in text and "due to Stasiality" not in text) or
-              "slogs through" in text):
+              "slogs through" in text or "becomes erratic" in text or
+              "radiation spreads" in text or "is disarmed" in text or
+              "power wanes" in text or "imbues" in text or
+              "completely shredded" in text or "phased out" in text or
+              "staggered by" in text or "anchored by abandonment" in text or
+              "SEVERELY reduced" in text):
             return COLOR_TEXT_WARNING  # Yellow for debuffs and negative effects
 
         # Error messages
