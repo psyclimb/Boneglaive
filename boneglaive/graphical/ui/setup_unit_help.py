@@ -35,6 +35,12 @@ class SetupUnitHelp:
         self.content_surface = None
         self.has_focus = False
 
+        # Calculate line spacing based on font size (scales with resolution)
+        # Base spacing at 1280x720: small_font is ~16px, line spacing is 16-20px
+        base_small_font_height = 16
+        actual_small_font_height = small_font.get_height()
+        self.spacing_scale = actual_small_font_height / base_small_font_height
+
         # Scrollbar component
         self.scrollbar = Scrollbar()
 
@@ -74,6 +80,10 @@ class SetupUnitHelp:
 
         # Toggle between simplified and advanced view
         self.show_advanced = False
+
+    def _scale_spacing(self, base_pixels):
+        """Scale a spacing value based on font size."""
+        return int(base_pixels * self.spacing_scale)
 
     def _get_unit_name(self, unit_type):
         """
@@ -707,7 +717,9 @@ class SetupUnitHelp:
             content_surface.blit(large_sprite, sprite_rect)
         else:
             # Draw placeholder for missing sprite (like for AETHERIC CURLER)
-            placeholder_font = pygame.font.Font(None, 120)
+            # Scale placeholder font size based on the passed font size
+            placeholder_size = self.font.get_height() * 4  # 4x the normal font height
+            placeholder_font = pygame.font.Font(None, placeholder_size)
             placeholder_text = placeholder_font.render("?", True, (180, 140, 200))
             placeholder_rect = placeholder_text.get_rect(center=(sprite_center_x, current_y + 80))
             content_surface.blit(placeholder_text, placeholder_rect)
@@ -727,7 +739,7 @@ class SetupUnitHelp:
             role_text = self.small_font.render(role, True, COLOR_TEXT_DIM)
             role_rect = role_text.get_rect(center=(width // 2, current_y))
             content_surface.blit(role_text, role_rect)
-            current_y += 20
+            current_y += self._scale_spacing(20)
 
         # Draw overview (1-2 sentences)
         overview = unit_data.get('overview', '')
@@ -735,19 +747,19 @@ class SetupUnitHelp:
         for line in overview_lines:
             text_surface = self.small_font.render(line, True, COLOR_TEXT_DIM)
             content_surface.blit(text_surface, (15, current_y))
-            current_y += 16
-        current_y += 12
+            current_y += self._scale_spacing(18)  # Increased from 16 for better readability
+        current_y += self._scale_spacing(12)
 
         # Draw separator
         pygame.draw.line(content_surface, COLOR_BORDER, (10, current_y), (width - 10, current_y), 1)
-        current_y += 12
+        current_y += self._scale_spacing(12)
 
         # Draw passive skill
         passive_data = unit_data.get('passive')
         if passive_data:
             passive_label = self.small_font.render("PASSIVE:", True, COLOR_GOLD)
             content_surface.blit(passive_label, (15, current_y))
-            current_y += 20
+            current_y += self._scale_spacing(20)
 
             # Skill name and icon (2x larger - 64x64 instead of 32x32)
             # Render directly from SVG at larger size for crisp quality
@@ -769,19 +781,19 @@ class SetupUnitHelp:
             for line in desc_lines:
                 desc_text = self.small_font.render(line, True, COLOR_TEXT)
                 content_surface.blit(desc_text, (25, current_y))
-                current_y += 16
-            current_y += 12
+                current_y += self._scale_spacing(18)  # Increased from 16 for better readability
+            current_y += self._scale_spacing(12)
 
         # Draw separator
         pygame.draw.line(content_surface, COLOR_BORDER, (10, current_y), (width - 10, current_y), 1)
-        current_y += 12
+        current_y += self._scale_spacing(12)
 
         # Draw active skills
         skills = unit_data.get('skills', [])
         if skills:
             skills_label = self.small_font.render("ACTIVE SKILLS:", True, COLOR_GOLD)
             content_surface.blit(skills_label, (15, current_y))
-            current_y += 20
+            current_y += self._scale_spacing(20)
 
             for skill_data in skills:
                 # Skill name and icon (2x larger)
@@ -804,8 +816,8 @@ class SetupUnitHelp:
                 for line in desc_lines:
                     desc_text = self.small_font.render(line, True, COLOR_TEXT)
                     content_surface.blit(desc_text, (25, current_y))
-                    current_y += 16
-                current_y += 8
+                    current_y += self._scale_spacing(18)  # Increased from 16 for better readability
+                current_y += self._scale_spacing(10)  # Increased from 8
 
         # Trim to actual height
         actual_height = current_y + 10
@@ -838,7 +850,7 @@ class SetupUnitHelp:
         title_text = self.font.render(unit_data['title'], True, COLOR_GOLD)
         title_rect = title_text.get_rect(center=(width // 2, current_y))
         content_surface.blit(title_text, title_rect)
-        current_y += 30
+        current_y += self._scale_spacing(30)
 
         # Draw overview
         for line in unit_data.get('overview', []):
@@ -847,31 +859,31 @@ class SetupUnitHelp:
                 for wrapped in wrapped_lines:
                     text_surface = self.small_font.render(wrapped, True, COLOR_TEXT_DIM)
                     content_surface.blit(text_surface, (15, current_y))
-                    current_y += 18
+                    current_y += self._scale_spacing(18)
             else:
-                current_y += 10
-        current_y += 15
+                current_y += self._scale_spacing(10)
+        current_y += self._scale_spacing(15)
 
         # Draw stats
         stats_heading = self.font.render("BASE STATS", True, COLOR_GOLD)
         content_surface.blit(stats_heading, (15, current_y))
-        current_y += 25
+        current_y += self._scale_spacing(25)
 
         for stat in unit_data.get('stats', []):
             stat_text = self.small_font.render(stat, True, COLOR_TEXT_DIM)
             content_surface.blit(stat_text, (20, current_y))
-            current_y += 18
+            current_y += self._scale_spacing(18)
 
-        current_y += 20
+        current_y += self._scale_spacing(20)
 
         # Draw separator
         pygame.draw.line(content_surface, COLOR_BORDER, (10, current_y), (width - 10, current_y), 2)
-        current_y += 20
+        current_y += self._scale_spacing(20)
 
         # Draw skills
         skills_heading = self.font.render("SKILLS", True, COLOR_GOLD)
         content_surface.blit(skills_heading, (15, current_y))
-        current_y += 25
+        current_y += self._scale_spacing(25)
 
         for skill_data in unit_data.get('skills', []):
             # Skill name and icon
@@ -887,7 +899,7 @@ class SetupUnitHelp:
 
             skill_name_text = self.font.render(skill_name, True, (100, 200, 255))
             content_surface.blit(skill_name_text, (icon_x, current_y + 5))
-            current_y += 35
+            current_y += self._scale_spacing(35)
 
             # Skill description
             desc = skill_data.get('description', '')
@@ -895,51 +907,51 @@ class SetupUnitHelp:
             for line in desc_lines:
                 desc_text = self.small_font.render(line, True, COLOR_TEXT)
                 content_surface.blit(desc_text, (25, current_y))
-                current_y += 18
+                current_y += self._scale_spacing(18)
 
-            current_y += 5
+            current_y += self._scale_spacing(5)
 
             # Skill details (bullets)
             for detail in skill_data.get('details', []):
                 detail_text = self.small_font.render(f"  • {detail}", True, COLOR_TEXT_DIM)
                 content_surface.blit(detail_text, (30, current_y))
-                current_y += 18
+                current_y += self._scale_spacing(18)
 
-            current_y += 15
+            current_y += self._scale_spacing(15)
 
         # Draw separator
         pygame.draw.line(content_surface, COLOR_BORDER, (10, current_y), (width - 10, current_y), 2)
-        current_y += 20
+        current_y += self._scale_spacing(20)
 
         # Draw combat tips
         if 'tips' in unit_data and unit_data['tips']:
             tips_heading = self.font.render("COMBAT TIPS", True, COLOR_GOLD)
             content_surface.blit(tips_heading, (15, current_y))
-            current_y += 25
+            current_y += self._scale_spacing(25)
 
             for tip in unit_data['tips']:
                 wrapped_tip = self._wrap_text(tip, content_width - 10, self.small_font)
                 for wrapped in wrapped_tip:
                     tip_text = self.small_font.render(wrapped, True, COLOR_TEXT)
                     content_surface.blit(tip_text, (20, current_y))
-                    current_y += 18
-                current_y += 5
+                    current_y += self._scale_spacing(18)
+                current_y += self._scale_spacing(5)
 
-            current_y += 15
+            current_y += self._scale_spacing(15)
 
         # Draw tactical notes
         if 'tactical' in unit_data and unit_data['tactical']:
             tactical_heading = self.font.render("TACTICAL NOTES", True, COLOR_GOLD)
             content_surface.blit(tactical_heading, (15, current_y))
-            current_y += 25
+            current_y += self._scale_spacing(25)
 
             for note in unit_data['tactical']:
                 wrapped_note = self._wrap_text(note, content_width - 10, self.small_font)
                 for wrapped in wrapped_note:
                     note_text = self.small_font.render(wrapped, True, COLOR_TEXT)
                     content_surface.blit(note_text, (20, current_y))
-                    current_y += 18
-                current_y += 5
+                    current_y += self._scale_spacing(18)
+                current_y += self._scale_spacing(5)
 
         # Trim to actual height
         actual_height = current_y + 20

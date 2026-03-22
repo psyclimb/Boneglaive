@@ -22,8 +22,8 @@ def _get_tile_size():
     """Get dynamic tile size from config-based calculations."""
     from boneglaive.utils.config import ConfigManager
     config = ConfigManager()
-    screen_width = config.get('window_width', 1480)
-    left_panel_ratio = 0.189189  # 280/1480
+    screen_width = config.get('window_width', 1280)
+    left_panel_ratio = 0.21875  # 280/1280
     game_board_width = screen_width * (1 - 2 * left_panel_ratio)
     return int(game_board_width // 20)  # 20 tiles wide
 

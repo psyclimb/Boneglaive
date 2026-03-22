@@ -58,16 +58,16 @@ from boneglaive.utils.config import ConfigManager
 config = ConfigManager()
 
 # Screen constants (now dynamic from config)
-SCREEN_WIDTH = config.get('window_width', 1480)
-SCREEN_HEIGHT = config.get('window_height', 800)
+SCREEN_WIDTH = config.get('window_width', 1280)
+SCREEN_HEIGHT = config.get('window_height', 720)
 SCREEN_TITLE = "Boneglaive"
 
 # Layout constants - Proportional to resolution (maintaining original design ratios)
-# Original was 1480x800, so we scale proportionally
-TOP_BAR_HEIGHT = int(SCREEN_HEIGHT * 0.0625)  # 50/800 = 6.25%
-BOTTOM_BAR_HEIGHT = int(SCREEN_HEIGHT * 0.1)  # 80/800 = 10%
-LEFT_PANEL_WIDTH = int(SCREEN_WIDTH * 0.189189)  # 280/1480 = ~18.92%
-RIGHT_PANEL_WIDTH = int(SCREEN_WIDTH * 0.189189)  # 280/1480 = ~18.92%
+# Original design was 1280x720, so we scale proportionally
+TOP_BAR_HEIGHT = int(SCREEN_HEIGHT * 0.0694)  # 50/720 = 6.94%
+BOTTOM_BAR_HEIGHT = int(SCREEN_HEIGHT * 0.1111)  # 80/720 = 11.11%
+LEFT_PANEL_WIDTH = int(SCREEN_WIDTH * 0.21875)  # 280/1280 = 21.875%
+RIGHT_PANEL_WIDTH = int(SCREEN_WIDTH * 0.21875)  # 280/1280 = 21.875%
 GAME_BOARD_WIDTH = SCREEN_WIDTH - LEFT_PANEL_WIDTH - RIGHT_PANEL_WIDTH  # Remaining space for game board
 
 # Grid constants - Match game map size (20 cols x 10 rows)

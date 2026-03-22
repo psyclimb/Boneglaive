@@ -10,8 +10,8 @@ class ScaleManager:
     """Manages scaling factors for UI components based on resolution."""
 
     # Base resolution that all UI was designed for
-    BASE_WIDTH = 1480
-    BASE_HEIGHT = 800
+    BASE_WIDTH = 1280
+    BASE_HEIGHT = 720
 
     def __init__(self):
         """Initialize scaling factors from current resolution."""

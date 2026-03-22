@@ -488,12 +488,12 @@ class ActionButton:
         text_color = COLOR_TEXT_DISABLED if not self.enabled else COLOR_HOTKEY
         hotkey_text = render_fitted_text(
             f"[{self.hotkey}]",
-            max_width=50,
-            max_height=20,
+            max_width=scale_manager.scale(50),
+            max_height=scale_manager.scale(20),
             color=text_color,
-            base_font_size=16,
-            min_font_size=12,
-            max_font_size=16
+            base_font_size=scale_manager.font_size - 6,  # Slightly smaller than main font
+            min_font_size=scale_manager.small_font_size,
+            max_font_size=scale_manager.font_size - 4
         )
         surface.blit(hotkey_text, (x + 8, y + 5))
 
@@ -504,9 +504,9 @@ class ActionButton:
             max_width=BUTTON_WIDTH - 20,
             max_height=BUTTON_HEIGHT - 10,
             color=text_color,
-            base_font_size=20,
-            min_font_size=14,
-            max_font_size=22
+            base_font_size=scale_manager.small_font_size + 2,
+            min_font_size=scale_manager.small_font_size - 2,
+            max_font_size=scale_manager.font_size - 4
         )
         label_rect = label_text.get_rect(center=(x + BUTTON_WIDTH // 2, y + BUTTON_HEIGHT // 2))
         surface.blit(label_text, label_rect)

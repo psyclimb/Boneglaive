@@ -26,8 +26,8 @@ class MenuManager:
 
         # Load resolution from config if not provided
         if screen_width is None or screen_height is None:
-            screen_width = self.config.get('window_width', 1480)
-            screen_height = self.config.get('window_height', 800)
+            screen_width = self.config.get('window_width', 1280)
+            screen_height = self.config.get('window_height', 720)
 
         self.screen_width = screen_width
         self.screen_height = screen_height

@@ -172,19 +172,19 @@ class GameOverWindow:
 
         # Calculate bar dimensions (scales with resolution)
         # Screen layout: LEFT_PANEL | GAME_BOARD | RIGHT_PANEL
-        # Use proportional scaling based on screen width
-        LEFT_PANEL_WIDTH = int(screen_width * 0.189)  # ~280px at 1480px
-        GAME_BOARD_WIDTH = int(screen_width * 0.622)  # ~920px at 1480px
-        TOP_BAR_HEIGHT = int(screen_height * 0.0625)  # ~50px at 800px
+        # Use proportional scaling based on screen width (1280x720 base)
+        LEFT_PANEL_WIDTH = int(screen_width * 0.21875)  # ~280px at 1280px
+        GAME_BOARD_WIDTH = int(screen_width * 0.5625)  # ~720px at 1280px
+        TOP_BAR_HEIGHT = int(screen_height * 0.0694)  # ~50px at 720px
 
         # Scale minimized bar dimensions
-        scaled_bar_height = int(screen_height * 0.0875)  # ~70px at 800px
-        scaled_button_width = int(screen_width * 0.098)  # ~145px at 1480px
-        scaled_button_height = int(screen_height * 0.05)  # ~40px at 800px
-        scaled_button_spacing = int(screen_width * 0.0068)  # ~10px at 1480px
+        scaled_bar_height = int(screen_height * 0.0972)  # ~70px at 720px
+        scaled_button_width = int(screen_width * 0.1133)  # ~145px at 1280px
+        scaled_button_height = int(screen_height * 0.0556)  # ~40px at 720px
+        scaled_button_spacing = int(screen_width * 0.0078)  # ~10px at 1280px
 
-        bar_width = GAME_BOARD_WIDTH - int(screen_width * 0.014)  # proportional margin
-        bar_x = LEFT_PANEL_WIDTH + int(screen_width * 0.007)  # proportional margin
+        bar_width = GAME_BOARD_WIDTH - int(screen_width * 0.016)  # proportional margin
+        bar_x = LEFT_PANEL_WIDTH + int(screen_width * 0.008)  # proportional margin
         bar_y = TOP_BAR_HEIGHT + int(screen_height * 0.025)  # proportional spacing
         bar_rect = pygame.Rect(bar_x, bar_y, bar_width, scaled_bar_height)
 

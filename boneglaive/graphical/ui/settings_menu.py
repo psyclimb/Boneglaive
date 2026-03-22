@@ -23,7 +23,7 @@ class SettingsSubmenu(MenuScreen):
         self.background_alpha = 0.15  # Very dim
 
         # Button dimensions
-        button_width = 300
+        button_width = 500
         button_height = 60
         button_spacing = 20
 
@@ -112,18 +112,18 @@ class DisplaySettingsScreen(MenuScreen):
 
         # Available resolutions (16:9 or similar aspect ratios)
         self.resolutions = [
-            (1280, 720),    # 720p
+            (1280, 720),    # 720p - Default
             (1366, 768),    # Common laptop
-            (1480, 800),    # Current default
+            (1480, 800),    # Alternative
             (1600, 900),    # HD+
             (1920, 1080),   # 1080p
             (2560, 1440),   # 1440p
         ]
 
         # Find current resolution index
-        current_width = self.config.get('window_width', 1480)
-        current_height = self.config.get('window_height', 800)
-        self.current_resolution_index = 2  # Default to 1480x800
+        current_width = self.config.get('window_width', 1280)
+        current_height = self.config.get('window_height', 720)
+        self.current_resolution_index = 0  # Default to 1280x720
         for i, (w, h) in enumerate(self.resolutions):
             if w == current_width and h == current_height:
                 self.current_resolution_index = i
@@ -138,7 +138,7 @@ class DisplaySettingsScreen(MenuScreen):
         self.original_fullscreen = self.fullscreen
 
         # Button dimensions
-        button_width = 400
+        button_width = 500
         button_height = 60
         button_spacing = 20
 
@@ -197,8 +197,8 @@ class DisplaySettingsScreen(MenuScreen):
         self.resolution_button.text = f"Resolution: {current_res[0]}x{current_res[1]}"
 
         # Check if this differs from saved resolution
-        saved_width = self.config.get('window_width', 1480)
-        saved_height = self.config.get('window_height', 800)
+        saved_width = self.config.get('window_width', 1280)
+        saved_height = self.config.get('window_height', 720)
         if current_res[0] != saved_width or current_res[1] != saved_height:
             self.restart_needed = True
 
@@ -268,7 +268,7 @@ class InterfaceSettingsScreen(MenuScreen):
         layout_label = self._get_layout_label(current_layout)
 
         # Button dimensions
-        button_width = 400
+        button_width = 500
         button_height = 60
         button_spacing = 20
 
@@ -392,7 +392,7 @@ class SoundSettingsScreen(MenuScreen):
         )
 
         # Create back button
-        button_width = 300
+        button_width = 400
         button_height = 60
         self.back_button = Button(
             (screen_width - button_width) // 2,

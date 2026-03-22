@@ -134,8 +134,8 @@ class MainMenuScreen(MenuScreen):
         """Draw the Boneglaive title in large text."""
         # For now, use a simple large text title
         # Could be enhanced with actual ASCII art later
-        title_font = pygame.font.Font(None, 72)
+        # Use the large_font passed in constructor which is already scaled
         # Dark metallic color with slight red tint to match apocalyptic theme
-        title_surface = title_font.render("BONEGLAIVE", True, (180, 160, 165))
+        title_surface = self.large_font.render("BONEGLAIVE", True, (180, 160, 165))
         title_rect = title_surface.get_rect(centerx=self.screen_width // 2, top=100)
         surface.blit(title_surface, title_rect)
