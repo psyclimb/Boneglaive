@@ -655,8 +655,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 5',
                     'Defense: 1',
                     'Movement: 3',
-                    'Range: 2',
-                    'Symbol: G'
+                    'Range: 2'
                 ],
                 'skills': [
                     {
@@ -668,7 +667,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'PRY (Active) [Key: P]',
+                        'name': 'PRY (Active)',
                         'description': 'The GLAIVEMAN pries an adjacent enemy straight up into the ceiling, causing them to crash down with falling debris. The primary target takes 6 damage and is staggered by the brutal impact, suffering -1 movement for 2 turns with Pried. All adjacent enemies take 3 splash damage from the falling debris.',
                         'details': [
                             'Range: 1',
@@ -677,7 +676,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'VAULT (Active) [Key: V]',
+                        'name': 'VAULT (Active)',
                         'description': 'The GLAIVEMAN performs an athletic vault, leaping over obstacles and units to land on any empty passable tile within range 2. This movement ignores pathing restrictions and does not require line of sight, allowing repositioning over impassable terrain and enemy units.',
                         'details': [
                             'Range: 2',
@@ -685,7 +684,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'JUDGEMENT (Active) [Key: J]',
+                        'name': 'JUDGEMENT (Active)',
                         'description': 'The GLAIVEMAN hurls a sacred spinning glaive that pierces enemy defenses, dealing 4 damage. Against enemies at critical health, divine judgement activates and deals 8 damage. Requires line of sight to the target.',
                         'details': [
                             'Range: 4',
@@ -720,8 +719,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 4',
                     'Defense: 1',
                     'Movement: 3',
-                    'Range: 1',
-                    'Symbol: F'
+                    'Range: 1'
                 ],
                 'skills': [
                     {
@@ -730,7 +728,7 @@ class UnitHelpComponent(UIComponent):
                         'details': []
                     },
                     {
-                        'name': 'EXPEDITE (Active) [Key: E]',
+                        'name': 'EXPEDITE (Active)',
                         'description': 'The MANDIBLE FOREMAN rushes forward up to 4 tiles in a straight line, stopping at the first enemy encountered. The collision deals 5 damage and applies Viseroy. Cannot target adjacent enemies.',
                         'details': [
                             'Range: 4',
@@ -739,7 +737,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'SITE INSPECTION (Active) [Key: S]',
+                        'name': 'SITE INSPECTION (Active)',
                         'description': 'The MANDIBLE FOREMAN surveys a 3x3 area. Areas with 0 terrain obstacles grant allies +1 attack and +1 movement for 3 turns. Areas with 1 terrain obstacle grant +1 movement only. Areas with 2+ terrain obstacles grant no effect. The inspection also reveals hidden traps.',
                         'details': [
                             'Range: 3',
@@ -747,7 +745,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'JAWLINE (Active) [Key: J]',
+                        'name': 'JAWLINE (Active)',
                         'description': 'The MANDIBLE FOREMAN deploys mechanical jaws across all 8 adjacent tiles. Each adjacent enemy takes 4 damage and is immobilized for 2 turns.',
                         'details': [
                             'Range: 0',
@@ -782,8 +780,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 4',
                     'Defense: 0',
                     'Movement: 4',
-                    'Range: 5',
-                    'Symbol: Ψ'
+                    'Range: 5'
                 ],
                 'skills': [
                     {
@@ -792,7 +789,7 @@ class UnitHelpComponent(UIComponent):
                         'details': []
                     },
                     {
-                        'name': 'DELTA CONFIG (Active) [Key: D]',
+                        'name': 'DELTA CONFIG (Active)',
                         'description': 'The GRAYMAN teleports to any unoccupied passable tile on the battlefield with no regard for distance, obstacles, or line of sight.',
                         'details': [
                             'Range: Unlimited',
@@ -800,7 +797,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'ESTRANGE (Active) [Key: E]',
+                        'name': 'ESTRANGE (Active)',
                         'description': 'The GRAYMAN fires a beam that deals 3 defense-piercing damage and applies Estrangement, reducing all of the target\'s stats by 2. Requires line of sight.',
                         'details': [
                             'Range: 5',
@@ -809,7 +806,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'GRÆ EXCHANGE (Active) [Key: G]',
+                        'name': 'GRÆ EXCHANGE (Active)',
                         'description': 'The GRAYMAN banishes a target enemy unit for 1 turn and creates a psychic doppelganger in their place with 12 HP and 3 attack. The doppelganger cannot move or use skills. When the doppelganger is destroyed or expires, it explodes for 3 damage to all adjacent enemies, and the banished unit returns. Requires line of sight.',
                         'details': [
                             'Range: 5',
@@ -843,8 +840,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 3',
                     'Defense: 0',
                     'Movement: 0',
-                    'Range: 1',
-                    'Symbol: ψ'
+                    'Range: 1'
                 ],
                 'skills': [
                     {
@@ -887,8 +883,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 4',
                     'Defense: 2',
                     'Movement: 3',
-                    'Range: 1',
-                    'Symbol: C'
+                    'Range: 1'
                 ],
                 'skills': [
                     {
@@ -897,14 +892,14 @@ class UnitHelpComponent(UIComponent):
                         'details': []
                     },
                     {
-                        'name': 'OSSIFY (Active) [Key: O]',
+                        'name': 'OSSIFY (Active)',
                         'description': 'The MARROW CONDENSER hardens for 3 turns, gaining +2 defense at the cost of -1 movement. When upgraded, the defense bonus increases to +3.',
                         'details': [
                             'Cooldown: 3 turns'
                         ]
                     },
                     {
-                        'name': 'MARROW DIKE (Active) [Key: M]',
+                        'name': 'MARROW DIKE (Active)',
                         'description': 'The MARROW CONDENSER creates bone marrow walls in a 5x5 perimeter around itself. Enemy units on the perimeter tiles are pulled one tile inward. The walls last 3 turns and block movement and line of sight. When upgraded, walls take an additional hit to destroy, and enemies starting their turn inside suffer -1 attack with Mired.',
                         'details': [
                             'Range: 5x5 perimeter',
@@ -912,7 +907,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'BONE TITHE (Active) [Key: B]',
+                        'name': 'BONE TITHE (Active)',
                         'description': 'The MARROW CONDENSER drains all adjacent enemies, dealing 1 damage to each and increasing both max HP and current HP by +1 for each enemy hit. When upgraded, the damage scales with total Dominion kills and HP gain per enemy increases to +2.',
                         'details': [
                             'Range: All adjacent tiles',
@@ -947,8 +942,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 4',
                     'Defense: 0',
                     'Movement: 3',
-                    'Range: 3',
-                    'Symbol: T'
+                    'Range: 3'
                 ],
                 'skills': [
                     {
@@ -959,7 +953,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'GAUSSIAN DUSK (Active) [Key: G]',
+                        'name': 'GAUSSIAN DUSK (Active)',
                         'description': 'The FOWL CONTRIVANCE fires its rail cannon in a cardinal direction, piercing through all units in a straight line across the entire map. Damage follows a bell curve based on target HP, peaking at 9 damage for targets near 50% HP. Destroys terrain at the beam midpoint.',
                         'details': [
                             'Range: Unlimited',
@@ -968,7 +962,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'PARABOL (Active) [Key: P]',
+                        'name': 'PARABOL (Active)',
                         'description': 'The FOWL CONTRIVANCE launches a mortar shell to bombard a 3x3 area. The indirect fire ignores line of sight and cannot target adjacent tiles. The center tile takes 8 damage while the surrounding tiles each take 5 damage.',
                         'details': [
                             'Range: 6',
@@ -977,7 +971,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'FRAGCREST (Active) [Key: F]',
+                        'name': 'FRAGCREST (Active)',
                         'description': 'The FOWL CONTRIVANCE fires a directional fragmentation burst in a 90-degree cone. The primary target takes 4 damage and is knocked back 2 tiles. All other enemies in the cone take 2 damage and are also knocked back. All hit enemies take Shrapnel, suffering 1 damage per turn for 3 turns. Requires line of sight to the primary target.',
                         'details': [
                             'Range: 4',
@@ -1012,8 +1006,6 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 1',
                     'Movement: 2',
                     'Range: 1',
-                    'Symbol: M',
-                    'Attack Symbol: o'
                 ],
                 'skills': [
                     {
@@ -1022,7 +1014,7 @@ class UnitHelpComponent(UIComponent):
                         'details': []
                     },
                     {
-                        'name': 'BROACHING GAS (Active) [Key: B]',
+                        'name': 'BROACHING GAS (Active)',
                         'description': 'The GAS MACHINIST deploys a HEINOUS VAPOR to an empty tile, creating a 3x3 gas cloud centered on the vapor. Each turn, the vapor damages enemies within the cloud for 1 damage and cleanses one random negative status effect from each ally in the cloud. The vapor persists for a duration equal to consumed Effluvium charges and is invulnerable.',
                         'details': [
                             'Range: 4',
@@ -1031,7 +1023,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'SAFT-E-GAS (Active) [Key: S]',
+                        'name': 'SAFT-E-GAS (Active)',
                         'description': 'The GAS MACHINIST deploys a HEINOUS VAPOR to an empty tile, creating a 3x3 gas cloud centered on the vapor. The vapor grants +1 defense to all allies within the cloud and heals them for 1 HP each turn. The vapor persists for a duration equal to consumed Effluvium charges and is invulnerable.',
                         'details': [
                             'Range: 4',
@@ -1039,7 +1031,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'DIVERGE (Active) [Key: D]',
+                        'name': 'DIVERGE (Active)',
                         'description': 'The GAS MACHINIST splits an existing HEINOUS VAPOR or themselves into two specialized vapors that appear in adjacent spaces. The split creates Coolant Gas, which heals allies for 3 HP per turn in a 3x3 area, and Cutting Gas, which deals 3 piercing damage per turn to enemies in a 3x3 area. When targeting self, the GAS MACHINIST is removed from the board until both vapors expire, then reforms at the last vapor\'s position. Both vapors inherit duration from consumed Effluvium charges.',
                         'details': [
                             'Range: 4',
@@ -1074,8 +1066,6 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 4',
                     'Range: 1',
-                    'Symbol: A',
-                    'Attack Symbol: $'
                 ],
                 'skills': [
                     {
@@ -1084,7 +1074,7 @@ class UnitHelpComponent(UIComponent):
                         'details': []
                     },
                     {
-                        'name': 'MARKET FUTURES (Active) [Key: M]',
+                        'name': 'MARKET FUTURES (Active)',
                         'description': 'The DELPHIC APPRAISER imbues a furniture piece with investment energy. Allies standing adjacent to the imbued furniture can activate it to teleport up to a distance equal to the furniture\'s astral value. Teleport range scales from 1-14 tiles. Upon teleporting, the ally gains +1 attack range for 3 turns and growing attack bonuses: +1 attack on turn 1, +2 attack on turn 2, +3 attack on turn 3. After one ally uses the imbued furniture, it deactivates.',
                         'details': [
                             'Range: 4',
@@ -1092,7 +1082,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'AUCTION CURSE (Active) [Key: A]',
+                        'name': 'AUCTION CURSE (Active)',
                         'description': 'The DELPHIC APPRAISER curses a target enemy, dealing 1 damage per turn and preventing all healing. The curse duration equals the average astral value of furniture within 2 tiles of the target, rounded up. Duration ranges from 1-14 turns. Each turn the curse persists, all furniture within 2 tiles of the target inflates by +1 astral value, capped at 14.',
                         'details': [
                             'Range: 3',
@@ -1101,7 +1091,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'DIVINE DEPRECIATION (Active) [Key: D]',
+                        'name': 'DIVINE DEPRECIATION (Active)',
                         'description': 'The DELPHIC APPRAISER collapses a furniture piece\'s astral value to 1, creating a 7x7 cascading sinkhole. All enemies in the area take piercing damage equal to the average astral value of other furniture in the area minus 1. Maximum damage is 13. Enemies are pulled toward the center by a distance equal to the original furniture value minus 1, then reduced by their movement value. Minimum pull is 1 tile. All other furniture in the area rerolls astral values randomly from 1-9.',
                         'details': [
                             'Range: 3',
@@ -1137,8 +1127,6 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 4',
                     'Range: 1',
-                    'Symbol: R',
-                    'Attack Symbol: x'
                 ],
                 'skills': [
                     {
@@ -1149,7 +1137,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'NEURAL SHUNT (Active) [Key: N]',
+                        'name': 'NEURAL SHUNT (Active)',
                         'description': 'The INTERFERER hijacks a target\'s motor functions for 1 turn, dealing 6 damage. The afflicted unit performs random moves, attacks, or skills.',
                         'details': [
                             'Range: 1',
@@ -1158,14 +1146,14 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'KARRIER RAVE (Active) [Key: K]',
+                        'name': 'KARRIER RAVE (Active)',
                         'description': 'The INTERFERER phases out of reality for 2 turns, becoming untargetable by any attacks or skills. Upon returning, the next melee attack strikes three times in rapid succession.',
                         'details': [
                             'Cooldown: 6 turns'
                         ]
                     },
                     {
-                        'name': 'SCALAR NODE (Active) [Key: S]',
+                        'name': 'SCALAR NODE (Active)',
                         'description': 'The INTERFERER creates an invisible trap at a target location. The trap is completely silent when placed. When any enemy ends their turn on the trapped tile, it detonates and deals 8 damage. The trap persists until triggered.',
                         'details': [
                             'Range: 3',
@@ -1200,7 +1188,6 @@ class UnitHelpComponent(UIComponent):
                     'Defense: 0',
                     'Movement: 4',
                     'Range: 1',
-                    'Symbol: D',
                 ],
                 'skills': [
                     {
@@ -1209,7 +1196,7 @@ class UnitHelpComponent(UIComponent):
                         'details': []
                     },
                     {
-                        'name': 'VAGAL RUN (Active) [Key: V]',
+                        'name': 'VAGAL RUN (Active)',
                         'description': 'The DERELICTIONIST clears all status effects from an ally. The effect varies with distance: 1-3 tiles deals 3 piercing damage that cannot kill, 4 tiles deals 2 damage, 5 tiles deals 1 damage, 6 tiles has no effect, 7+ tiles heals for distance minus 6 HP. After 3 turns, the distance-based effect repeats and clears status effects again.',
                         'details': [
                             'Range: 3',
@@ -1217,7 +1204,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'DERELICT (Active) [Key: D]',
+                        'name': 'DERELICT (Active)',
                         'description': 'The DERELICTIONIST pushes an ally away in a straight line up to 4 tiles. The ally heals for an amount equal to the final distance between them and the DERELICTIONIST after the push resolves. Obstacles and map boundaries can interrupt the push, affecting final distance and healing.',
                         'details': [
                             'Range: 3',
@@ -1225,7 +1212,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'PARTITION (Active) [Key: P]',
+                        'name': 'PARTITION (Active)',
                         'description': 'The DERELICTIONIST shields an ally, reducing all incoming damage by 1 for 3 turns. If the ally would receive fatal damage while the shield is active, the ally ignores all damage that turn and the partition ends. When this emergency effect triggers, the DERELICTIONIST teleports 4 tiles away.',
                         'details': [
                             'Range: 3',
@@ -1258,8 +1245,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 5',
                     'Defense: 0',
                     'Movement: 3',
-                    'Range: 1',
-                    'Symbol: P',
+                    'Range: 1'
                 ],
                 'skills': [
                     {
@@ -1268,14 +1254,14 @@ class UnitHelpComponent(UIComponent):
                         'details': []
                     },
                     {
-                        'name': 'INFUSE (Active) [Key: I]',
+                        'name': 'INFUSE (Active)',
                         'description': 'The POTPOURRIST infuses potpourri for 2 turns, doubling Melange Eminence healing from 1 HP to 2 HP per turn and empowering Demilune and Granite Geas with additional effects. Goes on cooldown when consumed or when it expires.',
                         'details': [
                             'Cooldown: 1 turn'
                         ]
                     },
                     {
-                        'name': 'DEMILUNE (Active) [Key: D]',
+                        'name': 'DEMILUNE (Active)',
                         'description': 'The POTPOURRIST swings their pedestal in a forward crescent arc, striking enemies in 3 tiles ahead plus 2 diagonal sides. Hit enemies suffer Lunacy, halving all damage they deal to the POTPOURRIST for 2 turns. When enhanced with potpourri, Lunacy lasts 3 turns and damage increases by 1. Consumes infusion.',
                         'details': [
                             'Damage: 3, 4 if enhanced',
@@ -1283,7 +1269,7 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'GRANITE GEAS (Active) [Key: G]',
+                        'name': 'GRANITE GEAS (Active)',
                         'description': 'The POTPOURRIST strikes an enemy with their pedestal, marking them with a magical binding for 1 turn. If the target fails to attack or use a skill against the POTPOURRIST during their turn, the binding breaks and heals the POTPOURRIST for 4 HP. When enhanced with potpourri, the geas lasts 2 turns for up to 8 HP total healing. Consumes infusion.',
                         'details': [
                             'Range: 1',
@@ -1316,8 +1302,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 0',
                     'Defense: 0',
                     'Movement: 3',
-                    'Range: 1',
-                    'Symbol: 1'
+                    'Range: 1'
                 ],
                 'skills': [
                     {
@@ -1390,8 +1375,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 0',
                     'Defense: 0',
                     'Movement: 3',
-                    'Range: 1',
-                    'Symbol: 0'
+                    'Range: 1'
                 ],
                 'skills': [
                     {
@@ -1464,8 +1448,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 0',
                     'Defense: 0',
                     'Movement: 3',
-                    'Range: 1',
-                    'Symbol: 2'
+                    'Range: 1'
                 ],
                 'skills': [
                     {
@@ -1523,8 +1506,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 0',
                     'Defense: 0',
                     'Movement: 3',
-                    'Range: 1',
-                    'Symbol: %'
+                    'Range: 1'
                 ],
                 'skills': [
                     {
@@ -1582,8 +1564,7 @@ class UnitHelpComponent(UIComponent):
                     'Attack: 0',
                     'Defense: 0',
                     'Movement: 3',
-                    'Range: 1',
-                    'Symbol: V (varies by type)'
+                    'Range: 1'
                 ],
                 'skills': [
                     {
