@@ -193,6 +193,9 @@ class MenuManager:
             display_settings = DisplaySettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height)
             self._push_screen(display_settings)
 
+        elif action == "apply_display":
+            self._apply_display_settings()
+
         elif action == "sound_settings":
             sound_settings = SoundSettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(sound_settings)
@@ -212,6 +215,46 @@ class MenuManager:
         elif action == "quit":
             self.running = False
             self.result = ("quit", None)
+
+    def _apply_display_settings(self):
+        """Reinitialise the pygame display with settings just written to config."""
+        # Reload config from disk — DisplaySettingsScreen used its own ConfigManager
+        # instance to save, so self.config still holds the old values.
+        self.config = ConfigManager()
+        new_width = self.config.get('window_width', 1280)
+        new_height = self.config.get('window_height', 720)
+        fullscreen = self.config.get('fullscreen', False)
+
+        # Resize the pygame window immediately
+        if fullscreen:
+            self.screen = pygame.display.set_mode((new_width, new_height), pygame.FULLSCREEN)
+        else:
+            self.screen = pygame.display.set_mode((new_width, new_height))
+
+        self.screen_width = new_width
+        self.screen_height = new_height
+
+        # Refresh scale_manager so all UI geometry re-derives from the new resolution
+        from .scale_utils import scale_manager
+        scale_manager.config = self.config
+        scale_manager.update_scale()
+
+        # Rebuild fonts for new resolution
+        font_scale = new_height / 800.0
+        font_size = max(16, int(32 * font_scale))
+        large_font_size = max(32, int(64 * font_scale))
+        self.font = pygame.font.Font(None, font_size)
+        self.large_font = pygame.font.Font(None, large_font_size)
+
+        # Rebuild shared background at new size
+        from .kaleidoscope_background import KaleidoscopeBackground
+        self.shared_background = KaleidoscopeBackground(new_width, new_height)
+
+        # Tear down the screen stack and restart from main menu so all
+        # screens are recreated at the correct resolution.
+        while self.screen_stack:
+            self.screen_stack.pop()
+        self._push_screen(self._create_main_menu())
 
     def _on_profile_created(self, name: str):
         """Handle profile creation."""

@@ -129,8 +129,6 @@ class DisplaySettingsScreen(MenuScreen):
                 self.current_resolution_index = i
                 break
 
-        # Track if restart is needed
-        self.restart_needed = False
         self.original_resolution = (current_width, current_height)
 
         # Get current fullscreen setting
@@ -187,60 +185,36 @@ class DisplaySettingsScreen(MenuScreen):
         self.buttons = [self.resolution_button, self.fullscreen_button, self.apply_button, self.back_button]
         self._action_result = None
 
-        # Warning text position
-        self.warning_text_y = start_y + (button_height + button_spacing) * 4 + 20
-
     def _cycle_resolution(self):
         """Cycle to next resolution."""
         self.current_resolution_index = (self.current_resolution_index + 1) % len(self.resolutions)
         current_res = self.resolutions[self.current_resolution_index]
         self.resolution_button.text = f"Resolution: {current_res[0]}x{current_res[1]}"
 
-        # Check if this differs from saved resolution
-        saved_width = self.config.get('window_width', 1280)
-        saved_height = self.config.get('window_height', 720)
-        if current_res[0] != saved_width or current_res[1] != saved_height:
-            self.restart_needed = True
-
     def _toggle_fullscreen(self):
         """Toggle fullscreen mode."""
         self.fullscreen = not self.fullscreen
         self.fullscreen_button.text = f"Fullscreen: {'On' if self.fullscreen else 'Off'}"
 
-        # Check if this differs from saved setting
-        saved_fullscreen = self.config.get('fullscreen', False)
-        if self.fullscreen != saved_fullscreen:
-            self.restart_needed = True
-
     def _apply_settings(self):
-        """Apply the selected display settings."""
+        """Save display settings and signal the menu manager to apply them live."""
         current_res = self.resolutions[self.current_resolution_index]
 
-        # Update config
+        # Persist to config
         self.config.set('window_width', current_res[0])
         self.config.set('window_height', current_res[1])
         self.config.set('fullscreen', self.fullscreen)
         self.config.save_config()
 
-        # Update flags
         self.original_resolution = current_res
         self.original_fullscreen = self.fullscreen
-        self.apply_button.text = "Changes Saved - Restart Required"
+
+        # Signal menu manager to reinitialise the display immediately
+        self._set_action("apply_display")
 
     def _set_action(self, action: str):
         """Set the action result."""
         self._action_result = action
-
-    def draw(self, surface: pygame.Surface):
-        """Draw the screen with warning text if needed."""
-        super().draw(surface)
-
-        # Draw warning text if restart is needed
-        if self.restart_needed:
-            warning_text = "Changes require restarting the game"
-            text_surface = self.font.render(warning_text, True, (255, 200, 100))
-            text_rect = text_surface.get_rect(center=(self.screen_width // 2, self.warning_text_y))
-            surface.blit(text_surface, text_rect)
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
         """Handle events and return action if triggered."""
