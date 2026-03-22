@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, COLOR_DAMAGE, COLOR_SKILL
+from boneglaive.graphical.sound_helper import play_sound
 
 
 class FractureLines:
@@ -395,11 +396,15 @@ class DivineDrepreciationAnimation:
 
     def _start_fracture_phase(self):
         """Phase 1: Reality fractures around target."""
+        play_sound("divine_depreciation_fracture")
+
         self.fracture_lines = FractureLines(self.target_x, self.target_y, self.camera)
         self.screen_shake_callback(2, 0.8)  # Light shake building up
 
     def _start_collapse_phase(self):
         """Phase 2: Value collapses into vortex."""
+        play_sound("divine_depreciation_collapse")
+
         self.phase = "collapse"
         self.timer = 0
         self.vortex = VortexEffect(self.target_x, self.target_y, self.camera, self.particle_emitter)
@@ -407,6 +412,8 @@ class DivineDrepreciationAnimation:
 
     def _start_implosion_phase(self):
         """Phase 3: Reality implodes with massive flash."""
+        play_sound("divine_depreciation_implosion")
+
         self.phase = "implosion"
         self.timer = 0
 
@@ -424,6 +431,8 @@ class DivineDrepreciationAnimation:
 
     def _start_reroll_phase(self):
         """Phase 4: All furniture rerolls values."""
+        play_sound("divine_depreciation_reroll")
+
         self.phase = "reroll"
         self.timer = 0
 
@@ -1096,6 +1105,8 @@ class AuctionCurseAnimation:
 
     def _start_podium_phase(self):
         """Phase 1: Podiums rise at furniture locations."""
+        play_sound("auction_curse_podiums")
+
         self.phase = "podiums"
         self.timer = 0
 
@@ -1106,6 +1117,8 @@ class AuctionCurseAnimation:
 
     def _start_auctioneer_phase(self):
         """Phase 2: Ghostly auctioneers manifest."""
+        play_sound("auction_curse_manifestation")
+
         self.phase = "auctioneers"
         self.timer = 0
 
@@ -1116,6 +1129,8 @@ class AuctionCurseAnimation:
 
     def _start_bidding_phase(self):
         """Phase 3: Bidding frenzy - gavels raise and slam."""
+        play_sound("auction_curse_gavel_slam")
+
         self.phase = "bidding"
         self.timer = 0
 
@@ -1133,6 +1148,8 @@ class AuctionCurseAnimation:
 
     def _start_convergence_phase(self):
         """Phase 4: Curse beams converge on target."""
+        play_sound("auction_curse_convergence")
+
         self.phase = "convergence"
         self.timer = 0
 
@@ -1602,6 +1619,8 @@ class MarketFuturesAnimation:
 
     def _start_assessment_phase(self):
         """Phase 1: Golden scanner beams assess the furniture."""
+        play_sound("market_futures_assessment")
+
         self.phase = "assessment"
         self.timer = 0
 
@@ -1619,6 +1638,8 @@ class MarketFuturesAnimation:
 
     def _start_rift_phase(self):
         """Phase 2: Temporal rift opens."""
+        play_sound("market_futures_rift")
+
         self.phase = "rift"
         self.timer = 0
 
@@ -1629,6 +1650,8 @@ class MarketFuturesAnimation:
 
     def _start_anchor_phase(self):
         """Phase 3: Anchor manifests and embeds."""
+        play_sound("market_futures_anchor")
+
         self.phase = "anchor"
         self.timer = 0
 
@@ -1912,12 +1935,16 @@ class MarketFuturesTeleportAnimation:
 
     def _start_anchor_glow_phase(self):
         """Phase 1: Anchor glows with golden energy."""
+        play_sound("parallax_anchor_glow")
+
         self.phase = "anchor_glow"
         self.timer = 0
         self.screen_shake_callback(2, 0.4)  # Light shake
 
     def _start_dissolve_phase(self):
         """Phase 2: Unit dissolves into currency particles."""
+        play_sound("parallax_dissolve")
+
         self.phase = "dissolve"
         self.timer = 0
 
@@ -1955,6 +1982,8 @@ class MarketFuturesTeleportAnimation:
 
     def _start_investment_phase(self):
         """Phase 5: Investment buff visual with orbiting currency."""
+        play_sound("parallax_rematerialize")
+
         self.phase = "investment"
         self.timer = 0
 
@@ -2408,6 +2437,8 @@ class AuctionCurseTickAnimation:
 
     def _start_seething_phase(self):
         """Phase 1: Curse seethes around afflicted unit."""
+        play_sound("auction_curse_tick_seething")
+
         self.phase = "seething"
         self.timer = 0
 
@@ -2416,6 +2447,8 @@ class AuctionCurseTickAnimation:
 
     def _start_radiation_phase(self):
         """Phase 2: Curse radiates outward to furniture."""
+        play_sound("auction_curse_tick_radiation")
+
         self.phase = "radiation"
         self.timer = 0
 
@@ -2435,6 +2468,8 @@ class AuctionCurseTickAnimation:
 
     def _start_corruption_phase(self):
         """Phase 3: Furniture corrupted, values inflate."""
+        play_sound("auction_curse_tick_corruption")
+
         self.phase = "corruption"
         self.timer = 0
 
@@ -2586,6 +2621,8 @@ class DelphicAppraiserAstralAttack:
 
     def _trigger_appraisal(self):
         """Phase 1: Astral appraisal - calculating value."""
+        play_sound("delphic_attack_appraisal")
+
         # Golden particles swirl around attacker
         for _ in range(10):
             angle = random.uniform(0, 2 * math.pi)
@@ -2606,6 +2643,8 @@ class DelphicAppraiserAstralAttack:
 
     def _trigger_launch(self):
         """Phase 2: Launch astral bolt."""
+        play_sound("delphic_attack_launch")
+
         # Create golden trailing particles
         for i in range(10):
             progress = i / 10
@@ -2625,6 +2664,8 @@ class DelphicAppraiserAstralAttack:
 
     def _trigger_impact(self):
         """Phase 3: Astral value impact."""
+        play_sound("delphic_attack_impact")
+
         # Golden burst with floating numbers (aesthetic)
         for _ in range(18):
             angle = random.uniform(0, 2 * math.pi)
@@ -2948,6 +2989,8 @@ class DeftRerollAnimation:
 
     def _start_activation(self):
         """Phase 1: Activation."""
+        play_sound("deft_reroll_activation")
+
         self.phase = "activation"
         self.timer = 0
 
@@ -2956,6 +2999,8 @@ class DeftRerollAnimation:
 
     def _start_spinning(self):
         """Phase 2: Spinning Values."""
+        play_sound("deft_reroll_spinning")
+
         self.phase = "spinning"
         self.timer = 0
 

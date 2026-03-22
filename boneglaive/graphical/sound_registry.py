@@ -228,6 +228,42 @@ MULTI_EVENT_SOUNDS = {
     "marrow_attack_gather": "sounds/skills/marrow_attack_gather.wav",    # Bone and marrow coalescing into ball
     "marrow_attack_launch": "sounds/skills/marrow_attack_launch.wav",    # Bone ball hurled toward target
     "marrow_attack_impact": "sounds/skills/marrow_attack_impact.wav",    # Bone and marrow explosion on impact
+
+    # DELPHIC APPRAISER - Divine Depreciation (4 events)
+    "divine_depreciation_fracture": "sounds/skills/divine_depreciation_fracture.wav",    # Reality fractures around target
+    "divine_depreciation_collapse": "sounds/skills/divine_depreciation_collapse.wav",    # Value collapses into vortex
+    "divine_depreciation_implosion": "sounds/skills/divine_depreciation_implosion.wav",  # Reality implodes with massive flash
+    "divine_depreciation_reroll": "sounds/skills/divine_depreciation_reroll.wav",        # All furniture rerolls values
+
+    # DELPHIC APPRAISER - Auction Curse (4 events)
+    "auction_curse_podiums": "sounds/skills/auction_curse_podiums.wav",              # Podiums rise at furniture locations
+    "auction_curse_manifestation": "sounds/skills/auction_curse_manifestation.wav",  # Ghostly auctioneers manifest
+    "auction_curse_gavel_slam": "sounds/skills/auction_curse_gavel_slam.wav",        # Gavels slam in bidding frenzy
+    "auction_curse_convergence": "sounds/skills/auction_curse_convergence.wav",      # Curse beams converge on target
+
+    # DELPHIC APPRAISER - Market Futures (3 events)
+    "market_futures_assessment": "sounds/skills/market_futures_assessment.wav",  # Golden scanner beams assess furniture
+    "market_futures_rift": "sounds/skills/market_futures_rift.wav",              # Temporal rift opens
+    "market_futures_anchor": "sounds/skills/market_futures_anchor.wav",          # Anchor manifests and embeds
+
+    # DELPHIC APPRAISER - Parallax (Teleport) (3 events)
+    "parallax_anchor_glow": "sounds/skills/parallax_anchor_glow.wav",        # Anchor glows with golden energy
+    "parallax_dissolve": "sounds/skills/parallax_dissolve.wav",              # Unit dissolves into currency particles
+    "parallax_rematerialize": "sounds/skills/parallax_rematerialize.wav",    # Particles converge and reform at destination
+
+    # DELPHIC APPRAISER - Auction Curse Tick (3 events)
+    "auction_curse_tick_seething": "sounds/skills/auction_curse_tick_seething.wav",        # Curse seethes around afflicted unit
+    "auction_curse_tick_radiation": "sounds/skills/auction_curse_tick_radiation.wav",      # Curse radiates to furniture
+    "auction_curse_tick_corruption": "sounds/skills/auction_curse_tick_corruption.wav",    # Furniture corrupted, values inflate
+
+    # DELPHIC APPRAISER - Basic Attack (3 events)
+    "delphic_attack_appraisal": "sounds/skills/delphic_attack_appraisal.wav",  # Astral appraisal - calculating value
+    "delphic_attack_launch": "sounds/skills/delphic_attack_launch.wav",        # Launch astral bolt
+    "delphic_attack_impact": "sounds/skills/delphic_attack_impact.wav",        # Astral value impact
+
+    # DELPHIC APPRAISER - Deft(?) Reroll (2 events)
+    "deft_reroll_activation": "sounds/skills/deft_reroll_activation.wav",  # Gold pulse activation
+    "deft_reroll_spinning": "sounds/skills/deft_reroll_spinning.wav",      # Slot machine number cycling
 }
 
 
