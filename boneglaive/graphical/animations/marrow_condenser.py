@@ -2620,6 +2620,9 @@ class MarrowCondenserBoneAttack:
 
     def _trigger_gather(self):
         """Phase 1: Gather bone and marrow chunks."""
+        # Gather sound - bone and marrow coalescing
+        play_sound("marrow_attack_gather")
+
         # Spawn gathering particles (swirling toward attacker)
         for _ in range(20):
             angle = random.uniform(0, 2 * math.pi)
@@ -2646,6 +2649,9 @@ class MarrowCondenserBoneAttack:
 
     def _trigger_launch(self):
         """Phase 2: Launch wadded bone ball toward target."""
+        # Launch sound - bone ball hurled
+        play_sound("marrow_attack_launch")
+
         # Create trailing particles as ball moves
         for i in range(12):
             progress = i / 12
@@ -2674,6 +2680,9 @@ class MarrowCondenserBoneAttack:
 
     def _trigger_impact(self):
         """Phase 3: Bone and marrow explosion on impact."""
+        # Impact sound - bone and marrow explosion
+        play_sound("marrow_attack_impact")
+
         # Impact explosion - mixed bone shards and marrow splatter
         for _ in range(30):
             angle = random.uniform(0, 2 * math.pi)

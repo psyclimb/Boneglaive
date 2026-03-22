@@ -9,7 +9,6 @@ from typing import Optional, List
 from .menu_components import MenuScreen, Button, COLOR_TEXT, COLOR_BG
 from boneglaive.utils.config import ConfigManager, NetworkMode
 from boneglaive.game.map import MapFactory
-from boneglaive.utils.seasonal_events import get_active_season, seasonal_manager
 
 
 class PlaySubmenu(MenuScreen):
@@ -119,12 +118,6 @@ class MapSelectionMenu(MenuScreen):
 
         # Get available maps
         self.available_maps = MapFactory.list_available_maps()
-        self.active_season = get_active_season()
-
-        # Update title if seasonal event is active
-        if self.active_season:
-            seasonal_info = seasonal_manager.get_seasonal_info(self.active_season)
-            self.title = f"Select Map - {seasonal_info['name']} Active"
 
         # Button dimensions (larger to accommodate icons)
         self.button_width = 500
@@ -143,10 +136,6 @@ class MapSelectionMenu(MenuScreen):
         for i, map_name in enumerate(self.available_maps):
             # Create display name
             display_name = map_name.replace('_', ' ').title()
-
-            # Add seasonal indicator
-            if self.active_season and seasonal_manager.get_seasonal_map_path(map_name, self.active_season):
-                display_name += " *"
 
             # Load map icon
             map_icon = self._load_map_icon(map_name)
@@ -262,13 +251,6 @@ class MapSelectionMenu(MenuScreen):
 
         # Draw menu elements
         super().draw(surface)
-
-        # Draw seasonal indicator info if active
-        if self.active_season:
-            info_text = "* Indicates seasonal variant available"
-            info_surface = self.font.render(info_text, True, (180, 180, 180))
-            info_rect = info_surface.get_rect(centerx=self.screen_width // 2, top=110)
-            surface.blit(info_surface, info_rect)
 
         # Draw scroll hint if needed
         if len(self.buttons) > self.max_visible_buttons:

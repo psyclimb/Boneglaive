@@ -223,6 +223,11 @@ MULTI_EVENT_SOUNDS = {
     "bone_tithe_death_explosion": "sounds/skills/bone_tithe_death_explosion.wav",    # Gore eruption on death
     "bone_tithe_death_distribute": "sounds/skills/bone_tithe_death_distribute.wav",  # Viscera flying to allies
     "bone_tithe_death_heal": "sounds/skills/bone_tithe_death_heal.wav",              # Allies absorbing marrow energy
+
+    # MARROW CONDENSER - Basic Attack (3 events)
+    "marrow_attack_gather": "sounds/skills/marrow_attack_gather.wav",    # Bone and marrow coalescing into ball
+    "marrow_attack_launch": "sounds/skills/marrow_attack_launch.wav",    # Bone ball hurled toward target
+    "marrow_attack_impact": "sounds/skills/marrow_attack_impact.wav",    # Bone and marrow explosion on impact
 }
 
 

@@ -34,7 +34,7 @@ class HowToPlayScreen:
         # Content surface (rendered once)
         self.content_surface = None
         self.content_width = 700
-        self.line_height = 28
+        self.line_height = 36
 
     def _render_content(self):
         """Render the manual content to a surface."""

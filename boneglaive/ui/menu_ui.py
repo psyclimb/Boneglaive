@@ -195,27 +195,17 @@ class MenuUI:
         """Create the map selection menu with all available maps."""
         # Get all available maps (both JSON and hardcoded)
         from boneglaive.game.map import MapFactory
-        from boneglaive.utils.seasonal_events import get_active_season, seasonal_manager
-        
+
         available_maps = MapFactory.list_available_maps()
-        
-        # Check for active seasonal event
-        active_season = get_active_season()
+
         menu_title = "Select Map"
-        if active_season:
-            seasonal_info = seasonal_manager.get_seasonal_info(active_season)
-            menu_title = f"Select Map - {seasonal_info['name']} Active"
-        
+
         # Create menu items for each map
         menu_items = []
         for map_name in available_maps:
             # Create a display name (capitalize and replace underscores)
             display_name = map_name.replace('_', ' ').title()
-            
-            # Add seasonal indicator if seasonal map exists
-            if active_season and seasonal_manager.get_seasonal_map_path(map_name, active_season):
-                display_name += " *"  # Seasonal indicator (asterisk)
-            
+
             menu_items.append(MenuItem(display_name, lambda mn=map_name: self._select_map(mn)))
         
         # Add back button

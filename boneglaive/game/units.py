@@ -350,11 +350,12 @@ class Unit:
             from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
             return UNIT_DISPLAY_NAMES.get(self.type, f"UNIT_{self.type}")
 
-    def get_display_name(self, shortened=False) -> str:
-        """Get the unit's display name including the Greek identifier.
+    def get_display_name(self, shortened=False, include_player=False) -> str:
+        """Get the unit's display name.
 
         Args:
             shortened: If True, provides a shorter display name for UI menus
+            include_player: If True, adds [P1]/[P2] suffix for combat log clarity
         """
         # Format unit type name for display (replace underscores with spaces)
         display_type = self.get_type_name()
@@ -388,21 +389,21 @@ class Unit:
                 else:
                     vapor_name = "HEINOUS VAPOR"
                 
-                # Use vapor name without symbols, only Greek ID
+                # Use vapor name
                 if shortened:
                     base_name = vapor_name[:8]  # Shortened version
                 else:
                     base_name = vapor_name
-                
-                # Add Greek identifier if available
-                if self.greek_id:
-                    return f"{base_name} {self.greek_id}"
+
+                # Add player designation if requested
+                if include_player:
+                    return f"{base_name} [P{self.player}]"
                 else:
                     return base_name
             else:
-                # Fallback case - add Greek identifier if available
-                if self.greek_id:
-                    return f"HEINOUS VAPOR {self.greek_id}"
+                # Fallback case
+                if include_player:
+                    return f"HEINOUS VAPOR [P{self.player}]"
                 else:
                     return "HEINOUS VAPOR"
         elif display_type == "FOWL_CONTRIVANCE":
@@ -426,15 +427,15 @@ class Unit:
         
         # For echo units, change name to "ECHO {TYPE}"
         if self.is_doppelganger:
-            if self.greek_id:
-                return f"ECHO {display_type} {self.greek_id}"
-            else:
-                return f"ECHO {display_type}"
+            base_name = f"ECHO {display_type}"
         else:
-            if self.greek_id:
-                return f"{display_type} {self.greek_id}"
-            else:
-                return f"{display_type}"
+            base_name = display_type
+
+        # Add player designation if requested (for combat log)
+        if include_player:
+            return f"{base_name} [P{self.player}]"
+        else:
+            return base_name
     
     def apply_passive_skills(self, game=None, ui=None) -> None:
         """Apply effects of passive skills."""

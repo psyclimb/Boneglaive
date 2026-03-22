@@ -241,10 +241,10 @@ class GameMap:
         """Setup lighting effects for all Tiffany lamps on the map."""
         for (y, x), terrain in self.terrain.items():
             if terrain == TerrainType.TIFFANY_LAMP:
-                # Regular maps get white light, seasonal maps can override
+                # Regular maps get white light
                 light_color = "white"
-                
-                # Check if this is a seasonal map with special lighting
+
+                # Check if this is a special themed map
                 if "autumn" in self.name.lower() or "harvest" in self.name.lower():
                     light_color = "orange"
                 elif "winter" in self.name.lower():
@@ -990,24 +990,10 @@ class MapFactory:
     def create_map(map_name: str) -> GameMap:
         """Create a map based on the given name."""
         from boneglaive.utils.debug import logger
-        from boneglaive.utils.seasonal_events import get_active_season, get_seasonal_map_path
-        
+
         logger.info(f"MapFactory.create_map called with map_name: '{map_name}'")
-        
-        # First, check for active seasonal event and try seasonal map
-        active_season = get_active_season()
-        if active_season:
-            seasonal_path = get_seasonal_map_path(map_name.lower(), active_season)
-            if seasonal_path:
-                logger.info(f"Loading seasonal map: {seasonal_path}")
-                try:
-                    seasonal_map = GameMap.from_json(seasonal_path)
-                    return seasonal_map
-                except (FileNotFoundError, ValueError) as e:
-                    logger.warning(f"Failed to load seasonal map '{seasonal_path}': {e}")
-                    logger.info("Falling back to regular map")
-        
-        # Second, try to load from regular JSON file
+
+        # Try to load from regular JSON file
         json_path = os.path.join("maps", f"{map_name.lower()}.json")
         if os.path.exists(json_path):
             logger.info(f"Loading map from JSON file: {json_path}")

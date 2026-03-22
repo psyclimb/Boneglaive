@@ -135,7 +135,7 @@ class SetupUnitHelp:
                 'overview': 'A versatile melee warrior wielding a polearm and sacred spinning glaives. This balanced frontline fighter excels at mobility and devastating retaliatory strikes.',
                 'passive': {
                     'name': 'AUTOCLAVE',
-                    'desc': 'When brought to critical health, unleashes a devastating cross-shaped retaliation that heals. This ability can only trigger once per game.'
+                    'desc': 'When brought to critical health, unleashes a devastating cross-shaped retaliation that heals. Can only trigger once per life.'
                 },
                 'skills': [
                     {
@@ -178,19 +178,19 @@ class SetupUnitHelp:
             UnitType.GRAYMAN: {
                 'difficulty': 1,  # Out of 5
                 'role': 'Escape Artist / Disabler / Summoner',
-                'overview': 'A gray alien-human hybrid that exists outside normal causality, rendering it immune to all external manipulation. This highly mobile ranged unit weaponizes existential isolation to permanently weaken enemies while creating psychic doppelgangers across the battlefield.',
+                'overview': 'A gray alien-human hybrid occupying an unchangeable state, immune to all external manipulation. This ranged specialist teleports freely, weakens key targets, and creates doppelgangers that explode when destroyed.',
                 'passive': {
                     'name': 'STASIALITY',
-                    'desc': 'Exists in a state of permanent stasis outside normal spacetime, granting absolute immunity to all status effects, stat modifications, forced movement, and terrain effects.'
+                    'desc': 'Occupies an unchangeable state, granting immunity to all status effects, stat modifications, forced movement, and terrain effects.'
                 },
                 'skills': [
                     {
                         'name': 'DELTA CONFIG',
-                        'desc': 'Engages alien propulsion to teleport instantaneously to any unoccupied passable tile on the battlefield with no regard for distance or obstacles.'
+                        'desc': 'Teleports to any unoccupied passable tile on the battlefield with no regard for distance or obstacles.'
                     },
                     {
                         'name': 'ESTRANGE',
-                        'desc': 'Fires a reality-warping beam that phases the target partially out of spacetime, dealing defense-piercing damage and applying permanent stat reduction that never wears off.'
+                        'desc': 'Fires a beam that deals defense-piercing damage and reduces all of the target\'s stats.'
                     },
                     {
                         'name': 'GRÆ EXCHANGE',
@@ -201,7 +201,7 @@ class SetupUnitHelp:
             UnitType.MARROW_CONDENSER: {
                 'difficulty': 3,  # Out of 5
                 'role': 'Tank / Frontline Fighter / Displacer',
-                'overview': 'A quadrupedal bone manipulator that creates impassable wall structures to trap enemies inside killzones. This tank grows exponentially stronger with each kill, draining life force and reinforcing its skeletal structure.',
+                'overview': 'A quadrupedal bone manipulator that creates wall structures to trap enemies. This tank grows stronger with each kill, draining life from trapped enemies while reinforcing its defenses.',
                 'passive': {
                     'name': 'DOMINION',
                     'desc': 'When any unit dies within a Marrow Dike interior, absorbs their essence to trigger permanent evolutionary upgrades to stats and active skills. Bonuses are lost on death.'
@@ -213,7 +213,7 @@ class SetupUnitHelp:
                     },
                     {
                         'name': 'MARROW DIKE',
-                        'desc': 'Erupts bone marrow walls in a perimeter, creating an enclosed killzone. Enemy units on the perimeter are pulled inward, and the walls block movement and line of sight. When upgraded, trapped enemies suffer Mired (-2 attack).'
+                        'desc': 'Erupts bone marrow walls in a perimeter, creating an enclosed killzone. Enemy units on the perimeter are pulled inward, and the walls block movement and line of sight. When upgraded, trapped enemies suffer Mired.'
                     },
                     {
                         'name': 'BONE TITHE',
@@ -255,7 +255,7 @@ class SetupUnitHelp:
                 'skills': [
                     {
                         'name': 'GAUSSIAN DUSK',
-                        'desc': 'Fires a defense-piercing rail cannon across the map in a cardinal direction. Damage follows a bell curve based on target current HP%. Destroys terrain at beam midpoint.'
+                        'desc': 'Fires a defense-piercing rail cannon across the map in a cardinal direction. Damage follows a bell curve based on target current HP. Destroys terrain at beam midpoint.'
                     },
                     {
                         'name': 'PARABOL',
