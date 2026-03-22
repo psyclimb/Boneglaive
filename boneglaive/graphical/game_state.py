@@ -674,6 +674,25 @@ class GameStateAdapter:
                                         heal_amount=heal_per_ally
                                     ))
 
+                    # Check for Auction Curse Soul Collection (DELPHIC APPRAISER upgrade)
+                    if (hasattr(game_unit, 'auction_curse_caster') and game_unit.auction_curse_caster):
+                        caster = game_unit.auction_curse_caster
+                        from boneglaive.game.upgrades import UpgradeManager
+                        if UpgradeManager.is_skill_upgraded(caster, "Auction Curse"):
+                            # Check for perfect timing (initial_hp == applied_duration)
+                            initial_hp = getattr(game_unit, 'auction_curse_initial_hp', 0)
+                            applied_duration = getattr(game_unit, 'auction_curse_applied_duration', 0)
+                            if initial_hp > 0 and initial_hp == applied_duration:
+                                # Soul collection animation triggers
+                                death_pos = (game_unit.y, game_unit.x)
+                                events.append(AnimationEvent(
+                                    "skill",
+                                    source_unit=caster,
+                                    target_unit=game_unit,
+                                    skill_name="AUCTION_CURSE_SOUL_COLLECTION",
+                                    skill_target=death_pos
+                                ))
+
             # Detect Granite Geas chain hit (marked by skill when chaining)
             if hasattr(game_unit, 'granite_geas_chain_hit') and game_unit.granite_geas_chain_hit:
                 # This unit was hit by Granite Geas (either primary or chained)
