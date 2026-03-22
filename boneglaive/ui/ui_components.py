@@ -652,9 +652,9 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 22',
-                    'Attack: 4',
+                    'Attack: 5',
                     'Defense: 1',
-                    'Movement: 2',
+                    'Movement: 3',
                     'Range: 2',
                     'Symbol: G'
                 ],
@@ -717,9 +717,9 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 22',
-                    'Attack: 3',
+                    'Attack: 4',
                     'Defense: 1',
-                    'Movement: 2',
+                    'Movement: 3',
                     'Range: 1',
                     'Symbol: F'
                 ],
@@ -740,7 +740,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'SITE INSPECTION (Active) [Key: S]',
-                        'description': 'The MANDIBLE FOREMAN surveys a 3x3 area. Areas with 0 terrain obstacles grant allies +1 attack and +1 movement for 3 turns. Areas with 1 terrain obstacle grant +1 attack only. Areas with 2+ terrain obstacles grant no effect. The inspection also reveals hidden traps.',
+                        'description': 'The MANDIBLE FOREMAN surveys a 3x3 area. Areas with 0 terrain obstacles grant allies +1 attack and +1 movement for 3 turns. Areas with 1 terrain obstacle grant +1 movement only. Areas with 2+ terrain obstacles grant no effect. The inspection also reveals hidden traps.',
                         'details': [
                             'Range: 3',
                             'Cooldown: 4 turns'
@@ -779,9 +779,9 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 3',
+                    'Attack: 4',
                     'Defense: 0',
-                    'Movement: 3',
+                    'Movement: 4',
                     'Range: 5',
                     'Symbol: Ψ'
                 ],
@@ -883,8 +883,8 @@ class UnitHelpComponent(UIComponent):
                     'Difficulty: ***'
                 ],
                 'stats': [
-                    'HP: 20',
-                    'Attack: 3',
+                    'HP: 22',
+                    'Attack: 4',
                     'Defense: 2',
                     'Movement: 3',
                     'Range: 1',
@@ -898,7 +898,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'OSSIFY (Active) [Key: O]',
-                        'description': 'The MARROW CONDENSER hardens for 2 turns, gaining +2 defense at the cost of -1 movement. When upgraded, the defense bonus increases to +3.',
+                        'description': 'The MARROW CONDENSER hardens for 3 turns, gaining +2 defense at the cost of -1 movement. When upgraded, the defense bonus increases to +3.',
                         'details': [
                             'Cooldown: 3 turns'
                         ]
@@ -944,10 +944,10 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 3',
+                    'Attack: 4',
                     'Defense: 0',
-                    'Movement: 2',
-                    'Range: 2',
+                    'Movement: 3',
+                    'Range: 3',
                     'Symbol: T'
                 ],
                 'skills': [
@@ -1070,9 +1070,9 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 20',
-                    'Attack: 4',
+                    'Attack: 5',
                     'Defense: 0',
-                    'Movement: 3',
+                    'Movement: 4',
                     'Range: 1',
                     'Symbol: A',
                     'Attack Symbol: $'
@@ -1133,9 +1133,9 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 3',
+                    'Attack: 4',
                     'Defense: 0',
-                    'Movement: 2',
+                    'Movement: 4',
                     'Range: 1',
                     'Symbol: R',
                     'Attack Symbol: x'
@@ -1150,10 +1150,10 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'NEURAL SHUNT (Active) [Key: N]',
-                        'description': 'The INTERFERER hijacks a target\'s motor functions for 1 turn, dealing 8 damage. The afflicted unit performs random moves, attacks, or skills.',
+                        'description': 'The INTERFERER hijacks a target\'s motor functions for 1 turn, dealing 6 damage. The afflicted unit performs random moves, attacks, or skills.',
                         'details': [
                             'Range: 1',
-                            'Damage: 8',
+                            'Damage: 6',
                             'Cooldown: 4 turns'
                         ]
                     },
@@ -1161,7 +1161,7 @@ class UnitHelpComponent(UIComponent):
                         'name': 'KARRIER RAVE (Active) [Key: K]',
                         'description': 'The INTERFERER phases out of reality for 2 turns, becoming untargetable by any attacks or skills. Upon returning, the next melee attack strikes three times in rapid succession.',
                         'details': [
-                            'Cooldown: 5 turns'
+                            'Cooldown: 6 turns'
                         ]
                     },
                     {
@@ -1196,9 +1196,9 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 3',
+                    'Attack: 6',
                     'Defense: 0',
-                    'Movement: 3',
+                    'Movement: 4',
                     'Range: 1',
                     'Symbol: D',
                 ],
@@ -1255,9 +1255,9 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 24',
-                    'Attack: 4',
+                    'Attack: 5',
                     'Defense: 0',
-                    'Movement: 2',
+                    'Movement: 3',
                     'Range: 1',
                     'Symbol: P',
                 ],
