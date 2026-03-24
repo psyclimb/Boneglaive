@@ -2573,8 +2573,8 @@ class AuctionCurseTickAnimation:
 
 class DelphicAppraiserAstralAttack:
     """
-    DELPHIC APPRAISER basic attack animation - astral appraisal energy bolt.
-    Golden energy that calculates and strikes with cosmic value.
+    DELPHIC APPRAISER basic attack animation - coin flip attack.
+    Attacker flicks a golden coin in an arc toward the target.
     """
 
     def __init__(self, attacker_unit, target_unit, particle_emitter, screen_shake_callback):
@@ -2602,92 +2602,93 @@ class DelphicAppraiserAstralAttack:
         self.distance = distance
 
         # Animation state
-        self.phase = "appraisal"  # appraisal → launch → impact → done
+        self.phase = "appraisal"  # appraisal -> launch -> impact -> done
         self.timer = 0
         self.active = True
 
-        # Phase durations
+        # Phase durations (unchanged)
         self.appraisal_duration = 0.15
         self.launch_duration = 0.25
         self.impact_duration = 0.15
 
-        # Bolt position
-        self.bolt_progress = 0.0
+        # Coin travel progress
+        self.coin_progress = 0.0
 
-        # Golden astral colors
-        self.color_gold = (255, 215, 0)         # #ffd700
-        self.color_light_gold = (218, 165, 32)  # #daa520
+        # Coin spin angle (tumbles in flight)
+        self.coin_angle = 0.0
+
+        # Golden colors
+        self.color_gold = (255, 215, 0)
+        self.color_light_gold = (218, 165, 32)
         self.color_white_gold = (255, 245, 200)
+        self.color_dark_gold = (180, 140, 0)
 
     def _trigger_appraisal(self):
-        """Phase 1: Astral appraisal - calculating value."""
+        """Phase 1: Attacker holds coin up, brief glint."""
         play_sound("delphic_attack_appraisal")
 
-        # Golden particles swirl around attacker
-        for _ in range(10):
+        # Small glint particles orbiting the coin hand position
+        for _ in range(6):
             angle = random.uniform(0, 2 * math.pi)
-            distance = random.uniform(20, 30)
-            x = self.attacker.x + math.cos(angle) * distance
-            y = self.attacker.y + math.sin(angle) * distance
-
-            # Particles orbit slightly
-            vx = math.cos(angle + math.pi / 2) * 80
-            vy = math.sin(angle + math.pi / 2) * 80
-
-            color = self.color_gold if random.random() > 0.5 else self.color_light_gold
+            r = random.uniform(8, 16)
+            x = self.attacker.x + math.cos(angle) * r
+            y = self.attacker.y + math.sin(angle) * r
+            vx = math.cos(angle + math.pi / 2) * 60
+            vy = math.sin(angle + math.pi / 2) * 60
 
             from .core import Particle
-            particle = Particle(x, y, vx, vy, color, size=2, lifetime=0.18)
-            particle.gravity = 0
-            self.particle_emitter.particles.append(particle)
+            p = Particle(x, y, vx, vy, self.color_white_gold, size=1, lifetime=0.14)
+            p.gravity = 0
+            self.particle_emitter.particles.append(p)
 
     def _trigger_launch(self):
-        """Phase 2: Launch astral bolt."""
+        """Phase 2: Coin flicked into the air toward target."""
         play_sound("delphic_attack_launch")
+        self.coin_angle = 0.0
 
-        # Create golden trailing particles
-        for i in range(10):
-            progress = i / 10
-            trail_x = self.attacker.x + self.dx * self.distance * progress * 0.2
-            trail_y = self.attacker.y + self.dy * self.distance * progress * 0.2
-
-            vx = self.dx * 120
-            vy = self.dy * 120
-
-            color = random.choice([self.color_gold, self.color_light_gold])
+        # Small glint streak off the thumb flick
+        for i in range(5):
+            t = i / 5
+            x = self.attacker.x + self.dx * 10 * t
+            y = self.attacker.y + self.dy * 10 * t
+            vx = self.dx * 80 + random.uniform(-20, 20)
+            vy = self.dy * 80 + random.uniform(-20, 20)
 
             from .core import Particle
-            particle = Particle(trail_x, trail_y, vx, vy, color,
-                              size=random.uniform(2, 3), lifetime=0.2)
-            particle.gravity = 0
-            self.particle_emitter.particles.append(particle)
+            p = Particle(x, y, vx, vy, self.color_light_gold,
+                         size=random.uniform(1, 2), lifetime=0.12)
+            p.gravity = 0
+            self.particle_emitter.particles.append(p)
 
     def _trigger_impact(self):
-        """Phase 3: Astral value impact."""
+        """Phase 3: Coin strikes target, scatters sparks."""
         play_sound("delphic_attack_impact")
 
-        # Golden burst with floating numbers (aesthetic)
-        for _ in range(18):
+        # Coin edge sparks scatter outward
+        for _ in range(14):
             angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(70, 160)
+            speed = random.uniform(60, 140)
             vx = math.cos(angle) * speed
             vy = math.sin(angle) * speed
-
-            color = random.choice([
-                self.color_gold,
-                self.color_light_gold,
-                self.color_white_gold,
-            ])
+            color = random.choice([self.color_gold, self.color_light_gold, self.color_white_gold])
 
             from .core import Particle
-            particle = Particle(self.target.x, self.target.y, vx, vy, color,
-                              size=random.uniform(2, 4), lifetime=random.uniform(0.2, 0.3))
-            particle.gravity = 120
-            self.particle_emitter.particles.append(particle)
+            p = Particle(self.target.x, self.target.y, vx, vy, color,
+                         size=random.uniform(1, 3), lifetime=random.uniform(0.15, 0.25))
+            p.gravity = 200
+            self.particle_emitter.particles.append(p)
 
-        # Moderate impact
         self.target.shake_intensity = 9
         self.screen_shake(5, 0.15)
+
+    def _coin_arc_position(self, progress):
+        """Return (x, y) of coin along a parabolic arc from attacker to target."""
+        x = self.attacker.x + (self.target.x - self.attacker.x) * progress
+        # Arc height proportional to distance, peaks at midpoint
+        arc_height = self.distance * 0.35
+        y = (self.attacker.y + (self.target.y - self.attacker.y) * progress
+             - arc_height * 4 * progress * (1 - progress))
+        return x, y
 
     def update(self, delta_time):
         """Update animation state."""
@@ -2697,7 +2698,7 @@ class DelphicAppraiserAstralAttack:
         self.timer += delta_time
 
         if self.phase == "appraisal":
-            if self.timer == 0 or not hasattr(self, "_appraisal_triggered"):
+            if not hasattr(self, "_appraisal_triggered"):
                 self._trigger_appraisal()
                 self._appraisal_triggered = True
 
@@ -2707,8 +2708,10 @@ class DelphicAppraiserAstralAttack:
                 self._trigger_launch()
 
         elif self.phase == "launch":
-            # Update bolt progress
-            self.bolt_progress = min(1.0, self.timer / self.launch_duration)
+            self.coin_progress = min(1.0, self.timer / self.launch_duration)
+            # Coin spins faster in the middle of flight
+            spin_speed = 18.0 * (1.0 + 2.0 * self.coin_progress * (1 - self.coin_progress))
+            self.coin_angle += delta_time * spin_speed
 
             if self.timer >= self.launch_duration:
                 self.phase = "impact"
@@ -2723,84 +2726,76 @@ class DelphicAppraiserAstralAttack:
         return self.active
 
     def draw(self, surface):
-        """Draw astral appraisal bolt."""
+        """Draw coin flip attack."""
         import pygame
 
-        # Draw appraisal glow (calculating)
+        # Phase 1: coin glint above attacker's hand
         if self.phase == "appraisal":
             progress = self.timer / self.appraisal_duration
-            glow_radius = int(18 * progress)
+            # Small bright coin disc held up
+            coin_x = int(self.attacker.x)
+            coin_y = int(self.attacker.y - 12 * progress)
+            radius = 5
 
-            if glow_radius > 2:
-                # Pulsing golden glow
-                pulse = 0.7 + 0.3 * math.sin(self.timer * 20)
-                alpha = int(120 * progress * pulse)
+            coin_surf = pygame.Surface((radius * 2 + 4, radius * 2 + 4), pygame.SRCALPHA)
+            pygame.draw.circle(coin_surf, (*self.color_gold, int(220 * progress)),
+                               (radius + 2, radius + 2), radius)
+            pygame.draw.circle(coin_surf, (*self.color_white_gold, int(180 * progress)),
+                               (radius + 2, radius + 2), max(1, radius - 2))
+            surface.blit(coin_surf, (coin_x - radius - 2, coin_y - radius - 2))
 
-                glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-                pygame.draw.circle(glow_surf, (*self.color_gold, alpha),
-                                 (glow_radius, glow_radius), glow_radius)
-                surface.blit(glow_surf, (int(self.attacker.x - glow_radius),
-                                        int(self.attacker.y - glow_radius)))
-
-                # Bright center
-                core_radius = int(glow_radius * 0.6)
-                if core_radius > 1:
-                    core_surf = pygame.Surface((core_radius * 2, core_radius * 2), pygame.SRCALPHA)
-                    pygame.draw.circle(core_surf, (*self.color_white_gold, int(200 * progress * pulse)),
-                                     (core_radius, core_radius), core_radius)
-                    surface.blit(core_surf, (int(self.attacker.x - core_radius),
-                                            int(self.attacker.y - core_radius)))
-
-        # Draw astral bolt during launch phase
+        # Phase 2: coin tumbling along arc
         if self.phase == "launch":
-            # Calculate bolt position
-            bolt_x = self.attacker.x + self.dx * self.distance * self.bolt_progress
-            bolt_y = self.attacker.y + self.dy * self.distance * self.bolt_progress
+            cx, cy = self._coin_arc_position(self.coin_progress)
+            coin_x = int(cx)
+            coin_y = int(cy)
 
-            # Draw bolt as golden orb with trailing streak
-            bolt_length = 18
-            tail_x = bolt_x - self.dx * bolt_length
-            tail_y = bolt_y - self.dy * bolt_length
+            # Coin drawn as a squished ellipse that oscillates (tumbling effect)
+            # cos of spin angle compresses horizontal axis to simulate edge-on rotation
+            scale_x = max(1, int(7 * abs(math.cos(self.coin_angle))))
+            scale_y = 7
 
-            # Outer golden glow
-            pygame.draw.line(surface, (*self.color_light_gold, 100),
-                           (int(tail_x), int(tail_y)),
-                           (int(bolt_x), int(bolt_y)), 10)
+            coin_surf = pygame.Surface((scale_x * 2 + 4, scale_y * 2 + 4), pygame.SRCALPHA)
+            cx_s = scale_x + 2
+            cy_s = scale_y + 2
 
-            # Mid layer (bright gold)
-            pygame.draw.line(surface, (*self.color_gold, 180),
-                           (int(tail_x), int(tail_y)),
-                           (int(bolt_x), int(bolt_y)), 6)
+            # Outer gold rim
+            pygame.draw.ellipse(coin_surf, (*self.color_gold, 230),
+                                (cx_s - scale_x, cy_s - scale_y, scale_x * 2, scale_y * 2))
+            # Inner face (alternates gold/dark based on which face is showing)
+            face_color = self.color_white_gold if math.cos(self.coin_angle) >= 0 else self.color_dark_gold
+            inner_x = max(1, scale_x - 2)
+            inner_y = max(1, scale_y - 2)
+            if inner_x > 0 and inner_y > 0:
+                pygame.draw.ellipse(coin_surf, (*face_color, 200),
+                                    (cx_s - inner_x, cy_s - inner_y, inner_x * 2, inner_y * 2))
 
-            # Inner core (white-gold)
-            pygame.draw.line(surface, self.color_white_gold,
-                           (int(tail_x), int(tail_y)),
-                           (int(bolt_x), int(bolt_y)), 3)
+            surface.blit(coin_surf, (coin_x - scale_x - 2, coin_y - scale_y - 2))
 
-            # Bolt head (bright golden orb)
-            pygame.draw.circle(surface, self.color_white_gold,
-                             (int(bolt_x), int(bolt_y)), 5)
-            pygame.draw.circle(surface, (*self.color_gold, 200),
-                             (int(bolt_x), int(bolt_y)), 7)
+            # Faint glint trail
+            if self.coin_progress > 0.05:
+                prev_x, prev_y = self._coin_arc_position(max(0.0, self.coin_progress - 0.12))
+                trail_surf = pygame.Surface((
+                    abs(int(prev_x) - coin_x) + 4,
+                    abs(int(prev_y) - coin_y) + 4), pygame.SRCALPHA)
+                pygame.draw.line(surface, (*self.color_light_gold, 60),
+                                 (int(prev_x), int(prev_y)), (coin_x, coin_y), 2)
 
-        # Draw impact flash
+        # Phase 3: brief golden flash at target
         if self.phase == "impact":
             progress = self.timer / self.impact_duration
             if progress < 0.5:
-                flash_alpha = int(255 * (1.0 - progress / 0.5))
-                flash_radius = int(28 * (1.0 + progress))
+                flash_alpha = int(220 * (1.0 - progress / 0.5))
+                flash_radius = int(20 * (1.0 + progress))
 
                 flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
-                # White-gold outer flash
-                pygame.draw.circle(flash_surf, (255, 255, 255, flash_alpha),
-                                 (flash_radius, flash_radius), flash_radius)
-                # Golden center
-                center_radius = int(flash_radius * 0.6)
                 pygame.draw.circle(flash_surf, (*self.color_gold, flash_alpha),
-                                 (flash_radius, flash_radius), center_radius)
-
+                                   (flash_radius, flash_radius), flash_radius)
+                center_r = max(1, int(flash_radius * 0.5))
+                pygame.draw.circle(flash_surf, (*self.color_white_gold, flash_alpha),
+                                   (flash_radius, flash_radius), center_r)
                 surface.blit(flash_surf, (int(self.target.x - flash_radius),
-                                         int(self.target.y - flash_radius)))
+                                          int(self.target.y - flash_radius)))
 
 
 # ============================================================================
