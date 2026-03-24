@@ -222,7 +222,7 @@ class MarketFuturesSkill(ActiveSkill):
             key="M",
             description="Infuses a furniture piece with temporal investment energy. Creates a teleportation anchor that allies can activate. Grants maturing investment: +1 ATK (turn 1), +2 ATK (turn 2), +3 ATK (turn 3) with +1 Range for all 3 turns. Maturation occurs right before attacking.",
             target_type=TargetType.AREA,
-            cooldown=6,  # Increased cooldown to 6 turns
+            cooldown=4,
             range_=4
         )
         
@@ -375,7 +375,7 @@ class MarketFuturesSkill(ActiveSkill):
                 'cosmic_value': cosmic_value,
                 'active': True,
                 'imbued': True,  # Mark as imbued for special rendering
-                'duration': 7  # Market Futures anchor lasts 7 turns
+                'duration': 3  # Market Futures anchor lasts 3 turns
             }
 
             # Log the skill activation
@@ -865,7 +865,7 @@ class DivineDrepreciationSkill(ActiveSkill):
             key="D",
             description="Dramatically reappraises a furniture piece as cosmically worthless, creating a 7×7 reality distortion. Sets target furniture to value 1, deals damage that bypasses defense and pulls enemies toward the center based on move values. All other furniture has astral values rerolled.",
             target_type=TargetType.AREA,
-            cooldown=5,  # Cooldown of 5 turns
+            cooldown=4,
             range_=3,
             area=3  # 7×7 area (radius 3)
         )
