@@ -2607,9 +2607,9 @@ class DelphicAppraiserAstralAttack:
         self.active = True
 
         # Phase durations (unchanged)
-        self.appraisal_duration = 0.15
-        self.launch_duration = 0.25
-        self.impact_duration = 0.15
+        self.appraisal_duration = 0.30
+        self.launch_duration = 0.50
+        self.impact_duration = 0.30
 
         # Coin travel progress
         self.coin_progress = 0.0
