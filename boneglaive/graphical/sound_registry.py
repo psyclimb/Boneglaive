@@ -287,6 +287,34 @@ MULTI_EVENT_SOUNDS = {
 
     # INTERFERER - Scalar Node trigger (1 event)
     "scalar_node_trigger": "sounds/skills/scalar_node_trigger.wav",  # Standing wave erupts into searing blue-white electrical column
+
+    # FOWL CONTRIVANCE - Parabol (2 events)
+    "parabol_launch": "sounds/skills/parabol_launch.wav",        # Mortar fires - heavy thump of shell leaving cannon
+    "parabol_impact": "sounds/skills/parabol_impact.wav",        # Massive shell detonates - central explosion + rippling splashes
+
+    # FOWL CONTRIVANCE - Parabol Upgraded (2 additional events)
+    "parabol_underground": "sounds/skills/parabol_underground.wav",       # Shell burrows underground - rumbling subsurface travel
+    "parabol_second_impact": "sounds/skills/parabol_second_impact.wav",   # Cyan eruption from below - upward explosion from ground
+
+    # FOWL CONTRIVANCE - Fragcrest (3 events, shared with trap variant)
+    "fragcrest_detonate": "sounds/skills/fragcrest_detonate.wav",  # Claymore detonation - sharp directional blast
+    "fragcrest_burst": "sounds/skills/fragcrest_burst.wav",        # Shrapnel cone releasing - metal shriek through the air
+    "fragcrest_impact": "sounds/skills/fragcrest_impact.wav",      # Fragments embedding in targets
+
+    # FOWL CONTRIVANCE - Gaussian Dusk charge (2 events)
+    "gaussian_dusk_charge_start": "sounds/skills/gaussian_dusk_charge_start.wav",  # Rail gun beginning to charge - building electromagnetic hum
+    "gaussian_dusk_charge_ready": "sounds/skills/gaussian_dusk_charge_ready.wav",  # Fully charged - intense high-pitched tone
+
+    # FOWL CONTRIVANCE - Gaussian Dusk fire (1 event)
+    "gaussian_dusk_fire": "sounds/skills/gaussian_dusk_fire.wav",  # Hypersonic rail projectile - massive crack/boom across the map
+
+    # FOWL CONTRIVANCE - Rail Genesis death explosion (2 events)
+    "rail_genesis_charge": "sounds/skills/rail_genesis_charge.wav",    # Rail network destabilizing - rising electrical whine across all rails
+    "rail_genesis_detonate": "sounds/skills/rail_genesis_detonate.wav",  # Catastrophic chain detonation across entire rail network
+
+    # FOWL CONTRIVANCE - Basic Attack (2 events)
+    "fowl_attack_charge": "sounds/skills/fowl_attack_charge.wav",  # Brief EM charge-up before firing
+    "fowl_attack_impact": "sounds/skills/fowl_attack_impact.wav",  # Electromagnetic bolt impact - cyan spark burst
 }
 
 

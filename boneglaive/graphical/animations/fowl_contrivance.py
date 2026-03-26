@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, COLOR_DAMAGE, COLOR_SKILL
+from boneglaive.graphical.sound_helper import play_sound
 
 
 # ============================================================================
@@ -509,6 +510,9 @@ class ParabolAnimation:
         self.phase = "launch"
         self.timer = 0
 
+        # Launch sound
+        play_sound("parabol_launch")
+
         # Create launch smoke at caster
         self.launch_smoke = LaunchSmoke(self.caster_x, self.caster_y)
 
@@ -533,6 +537,9 @@ class ParabolAnimation:
         """Phase 3: Impact - Central explosion with rippling splash damage."""
         self.phase = "impact"
         self.timer = 0
+
+        # Impact explosion sound
+        play_sound("parabol_impact")
 
         # Create explosions and shockwaves for each impact position
         # Central explosion is immediate and massive, others ripple outward
@@ -1232,6 +1239,9 @@ class ParabolAnimationUpgraded(ParabolAnimation):
         self.phase = "underground_travel"
         self.timer = 0
 
+        # Underground travel sound
+        play_sound("parabol_underground")
+
         # Create burrow effect at first explosion center
         self.burrow_effect = BurrowEffect(self.target_x, self.target_y)
 
@@ -1288,6 +1298,9 @@ class ParabolAnimationUpgraded(ParabolAnimation):
         """Phase 5: Second explosion erupts from underground."""
         self.phase = "second_impact"
         self.timer = 0
+
+        # Second eruption explosion sound
+        play_sound("parabol_second_impact")
 
         if not self.second_explosion_pos:
             return
@@ -2143,6 +2156,9 @@ class FragcrestAnimation:
         self.phase = "ground_explosion"
         self.timer = 0
 
+        # Detonation sound
+        play_sound("fragcrest_detonate")
+
         # Create ground explosion effect
         self.ground_explosion = ClaymoreGroundExplosion(
             self.caster_x, self.caster_y,
@@ -2160,6 +2176,9 @@ class FragcrestAnimation:
         """Phase 2: Burst - Explosive cone release."""
         self.phase = "burst"
         self.timer = 0
+
+        # Shrapnel burst sound
+        play_sound("fragcrest_burst")
 
         # Create cone burst effect
         self.cone_burst = ConeBurst(self.caster_x, self.caster_y, self.direction_x, self.direction_y)
@@ -2187,6 +2206,9 @@ class FragcrestAnimation:
         """Phase 3: Impact - Fragments hit targets."""
         self.phase = "impact"
         self.timer = 0
+
+        # Shrapnel impact sound
+        play_sound("fragcrest_impact")
 
         # Create embedded shrapnel at each impact position
         for i, pos in enumerate(self.cone_screen_positions):
@@ -2337,6 +2359,9 @@ class FragcrestTrapAnimation:
         self.phase = "ground_explosion"
         self.timer = 0
 
+        # Trap detonation sound
+        play_sound("fragcrest_detonate")
+
         # Create ground explosion effect
         self.ground_explosion = ClaymoreGroundExplosion(
             self.trap_x, self.trap_y,
@@ -2354,6 +2379,9 @@ class FragcrestTrapAnimation:
         """Phase 2: Burst - Explosive cone release."""
         self.phase = "burst"
         self.timer = 0
+
+        # Shrapnel burst sound
+        play_sound("fragcrest_burst")
 
         # Create cone burst effect
         self.cone_burst = ConeBurst(
@@ -2384,6 +2412,9 @@ class FragcrestTrapAnimation:
         """Phase 3: Impact - Fragments hit targets."""
         self.phase = "impact"
         self.timer = 0
+
+        # Shrapnel impact sound
+        play_sound("fragcrest_impact")
 
         # Create embedded shrapnel at each impact position
         for i, pos in enumerate(self.cone_screen_positions):
@@ -2698,6 +2729,9 @@ class GaussianDuskChargeAnimation:
         self.phase = "charge_start"
         self.timer = 0
 
+        # Rail gun beginning to charge
+        play_sound("gaussian_dusk_charge_start")
+
         # Create charging coil
         coil = ChargingCoil(self.caster_x, self.caster_y)
         self.charging_coils.append(coil)
@@ -2734,6 +2768,9 @@ class GaussianDuskChargeAnimation:
         """Phase 3: Charge Ready - Intense glow, fully charged."""
         self.phase = "charge_ready"
         self.timer = 0
+
+        # Fully charged - critical tone
+        play_sound("gaussian_dusk_charge_ready")
 
         # Add more intense particles
         for i in range(6):
@@ -3108,6 +3145,9 @@ class GaussianDuskFireAnimation:
         """Phase 2: Projectile Travel - Hypersonic projectile screams across map."""
         self.phase = "beam_travel"
         self.timer = 0
+
+        # Rail gun firing - hypersonic crack
+        play_sound("gaussian_dusk_fire")
 
         # Create hypersonic projectile
         if self.firing_positions:
@@ -3573,6 +3613,9 @@ class RailGenesisDeathExplosionAnimation:
         self.phase = "charge"
         self.timer = 0
 
+        # Rail network destabilizing
+        play_sound("rail_genesis_charge")
+
         # Create pulsing glows on all rails (staggered slightly)
         for i, (rail_x, rail_y) in enumerate(self.rail_positions):
             delay = (i % 10) * 0.02  # Stagger every 10th rail
@@ -3586,6 +3629,9 @@ class RailGenesisDeathExplosionAnimation:
         """Phase 2: Detonation - Explosions along all rails."""
         self.phase = "detonation"
         self.timer = 0
+
+        # Catastrophic rail detonation
+        play_sound("rail_genesis_detonate")
 
         # Create explosions at all rail positions (staggered for visual spread)
         for i, (rail_x, rail_y) in enumerate(self.rail_positions):
@@ -3754,74 +3800,80 @@ class FowlContrivanceElectromagneticAttack:
         # Bolt position
         self.bolt_progress = 0.0
 
-        # Cyan electromagnetic colors
-        self.color_cyan = (0, 204, 255)      # #00ccff
-        self.color_light_cyan = (100, 230, 255)
+        # Kinetic slug colors pulled from sprite
+        self.color_orange = (255, 102, 0)     # #ff6600 - eye glow / beak fire
+        self.color_yellow = (255, 204, 0)     # #ffcc00 - warning stripe hot core
+        self.color_steel = (106, 106, 106)    # #6a6a6a - body metal
+        self.color_dark = (74, 74, 74)        # #4a4a4a - dark steel
         self.color_white = (255, 255, 255)
 
     def _trigger_charge(self):
-        """Phase 1: Brief electromagnetic charge."""
-        # Small cyan particles converge at attacker
-        for _ in range(8):
-            angle = random.uniform(0, 2 * math.pi)
-            distance = random.uniform(15, 25)
-            x = self.attacker.x + math.cos(angle) * distance
-            y = self.attacker.y + math.sin(angle) * distance
+        """Phase 1: Brief mechanical chambering - small metal/smoke puff at beak."""
+        play_sound("fowl_attack_charge")
 
-            # Particles move toward gun
-            vx = -math.cos(angle) * 200
-            vy = -math.sin(angle) * 200
-
-            color = self.color_cyan if random.random() > 0.5 else self.color_light_cyan
-
-            from .core import Particle
-            particle = Particle(x, y, vx, vy, color, size=2, lifetime=0.12)
-            particle.gravity = 0
+        # Tiny grey smoke puff from the beak as slug chambers
+        from .core import Particle
+        for _ in range(5):
+            angle = random.uniform(-0.4, 0.4)
+            base_angle = math.atan2(self.dy, self.dx)
+            vx = math.cos(base_angle + angle) * random.uniform(30, 60)
+            vy = math.sin(base_angle + angle) * random.uniform(30, 60)
+            color = random.choice([self.color_steel, self.color_dark])
+            particle = Particle(self.attacker.x, self.attacker.y, vx, vy, color,
+                              size=random.uniform(1.5, 3), lifetime=0.1)
+            particle.gravity = 20
             self.particle_emitter.particles.append(particle)
 
     def _trigger_fire(self):
-        """Phase 2: Fire electromagnetic bolt."""
-        # Create trailing particles along bolt path
-        for i in range(8):
-            progress = i / 8
-            trail_x = self.attacker.x + self.dx * self.distance * progress * 0.2
-            trail_y = self.attacker.y + self.dy * self.distance * progress * 0.2
-
-            vx = self.dx * 150
-            vy = self.dy * 150
-
-            color = random.choice([self.color_cyan, self.color_light_cyan])
-
-            from .core import Particle
-            particle = Particle(trail_x, trail_y, vx, vy, color,
-                              size=random.uniform(2, 3), lifetime=0.15)
-            particle.gravity = 0
+        """Phase 2: Kinetic slug leaves a short smoke/debris trail."""
+        from .core import Particle
+        # Smoke trail spawned at attacker, drifts perpendicular + behind
+        perp_x = -self.dy
+        perp_y = self.dx
+        for i in range(6):
+            offset = (i / 6) * 0.15  # spread trail back slightly
+            sx = self.attacker.x - self.dx * offset * self.distance
+            sy = self.attacker.y - self.dy * offset * self.distance
+            vx = perp_x * random.uniform(-25, 25) - self.dx * random.uniform(10, 30)
+            vy = perp_y * random.uniform(-25, 25) - self.dy * random.uniform(10, 30)
+            color = random.choice([self.color_steel, self.color_dark, (90, 80, 70)])
+            particle = Particle(sx, sy, vx, vy, color,
+                              size=random.uniform(2, 4), lifetime=random.uniform(0.1, 0.18))
+            particle.gravity = 15
             self.particle_emitter.particles.append(particle)
 
     def _trigger_impact(self):
-        """Phase 3: Electromagnetic impact."""
-        # Cyan spark burst
-        for _ in range(15):
+        """Phase 3: Hard kinetic impact - orange flash, metal debris, dust."""
+        play_sound("fowl_attack_impact")
+
+        from .core import Particle
+        # Metal debris flying outward - heavier, gravity-affected
+        for _ in range(12):
             angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(60, 150)
+            speed = random.uniform(80, 180)
             vx = math.cos(angle) * speed
             vy = math.sin(angle) * speed
-
-            color = random.choice([
-                self.color_cyan,
-                self.color_light_cyan,
-                self.color_white,
-            ])
-
-            from .core import Particle
+            color = random.choice([self.color_steel, self.color_dark, (90, 80, 70)])
             particle = Particle(self.target.x, self.target.y, vx, vy, color,
-                              size=random.uniform(2, 4), lifetime=random.uniform(0.15, 0.25))
-            particle.gravity = 100
+                              size=random.uniform(2, 4), lifetime=random.uniform(0.1, 0.2))
+            particle.gravity = 250
             self.particle_emitter.particles.append(particle)
 
-        # Light impact
-        self.target.shake_intensity = 8
-        self.screen_shake(4, 0.12)
+        # Hot orange sparks from the slug core - fewer, fast
+        for _ in range(6):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(120, 220)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            color = random.choice([self.color_orange, self.color_yellow])
+            particle = Particle(self.target.x, self.target.y, vx, vy, color,
+                              size=random.uniform(1.5, 3), lifetime=random.uniform(0.08, 0.15))
+            particle.gravity = 300
+            self.particle_emitter.particles.append(particle)
+
+        # Hard kinetic punch
+        self.target.shake_intensity = 10
+        self.screen_shake(5, 0.1)
 
     def update(self, delta_time):
         """Update animation state."""
@@ -3860,74 +3912,58 @@ class FowlContrivanceElectromagneticAttack:
         """Draw electromagnetic bolt."""
         import pygame
 
-        # Draw charging glow
-        if self.phase == "charge":
-            progress = self.timer / self.charge_duration
-            glow_radius = int(15 * progress)
+        # Draw charge phase - no visible glow, just smoke particles handle it
+        # (charge is too brief and mechanical to warrant a drawn effect)
 
-            if glow_radius > 2:
-                glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-                pygame.draw.circle(glow_surf, (*self.color_cyan, int(100 * progress)),
-                                 (glow_radius, glow_radius), glow_radius)
-                surface.blit(glow_surf, (int(self.attacker.x - glow_radius),
-                                        int(self.attacker.y - glow_radius)))
-
-                # Bright center
-                core_radius = int(glow_radius * 0.5)
-                if core_radius > 1:
-                    core_surf = pygame.Surface((core_radius * 2, core_radius * 2), pygame.SRCALPHA)
-                    pygame.draw.circle(core_surf, (*self.color_light_cyan, int(180 * progress)),
-                                     (core_radius, core_radius), core_radius)
-                    surface.blit(core_surf, (int(self.attacker.x - core_radius),
-                                            int(self.attacker.y - core_radius)))
-
-        # Draw electromagnetic bolt during fire phase
+        # Draw kinetic slug during fire phase
         if self.phase == "fire":
-            # Calculate bolt position
             bolt_x = self.attacker.x + self.dx * self.distance * self.bolt_progress
             bolt_y = self.attacker.y + self.dy * self.distance * self.bolt_progress
 
-            # Draw bolt as elongated streak
-            bolt_length = 20
-            tail_x = bolt_x - self.dx * bolt_length
-            tail_y = bolt_y - self.dy * bolt_length
+            # Smoke smear tail - short, wide, dark grey fading back
+            tail_length = 14
+            tail_x = bolt_x - self.dx * tail_length
+            tail_y = bolt_y - self.dy * tail_length
 
-            # Outer glow (widest)
-            pygame.draw.line(surface, (*self.color_cyan, 80),
+            smoke_surf = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
+            pygame.draw.line(smoke_surf, (*self.color_dark, 90),
                            (int(tail_x), int(tail_y)),
-                           (int(bolt_x), int(bolt_y)), 10)
-
-            # Mid layer (bright cyan)
-            pygame.draw.line(surface, (*self.color_light_cyan, 160),
+                           (int(bolt_x), int(bolt_y)), 7)
+            pygame.draw.line(smoke_surf, (*self.color_steel, 60),
                            (int(tail_x), int(tail_y)),
-                           (int(bolt_x), int(bolt_y)), 6)
+                           (int(bolt_x), int(bolt_y)), 11)
+            surface.blit(smoke_surf, (0, 0))
 
-            # Inner core (white-cyan)
-            pygame.draw.line(surface, self.color_white,
+            # Slug body - solid dark steel rod
+            pygame.draw.line(surface, self.color_dark,
                            (int(tail_x), int(tail_y)),
-                           (int(bolt_x), int(bolt_y)), 3)
+                           (int(bolt_x), int(bolt_y)), 4)
 
-            # Bolt head (bright point)
-            pygame.draw.circle(surface, self.color_white,
-                             (int(bolt_x), int(bolt_y)), 4)
-            pygame.draw.circle(surface, (*self.color_light_cyan, 180),
-                             (int(bolt_x), int(bolt_y)), 6)
+            # Hot nose - small orange tip at the front
+            nose_x = bolt_x + self.dx * 3
+            nose_y = bolt_y + self.dy * 3
+            pygame.draw.circle(surface, self.color_orange, (int(nose_x), int(nose_y)), 3)
+            pygame.draw.circle(surface, self.color_yellow, (int(nose_x), int(nose_y)), 1)
 
-        # Draw impact flash
+        # Draw impact flash - hard orange/white, no glow halo
         if self.phase == "impact":
             progress = self.timer / self.impact_duration
-            if progress < 0.5:
-                flash_alpha = int(255 * (1.0 - progress / 0.5))
-                flash_radius = int(25 * (1.0 + progress))
+            if progress < 0.6:
+                fade = 1.0 - (progress / 0.6)
+                flash_alpha = int(220 * fade)
+                flash_radius = int(18 + progress * 10)
 
                 flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
-                # White outer flash
-                pygame.draw.circle(flash_surf, (255, 255, 255, flash_alpha),
+                # Orange outer ring
+                pygame.draw.circle(flash_surf, (*self.color_orange, flash_alpha),
                                  (flash_radius, flash_radius), flash_radius)
-                # Cyan center
-                center_radius = int(flash_radius * 0.6)
-                pygame.draw.circle(flash_surf, (*self.color_cyan, flash_alpha),
-                                 (flash_radius, flash_radius), center_radius)
+                # Yellow-white hot center
+                core_r = int(flash_radius * 0.5)
+                pygame.draw.circle(flash_surf, (*self.color_yellow, min(255, flash_alpha + 30)),
+                                 (flash_radius, flash_radius), core_r)
+                # White pinpoint core
+                pygame.draw.circle(flash_surf, (255, 255, 255, min(255, flash_alpha + 60)),
+                                 (flash_radius, flash_radius), max(1, core_r // 2))
 
                 surface.blit(flash_surf, (int(self.target.x - flash_radius),
                                          int(self.target.y - flash_radius)))
