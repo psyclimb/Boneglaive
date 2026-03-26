@@ -993,6 +993,8 @@ class DivineDrepreciationSkill(ActiveSkill):
             target_name = furniture_name
         else:
             # Target is an enemy - get their astral value
+            if target_enemy is None:
+                return False  # Target moved or died before execution
             if hasattr(user, 'passive_skill') and user.passive_skill:
                 original_cosmic_value = user.passive_skill._get_enemy_astral_value(game, user.player, target_enemy)
             else:
