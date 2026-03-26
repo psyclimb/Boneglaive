@@ -71,6 +71,10 @@ def get_fitted_font(text: str,
     if not text:
         return _font_cache.get_font(font_name, base_font_size)
 
+    # Guard against degenerate constraints
+    if max_width <= 0:
+        return _font_cache.get_font(font_name, base_font_size)
+
     # Start with base size
     current_size = base_font_size
 

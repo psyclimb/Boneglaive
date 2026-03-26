@@ -1680,7 +1680,7 @@ class DeftRerollSkill(ActiveSkill):
         for pos in furniture_to_reroll:
             # Show flashing reroll animation
             if ui and hasattr(ui, 'renderer'):
-                reroll_animation = [str(random.randint(1, 9)) for _ in range(12)]
+                reroll_animation = [str(random.randint(1, 14)) for _ in range(12)]
                 ui.renderer.animate_attack_sequence(
                     pos[0], pos[1],
                     reroll_animation,
@@ -1689,7 +1689,7 @@ class DeftRerollSkill(ActiveSkill):
                 )
 
             # Generate new cosmic value
-            new_value = random.randint(1, 9)
+            new_value = random.randint(1, 14)
             game.map.set_cosmic_value(pos[0], pos[1], new_value, user.player)
             rerolled_values[pos] = new_value
 
@@ -1698,7 +1698,7 @@ class DeftRerollSkill(ActiveSkill):
             for pos, enemy_unit in appraised_enemies:
                 # Show flashing reroll animation
                 if ui and hasattr(ui, 'renderer'):
-                    reroll_animation = [str(random.randint(1, 9)) for _ in range(12)]
+                    reroll_animation = [str(random.randint(1, 14)) for _ in range(12)]
                     ui.renderer.animate_attack_sequence(
                         pos[0], pos[1],
                         reroll_animation,
@@ -1706,8 +1706,8 @@ class DeftRerollSkill(ActiveSkill):
                         0.5
                     )
 
-                # Generate a new random astral value (1-9) for this enemy
-                new_value = random.randint(1, 9)
+                # Generate a new random astral value (1-14) for this enemy
+                new_value = random.randint(1, 14)
                 user.passive_skill._set_enemy_astral_value(game, user.player, enemy_unit, new_value)
                 rerolled_values[pos] = new_value
 
@@ -1739,7 +1739,7 @@ class DeftRerollSkill(ActiveSkill):
         for i, skill in enumerate(user.active_skills):
             if skill.name == "Deft(?) Reroll":
                 divine_dep = DivineDrepreciationSkill()
-                divine_dep.current_cooldown = 6  # Full cooldown
+                divine_dep.current_cooldown = 5  # Full cooldown + 1 penalty for using Deft(?) Reroll
                 user.active_skills[i] = divine_dep
 
                 message_log.add_message(

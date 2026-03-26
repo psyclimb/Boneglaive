@@ -274,7 +274,7 @@ class CosmicRerollNumber:
     Rapidly cycling number on a furniture piece.
     Shows 12 frames of random values before settling.
     """
-    def __init__(self, x, y, camera, final_value, start_delay=0.0):
+    def __init__(self, x, y, camera, final_value, start_delay=0.0, max_value=9):
         self.x = x
         self.y = y
         self.camera = camera
@@ -285,7 +285,7 @@ class CosmicRerollNumber:
         self.active = True
 
         # Generate sequence of random numbers
-        self.sequence = [random.randint(1, 9) for _ in range(12)]
+        self.sequence = [random.randint(1, max_value) for _ in range(12)]
         self.sequence.append(final_value)  # End with final value
 
         self.current_index = 0
@@ -2894,10 +2894,8 @@ class DeftRerollAnimation:
     Rerolls all furniture values in the Divine Depreciation distortion area.
 
     Phases:
-    1. Activation - Gold pulse from caster
-    2. Spinning Values - Slot machine number cycling
-    3. Resolution - Values lock in with flashes
-    4. Completion - Effects fade
+    1. Activation - FractureLines from caster, gold glow, furniture borders light up
+    2. Spinning - CosmicRerollNumber cycling at each furniture tile with orbiting particles
     """
 
     # Delphic Appraiser color palette
@@ -2944,78 +2942,50 @@ class DeftRerollAnimation:
         self.active = True
 
         # Phase durations
-        self.activation_duration = 0.2
-        self.spinning_duration = 0.8
-        self.resolution_duration = 0.5
-        self.completion_duration = 0.3
+        self.activation_duration = 0.6
+        self.spinning_timeout = 2.5  # Max spinning phase duration
 
-        # Get furniture positions to animate (only furniture tiles, not all distortion area)
+        # Get furniture positions to animate from deft_reroll_values, which is set by the
+        # skill's execute() and survives the cleanup that deletes deft_reroll_distortion_id.
+        # deft_reroll_values is {(grid_y, grid_x): new_value} for every rerolled furniture tile.
         self.reroll_positions = []  # List of (screen_x, screen_y, final_value)
-        if game and caster_game_unit and hasattr(caster_game_unit, 'deft_reroll_distortion_id'):
-            from boneglaive.game.terrain import TerrainType
-            distortion_id = caster_game_unit.deft_reroll_distortion_id
-            distortion = game.reality_distortions.get(distortion_id)
-
-            # Get rerolled values from caster unit
+        if caster_game_unit:
             rerolled_values = getattr(caster_game_unit, 'deft_reroll_values', {})
-
-            if distortion and 'area' in distortion:
-                # Only add positions that have furniture
-                for pos in distortion['area']:
-                    if pos != distortion.get('center'):  # Skip center
-                        terrain = game.map.get_terrain_at(pos[0], pos[1])
-                        if terrain in [TerrainType.LECTERN, TerrainType.COAT_RACK,
-                                     TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
-                                     TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
-                                     TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
-                                     TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
-                                     TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                                     TerrainType.POTPOURRI_BOWL]:
-                            screen_x, screen_y = camera.grid_to_screen(pos[1], pos[0], centered=True)
-                            final_value = rerolled_values.get(pos, random.randint(1, 9))
-                            self.reroll_positions.append((screen_x, screen_y, final_value))
+            for (grid_y, grid_x), new_value in rerolled_values.items():
+                screen_x, screen_y = camera.grid_to_screen(grid_x, grid_y, centered=True)
+                self.reroll_positions.append((screen_x, screen_y, new_value))
 
         # Visual elements
-        self.activation_pulse = 0
-        self.spinning_effects = []
+        self.fracture_lines = None
+        self.reroll_numbers = []
+        self.glow_intensity = 0.0
 
         # Start activation
         self._start_activation()
 
     def _start_activation(self):
-        """Phase 1: Activation."""
+        """Phase 1: Activation — fracture lines, glow, furniture borders."""
         play_sound("deft_reroll_activation")
 
         self.phase = "activation"
         self.timer = 0
+        self.fracture_lines = FractureLines(self.caster_x, self.caster_y, self.camera)
 
-        # Light screen flash
-        self.screen_flash_callback((255, 215, 0), 0.2)
+        self.screen_shake_callback(intensity=2, duration=0.6)
+        self.screen_flash_callback((255, 215, 0), 0.3)
 
     def _start_spinning(self):
-        """Phase 2: Spinning Values."""
+        """Phase 2: Spinning — CosmicRerollNumber at each furniture tile."""
         play_sound("deft_reroll_spinning")
 
         self.phase = "spinning"
         self.timer = 0
 
-        # Create spinning number effects at each position with final value
         for i, (x, y, final_value) in enumerate(self.reroll_positions):
-            delay = i * 0.05  # Stagger slightly
-            self.spinning_effects.append(SpinningNumberEffect(x, y, final_value=final_value, delay=delay))
+            delay = i * 0.08
+            self.reroll_numbers.append(CosmicRerollNumber(x, y, self.camera, final_value, start_delay=delay, max_value=14))
 
-        # Screen shake
-        self.screen_shake_callback(intensity=3, duration=0.8)
-
-    def _start_resolution(self):
-        """Phase 3: Resolution."""
-        self.phase = "resolution"
-        self.timer = 0
-
-    def _start_completion(self):
-        """Phase 4: Completion."""
-        self.phase = "completion"
-        self.timer = 0
+        self.screen_shake_callback(intensity=3, duration=1.5)
 
     def update(self, delta_time):
         """Update animation."""
@@ -3025,32 +2995,21 @@ class DeftRerollAnimation:
         self.timer += delta_time
 
         if self.phase == "activation":
-            # Pulse grows from caster
-            progress = self.timer / self.activation_duration
-            self.activation_pulse = progress
+            # Ramp glow intensity 0 -> 1
+            self.glow_intensity = min(1.0, self.timer / self.activation_duration)
+
+            if self.fracture_lines:
+                self.fracture_lines.update(delta_time)
 
             if self.timer >= self.activation_duration:
                 self._start_spinning()
 
         elif self.phase == "spinning":
-            # Update all spinning effects
-            all_done = True
-            for effect in self.spinning_effects:
-                if effect.update(delta_time):
-                    all_done = False
+            for num in self.reroll_numbers:
+                num.update(delta_time)
 
-            # Once all effects are done spinning, move to resolution
-            if all_done or self.timer >= self.spinning_duration + 1.0:
-                self._start_resolution()
-
-        elif self.phase == "resolution":
-            # Wait for lock-in effects to complete
-            if self.timer >= self.resolution_duration:
-                self._start_completion()
-
-        elif self.phase == "completion":
-            # Fade out
-            if self.timer >= self.completion_duration:
+            all_done = all(not num.active for num in self.reroll_numbers)
+            if (self.reroll_numbers and all_done) or self.timer >= self.spinning_timeout:
                 self.active = False
                 return False
 
@@ -3062,56 +3021,44 @@ class DeftRerollAnimation:
             return
 
         if self.phase == "activation":
-            # Gold pulse from caster
-            if self.activation_pulse > 0:
-                radius = int(40 * self.activation_pulse)
-                alpha = int(180 * (1.0 - self.activation_pulse))
-
-                if alpha > 0:
-                    pulse_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-                    pygame.draw.circle(pulse_surf, (*self.color_gold, alpha),
-                                     (radius, radius), radius)
-                    surface.blit(pulse_surf, (int(self.caster_x - radius),
-                                             int(self.caster_y - radius)))
-
-            # Highlight reroll positions
-            for x, y, _ in self.reroll_positions:
-                alpha = int(120 * self.activation_pulse)
-                if alpha > 0:
-                    highlight_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-                    pygame.draw.rect(highlight_surf, (*self.color_gold, alpha),
-                                   highlight_surf.get_rect(), 2)
-                    surface.blit(highlight_surf, (int(x - TILE_SIZE // 2),
-                                                 int(y - TILE_SIZE // 2)))
-
-        elif self.phase == "spinning" or self.phase == "resolution":
-            # Draw all spinning number effects
-            for effect in self.spinning_effects:
-                effect.draw(surface)
-
-            # Draw orbiting particles during spin
-            if self.phase == "spinning":
-                for x, y, _ in self.reroll_positions:
-                    for i in range(4):
-                        angle = (self.timer * 3 + i * (math.pi / 2))
-                        radius = 15
-                        px = x + math.cos(angle) * radius
-                        py = y + math.sin(angle) * radius
-
-                        pygame.draw.circle(surface, self.color_goldenrod,
-                                         (int(px), int(py)), 2)
-
-        elif self.phase == "completion":
-            # Fade out any remaining effects
-            progress = self.timer / self.completion_duration
-            alpha = int(255 * (1.0 - progress))
-
+            # Pulsing gold glow on caster
+            radius = int(30 + 8 * math.sin(self.timer * 8))
+            alpha = int(self.glow_intensity * 180)
             if alpha > 0:
+                glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+                pygame.draw.circle(glow_surf, (*self.color_gold, alpha),
+                                   (radius, radius), radius)
+                surface.blit(glow_surf, (int(self.caster_x - radius),
+                                         int(self.caster_y - radius)))
+
+            # Fracture lines from caster
+            if self.fracture_lines:
+                self.fracture_lines.draw(surface)
+
+            # Gold borders fading in on furniture tiles
+            border_alpha = int(self.glow_intensity * 120)
+            if border_alpha > 0:
                 for x, y, _ in self.reroll_positions:
-                    glow_surf = pygame.Surface((30, 30), pygame.SRCALPHA)
-                    pygame.draw.circle(glow_surf, (*self.color_gold, alpha // 2),
-                                     (15, 15), 15)
-                    surface.blit(glow_surf, (int(x - 15), int(y - 15)))
+                    highlight_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    pygame.draw.rect(highlight_surf, (*self.color_gold, border_alpha),
+                                     highlight_surf.get_rect(), 2)
+                    surface.blit(highlight_surf, (int(x - TILE_SIZE // 2),
+                                                   int(y - TILE_SIZE // 2)))
+
+        elif self.phase == "spinning":
+            # Cosmic reroll numbers at each furniture tile
+            for num in self.reroll_numbers:
+                num.draw(surface)
+
+            # Orbiting gold/goldenrod particles around each tile
+            for j, (x, y, _) in enumerate(self.reroll_positions):
+                for i in range(4):
+                    angle = self.timer * 4 + i * (math.pi / 2)
+                    radius = 20
+                    px = x + math.cos(angle) * radius
+                    py = y + math.sin(angle) * radius
+                    color = (0, 0, 0)
+                    pygame.draw.circle(surface, color, (int(px), int(py)), 2)
 
 class SoulParticle:
     """Golden soul particle that emerges from corpse and streams to auctioneers."""
@@ -3158,14 +3105,12 @@ class SoulParticle:
 class AuctionCurseSoulCollectionAnimation:
     """
     Death animation when a cursed enemy dies with Auction Curse upgrade (perfect timing).
-    Astral auctioneers manifest to collect the soul at its precise worth.
+    Astral auctioneers manifest to collect the soul as a financial transaction.
 
     Phases:
-    1. Manifest (0.3s) - Auctioneers rise at furniture positions
-    2. Gavel Strike (0.2s) - Gavels slam "SOLD!"
-    3. Soul Emergence (0.3s) - Golden soul particles emerge from corpse
-    4. Collection (0.4s) - Soul streams to auctioneers
-    5. Descent (0.3s) - Auctioneers descend with soul fragments
+    1. Manifest (0.8s) - Auctioneers rise at furniture positions
+    2. Soul Transfer (0.9s) - Soul emerges from corpse and streams to auctioneers
+    3. Descent (0.7s) - Auctioneers descend with the collected soul
     """
 
     def __init__(self, caster_unit, target_unit, target_pos, is_crit, is_infused,
@@ -3201,15 +3146,12 @@ class AuctionCurseSoulCollectionAnimation:
         self.active = True
 
         # Phase durations
-        self.manifest_duration = 0.3
-        self.gavel_duration = 0.2
-        self.soul_emerge_duration = 0.3
-        self.collection_duration = 0.4
-        self.descent_duration = 0.3
+        self.manifest_duration = 0.8
+        self.soul_transfer_duration = 0.9
+        self.descent_duration = 0.7
 
         # Sub-effects
         self.auctioneers = []
-        self.gavel_slams = []
         self.soul_particles = []
         self.furniture_positions = []  # Screen coords
 
@@ -3236,7 +3178,7 @@ class AuctionCurseSoulCollectionAnimation:
             TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
         }
 
-        # Check 2-tile radius (5×5 area)
+        # Check 2-tile radius (5x5 area)
         for dy in range(-2, 3):
             for dx in range(-2, 3):
                 tile_grid_x = grid_x + dx
@@ -3269,43 +3211,19 @@ class AuctionCurseSoulCollectionAnimation:
 
         # Spawn auctioneers at furniture positions
         for i, (fx, fy) in enumerate(self.furniture_positions):
-            auctioneer = AuctioneerGhost(fx, fy, self.camera, start_delay=i * 0.05)
+            auctioneer = AuctioneerGhost(fx, fy, self.camera, start_delay=i * 0.1)
             self.auctioneers.append(auctioneer)
 
-    def _start_gavel_phase(self):
-        """Phase 2: Gavels slam down - SOLD!"""
-        play_sound("auction_soul_gavel")
-        self.phase = "gavel"
+    def _start_soul_transfer_phase(self):
+        """Phase 2: Soul emerges from corpse and streams to auctioneers."""
+        play_sound("auction_soul_transfer")
+        self.phase = "soul_transfer"
         self.phase_timer = 0
 
-        # Raise gavels on all auctioneers
-        for auctioneer in self.auctioneers:
-            auctioneer.raise_gavel()
-
-        # Create gavel slam effects at each auctioneer
-        for i, (fx, fy) in enumerate(self.furniture_positions):
-            slam = GavelSlam(fx, fy)
-            self.gavel_slams.append(slam)
-
-        # Screen shake
-        if self.screen_shake_callback:
-            self.screen_shake_callback(8, 0.4)
-
-    def _start_soul_emerge_phase(self):
-        """Phase 3: Golden soul particles emerge from corpse."""
-        play_sound("auction_soul_emerge")
-        self.phase = "soul_emerge"
-        self.phase_timer = 0
-
-        # Spawn soul particles emerging from corpse
+        # Burst of gold particles emerging from corpse
         num_particles = len(self.furniture_positions) * 15 if self.furniture_positions else 20
         for i in range(num_particles):
             angle = random.uniform(0, 2 * math.pi)
-            distance = random.uniform(5, 25)
-            x = self.corpse_x + math.cos(angle) * distance
-            y = self.corpse_y + math.sin(angle) * distance
-
-            # Particles emerge outward initially
             vx = math.cos(angle) * random.uniform(40, 80)
             vy = math.sin(angle) * random.uniform(40, 80)
 
@@ -3316,32 +3234,25 @@ class AuctionCurseSoulCollectionAnimation:
                 (218, 165, 32),     # Goldenrod
             ])
             particle = Particle(self.corpse_x, self.corpse_y, vx, vy, color,
-                              size=random.uniform(2, 4), lifetime=0.35)
-            particle.gravity = -50  # Float upward slightly
+                              size=random.uniform(2, 4), lifetime=0.5)
+            particle.gravity = -50  # Float upward
             self.particle_emitter.particles.append(particle)
 
-    def _start_collection_phase(self):
-        """Phase 4: Soul streams to auctioneers."""
-        play_sound("auction_soul_collection")
-        self.phase = "collection"
-        self.phase_timer = 0
-
-        # Create soul particles that stream toward each auctioneer
+        # Soul particles streaming toward each auctioneer
         if self.furniture_positions:
-            particles_per_auctioneer = 12
             for fx, fy in self.furniture_positions:
-                for i in range(particles_per_auctioneer):
-                    # Stagger particle creation slightly
+                for i in range(12):
                     particle = SoulParticle(self.corpse_x, self.corpse_y, fx, fy - 20)
                     self.soul_particles.append(particle)
 
+        if self.screen_shake_callback:
+            self.screen_shake_callback(4, 0.5)
+
     def _start_descent_phase(self):
-        """Phase 5: Auctioneers descend with collected soul fragments."""
+        """Phase 3: Auctioneers descend with collected soul."""
         play_sound("auction_soul_descent")
         self.phase = "descent"
         self.phase_timer = 0
-
-        # Auctioneers will fade out as they descend (handled in update)
 
     def update(self, delta_time):
         """Update animation state."""
@@ -3353,17 +3264,12 @@ class AuctionCurseSoulCollectionAnimation:
 
         # Update sub-effects
         self.auctioneers = [a for a in self.auctioneers if a.update(delta_time)]
-        self.gavel_slams = [g for g in self.gavel_slams if g.update(delta_time)]
         self.soul_particles = [p for p in self.soul_particles if p.update(delta_time)]
 
         # Phase transitions
         if self.phase == "manifest" and self.phase_timer >= self.manifest_duration:
-            self._start_gavel_phase()
-        elif self.phase == "gavel" and self.phase_timer >= self.gavel_duration:
-            self._start_soul_emerge_phase()
-        elif self.phase == "soul_emerge" and self.phase_timer >= self.soul_emerge_duration:
-            self._start_collection_phase()
-        elif self.phase == "collection" and self.phase_timer >= self.collection_duration:
+            self._start_soul_transfer_phase()
+        elif self.phase == "soul_transfer" and self.phase_timer >= self.soul_transfer_duration:
             self._start_descent_phase()
         elif self.phase == "descent" and self.phase_timer >= self.descent_duration:
             self.active = False
@@ -3375,26 +3281,15 @@ class AuctionCurseSoulCollectionAnimation:
         if not self.active:
             return
 
-        # Draw all sub-effects
-        for slam in self.gavel_slams:
-            slam.draw(surface)
-
         for particle in self.soul_particles:
             particle.draw(surface)
 
         for auctioneer in self.auctioneers:
-            # In descent phase, fade out auctioneers
-            if self.phase == "descent":
-                # Modify alpha during descent
-                fade_progress = self.phase_timer / self.descent_duration
-                # This is a hack - we'd need to modify the Auctioneer class to support fading
-                # For now, just draw normally and they'll disappear when phase ends
-                pass
             auctioneer.draw(surface)
 
-        # Draw glowing aura at corpse position during soul emergence
-        if self.phase == "soul_emerge":
-            progress = self.phase_timer / self.soul_emerge_duration
+        # Glowing aura at corpse during soul transfer
+        if self.phase == "soul_transfer":
+            progress = self.phase_timer / self.soul_transfer_duration
             alpha = int(180 * (1.0 - progress))
             if alpha > 0:
                 glow_size = int(40 + progress * 20)

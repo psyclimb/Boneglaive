@@ -5126,7 +5126,7 @@ class Game:
                         for i, skill in enumerate(unit.active_skills):
                             if skill.name == "Deft(?) Reroll":
                                 divine_dep = DivineDrepreciationSkill()
-                                divine_dep.current_cooldown = 6  # Full cooldown after expiration
+                                divine_dep.current_cooldown = 3  # Reduced cooldown when Deft(?) Reroll expires unused
                                 unit.active_skills[i] = divine_dep
 
                                 message_log.add_message(

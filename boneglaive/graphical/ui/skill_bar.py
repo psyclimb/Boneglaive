@@ -43,6 +43,7 @@ class SkillSlot:
         self.index = index
         self.rect = None
         self.hovered = False
+        self.active = False  # True when this skill is the currently selected skill
         self.icon_cache = icon_cache
         self.icon_surface = self._load_icon()
         self.gray_icon_surface = None  # Cached grayscale version
@@ -122,6 +123,10 @@ class SkillSlot:
             bg_top = COLOR_BG_DISABLED
             bg_bottom = COLOR_BG_DISABLED
             show_glow = False
+        elif self.active:
+            bg_top = COLOR_BG_HOVER_TOP
+            bg_bottom = COLOR_BG_HOVER_BOTTOM
+            show_glow = True
         elif self.hovered:
             bg_top = COLOR_BG_HOVER_TOP
             bg_bottom = COLOR_BG_HOVER_BOTTOM
@@ -146,10 +151,10 @@ class SkillSlot:
         if show_glow:
             draw_glow_rect(surface, self.rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
 
-        # Draw border (gold if upgraded, bone if hovered, metal otherwise)
+        # Draw border (gold if upgraded, bone if active/hovered, metal otherwise)
         if is_upgraded:
             border_color = (255, 215, 0)  # Gold for upgraded skills
-        elif self.hovered:
+        elif self.hovered or self.active:
             border_color = COLOR_BORDER_HOVER
         else:
             border_color = COLOR_BORDER
@@ -270,13 +275,14 @@ class SkillBar:
         # LOTO system
         self.loto_renderer = LOTORenderer()
 
-    def update(self, selected_unit, game_unit):
+    def update(self, selected_unit, game_unit, selected_skill=None):
         """
         Update skill bar with skills from selected unit.
 
         Args:
             selected_unit: AnimatedUnit from renderer
             game_unit: Unit from game logic
+            selected_skill: Currently selected skill object, for highlighting the active slot
         """
         from .loto_system import LOTOChecker
 
@@ -304,6 +310,7 @@ class SkillBar:
                 # Check if this specific skill is blocked (e.g., Delta Config/Estrange for doppelgangers, Infuse when already active)
                 elif LOTOChecker.is_skill_blocked(game_unit, skill.name):
                     slot.blocked_actions = {'skill'}  # Mark as blocked even if no general block exists
+                slot.active = (selected_skill is not None and skill is selected_skill)
                 self.skill_slots.append(slot)
 
     def draw(self, surface: pygame.Surface, screen_width: int, screen_height: int, top_bar_height: int):
@@ -350,6 +357,11 @@ class SkillBar:
             slot.draw(surface, x, y, self.font, self.small_font, self.loto_renderer,
                       slot_width=sw, slot_height=sh, icon_size=si)
             x += sw + padding
+
+    def set_selected_skill(self, selected_skill):
+        """Update active state on slots to match the currently selected skill."""
+        for slot in self.skill_slots:
+            slot.active = (selected_skill is not None and slot.skill is selected_skill)
 
     def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):
         """Update hovered slot based on mouse position."""

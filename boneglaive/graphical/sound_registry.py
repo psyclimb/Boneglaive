@@ -265,12 +265,10 @@ MULTI_EVENT_SOUNDS = {
     "deft_reroll_activation": "sounds/skills/deft_reroll_activation.wav",  # Gold pulse activation
     "deft_reroll_spinning": "sounds/skills/deft_reroll_spinning.wav",      # Slot machine number cycling
 
-    # DELPHIC APPRAISER - Auction Curse Soul Collection (5 events)
-    "auction_soul_manifest": "sounds/skills/auction_soul_manifest.wav",        # Astral auctioneers rise at furniture positions
-    "auction_soul_gavel": "sounds/skills/auction_soul_gavel.wav",              # Gavels slam "SOLD!" on the soul
-    "auction_soul_emerge": "sounds/skills/auction_soul_emerge.wav",            # Golden soul particles emerge from corpse
-    "auction_soul_collection": "sounds/skills/auction_soul_collection.wav",    # Soul streams to auctioneers
-    "auction_soul_descent": "sounds/skills/auction_soul_descent.wav",          # Auctioneers descend with soul fragments
+    # DELPHIC APPRAISER - Auction Curse Soul Collection (3 events)
+    "auction_soul_manifest": "sounds/skills/auction_soul_manifest.wav",      # Astral auctioneers rise at furniture positions
+    "auction_soul_transfer": "sounds/skills/auction_soul_transfer.wav",      # Soul emerges from corpse and streams to auctioneers
+    "auction_soul_descent": "sounds/skills/auction_soul_descent.wav",        # Auctioneers descend with the collected soul
 }
 
 

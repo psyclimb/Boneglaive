@@ -974,6 +974,7 @@ class GraphicalRenderer:
                         if skill and self.selected_unit:
                             pass  # Skill selected
                             self.selected_skill = skill
+                            self.skill_bar.set_selected_skill(skill)
                             self.current_action_mode = "SKILL"
 
                             # Query skill range
@@ -1223,6 +1224,7 @@ class GraphicalRenderer:
                         if skill and self.selected_unit:
                             pass  # Skill selected via click
                             self.selected_skill = skill
+                            self.skill_bar.set_selected_skill(skill)
                             game_unit = self._get_game_unit(self.selected_unit)
                             if game_unit:
                                 # Calculate skill range from ghost position if unit has pending move
@@ -1277,6 +1279,7 @@ class GraphicalRenderer:
                     # Cancel selection and skill mode
                     self.selected_unit = None
                     self.selected_skill = None
+                    self.skill_bar.set_selected_skill(None)
                     self.show_movement_range = False
                     self.show_target_range = False
                     self.show_skill_range = False
@@ -1402,6 +1405,7 @@ class GraphicalRenderer:
 
                     # Clear skill targeting mode and hide all ranges
                     self.selected_skill = None
+                    self.skill_bar.set_selected_skill(None)
                     self.show_skill_range = False
                     self.skill_positions = []
                     self.show_movement_range = False
@@ -4494,6 +4498,7 @@ class GraphicalRenderer:
         # Clear selection and skill mode
         self.selected_unit = None
         self.selected_skill = None
+        self.skill_bar.set_selected_skill(None)
         self.show_movement_range = False
         self.show_target_range = False
         self.show_skill_range = False

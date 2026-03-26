@@ -111,7 +111,7 @@ SKILL_UPGRADES = {
         },
         "Divine Depreciation": {
             "name": "Divine Depreciation",
-            "description": "Allows a second reroll of all furniture values.",
+            "description": "Allows a second reroll of furniture values previously rolled by Divine Depreciation. Increases max roll to 14.",
             "type": "buff",
             "cost": 1
         }
