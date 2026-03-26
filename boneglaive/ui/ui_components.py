@@ -1116,7 +1116,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.INTERFERER: {
                 'title': 'INTERFERER',
                 'overview': [
-                    'The INTERFERER is a telecommunications engineer who uses a remote radio tower array as a directed energy weapon. This glass cannon specializes in neural hijacking, phasing out of reality to avoid damage, and placing invisible traps. Basic attacks spread radiation in directional patterns that stack over time.',
+                    'The INTERFERER is a telecommunications engineer who uses a remote radio tower array as a directed energy weapon. This glass cannon specializes in neural hijacking, phasing out of reality to avoid damage, and placing invisible traps. Basic attacks radiate RF energy in directional patterns that inflict stacking RF burn over time.',
                     '',
                     'Role: Burst Damage / Disabler',
                     'Difficulty: **'
@@ -1130,8 +1130,8 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'skills': [
                     {
-                        'name': 'NEUTRON ILLUMINANT (Passive)',
-                        'description': 'Basic attacks create radiation bursts that spread in a directional pattern. Attacking along cardinal directions spreads radiation diagonally. Attacking diagonally spreads radiation cardinally. Each radiation stack deals 1 damage per turn for 2 turns and accumulates with repeated attacks.',
+                        'name': 'RADIO EFFULGENT (Passive)',
+                        'description': 'The antenna array energizes the carabiners, causing RF burn that spreads directionally on attack. Attacking along cardinal directions spreads RF burn diagonally. Attacking diagonally spreads RF burn cardinally. Each RF burn stack deals 1 damage per turn for 2 turns and accumulates with repeated attacks.',
                         'details': [
                             'Damage: 1 per turn for 2 turns'
                         ]
@@ -1171,7 +1171,7 @@ class UnitHelpComponent(UIComponent):
                 'tactical': [
                     '- Strong against: High-HP units, predictable formations, static enemies',
                     '- Vulnerable to: Area attacks, burst damage before phasing',
-                    '- Best positioning: Behind cover, flanking positions for radiation spread'
+                    '- Best positioning: Behind cover, flanking positions for RF burn coverage'
                 ]
             },
             UnitType.DERELICTIONIST: {

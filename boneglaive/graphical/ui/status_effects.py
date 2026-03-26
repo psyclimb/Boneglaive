@@ -123,10 +123,10 @@ STATUS_EFFECTS = {
         "check": lambda u: u.taunted_by is not None
     },
     "radiation_stacks": {
-        "name": "Radiation Burn",
+        "name": "RF Burn",
         "type": "debuff",
         "icon": "R",
-        "description": "Taking periodic radiation damage",
+        "description": "Taking periodic RF burn damage",
         "duration_key": None,  # Special: shows number of stacks
         "check": lambda u: len(u.radiation_stacks) > 0 if hasattr(u, 'radiation_stacks') else False
     },

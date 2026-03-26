@@ -357,11 +357,11 @@ class VagalRunSkill(ActiveSkill):
             if isinstance(target.radiation_stacks, list):
                 if len(target.radiation_stacks) > 0:
                     target.radiation_stacks = []
-                    cleared_effects.append("Radiation Burn")
+                    cleared_effects.append("RF Burn")
             else:
                 if target.radiation_stacks > 0:
                     target.radiation_stacks = 0
-                    cleared_effects.append("Radiation Burn")
+                    cleared_effects.append("RF Burn")
 
         if hasattr(target, 'estranged') and target.estranged:
             target.estranged = False

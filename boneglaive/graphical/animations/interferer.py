@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, Particle
+from boneglaive.graphical.sound_helper import play_sound
 
 # Carabiner glow colors from the sprite
 COLOR_CARABINER_GLOW = (0, 191, 255)  # #00bfff - deep sky blue
@@ -17,7 +18,7 @@ COLOR_FLASH_CORE = (200, 240, 255)  # Pale blue for core
 
 class NeutronIlluminantCardinal:
     """
-    Neutron Illuminant flash animation for CARDINAL attacks.
+    Radio Effulgent pulse animation for CARDINAL attacks.
     Cardinal attacks (N/S/E/W) radiate diagonally around the INTERFERER.
     Creates bright, illuminant-like flashes in the 4 diagonal directions.
     """
@@ -150,7 +151,7 @@ class NeutronIlluminantCardinal:
 
 class NeutronIlluminantDiagonal:
     """
-    Neutron Illuminant flash animation for DIAGONAL attacks.
+    Radio Effulgent pulse animation for DIAGONAL attacks.
     Diagonal attacks radiate cardinally around the INTERFERER.
     Creates bright, illuminant-like flashes in the 4 cardinal directions.
     """
@@ -367,6 +368,7 @@ class NeuralShuntAnimation:
             self.strike_progress = min(1.0, self.timer / self.strike_duration)
 
             if not self.strike_spawned and self.strike_progress >= 0.8:
+                play_sound("neural_shunt_strike_converge")
                 # Impact particles at INTERFERER position on strike completion
                 for _ in range(30):
                     angle = random.uniform(0, 2 * math.pi)
@@ -450,6 +452,7 @@ class NeuralShuntAnimation:
             if self.timer >= self.converge_duration:
                 self.phase = "shock"
                 self.timer = 0
+                play_sound("neural_shunt_shock")
 
         elif self.phase == "shock":
             # Neural interference shock at target
@@ -545,7 +548,7 @@ class NeuralShuntAnimation:
                 flash_progress = self.flash_timer / self.flash_display_duration
                 alpha = int(220 * (1 - flash_progress))
 
-                # Draw bright cyan glow at INTERFERER position (like Neutron Illuminant)
+                # Draw bright cyan glow at INTERFERER position (like Radio Effulgent)
                 for radius_mult in [1.5, 1.0, 0.5]:
                     radius = int(TILE_SIZE * 0.8 * radius_mult)
                     glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
@@ -743,6 +746,7 @@ class ScalarNodeTriggerAnimation:
 
             # Spawn initial eruption burst
             if not self.eruption_spawned:
+                play_sound("scalar_node_trigger")
                 # White screen flash as flames erupt
                 if self.screen_flash_callback:
                     self.screen_flash_callback(self.color_white, 0.15)
@@ -1105,6 +1109,9 @@ class KarrierRavePhaseOut:
 
         if self.phase == "tune":
             # Tuning into carrier wave - multi-frequency expanding rings
+            if self.timer == 0 or not hasattr(self, '_tune_sound_played'):
+                play_sound("karrier_rave_phaseout")
+                self._tune_sound_played = True
             progress = self.timer / self.tune_duration
             self.intensity = progress
 
@@ -1363,7 +1370,7 @@ class KarrierRavePhaseOut:
 class KarrierRaveTripleStrike:
     """
     KARRIER RAVE triple strike - INTERFERER goes WILD with glowing carabiners.
-    Omnislash-style: rapid dashing attacks from different angles with Neutron Illuminant flashes.
+    Omnislash-style: rapid dashing attacks from different angles with Radio Effulgent pulses.
     Each strike incorporates directional beam patterns (cardinal/diagonal based on position).
     """
 
@@ -1411,7 +1418,7 @@ class KarrierRaveTripleStrike:
         self.color_rave = (180, 220, 255)     # Rave particles
         self.color_white = (255, 255, 255)
 
-        # Neutron Illuminant beam state (for timing, but won't be drawn)
+        # Radio Effulgent beam state (for timing, but won't be drawn)
         self.beams = []  # List of beam dicts
         self.beam_length = TILE_SIZE * 2
 
@@ -1437,7 +1444,7 @@ class KarrierRaveTripleStrike:
         self.carabiner_glow = 0  # 0-1, pulses during animation
 
     def _add_strike_beams(self, use_diagonal=False):
-        """Add Neutron Illuminant style beams for a strike (appends to existing beams)."""
+        """Add Radio Effulgent style beams for a strike (appends to existing beams)."""
         if use_diagonal:
             # Diagonal pattern (X shape)
             directions = [(1, 1), (-1, -1), (1, -1), (-1, 1)]
@@ -1518,6 +1525,7 @@ class KarrierRaveTripleStrike:
 
         elif self.phase == "strike1":
             if not self.strike_spawned:
+                play_sound("karrier_rave_strike_hit")
                 # Cardinal cross pattern
                 self._add_strike_beams(use_diagonal=False)
                 # Flash
@@ -1570,6 +1578,7 @@ class KarrierRaveTripleStrike:
 
         elif self.phase == "strike2":
             if not self.strike_spawned:
+                play_sound("karrier_rave_strike_hit")
                 # Diagonal X pattern
                 self._add_strike_beams(use_diagonal=True)
                 # Flash
@@ -1622,6 +1631,7 @@ class KarrierRaveTripleStrike:
 
         elif self.phase == "strike3":
             if not self.strike_spawned:
+                play_sound("karrier_rave_strike_final")
                 # Final blow from below (cardinal) - create beams for both patterns
                 self._add_strike_beams(use_diagonal=False)  # Cardinal beams
                 self._add_strike_beams(use_diagonal=True)   # Diagonal beams
@@ -1731,7 +1741,7 @@ class KarrierRaveTripleStrike:
 class InterfererDualCarabinerAttack:
     """
     INTERFERER basic attack animation - swings both huge carabiners.
-    Two metallic arcs with cyan EM glow + Neutron Illuminant flash on impact.
+    Two metallic arcs with cyan EM glow + Radio Effulgent pulse on impact.
     """
 
     def __init__(self, attacker_unit, target_unit, particle_emitter, screen_shake_callback, screen_flash_callback=None):
@@ -1785,6 +1795,7 @@ class InterfererDualCarabinerAttack:
 
     def _trigger_windup(self):
         """Phase 1: Windup dual carabiner swing."""
+        play_sound("interferer_attack_windup_swing")
         # Cyan EM particles as carabiners charge
         for _ in range(8):
             angle = random.uniform(0, 2 * math.pi)
@@ -1817,7 +1828,8 @@ class InterfererDualCarabinerAttack:
             self.particle_emitter.particles.append(particle)
 
     def _trigger_impact(self):
-        """Phase 3: Dual carabiner impact with Neutron Illuminant flash."""
+        """Phase 3: Dual carabiner impact with Radio Effulgent pulse."""
+        play_sound("interferer_attack_impact")
         # Metallic impact with cyan EM burst
         for _ in range(20):
             angle = random.uniform(0, 2 * math.pi)
@@ -1838,7 +1850,7 @@ class InterfererDualCarabinerAttack:
             particle.gravity = 120
             self.particle_emitter.particles.append(particle)
 
-        # Trigger Neutron Illuminant cyan EM flash (screen and tiles)
+        # Trigger Radio Effulgent cyan EM pulse (screen and tiles)
         if self.screen_flash:
             self.screen_flash(self.color_cyan_glow, 0.1)
 
@@ -1964,12 +1976,12 @@ class InterfererDualCarabinerAttack:
                 surface.blit(flash_surf, (int(self.target.x - flash_radius),
                                          int(self.target.y - flash_radius)))
 
-        # Draw Neutron Illuminant tile flash at INTERFERER position (not target)
+        # Draw Radio Effulgent tile pulse at INTERFERER position (not target)
         if self.flash_triggered and self.flash_timer < self.flash_display_duration:
             progress = self.flash_timer / self.flash_display_duration
             alpha = int(220 * (1 - progress))
 
-            # Draw bright cyan glow at INTERFERER position (like Neutron Illuminant)
+            # Draw bright cyan glow at INTERFERER position (like Radio Effulgent)
             for radius_mult in [1.5, 1.0, 0.5]:
                 from .core import TILE_SIZE
                 radius = int(TILE_SIZE * 0.8 * radius_mult)

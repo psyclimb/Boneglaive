@@ -841,11 +841,12 @@ class GameStateAdapter:
                         # Basic attack is being executed!
                         attack_target = game_unit.last_executed_attack  # (y, x) in game coords
 
-                        # Capture INTERFERER's carrier_rave_active state BEFORE attack execution clears it
-                        # (Similar to Potpourrist infusion check below)
+                        # Use the status effects snapshot (taken BEFORE execute_turn) to check
+                        # carrier_rave state, since the engine clears carrier_rave_active during execution
                         has_carrier_rave = False
-                        if hasattr(game_unit, 'carrier_rave_active'):
-                            has_carrier_rave = game_unit.carrier_rave_active
+                        unit_id = self._get_unit_id(game_unit)
+                        if unit_id in self.status_effects_snapshot:
+                            has_carrier_rave = self.status_effects_snapshot[unit_id].get('carrier_rave', False)
 
                         # Capture target unit for passive skill detection (e.g. Riposte)
                         target_game_unit = self.game.get_unit_at(attack_target[0], attack_target[1]) if attack_target else None

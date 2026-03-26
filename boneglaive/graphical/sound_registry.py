@@ -269,6 +269,24 @@ MULTI_EVENT_SOUNDS = {
     "auction_soul_manifest": "sounds/skills/auction_soul_manifest.wav",      # Astral auctioneers rise at furniture positions
     "auction_soul_transfer": "sounds/skills/auction_soul_transfer.wav",      # Soul emerges from corpse and streams to auctioneers
     "auction_soul_descent": "sounds/skills/auction_soul_descent.wav",        # Auctioneers descend with the collected soul
+
+    # INTERFERER - Basic Attack (2 events)
+    "interferer_attack_windup_swing": "sounds/skills/interferer_attack_windup_swing.wav",  # Carabiners charging then dual whoosh through air
+    "interferer_attack_impact": "sounds/skills/interferer_attack_impact.wav",              # Metallic impact with EM burst
+
+    # INTERFERER - Neural Shunt (2 events)
+    "neural_shunt_strike_converge": "sounds/skills/neural_shunt_strike_converge.wav",  # Carabiner strike into radio towers triangulating
+    "neural_shunt_shock": "sounds/skills/neural_shunt_shock.wav",                      # Neural interference shock at target
+
+    # INTERFERER - Karrier Rave phase-out (1 event)
+    "karrier_rave_phaseout": "sounds/skills/karrier_rave_phaseout.wav",  # Static/tuning into carrier wave then phasing out of reality
+
+    # INTERFERER - Karrier Rave triple strike (2 events)
+    "karrier_rave_strike_hit": "sounds/skills/karrier_rave_strike_hit.wav",      # Each rapid carabiner strike impact (plays twice)
+    "karrier_rave_strike_final": "sounds/skills/karrier_rave_strike_final.wav",  # Third strike - massive combined burst
+
+    # INTERFERER - Scalar Node trigger (1 event)
+    "scalar_node_trigger": "sounds/skills/scalar_node_trigger.wav",  # Standing wave erupts into searing blue-white electrical column
 }
 
 

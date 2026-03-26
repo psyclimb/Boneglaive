@@ -1540,18 +1540,18 @@ class Unit:
                             unit.auction_curse_dot = False
                         available_effects.append(("Auction Curse", clear_auction_curse))
 
-                    # Radiation Burn
+                    # RF Burn
                     if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
                         if isinstance(unit.radiation_stacks, list):
                             if len(unit.radiation_stacks) > 0:
                                 def clear_radiation():
                                     unit.radiation_stacks = []
-                                available_effects.append(("Radiation Burn", clear_radiation))
+                                available_effects.append(("RF Burn", clear_radiation))
                         else:
                             if unit.radiation_stacks > 0:
                                 def clear_radiation():
                                     unit.radiation_stacks = 0
-                                available_effects.append(("Radiation Burn", clear_radiation))
+                                available_effects.append(("RF Burn", clear_radiation))
 
                     # Shrapnel
                     if hasattr(unit, 'shrapnel_duration') and unit.shrapnel_duration > 0:
@@ -1922,7 +1922,7 @@ class Unit:
         # Log radiation damage
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
-            f"{self.get_display_name()} suffers {total_damage} radiation damage",
+            f"{self.get_display_name()} suffers {total_damage} RF burn damage",
             MessageType.ABILITY,
             player=self.player
         )

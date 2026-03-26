@@ -338,7 +338,7 @@ class CombatLog:
               ("immobilized" in text and "immune to" not in text) or
               ("trapped in" in text and "due to Stasiality" not in text) or
               "slogs through" in text or "becomes erratic" in text or
-              "radiation spreads" in text or "is disarmed" in text or
+              "RF energy radiates" in text or "RF burn damage" in text or "is disarmed" in text or
               "power wanes" in text or "imbues" in text or
               "completely shredded" in text or "phased out" in text or
               "staggered by" in text or "anchored by abandonment" in text or

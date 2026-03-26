@@ -587,7 +587,7 @@ class AnimationFactory:
                     heal_amount=heal_amount
                 )
             elif anim_class.__name__ in ["NeutronIlluminantCardinal", "NeutronIlluminantDiagonal"]:
-                # Neutron Illuminant animations need caster position, particle emitter, and screen flash callback
+                # Radio Effulgent animations need caster position, particle emitter, and screen flash callback
                 animation = anim_class(
                     caster_x=caster_screen_x,
                     caster_y=caster_screen_y,
@@ -621,7 +621,7 @@ class AnimationFactory:
                     screen_flash_callback=screen_flash_callback
                 )
             elif anim_class.__name__ == "KarrierRaveTripleStrike":
-                # Karrier Rave triple strike (melee attack with Neutron Illuminant patterns)
+                # Karrier Rave triple strike (melee attack with Radio Effulgent patterns)
                 if not target_unit:
                     pass
                     return None

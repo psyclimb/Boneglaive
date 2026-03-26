@@ -3837,7 +3837,7 @@ class Game:
                             # Check for Karrier Rave triple strike (active during phasing)
                             if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
                                 # Trigger flash effect for the first strike of Karrier Rave
-                                if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
+                                if unit.passive_skill and unit.passive_skill.name == "Radio Effulgent":
                                     unit.passive_skill.trigger_flash_effect(unit, (target.y, target.x), self, ui)
                                     unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
                                 
@@ -3866,7 +3866,7 @@ class Game:
                                             ui.show_attack_animation(unit, target, actual_additional_damage)
                                             
                                         # Trigger flash effect immediately after each additional strike
-                                        if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
+                                        if unit.passive_skill and unit.passive_skill.name == "Radio Effulgent":
                                             unit.passive_skill.trigger_flash_effect(unit, (target.y, target.x), self, ui)
                                             unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
                                 
@@ -3880,8 +3880,8 @@ class Game:
                                     player=unit.player
                                 )
                             else:
-                                # Normal single attack - trigger Neutron Illuminant if available
-                                if unit.passive_skill and unit.passive_skill.name == "Neutron Illuminant":
+                                # Normal single attack - trigger Radio Effulgent if available
+                                if unit.passive_skill and unit.passive_skill.name == "Radio Effulgent":
                                     # Always trigger flash effect for regular attacks
                                     unit.passive_skill.trigger_flash_effect(unit, (target.y, target.x), self, ui)
                                     # Also trigger radiation effect (only applies if enemies are in range)  

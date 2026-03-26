@@ -295,8 +295,8 @@ class SetupUnitHelp:
                 'role': 'Burst Damage / Disabler',
                 'overview': 'A telecommunications engineer turned assassin who weaponized a remote radio tower array into a directed energy weapon system. This glass cannon coordinates precise strikes, neural hijacking, and electromagnetic warfare.',
                 'passive': {
-                    'name': 'NEUTRON ILLUMINANT',
-                    'desc': 'Attacks with plutonium-tipped carabiners create radiation bursts that spread directionally. Radiation stacks deal damage over time, creating persistent hazard zones.'
+                    'name': 'RADIO EFFULGENT',
+                    'desc': 'The antenna array energizes the carabiners, causing RF burn directionally on attack. RF burn stacks deal damage over time.'
                 },
                 'skills': [
                     {

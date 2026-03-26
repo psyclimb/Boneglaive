@@ -23,15 +23,15 @@ if TYPE_CHECKING:
 class NeutronIlluminant(PassiveSkill):
     """
     Passive skill for INTERFERER.
-    On successful attack, causes radiation burn in directional pattern.
+    On successful attack, the antenna array energizes the carabiners, causing RF burn that spreads directionally.
     Cardinal attacks radiate diagonally, diagonal attacks radiate cardinally.
     """
 
     def __init__(self):
         super().__init__(
-            name="Neutron Illuminant",
+            name="Radio Effulgent",
             key="N",
-            description="On attack, causes radiation burn around the INTERFERER. Cardinal attacks radiate diagonally, diagonal attacks radiate cardinally. 1 damage/turn for 2 turns per stack."
+            description="On attack, the antenna array energizes the carabiners, causing RF burn that spreads directionally. Cardinal attacks radiate diagonally, diagonal attacks radiate cardinally. 1 damage/turn for 2 turns per stack."
         )
         self.current_cooldown = 0
         self.cooldown = 0  # No cooldown
@@ -113,9 +113,9 @@ class NeutronIlluminant(PassiveSkill):
         # Set cooldown (0, so always triggers)
         self.current_cooldown = self.cooldown
 
-        # Check if Neutron Illuminant is upgraded
+        # Check if Radio Effulgent is upgraded
         from boneglaive.game.upgrades import UpgradeManager
-        neutron_upgraded = UpgradeManager.is_skill_upgraded(user, "Neutron Illuminant")
+        neutron_upgraded = UpgradeManager.is_skill_upgraded(user, "Radio Effulgent")
 
         # Get radiation positions
         radiation_positions = self._get_radiation_positions(user, target_pos)
@@ -155,7 +155,7 @@ class NeutronIlluminant(PassiveSkill):
         # Log radiation effect only if units were affected
         if affected_units:
             message_log.add_message(
-                f"Neutron radiation spreads from the impact",
+                f"RF energy radiates from the impact",
                 MessageType.WARNING,
                 player=user.player
             )
@@ -163,7 +163,7 @@ class NeutronIlluminant(PassiveSkill):
         # Log immunity message for immune units
         for immune_unit in immune_units:
             message_log.add_message(
-                f"{immune_unit.get_display_name()} is immune to radiation due to Stasiality",
+                f"{immune_unit.get_display_name()} is immune to RF burn due to Stasiality",
                 MessageType.ABILITY,
                 player=immune_unit.player
             )
@@ -388,12 +388,12 @@ class NeuralShuntSkill(ActiveSkill):
                     target_name=target.get_display_name()
                 )
         
-        # Trigger Neutron Illuminant flash and radiation effects
+        # Trigger Radio Effulgent pulse and RF burn effects
         # With Neural Shunt upgrade: No flash
         from boneglaive.game.upgrades import UpgradeManager
         neural_shunt_upgraded = UpgradeManager.is_skill_upgraded(user, "Neural Shunt")
 
-        if user.passive_skill and user.passive_skill.name == "Neutron Illuminant":
+        if user.passive_skill and user.passive_skill.name == "Radio Effulgent":
             # Only trigger flash effect if Neural Shunt is not upgraded
             if not neural_shunt_upgraded:
                 user.passive_skill.trigger_flash_effect(user, target_pos, game, ui)

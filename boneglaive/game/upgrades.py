@@ -143,9 +143,9 @@ SKILL_UPGRADES = {
         }
     },
     "INTERFERER": {
-        "Neutron Illuminant": {
-            "name": "Neutron Illuminant",
-            "description": "Flashes the primary target.",
+        "Radio Effulgent": {
+            "name": "Radio Effulgent",
+            "description": "Burns the primary target.",
             "type": "buff",
             "cost": 1
         },

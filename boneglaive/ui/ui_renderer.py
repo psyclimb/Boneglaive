@@ -1617,7 +1617,7 @@ class UIRenderer:
                     negative_effects.append("Neural Shunt")
             if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
                 total_stacks = len(unit.radiation_stacks)
-                negative_effects.append(f"Radiation({total_stacks})")
+                negative_effects.append(f"RF Burn({total_stacks})")
             if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge > 0:
                 negative_effects.append(f"Recharging({unit.gaussian_dusk_recharge})")
             if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:

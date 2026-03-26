@@ -2859,7 +2859,7 @@ class GraphicalRenderer:
         else:
             pass
 
-        # Check if attacker is INTERFERER and trigger Neutron Illuminant passive flash
+        # Check if attacker is INTERFERER and trigger Radio Effulgent passive pulse
         if attacker and hasattr(attacker, 'type') and attacker.type:
             from boneglaive.utils.constants import UnitType
             # Handle DLC units (integer enum values)
@@ -2880,7 +2880,7 @@ class GraphicalRenderer:
                 from boneglaive.graphical.animations.animation_factory import AnimationFactory
 
                 if use_basic_attack and target_unit:
-                    # Use dual carabiner swing for basic attacks with Neutron Illuminant flash
+                    # Use dual carabiner swing for basic attacks with Radio Effulgent pulse
                     from boneglaive.graphical.animations.interferer import InterfererDualCarabinerAttack
 
                     carabiner_attack = InterfererDualCarabinerAttack(
@@ -2918,7 +2918,7 @@ class GraphicalRenderer:
                     else:
                         pass
                 else:
-                    # Use normal Neutron Illuminant flash animation
+                    # Use normal Radio Effulgent pulse animation
                     # Determine attack direction (cardinal vs diagonal)
                     attacker_y, attacker_x = attacker.y, attacker.x
                     target_y, target_x = attack_target[0], attack_target[1]
