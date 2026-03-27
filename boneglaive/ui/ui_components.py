@@ -4607,7 +4607,10 @@ class AnimationComponent(UIComponent):
         # Import required modules
         from boneglaive.utils.constants import UnitType
         import time
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
 
         # Get attack effect from asset manager
         effect_tile = self.game_ui.asset_manager.get_attack_effect(attacker.type)

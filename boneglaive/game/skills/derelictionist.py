@@ -195,7 +195,10 @@ class VagalRunSkill(ActiveSkill):
                     
                     # Show healing effect on map if UI is available
                     if ui and hasattr(ui, 'renderer'):
-                        import curses
+                        try:
+                            import curses
+                        except ImportError:
+                            curses = None
                         import time
                         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
                         
@@ -685,7 +688,10 @@ class DerelictSkill(ActiveSkill):
 
                     # Show healing effect on map if UI is available
                     if ui and hasattr(ui, 'renderer'):
-                        import curses
+                        try:
+                            import curses
+                        except ImportError:
+                            curses = None
                         import time
                         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 

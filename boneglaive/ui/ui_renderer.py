@@ -1845,7 +1845,10 @@ class UIRenderer:
         if self.game_ui.game.setup_phase:
             return
             
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         from boneglaive.utils.constants import UNIT_SYMBOLS
         
         current_player = self.game_ui.game.current_player

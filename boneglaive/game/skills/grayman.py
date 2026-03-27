@@ -600,7 +600,10 @@ class EstrangeSkill(ActiveSkill):
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
 
         # Get target unit
         target = game.get_unit_at(target_pos[0], target_pos[1])

@@ -120,7 +120,10 @@ class Autoclave(PassiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         import time
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         logger.debug(f"EXECUTING AUTOCLAVE for {user.get_display_name()}")
@@ -318,7 +321,10 @@ class Autoclave(PassiveSkill):
                 # Show healing number above unit
                 healing_text = f"+{healing}"
                 if hasattr(ui.renderer, 'draw_text'):
-                    import curses
+                    try:
+                        import curses
+                    except ImportError:
+                        curses = None
                     # Make healing text more prominent
                     for i in range(3):
                         # Clear area first
@@ -346,7 +352,10 @@ class Autoclave(PassiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         import time
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         user.last_executed_glaive_sweep = True
@@ -540,7 +549,10 @@ class PrySkill(ActiveSkill):
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         
         # Get target unit (might have moved)
         target = game.get_unit_at(target_pos[0], target_pos[1])
@@ -1287,7 +1299,10 @@ class VaultSkill(ActiveSkill):
 
             # If upgraded, show radial shockwave effects at all adjacent tiles
             if is_upgraded:
-                import curses
+                try:
+                    import curses
+                except ImportError:
+                    curses = None
                 # Show shockwave burst at all 8 adjacent tiles simultaneously
                 adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
                 shockwave_frames = ['*', '+', '.']  # Brief burst effect
@@ -1387,7 +1402,10 @@ class VaultSkill(ActiveSkill):
 
             # Show damage numbers for all damaged units
             if ui and hasattr(ui, 'renderer') and damaged_units:
-                import curses
+                try:
+                    import curses
+                except ImportError:
+                    curses = None
                 for damaged_unit, damage_amount in damaged_units:
                     damage_text = f"-{damage_amount}"
 
@@ -1495,7 +1513,10 @@ class JudgementSkill(ActiveSkill):
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         
         # Get target unit
         target = game.get_unit_at(target_pos[0], target_pos[1])

@@ -1276,7 +1276,10 @@ class Unit:
         """
         from boneglaive.utils.debug import logger
         from boneglaive.utils.message_log import message_log, MessageType
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
         
         # Only process if this is a HEINOUS_VAPOR
@@ -1930,7 +1933,10 @@ class Unit:
         # Show damage animation
         if ui and hasattr(ui, 'renderer'):
             damage_text = f"-{total_damage}"
-            import curses
+            try:
+                import curses
+            except ImportError:
+                curses = None
             from boneglaive.utils.animation_helpers import sleep_with_animation_speed
             
             for i in range(3):
@@ -2059,7 +2065,10 @@ class Unit:
             if actual_heal > 0 and hasattr(self, '_game') and self._game and hasattr(self._game, 'ui'):
                 ui = self._game.ui
                 if ui and hasattr(ui, 'renderer'):
-                    import curses
+                    try:
+                        import curses
+                    except ImportError:
+                        curses = None
                     import time
                     from boneglaive.utils.animation_helpers import sleep_with_animation_speed
                     

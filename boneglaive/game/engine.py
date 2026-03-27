@@ -2345,7 +2345,10 @@ class Game:
                             if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
                                 # Show healing number with flashing effect (green color)
                                 if hasattr(ui.renderer, 'draw_damage_text') and actual_heal > 0:
-                                    import curses
+                                    try:
+                                        import curses
+                                    except ImportError:
+                                        curses = None
                                     healing_text = f"+{actual_heal}"
 
                                     # Make healing text prominent with flashing effect (green color)
@@ -3030,7 +3033,10 @@ class Game:
                                 
                                 # Show healing effect on map if UI is available
                                 if ui and hasattr(ui, 'renderer'):
-                                    import curses
+                                    try:
+                                        import curses
+                                    except ImportError:
+                                        curses = None
                                     import time
                                     from boneglaive.utils.animation_helpers import sleep_with_animation_speed
                                     
@@ -3254,7 +3260,10 @@ class Game:
     def execute_turn(self, ui=None):
         """Execute all unit actions for the current turn with animated sequence."""
         import time
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
         
@@ -4733,7 +4742,10 @@ class Game:
                                 if not (hasattr(self, 'ui') and hasattr(self.ui, '__class__') and self.ui.__class__.__name__ == 'GraphicalUIAdapter'):
                                     if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer') and hasattr(self.ui, 'asset_manager'):
                                         import time
-                                        import curses
+                                        try:
+                                            import curses
+                                        except ImportError:
+                                            curses = None
                                         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
                                         # Binding breaking animation on the unit who ignored the geas
@@ -4768,7 +4780,10 @@ class Game:
                                             # First clear the area
                                             self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, " " * len(healing_text), 7)
                                             # Draw with alternating bold/normal for a flashing effect
-                                            import curses
+                                            try:
+                                                import curses
+                                            except ImportError:
+                                                curses = None
                                             attrs = curses.A_BOLD if i % 2 == 0 else 0
                                             self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, attrs)  # Green color
                                             self.ui.renderer.refresh()
@@ -5407,7 +5422,10 @@ class Game:
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         import time
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         
         # Find all trapped units
         for unit in self.units:
@@ -5737,7 +5755,10 @@ class Game:
         from boneglaive.utils.message_log import message_log, MessageType
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         
         # DEBUG: Log scalar node checking
         logger.debug(f"Checking scalar node traps. Player {self.current_player} ending turn.")
@@ -5903,7 +5924,10 @@ class Game:
         from boneglaive.utils.message_log import message_log, MessageType
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         import math
 
         logger.debug(f"Checking Fragcrest traps. Player {self.current_player} ending turn.")
@@ -6543,7 +6567,10 @@ class Game:
 
             # Show impact effects for explosion if UI is available
             if ui and hasattr(ui, 'renderer'):
-                import curses
+                try:
+                    import curses
+                except ImportError:
+                    curses = None
 
                 if is_grae_upgraded:
                     # BANISHMENT EFFECT: Show vanishing animation
@@ -6626,7 +6653,10 @@ class Game:
             damage: The amount of damage being dealt to the wall
         """
         import time
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         from boneglaive.utils.coordinates import Position, get_line
         from boneglaive.utils.debug import logger
         
@@ -7399,7 +7429,10 @@ class Game:
                 
                 # Show healing animation if UI is available and healing occurred
                 if ui and hasattr(ui, 'renderer') and actual_heal > 0:
-                    import curses
+                    try:
+                        import curses
+                    except ImportError:
+                        curses = None
                     import time
                     from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 

@@ -77,7 +77,10 @@ class MelangeEminence(PassiveSkill):
             # Show potpourri flourish animation if UI is available
             if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
                 import time
-                import curses
+                try:
+                    import curses
+                except ImportError:
+                    curses = None
                 from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
                 # Get the appropriate potpourri flourish animation (enhanced if holding potpourri)
@@ -168,7 +171,10 @@ class InfuseSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Infuse skill during the combat phase."""
         import time
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         message_log.add_message(
@@ -376,7 +382,10 @@ class DemiluneSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Demilune skill during the combat phase."""
         import time
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         # Check if enhanced by potpourri
@@ -499,7 +508,10 @@ class DemiluneSkill(ActiveSkill):
 
                 # Show damage number on map (flashing like attacks)
                 if ui and hasattr(ui, 'renderer'):
-                    import curses
+                    try:
+                        import curses
+                    except ImportError:
+                        curses = None
                     import time
                     damage_text = f"-{actual_damage}"
 
@@ -646,7 +658,10 @@ class GraniteGeasSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Granite Geas skill during the combat phase."""
         import time
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         # Get target
@@ -741,7 +756,10 @@ class GraniteGeasSkill(ActiveSkill):
 
         # Show damage number on map (flashing like attacks)
         if ui and hasattr(ui, 'renderer'):
-            import curses
+            try:
+                import curses
+            except ImportError:
+                curses = None
             import time
             damage_text = f"-{actual_damage}"
 

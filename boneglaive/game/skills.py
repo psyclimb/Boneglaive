@@ -384,7 +384,10 @@ class Autoclave(PassiveSkill):
                 # Show healing number above unit
                 healing_text = f"+{healing}"
                 if hasattr(ui.renderer, 'draw_text'):
-                    import curses
+                    try:
+                        import curses
+                    except ImportError:
+                        curses = None
                     # Make healing text more prominent
                     for i in range(3):
                         # Clear area first
@@ -496,7 +499,10 @@ class PrySkill(ActiveSkill):
         """
         from boneglaive.utils.message_log import message_log, MessageType
         import time
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
         
         # Get target unit (might have moved)
         target = game.get_unit_at(target_pos[0], target_pos[1])

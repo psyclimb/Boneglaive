@@ -199,7 +199,10 @@ class DischargeSkill(ActiveSkill):
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
 
         # Detect if running in graphical mode to avoid blocking sleeps
         is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
@@ -1194,7 +1197,10 @@ class JawlineSkill(ActiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-        import curses
+        try:
+            import curses
+        except ImportError:
+            curses = None
 
         # Detect if running in graphical mode to avoid blocking sleeps
         is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
