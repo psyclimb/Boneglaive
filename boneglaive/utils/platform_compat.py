@@ -8,13 +8,15 @@ import sys
 import platform
 import os
 
-if platform.system() != 'Windows':
+try:
     import curses
+except ImportError:
+    curses = None
 
 def get_curses_module():
     """
     Get the curses module for *nix systems.
-    Returns the curses module.
+    Returns the curses module, or None if unavailable.
     """
     return curses
 

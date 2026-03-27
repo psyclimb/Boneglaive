@@ -11,8 +11,6 @@ import os
 
 # Get platform-appropriate curses module
 curses = get_curses_module()
-if curses is None:
-    raise ImportError("Curses module not available for this platform. On Windows, install: pip install windows-curses")
 from typing import Dict, List, Optional, Tuple
 
 from boneglaive.utils.render_interface import RenderInterface
