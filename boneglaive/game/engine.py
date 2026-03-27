@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import logging
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 import time
 from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT, UNIT_SYMBOLS
 from boneglaive.game.units import Unit
