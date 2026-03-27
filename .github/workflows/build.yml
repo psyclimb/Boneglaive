@@ -115,7 +115,9 @@ jobs:
               sdl2_ttf \
               zip
             python3.11 -m pip install --upgrade pip
-            PYGAME_CAMERA=0 python3.11 -m pip install pygame cairosvg cairocffi pyinstaller
+            sudo mkdir -p /usr/include/linux
+            echo '' | sudo tee /usr/include/linux/videodev2.h
+            python3.11 -m pip install pygame cairosvg cairocffi pyinstaller
             python3.11 -m pip install -e .
             python3.11 -m PyInstaller boneglaive.spec --distpath dist/freebsd
             cd dist/freebsd && zip -r ../../boneglaive-freebsd.zip boneglaive/
