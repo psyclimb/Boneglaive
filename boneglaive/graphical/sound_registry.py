@@ -348,6 +348,32 @@ MULTI_EVENT_SOUNDS = {
 
     # POTPOURRIST - Selenic Backdraft Zone (1 event)
     "selenic_backdraft_appear": "sounds/skills/selenic_backdraft_appear.wav",  # Moonlight zone materialising from the ground
+
+    # DERELICTIONIST - Basic Attack (2 events)
+    "void_attack": "sounds/skills/void_attack.wav",   # Void fragments coalesce and reach — cold ethereal whoosh
+    "void_impact": "sounds/skills/void_impact.wav",   # Void dissolves target — hollow dissonant crack
+
+    # DERELICTIONIST - Partition (2 events)
+    "partition_cast": "sounds/skills/partition_cast.wav",  # Energy waves form forcefield bubble — resonant hum
+    "partition_hit": "sounds/skills/partition_hit.wav",    # Shield absorbs a hit — forcefield shimmer deflect
+
+    # DERELICTIONIST - Partition Dissociation (2 events)
+    "partition_dissociate": "sounds/skills/partition_dissociate.wav",  # Fatal hit absorbed, barrier locks — heavy shield impact
+    "partition_shatter": "sounds/skills/partition_shatter.wav",        # Barrier shatters, DERELICTIONIST teleports away — glass + void crack
+
+    # DERELICTIONIST - Derelicted status application (1 event)
+    "derelicted_apply": "sounds/skills/derelicted_apply.wav",  # Severance line cuts connection — sharp metallic snap
+
+    # DERELICTIONIST - Defect teleport (2 events)
+    "defect_vanish": "sounds/skills/defect_vanish.wav",  # DERELICTIONIST phases out at origin — dissolve into void
+    "defect_arrive": "sounds/skills/defect_arrive.wav",  # DERELICTIONIST reforms at destination — cold vapor burst
+
+    # DERELICTIONIST - Derelict push (1 event)
+    "derelict_push": "sounds/skills/derelict_push.wav",  # Ally launched away — forceful displacement whoosh
+
+    # DERELICTIONIST - Vagal Run (2 events, shared with Abreaction variant)
+    "vagal_run_cast": "sounds/skills/vagal_run_cast.wav",   # Lightning arc connects caster to target — electric strike
+    "vagal_run_burst": "sounds/skills/vagal_run_burst.wav", # Fracture explosion at nerve terminus — shattering discharge
 }
 
 

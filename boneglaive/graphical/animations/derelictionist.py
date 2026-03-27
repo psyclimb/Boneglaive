@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, COLOR_DAMAGE, COLOR_SKILL
+from boneglaive.graphical.sound_helper import play_sound
 
 
 # ============================================================================
@@ -377,6 +378,7 @@ class PartitionAnimation:
         """Phase 1: Formation - Energy waves create forcefield."""
         self.phase = "formation"
         self.timer = 0
+        play_sound("partition_cast")
 
         # Create expanding energy waves (3 waves with stagger)
         for i in range(3):
@@ -587,6 +589,8 @@ class PartitionHitAnimation:
 
         # Convert unit position to screen coords
         self.center_x, self.center_y = camera.grid_to_screen(unit.grid_x, unit.grid_y, centered=True)
+
+        play_sound("partition_hit")
 
         # Single effect: forcefield flash
         self.firmament = ForcefieldHitFlash(self.center_x, self.center_y)
@@ -1125,6 +1129,7 @@ class PartitionDissociationAnimation:
         """Phase 1: Fatal Impact Detection."""
         self.phase = "impact"
         self.timer = 0
+        play_sound("partition_dissociate")
 
         # Concentric rings ripple inward
         self.rings = ConcentricRings(self.protected_x, self.protected_y)
@@ -1150,6 +1155,7 @@ class PartitionDissociationAnimation:
         """Phase 3: Dissociation - Eyes roll back."""
         self.phase = "dissociation"
         self.timer = 0
+        play_sound("partition_shatter")
 
         # Eyes rolling back
         self.eyes = RollingEyesEffect(self.protected_x, self.protected_y)
@@ -1707,6 +1713,7 @@ class DerelictedApplicationAnimation:
         """Phase 1: Connection Severance."""
         self.phase = "severance"
         self.timer = 0
+        play_sound("derelicted_apply")
 
         # Bright vertical glow line
         self.severance_line = SeveranceGlowLine(self.center_x, self.center_y)
@@ -2257,6 +2264,7 @@ class DerelictionistDefectTeleportAnimation:
         """Phase 1: Severance Fade-Out."""
         self.phase = "severance"
         self.timer = 0
+        play_sound("defect_vanish")
 
         # Severance dissolution at origin
         self.severance = SeveranceDissolve(self.origin_x, self.origin_y)
@@ -2277,6 +2285,7 @@ class DerelictionistDefectTeleportAnimation:
         """Phase 3: Reformation."""
         self.phase = "reformation"
         self.timer = 0
+        play_sound("defect_arrive")
 
         # Show the unit sprite again (it's now at destination)
         self.unit_hidden = False
@@ -2961,6 +2970,7 @@ class VagalRunAnimation:
         """Phase 1: Connection Strike."""
         self.phase = "connection"
         self.timer = 0
+        play_sound("vagal_run_cast")
 
         # Lightning arc from caster to target's head (skip if no caster)
         if self.caster_x is not None and self.caster_y is not None:
@@ -3003,6 +3013,7 @@ class VagalRunAnimation:
         """Phase 3: Trauma Fracture Burst."""
         self.phase = "burst"
         self.timer = 0
+        play_sound("vagal_run_burst")
 
         # Explosive fracture at bottom of nerve path
         self.explosion = FractureExplosion(self.target_x, self.target_y + 20)
@@ -3163,6 +3174,7 @@ class VagalRunAbreactionAnimation:
         """Phase 1: Vagal Cascade - Lightning runs down nerve."""
         self.phase = "cascade"
         self.timer = 0
+        play_sound("vagal_run_cast")
 
         # Create nerve path
         self.nerve_path = VagusNervePath(self.target_x, self.target_y)
@@ -3188,6 +3200,7 @@ class VagalRunAbreactionAnimation:
         """Phase 2: Trauma Fracture Burst."""
         self.phase = "burst"
         self.timer = 0
+        play_sound("vagal_run_burst")
 
         # Explosive fracture at bottom of nerve path
         self.explosion = FractureExplosion(self.target_x, self.target_y + 20)
@@ -3287,8 +3300,9 @@ class VagalRunAbreactionAnimation:
 
 class DerelictionistVoidAttack:
     """
-    DERELICTIONIST basic attack animation - psychic void grasp.
-    Void fragments reach out and dissolve into the target.
+    DERELICTIONIST basic attack animation - void tears open at target.
+    A dark void aperture cracks open at the target's location, framed by
+    cold blue edge glow, then snaps shut on impact.
     """
 
     def __init__(self, attacker_unit, target_unit, particle_emitter, screen_shake_callback):
@@ -3304,15 +3318,13 @@ class DerelictionistVoidAttack:
         self.particle_emitter = particle_emitter
         self.screen_shake = screen_shake_callback
 
-        # Calculate attack vector
+        # Calculate attack vector (used for attacker lean particles)
         self.dx = target_unit.x - attacker_unit.x
         self.dy = target_unit.y - attacker_unit.y
         distance = math.sqrt(self.dx * self.dx + self.dy * self.dy)
-
         if distance > 0:
             self.dx /= distance
             self.dy /= distance
-
         self.distance = distance
 
         # Animation state
@@ -3320,98 +3332,75 @@ class DerelictionistVoidAttack:
         self.timer = 0
         self.active = True
 
-        # Phase durations
+        # Phase durations (unchanged — tied to sound events)
         self.void_form_duration = 0.15
         self.reach_duration = 0.25
         self.dissolve_duration = 0.2
 
-        # Reach progress
         self.reach_progress = 0.0
 
-        # Bright cold blue/cyan colors (psychic void theme)
-        self.color_bright_blue = (90, 154, 200)    # #5a9ac8
-        self.color_light_blue = (122, 186, 232)    # #7abaee
-        self.color_fade = (170, 218, 255)          # #aadaff
-        self.color_white = (255, 255, 255)
+        # Color palette from derelictionist.svg and derelicted.svg
+        self.color_void       = (10, 10, 20)        # near-black cold void core
+        self.color_edge_dark  = (74, 122, 154)      # #4a7a9a — dark suit blue
+        self.color_edge_mid   = (90, 154, 200)      # #5a9ac8 — bright suit blue
+        self.color_edge_light = (170, 218, 255)     # #aadaff — severance glow
+        self.color_ice        = (221, 242, 255)     # #ddf2ff — near-white cold
+
+        # Void aperture state (drawn at target)
+        self.void_radius_x = 0.0   # horizontal half-width (wider — ellipse)
+        self.void_radius_y = 0.0   # vertical half-height (narrower)
+        self.void_angle = 0.0      # slight tilt per-instance
+        self.void_pulse = 0.0      # oscillation offset
+
+        # Random tilt so the void doesn't always look the same
+        self.void_angle = random.uniform(-0.3, 0.3)
 
     def _trigger_void_form(self):
-        """Phase 1: Void fragments coalesce."""
-        # Fragmenting particles gather around attacker
-        for _ in range(12):
+        """Phase 1: Void crack appears at target — attacker surges forward."""
+        play_sound("void_attack")
+        from .core import Particle
+        # Small burst of dark-edge fragments radiating from target as void cracks open
+        for _ in range(10):
             angle = random.uniform(0, 2 * math.pi)
-            distance = random.uniform(25, 35)
-            x = self.attacker.x + math.cos(angle) * distance
-            y = self.attacker.y + math.sin(angle) * distance
-
-            # Particles converge inward
-            vx = -math.cos(angle) * 150
-            vy = -math.sin(angle) * 150
-
-            # Bright cold fading colors
-            color = random.choice([
-                self.color_bright_blue,
-                self.color_light_blue,
-                self.color_fade,
-            ])
-
-            from .core import Particle
-            particle = Particle(x, y, vx, vy, color, size=random.uniform(2, 3), lifetime=0.18)
-            particle.gravity = 0
-            self.particle_emitter.particles.append(particle)
+            speed = random.uniform(40, 90)
+            color = random.choice([self.color_edge_dark, self.color_edge_mid, self.color_edge_light])
+            p = Particle(self.target.x, self.target.y,
+                         math.cos(angle) * speed, math.sin(angle) * speed,
+                         color, size=random.uniform(1.5, 3), lifetime=0.18)
+            p.gravity = 0
+            self.particle_emitter.particles.append(p)
 
     def _trigger_reach(self):
-        """Phase 2: Void reaches toward target."""
-        # Create dissolving particles along reach path
-        for i in range(15):
-            progress = i / 15
-            x = self.attacker.x + self.dx * self.distance * progress
-            y = self.attacker.y + self.dy * self.distance * progress
-
-            # Perpendicular spread
-            perp_x = -self.dy
-            perp_y = self.dx
-            spread = random.uniform(-10, 10)
-
-            vx = self.dx * 100 + perp_x * spread
-            vy = self.dy * 100 + perp_y * spread
-
-            # Fading colors
-            color = random.choice([
-                self.color_light_blue,
-                self.color_fade,
-                self.color_white,
-            ])
-
-            from .core import Particle
-            particle = Particle(x, y, vx, vy, color,
-                              size=random.uniform(2, 4), lifetime=0.25)
-            particle.gravity = 0
-            self.particle_emitter.particles.append(particle)
+        """Phase 2: Void fully open — cold light bleeds from the edges."""
+        from .core import Particle
+        # Slow-drifting cold fragments leaking out of the void edge
+        for _ in range(12):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(20, 55)
+            color = random.choice([self.color_edge_mid, self.color_edge_light, self.color_ice])
+            p = Particle(self.target.x + random.uniform(-8, 8),
+                         self.target.y + random.uniform(-8, 8),
+                         math.cos(angle) * speed, math.sin(angle) * speed,
+                         color, size=random.uniform(1.5, 3.5), lifetime=0.28)
+            p.gravity = 0
+            self.particle_emitter.particles.append(p)
 
     def _trigger_dissolve(self):
-        """Phase 3: Void dissolves target."""
-        # Fragmenting dissolution at target
-        for _ in range(20):
+        """Phase 3: Void snaps shut — cold shockwave fragments."""
+        play_sound("void_impact")
+        from .core import Particle
+        # Outward burst of cold blue as the void collapses
+        for _ in range(22):
             angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(60, 140)
-            vx = math.cos(angle) * speed
-            vy = math.sin(angle) * speed
+            speed = random.uniform(70, 160)
+            color = random.choice([self.color_edge_dark, self.color_edge_mid,
+                                   self.color_edge_light, self.color_ice])
+            p = Particle(self.target.x, self.target.y,
+                         math.cos(angle) * speed, math.sin(angle) * speed,
+                         color, size=random.uniform(2, 5), lifetime=random.uniform(0.18, 0.32))
+            p.gravity = 60
+            self.particle_emitter.particles.append(p)
 
-            # Bright fragments dissolving outward
-            color = random.choice([
-                self.color_bright_blue,
-                self.color_light_blue,
-                self.color_fade,
-                self.color_white,
-            ])
-
-            from .core import Particle
-            particle = Particle(self.target.x, self.target.y, vx, vy, color,
-                              size=random.uniform(2, 5), lifetime=random.uniform(0.2, 0.35))
-            particle.gravity = 80
-            self.particle_emitter.particles.append(particle)
-
-        # Moderate psychic impact
         self.target.shake_intensity = 10
         self.screen_shake(5, 0.18)
 
@@ -3421,11 +3410,17 @@ class DerelictionistVoidAttack:
             return False
 
         self.timer += delta_time
+        self.void_pulse += delta_time * 18  # fast shimmer
 
         if self.phase == "void_form":
-            if self.timer == 0 or not hasattr(self, "_void_triggered"):
+            if not hasattr(self, "_void_triggered"):
                 self._trigger_void_form()
                 self._void_triggered = True
+
+            # Void cracks open — rapidly expand
+            progress = self.timer / self.void_form_duration
+            self.void_radius_x = progress * 22
+            self.void_radius_y = progress * 13
 
             if self.timer >= self.void_form_duration:
                 self.phase = "reach"
@@ -3433,8 +3428,12 @@ class DerelictionistVoidAttack:
                 self._trigger_reach()
 
         elif self.phase == "reach":
-            # Update reach progress
             self.reach_progress = min(1.0, self.timer / self.reach_duration)
+
+            # Void held open, slight pulse
+            pulse = 1.0 + 0.06 * math.sin(self.void_pulse)
+            self.void_radius_x = 22 * pulse
+            self.void_radius_y = 13 * pulse
 
             if self.timer >= self.reach_duration:
                 self.phase = "dissolve"
@@ -3442,6 +3441,12 @@ class DerelictionistVoidAttack:
                 self._trigger_dissolve()
 
         elif self.phase == "dissolve":
+            # Void snaps shut
+            progress = self.timer / self.dissolve_duration
+            ease = 1.0 - (progress * progress)  # fast snap
+            self.void_radius_x = 22 * ease
+            self.void_radius_y = 13 * ease
+
             if self.timer >= self.dissolve_duration:
                 self.phase = "done"
                 self.active = False
@@ -3449,94 +3454,62 @@ class DerelictionistVoidAttack:
         return self.active
 
     def draw(self, surface):
-        """Draw psychic void attack."""
-        import pygame
+        """Draw void aperture at target location."""
+        if self.phase == "done":
+            return
 
-        # Draw void forming (fragmenting glow)
-        if self.phase == "void_form":
-            progress = self.timer / self.void_form_duration
-            
-            # Multiple fragmenting glows
-            for i in range(3):
-                angle_offset = (i / 3) * 2 * math.pi
-                offset_x = math.cos(angle_offset) * 10 * progress
-                offset_y = math.sin(angle_offset) * 10 * progress
+        rx = int(self.void_radius_x)
+        ry = int(self.void_radius_y)
+        if rx < 2 or ry < 2:
+            return
 
-                glow_radius = int(12 * progress)
-                if glow_radius > 2:
-                    alpha = int(150 * progress)
-                    glow_surf = pygame.Surface((glow_radius * 2, glow_radius * 2), pygame.SRCALPHA)
-                    
-                    # Bright cold blue fragments
-                    color = [self.color_bright_blue, self.color_light_blue, self.color_fade][i]
-                    pygame.draw.circle(glow_surf, (*color, alpha),
-                                     (glow_radius, glow_radius), glow_radius)
-                    
-                    surface.blit(glow_surf, (int(self.attacker.x - glow_radius + offset_x),
-                                            int(self.attacker.y - glow_radius + offset_y)))
+        tx = int(self.target.x)
+        ty = int(self.target.y)
 
-        # Draw void reaching during reach phase
-        if self.phase == "reach":
-            # Calculate reach position
-            reach_x = self.attacker.x + self.dx * self.distance * self.reach_progress
-            reach_y = self.attacker.y + self.dy * self.distance * self.reach_progress
+        # --- Outer glow layers (largest to smallest, cold blue) ---
+        glow_data = [
+            (rx + 10, ry + 6, self.color_edge_dark,  55),
+            (rx + 6,  ry + 4, self.color_edge_mid,   90),
+            (rx + 3,  ry + 2, self.color_edge_light, 140),
+        ]
+        for grx, gry, color, alpha in glow_data:
+            gw = (grx + 2) * 2
+            gh = (gry + 2) * 2
+            glow_surf = pygame.Surface((gw, gh), pygame.SRCALPHA)
+            # Pulse alpha slightly during reach phase
+            if self.phase == "reach":
+                alpha = int(alpha * (1.0 + 0.15 * math.sin(self.void_pulse)))
+            pygame.draw.ellipse(glow_surf, (*color, alpha), (2, 2, grx * 2, gry * 2))
+            surface.blit(glow_surf, (tx - grx - 2, ty - gry - 2))
 
-            # Draw dissolving void tendrils
-            num_tendrils = 5
-            for i in range(num_tendrils):
-                angle_offset = (i / num_tendrils) * math.pi * 2
-                
-                # Tendril extends from attacker to reach position
-                tendril_points = []
-                num_segments = 8
-                
-                for seg in range(num_segments + 1):
-                    seg_progress = seg / num_segments
-                    if seg_progress > self.reach_progress:
-                        break
+        # --- Void core — near-black ellipse ---
+        core_w = rx * 2
+        core_h = ry * 2
+        core_surf = pygame.Surface((core_w + 2, core_h + 2), pygame.SRCALPHA)
+        pygame.draw.ellipse(core_surf, (*self.color_void, 245), (1, 1, core_w, core_h))
+        surface.blit(core_surf, (tx - rx - 1, ty - ry - 1))
 
-                    # Base position along reach
-                    base_x = self.attacker.x + self.dx * self.distance * seg_progress
-                    base_y = self.attacker.y + self.dy * self.distance * seg_progress
-
-                    # Wavy offset
-                    wave_amplitude = 8 * math.sin(seg_progress * 3 + angle_offset)
-                    perp_x = -self.dy
-                    perp_y = self.dx
-
-                    point_x = base_x + perp_x * wave_amplitude
-                    point_y = base_y + perp_y * wave_amplitude
-
-                    tendril_points.append((int(point_x), int(point_y)))
-
-                # Draw fragmenting tendril
-                if len(tendril_points) >= 2:
-                    # Fading colors as tendril extends
-                    alpha = int(120 * (1.0 - i / num_tendrils))
-                    color = [self.color_bright_blue, self.color_light_blue, self.color_fade][i % 3]
-                    
-                    for j in range(len(tendril_points) - 1):
-                        segment_alpha = int(alpha * (1.0 - j / len(tendril_points)))
-                        if segment_alpha > 20:
-                            pygame.draw.line(surface, (*color, segment_alpha),
-                                           tendril_points[j], tendril_points[j + 1], 2)
-
-        # Draw dissolution flash
+        # --- Sharp cold-white rim right on the edge ---
+        rim_alpha = 200
         if self.phase == "dissolve":
             progress = self.timer / self.dissolve_duration
-            if progress < 0.5:
-                flash_alpha = int(220 * (1.0 - progress / 0.5))
-                flash_radius = int(32 * (1.0 + progress * 0.5))
+            rim_alpha = int(200 * (1.0 - progress))
+        if rim_alpha > 10:
+            rim_surf = pygame.Surface((rx * 2 + 4, ry * 2 + 4), pygame.SRCALPHA)
+            pygame.draw.ellipse(rim_surf, (*self.color_edge_light, rim_alpha),
+                                (2, 2, rx * 2, ry * 2), 2)
+            surface.blit(rim_surf, (tx - rx - 2, ty - ry - 2))
 
-                # Fragmenting multi-layer flash
-                for i, color in enumerate([self.color_fade, self.color_white]):
-                    layer_radius = int(flash_radius * (1.0 - i * 0.3))
-                    if layer_radius > 2:
-                        flash_surf = pygame.Surface((layer_radius * 2, layer_radius * 2), pygame.SRCALPHA)
-                        pygame.draw.circle(flash_surf, (*color, flash_alpha // (i + 1)),
-                                         (layer_radius, layer_radius), layer_radius)
-                        surface.blit(flash_surf, (int(self.target.x - layer_radius),
-                                                 int(self.target.y - layer_radius)))
+        # --- Flash on snap shut ---
+        if self.phase == "dissolve":
+            progress = self.timer / self.dissolve_duration
+            if progress < 0.35:
+                flash_alpha = int(180 * (1.0 - progress / 0.35))
+                flash_r = int((rx + 8) * (1.0 + progress * 0.4))
+                flash_surf = pygame.Surface((flash_r * 2, flash_r * 2), pygame.SRCALPHA)
+                pygame.draw.circle(flash_surf, (*self.color_ice, flash_alpha),
+                                   (flash_r, flash_r), flash_r)
+                surface.blit(flash_surf, (tx - flash_r, ty - flash_r))
 
 
 # ============================================================================
@@ -3570,6 +3543,8 @@ class DerelictPushTrail:
         # DERELICTIONIST signature blue glow colors
         self.color_trail_bright = (122, 186, 232)  # #7abae8 - bright blue
         self.color_trail_dim = (90, 154, 200)      # #5a9ac8 - dimmer blue
+
+        play_sound("derelict_push")
 
         # Generate trail particles along the push path
         self.trail_particles = []
