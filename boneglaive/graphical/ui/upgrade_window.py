@@ -126,6 +126,7 @@ class UpgradeWindow:
 
         # Convert skill name to filename (e.g., "Marrow Dike" -> "marrow_dike")
         filename = skill_name.lower().replace(' ', '_')
+        filename = ''.join(c for c in filename if c not in r'\/:*?"<>|')
         icon_path = asset_path(f"graphics/skill_icons/{filename}.svg")
 
         try:

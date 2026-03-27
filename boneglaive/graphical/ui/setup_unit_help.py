@@ -578,6 +578,7 @@ class SetupUnitHelp:
 
         # Convert skill name to filename
         icon_name = skill_name.lower().replace(' ', '_')
+        icon_name = ''.join(c for c in icon_name if c not in r'\/:*?"<>|')
         icon_path = asset_path(f"graphics/skill_icons/{icon_name}.svg")
 
         try:

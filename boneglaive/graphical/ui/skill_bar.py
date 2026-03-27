@@ -54,6 +54,8 @@ class SkillSlot:
     def _load_icon(self) -> Optional[pygame.Surface]:
         """Load skill icon from file."""
         skill_name = self.skill.name.lower().replace(' ', '_')
+        # Strip characters that are illegal in filenames on Windows
+        skill_name = ''.join(c for c in skill_name if c not in r'\/:*?"<>|')
 
         # Check cache first
         if skill_name in self.icon_cache:
