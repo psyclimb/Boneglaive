@@ -7,6 +7,7 @@ import pygame
 import os
 from pathlib import Path
 from typing import Dict, Optional
+from boneglaive.utils.paths import asset_path
 
 
 class SoundManager:
@@ -32,9 +33,7 @@ class SoundManager:
 
         # Determine sounds directory
         if sounds_dir is None:
-            # Default: boneglaive/sounds/
-            project_root = Path(__file__).parent.parent.parent
-            self.sounds_dir = project_root / "sounds"
+            self.sounds_dir = Path(asset_path("sounds"))
         else:
             self.sounds_dir = Path(sounds_dir)
 
@@ -63,7 +62,7 @@ class SoundManager:
 
         try:
             if not pygame.mixer.get_init():
-                pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
+                pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=2048)
         except Exception as e:
             pass
             self.enabled = False

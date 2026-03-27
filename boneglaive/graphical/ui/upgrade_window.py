@@ -5,6 +5,7 @@ Modal window for selecting unit skill upgrades during gameplay.
 """
 import pygame
 from typing import Optional, List, Dict
+from boneglaive.utils.paths import asset_path
 
 # Colors - matching bone/industrial theme
 COLOR_OVERLAY = (0, 0, 0, 180)  # Semi-transparent black overlay
@@ -125,7 +126,7 @@ class UpgradeWindow:
 
         # Convert skill name to filename (e.g., "Marrow Dike" -> "marrow_dike")
         filename = skill_name.lower().replace(' ', '_')
-        icon_path = f"graphics/skill_icons/{filename}.svg"
+        icon_path = asset_path(f"graphics/skill_icons/{filename}.svg")
 
         try:
             import cairosvg

@@ -25,7 +25,8 @@ MANIFEST
 
 # PyInstaller
 *.manifest
-*.spec
+# *.spec excluded deliberately - boneglaive.spec is committed
+!boneglaive.spec
 
 # Installer logs
 pip-log.txt

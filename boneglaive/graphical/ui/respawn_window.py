@@ -6,6 +6,7 @@ Modal window for selecting dead units to respawn.
 import pygame
 from typing import Optional, List, Tuple
 from .scrollbar import Scrollbar
+from boneglaive.utils.paths import asset_path
 
 # Colors - matching bone/industrial theme
 COLOR_OVERLAY = (0, 0, 0, 200)  # Semi-transparent black overlay
@@ -144,7 +145,7 @@ class RespawnWindow:
                 self.sprite_cache[unit_type] = None
                 return None
 
-        sprite_path = f"graphics/units/{sprite_name}.svg"
+        sprite_path = asset_path(f"graphics/units/{sprite_name}.svg")
 
         try:
             import cairosvg

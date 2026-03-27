@@ -11,6 +11,8 @@ import random
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
+from boneglaive.utils.paths import asset_path
+
 # Add parent directory to path to import animations
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -116,8 +118,8 @@ class GraphicalRenderer:
     def __init__(self, game_adapter: GameStateAdapter = None):
         # Set SDL2 hints BEFORE pygame.init() for better icon support
         import os
-        icon_path = Path(__file__).parent.parent.parent / 'graphics' / 'boneglaive_icon.png'
-        os.environ['SDL_VIDEO_WINDOW_ICON'] = str(icon_path)
+        icon_path = asset_path('graphics/boneglaive_icon.png')
+        os.environ['SDL_VIDEO_WINDOW_ICON'] = icon_path
 
         # Initialize pygame
         pygame.init()
@@ -347,38 +349,38 @@ class GraphicalRenderer:
         # Mapping from TerrainType to SVG filename
         self.terrain_svg_map = {
             # Terrain types
-            TerrainType.LIMESTONE: "graphics/terrain/limestone.svg",
-            TerrainType.DUST: "graphics/terrain/dust.svg",
-            TerrainType.PILLAR: "graphics/terrain/pillar.svg",
-            TerrainType.MARROW_WALL: "graphics/terrain/marrow_wall.svg",
+            TerrainType.LIMESTONE: asset_path("graphics/terrain/limestone.svg"),
+            TerrainType.DUST: asset_path("graphics/terrain/dust.svg"),
+            TerrainType.PILLAR: asset_path("graphics/terrain/pillar.svg"),
+            TerrainType.MARROW_WALL: asset_path("graphics/terrain/marrow_wall.svg"),
             # RAIL is now rendered as overlay in Pass 2, not as terrain tile
-            TerrainType.STAINED_STONE: "graphics/terrain/stained_stone.svg",
-            TerrainType.CANYON_FLOOR: "graphics/terrain/canyon_floor.svg",
-            TerrainType.HYDRAULIC_PRESS: "graphics/terrain/hydraulic_press.svg",
-            TerrainType.CONCRETE_FLOOR: "graphics/terrain/concrete_floor.svg",
-            TerrainType.LEAF_PIT: "graphics/terrain/leaf_pit.svg",
-            TerrainType.MELANGE_FUME: "graphics/terrain/melange_fume.svg",
-            TerrainType.BLOOD_PLASMA: "graphics/terrain/blood_plasma.svg",
+            TerrainType.STAINED_STONE: asset_path("graphics/terrain/stained_stone.svg"),
+            TerrainType.CANYON_FLOOR: asset_path("graphics/terrain/canyon_floor.svg"),
+            TerrainType.HYDRAULIC_PRESS: asset_path("graphics/terrain/hydraulic_press.svg"),
+            TerrainType.CONCRETE_FLOOR: asset_path("graphics/terrain/concrete_floor.svg"),
+            TerrainType.LEAF_PIT: asset_path("graphics/terrain/leaf_pit.svg"),
+            TerrainType.MELANGE_FUME: asset_path("graphics/terrain/melange_fume.svg"),
+            TerrainType.BLOOD_PLASMA: asset_path("graphics/terrain/blood_plasma.svg"),
 
             # Furniture types
-            TerrainType.LECTERN: "graphics/furniture/lectern.svg",
-            TerrainType.COAT_RACK: "graphics/furniture/coat_rack.svg",
-            TerrainType.OTTOMAN: "graphics/furniture/ottoman.svg",
-            TerrainType.CONSOLE: "graphics/furniture/console_table.svg",
-            TerrainType.CURIOSITY_SHELF: "graphics/furniture/curiosity_shelf.svg",
-            TerrainType.TIFFANY_LAMP: "graphics/furniture/tiffany_lamp.svg",
-            TerrainType.EASEL: "graphics/furniture/easel.svg",
-            TerrainType.SCULPTURE: "graphics/furniture/sculpture.svg",
-            TerrainType.BENCH: "graphics/furniture/bench.svg",
-            TerrainType.PODIUM: "graphics/furniture/podium.svg",
-            TerrainType.VASE: "graphics/furniture/vase.svg",
-            TerrainType.WORKBENCH: "graphics/furniture/workbench.svg",
-            TerrainType.COUCH: "graphics/furniture/couch.svg",
-            TerrainType.TOOLBOX: "graphics/furniture/toolbox.svg",
-            TerrainType.COT: "graphics/furniture/cot.svg",
-            TerrainType.CONVEYOR: "graphics/furniture/conveyor_belt.svg",
-            TerrainType.MINI_PUMPKIN: "graphics/furniture/mini_pumpkin.svg",
-            TerrainType.POTPOURRI_BOWL: "graphics/furniture/potpourri_bowl.svg",
+            TerrainType.LECTERN: asset_path("graphics/furniture/lectern.svg"),
+            TerrainType.COAT_RACK: asset_path("graphics/furniture/coat_rack.svg"),
+            TerrainType.OTTOMAN: asset_path("graphics/furniture/ottoman.svg"),
+            TerrainType.CONSOLE: asset_path("graphics/furniture/console_table.svg"),
+            TerrainType.CURIOSITY_SHELF: asset_path("graphics/furniture/curiosity_shelf.svg"),
+            TerrainType.TIFFANY_LAMP: asset_path("graphics/furniture/tiffany_lamp.svg"),
+            TerrainType.EASEL: asset_path("graphics/furniture/easel.svg"),
+            TerrainType.SCULPTURE: asset_path("graphics/furniture/sculpture.svg"),
+            TerrainType.BENCH: asset_path("graphics/furniture/bench.svg"),
+            TerrainType.PODIUM: asset_path("graphics/furniture/podium.svg"),
+            TerrainType.VASE: asset_path("graphics/furniture/vase.svg"),
+            TerrainType.WORKBENCH: asset_path("graphics/furniture/workbench.svg"),
+            TerrainType.COUCH: asset_path("graphics/furniture/couch.svg"),
+            TerrainType.TOOLBOX: asset_path("graphics/furniture/toolbox.svg"),
+            TerrainType.COT: asset_path("graphics/furniture/cot.svg"),
+            TerrainType.CONVEYOR: asset_path("graphics/furniture/conveyor_belt.svg"),
+            TerrainType.MINI_PUMPKIN: asset_path("graphics/furniture/mini_pumpkin.svg"),
+            TerrainType.POTPOURRI_BOWL: asset_path("graphics/furniture/potpourri_bowl.svg"),
         }
 
     def _load_terrain_tile(self, terrain_type: TerrainType) -> Optional[pygame.Surface]:
@@ -428,7 +430,7 @@ class GraphicalRenderer:
         Load universal rail bomb overlay graphic.
         This single explosive ordnance platform supports all cardinal directions.
         """
-        svg_path = "graphics/terrain/rail_universal.svg"
+        svg_path = asset_path("graphics/terrain/rail_universal.svg")
 
         if not os.path.exists(svg_path):
             pass
@@ -456,7 +458,7 @@ class GraphicalRenderer:
         Load scalar node trap overlay graphic.
         This semi-transparent graphic shows revealed INTERFERER traps.
         """
-        svg_path = "graphics/terrain/scalar_node_trap.svg"
+        svg_path = asset_path("graphics/terrain/scalar_node_trap.svg")
 
         if not os.path.exists(svg_path):
             pass
@@ -485,7 +487,7 @@ class GraphicalRenderer:
         This semi-transparent graphic shows revealed FOWL CONTRIVANCE Fragcrest traps.
         Design: Hybrid between a claymore mine and a peacock tail.
         """
-        svg_path = "graphics/terrain/fragcrest_trap.svg"
+        svg_path = asset_path("graphics/terrain/fragcrest_trap.svg")
 
         if not os.path.exists(svg_path):
             pass
@@ -513,7 +515,7 @@ class GraphicalRenderer:
         Load Rail Genesis junction overlay graphic.
         This subtle graphic shows junction power-up locations for upgraded FOWL_CONTRIVANCE.
         """
-        svg_path = "graphics/ui/rail_junction_overlay.svg"
+        svg_path = asset_path("graphics/ui/rail_junction_overlay.svg")
 
         if not os.path.exists(svg_path):
             pass
@@ -671,24 +673,7 @@ class GraphicalRenderer:
             # Base game unit - extract name from enum
             unit_type_name = str(unit_type).split('.')[-1].lower()
 
-        # Try relative path first (from working directory)
-        sprite_path = f"graphics/units/{unit_type_name}.svg"
-        if os.path.exists(sprite_path):
-            return os.path.abspath(sprite_path)
-
-        # Try path relative to this file's location
-        renderer_dir = Path(__file__).parent.parent  # Go up to boneglaive/
-        absolute_path = renderer_dir / "graphics" / "units" / f"{unit_type_name}.svg"
-        if absolute_path.exists():
-            return str(absolute_path)
-
-        # Try one more level up (project root)
-        project_root = renderer_dir.parent
-        absolute_path = project_root / "graphics" / "units" / f"{unit_type_name}.svg"
-        if absolute_path.exists():
-            return str(absolute_path)
-
-        # Return relative path as fallback (will fail sprite load but won't crash)
+        sprite_path = asset_path(f"graphics/units/{unit_type_name}.svg")
         return sprite_path
 
     def _create_animated_unit_from_game(self, game_unit) -> AnimatedUnit:
@@ -964,15 +949,6 @@ class GraphicalRenderer:
                     # Cycle through player's units (SHIFT+TAB for backwards)
                     shift_pressed = pygame.key.get_mods() & pygame.KMOD_SHIFT
                     self._cycle_unit_selection(backwards=shift_pressed)
-
-                # DEV KEYBIND: Add upgrade points with '=' key (temporary for testing)
-                elif event.key == pygame.K_EQUALS:
-                    if self.game_adapter and self.game_adapter.game:
-                        game = self.game_adapter.game
-                        if game.current_player == 1:
-                            game.player1_upgrade_points += 1
-                        else:
-                            game.player2_upgrade_points += 1
 
                 # Check action menu hotkeys first
                 elif event.key in [pygame.K_m, pygame.K_a, pygame.K_s, pygame.K_u, pygame.K_r, pygame.K_t, pygame.K_c, pygame.K_h]:
@@ -4980,7 +4956,7 @@ class GraphicalRenderer:
                     else:  # is_saft_e_gas
                         icon_filename = 'saft-e-gas.svg'
 
-                    icon_path = os.path.join(os.path.dirname(__file__), '..', '..', 'graphics', 'skill_icons', icon_filename)
+                    icon_path = asset_path(f"graphics/skill_icons/{icon_filename}")
                     try:
                         # Load and render SVG as PNG
                         import cairosvg

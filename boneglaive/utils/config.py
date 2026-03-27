@@ -8,6 +8,7 @@ import json
 import os
 from dataclasses import asdict, dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Dict, Optional
 
 class DisplayMode(Enum):
@@ -66,33 +67,39 @@ class GameConfig:
 
 class ConfigManager:
     """Manages loading, saving, and accessing game configuration."""
-    
-    DEFAULT_CONFIG_PATH = "config.json"
-    
+
     def __init__(self, config_path: Optional[str] = None):
-        self.config_path = config_path or self.DEFAULT_CONFIG_PATH
+        from boneglaive.utils.paths import asset_path, user_config_dir
+
+        # User config lives in a writable location (survives PyInstaller)
+        self._user_config_path = Path(config_path) if config_path else user_config_dir() / "config.json"
+
+        # Bundled default config (read-only inside _MEIPASS)
+        self._default_config_path = Path(asset_path("config.json"))
+
         self.config = GameConfig()
         self._load_config()
-    
+
     def _load_config(self) -> None:
-        """Load configuration from file or use defaults."""
-        try:
-            if os.path.exists(self.config_path):
-                with open(self.config_path, 'r') as f:
-                    config_dict = json.load(f)
-                    
-                    # Update config with loaded values
+        """Load configuration: user file first, fall back to bundled default."""
+        for path in (self._user_config_path, self._default_config_path):
+            try:
+                if path.exists():
+                    with open(path, 'r') as f:
+                        config_dict = json.load(f)
                     for key, value in config_dict.items():
                         if hasattr(self.config, key):
                             setattr(self.config, key, value)
-        except (json.JSONDecodeError, IOError) as e:
-            pass
-    
+                    return
+            except (json.JSONDecodeError, IOError):
+                pass
+
     def save_config(self) -> None:
-        """Save current configuration to file."""
+        """Save current configuration to the user config file."""
         try:
+            self._user_config_path.parent.mkdir(parents=True, exist_ok=True)
             config_dict = asdict(self.config)
-            with open(self.config_path, 'w') as f:
+            with open(self._user_config_path, 'w') as f:
                 json.dump(config_dict, f, indent=2)
         except IOError as e:
             print(f"Error saving config: {e}")

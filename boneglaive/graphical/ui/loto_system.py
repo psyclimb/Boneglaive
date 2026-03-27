@@ -6,6 +6,7 @@ Checks unit status effects to determine which actions are blocked.
 from typing import Optional, Set
 import pygame
 import os
+from boneglaive.utils.paths import asset_path
 
 
 class LOTOChecker:
@@ -140,11 +141,9 @@ class LOTORenderer:
         """Load LOTO SVG icons."""
         icon_size = 64  # Base size for LOTO icons
 
-        graphics_dir = os.path.join(os.path.dirname(__file__), '../../../graphics/ui')
-
-        chain_path = os.path.join(graphics_dir, 'loto_chain.svg')
-        lock_path = os.path.join(graphics_dir, 'loto_lock.svg')
-        tag_path = os.path.join(graphics_dir, 'loto_tag.svg')
+        chain_path = asset_path('graphics/ui/loto_chain.svg')
+        lock_path = asset_path('graphics/ui/loto_lock.svg')
+        tag_path = asset_path('graphics/ui/loto_tag.svg')
 
         # Try loading SVGs with cairosvg
         try:

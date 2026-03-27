@@ -8,6 +8,7 @@ import os
 from typing import List, Optional, Tuple, Dict
 from boneglaive.utils.constants import UNIT_SYMBOLS
 from .font_utils import render_fitted_text
+from boneglaive.utils.paths import asset_path
 
 # Colors - matching bone/industrial theme
 COLOR_BG_TOP = (42, 42, 47)  # Panel top
@@ -75,7 +76,7 @@ class UnitCard:
 
             # Convert unit type to sprite filename
             unit_type_name = str(unit_type).split('.')[-1].lower()
-            sprite_path = f"graphics/units/{unit_type_name}.svg"
+            sprite_path = asset_path(f"graphics/units/{unit_type_name}.svg")
 
             if not os.path.exists(sprite_path):
                 return
@@ -95,7 +96,7 @@ class UnitCard:
                 pass  # SVG loading failed, try PNG fallback below
 
             # Fallback: Try to load PNG version if it exists
-            png_path = f"graphics/units/{unit_type_name}.png"
+            png_path = asset_path(f"graphics/units/{unit_type_name}.png")
             if os.path.exists(png_path):
                 self.sprite_surface = pygame.image.load(png_path)
                 self.sprite_surface = pygame.transform.scale(self.sprite_surface, (SPRITE_SIZE, SPRITE_SIZE))

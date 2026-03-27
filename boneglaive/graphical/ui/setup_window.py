@@ -9,6 +9,7 @@ from pathlib import Path
 from .font_utils import render_fitted_text
 from .scrollbar import Scrollbar
 from .menu_components import draw_gradient_rect, draw_glow_rect
+from boneglaive.utils.paths import asset_path
 
 # Import unit types
 import sys
@@ -225,7 +226,7 @@ class SetupWindow:
                 self.sprite_cache[unit_type] = None
                 return None
 
-        sprite_path = f"graphics/units/{sprite_name}.svg"
+        sprite_path = asset_path(f"graphics/units/{sprite_name}.svg")
 
         try:
             import cairosvg
@@ -334,8 +335,8 @@ class SetupWindow:
             return
 
         # Calculate total scrollable height
-        total_height = len(self.unit_types) * (ITEM_HEIGHT + ITEM_PADDING)
-        list_height = WINDOW_HEIGHT - 200
+        total_height = len(self.unit_types) * (ITEM_HEIGHT + ITEM_PADDING) + ITEM_PADDING
+        list_height = WINDOW_HEIGHT - 220
 
         # Only scroll if content is larger than visible area
         if total_height > list_height:
@@ -614,7 +615,7 @@ class SetupWindow:
         screen.set_clip(None)
 
         # Draw scrollbar if needed (positioned outside panel, to the right)
-        total_height = len(self.unit_types) * (ITEM_HEIGHT + ITEM_PADDING)
+        total_height = len(self.unit_types) * (ITEM_HEIGHT + ITEM_PADDING) + ITEM_PADDING
         self.max_scroll = max(0, total_height - list_height)
         if self.max_scroll > 0:
             scrollbar_x = window_x + WINDOW_WIDTH + scale_manager.scale(5)  # Position outside panel

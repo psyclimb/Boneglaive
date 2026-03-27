@@ -151,7 +151,7 @@ SKILL_UPGRADES = {
         },
         "Neural Shunt": {
             "name": "Neural Shunt",
-            "description": "Increases range by 2. Damage increased by 2. No longer flashes.",
+            "description": "Increases range by 2. Damage increased by 2.",
             "type": "buff",
             "cost": 1
         },

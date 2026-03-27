@@ -1,0 +1,143 @@
+name: Build Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: Linux (Ubuntu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libcairo2-dev \
+            libgirepository1.0-dev \
+            pkg-config \
+            python3-dev \
+            libsdl2-dev \
+            libsdl2-mixer-dev \
+            libsdl2-image-dev \
+            libsdl2-ttf-dev
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pygame cairosvg cairocffi pyinstaller
+          pip install -e .
+
+      - name: Build with PyInstaller
+        run: pyinstaller boneglaive.spec --distpath dist/linux
+
+      - name: Package artifact
+        run: |
+          cd dist/linux
+          zip -r ../../boneglaive-linux.zip boneglaive/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: boneglaive-linux
+          path: boneglaive-linux.zip
+
+  build-windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Cairo via MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-cairo mingw-w64-x86_64-pkg-config
+
+      - name: Add MSYS2 MinGW64 to PATH
+        run: echo "C:\msys64\mingw64\bin" >> $env:GITHUB_PATH
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pygame cairosvg cairocffi pyinstaller
+          pip install -e .
+
+      - name: Build with PyInstaller
+        run: pyinstaller boneglaive.spec --distpath dist\windows
+
+      - name: Package artifact
+        run: |
+          Compress-Archive -Path dist\windows\boneglaive\* -DestinationPath boneglaive-windows.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: boneglaive-windows
+          path: boneglaive-windows.zip
+
+  build-freebsd:
+    name: FreeBSD
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build on FreeBSD
+        uses: cross-platform-actions/action@v0.25.0
+        with:
+          operating_system: freebsd
+          version: '14.1'
+          shell: sh
+          run: |
+            sudo pkg install -y \
+              python311 \
+              py311-pip \
+              cairo \
+              pkgconf \
+              sdl2 \
+              sdl2_mixer \
+              sdl2_image \
+              sdl2_ttf \
+              zip
+            pip3.11 install --upgrade pip
+            pip3.11 install pygame cairosvg cairocffi pyinstaller
+            pip3.11 install -e .
+            python3.11 -m PyInstaller boneglaive.spec --distpath dist/freebsd
+            cd dist/freebsd && zip -r ../../boneglaive-freebsd.zip boneglaive/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: boneglaive-freebsd
+          path: boneglaive-freebsd.zip
+
+  release:
+    name: Attach to Release
+    needs: [build-linux, build-windows, build-freebsd]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            boneglaive-linux/boneglaive-linux.zip
+            boneglaive-windows/boneglaive-windows.zip
+            boneglaive-freebsd/boneglaive-freebsd.zip

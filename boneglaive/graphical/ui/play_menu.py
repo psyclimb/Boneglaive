@@ -9,6 +9,7 @@ from typing import Optional, List
 from .menu_components import MenuScreen, Button, COLOR_TEXT, COLOR_BG
 from boneglaive.utils.config import ConfigManager, NetworkMode
 from boneglaive.game.map import MapFactory
+from boneglaive.utils.paths import asset_path
 
 
 class PlaySubmenu(MenuScreen):
@@ -193,7 +194,7 @@ class MapSelectionMenu(MenuScreen):
         if not icon_filename:
             return None
 
-        icon_path = f"graphics/map_icons/{icon_filename}"
+        icon_path = asset_path(f"graphics/map_icons/{icon_filename}")
         if not os.path.exists(icon_path):
             return None
 

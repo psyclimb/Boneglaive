@@ -7,6 +7,7 @@ import pygame
 from typing import Optional, Tuple
 from pathlib import Path
 import sys
+from boneglaive.utils.paths import asset_path
 
 # Import unit types and skills
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
@@ -555,7 +556,7 @@ class SetupUnitHelp:
                 self.sprite_cache[cache_key] = None
                 return None
 
-        sprite_path = f"graphics/units/{sprite_name}.svg"
+        sprite_path = asset_path(f"graphics/units/{sprite_name}.svg")
 
         try:
             import cairosvg
@@ -577,7 +578,7 @@ class SetupUnitHelp:
 
         # Convert skill name to filename
         icon_name = skill_name.lower().replace(' ', '_')
-        icon_path = f"graphics/skill_icons/{icon_name}.svg"
+        icon_path = asset_path(f"graphics/skill_icons/{icon_name}.svg")
 
         try:
             import cairosvg

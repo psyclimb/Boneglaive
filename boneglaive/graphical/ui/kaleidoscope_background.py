@@ -7,6 +7,7 @@ import pygame
 import random
 import os
 from typing import List, Tuple
+from boneglaive.utils.paths import asset_path
 
 
 class KaleidoscopeBackground:
@@ -40,13 +41,7 @@ class KaleidoscopeBackground:
         """Load all unit, furniture, and skill icons."""
         icons = []
 
-        # Find graphics directory relative to current working directory
-        # The script is run from project root, so graphics/ should be accessible
-        if os.path.exists("graphics"):
-            graphics_base = "graphics"
-        else:
-            # Try absolute path as fallback
-            graphics_base = "/home/user/boneglaive/graphics"
+        graphics_base = asset_path("graphics")
 
         # Try to import cairosvg for SVG support
         try:

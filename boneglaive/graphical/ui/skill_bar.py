@@ -8,6 +8,7 @@ import os
 from typing import Optional, List, Tuple, Dict, Set
 from .font_utils import render_fitted_text
 from .loto_system import LOTORenderer
+from boneglaive.utils.paths import asset_path
 
 # Colors - matching bone/industrial theme from main menu
 COLOR_BG_TOP = (74, 74, 79)  # Metal gradient top
@@ -58,7 +59,7 @@ class SkillSlot:
         if skill_name in self.icon_cache:
             return self.icon_cache[skill_name]
 
-        icon_path = f"graphics/skill_icons/{skill_name}.svg"
+        icon_path = asset_path(f"graphics/skill_icons/{skill_name}.svg")
 
         if not os.path.exists(icon_path):
             return None
@@ -78,7 +79,7 @@ class SkillSlot:
             pass
 
         # Fallback: Try PNG version
-        png_path = f"graphics/skill_icons/{skill_name}.png"
+        png_path = asset_path(f"graphics/skill_icons/{skill_name}.png")
         if os.path.exists(png_path):
             try:
                 icon_surface = pygame.image.load(png_path)

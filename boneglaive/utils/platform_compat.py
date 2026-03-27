@@ -7,7 +7,9 @@ Platform compatibility utilities for Boneglaive.
 import sys
 import platform
 import os
-import curses
+
+if platform.system() != 'Windows':
+    import curses
 
 def get_curses_module():
     """

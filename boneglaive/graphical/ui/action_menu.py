@@ -7,6 +7,7 @@ import pygame
 from typing import Optional, Tuple, Callable, Set
 from .font_utils import render_fitted_text
 from .loto_system import LOTORenderer, LOTOChecker
+from boneglaive.utils.paths import asset_path
 
 # Colors - matching bone/industrial theme from main menu
 COLOR_BG_TOP = (74, 74, 79)  # Metal gradient top
@@ -180,7 +181,7 @@ class ActionButton:
 
             # Load tank treads icon if not cached
             if self.tank_treads_icon is None:
-                icon_path = "graphics/ui/tank_treads.svg"
+                icon_path = asset_path("graphics/ui/tank_treads.svg")
                 if os.path.exists(icon_path):
                     try:
                         import cairosvg
@@ -214,7 +215,7 @@ class ActionButton:
 
             # Load skeletal hand icon if not cached
             if self.skeletal_hand_icon is None:
-                icon_path = "graphics/ui/skeletal_hand.svg"
+                icon_path = asset_path("graphics/ui/skeletal_hand.svg")
                 if os.path.exists(icon_path):
                     try:
                         import cairosvg
@@ -263,7 +264,7 @@ class ActionButton:
 
             # Load lightning bolt icon if not cached
             if self.lightning_bolt_icon is None:
-                icon_path = "graphics/ui/lightning_bolt.svg"
+                icon_path = asset_path("graphics/ui/lightning_bolt.svg")
                 if os.path.exists(icon_path):
                     try:
                         import cairosvg
@@ -310,7 +311,7 @@ class ActionButton:
 
             # Load gears icon if not cached
             if self.gears_icon is None:
-                icon_path = "graphics/ui/gears.svg"
+                icon_path = asset_path("graphics/ui/gears.svg")
                 if os.path.exists(icon_path):
                     try:
                         import cairosvg
@@ -346,7 +347,7 @@ class ActionButton:
 
             # Load glaive icon if not cached
             if self.glaive_icon is None:
-                icon_path = "graphics/ui/glaive.svg"
+                icon_path = asset_path("graphics/ui/glaive.svg")
                 if os.path.exists(icon_path):
                     try:
                         import cairosvg
@@ -382,7 +383,7 @@ class ActionButton:
 
             # Load toolbox icon if not cached
             if self.toolbox_icon is None:
-                icon_path = "graphics/ui/toolbox.svg"
+                icon_path = asset_path("graphics/ui/toolbox.svg")
                 if os.path.exists(icon_path):
                     try:
                         import cairosvg
@@ -418,7 +419,7 @@ class ActionButton:
 
             # Load help scream icon if not cached
             if self.help_scream_icon is None:
-                icon_path = "graphics/ui/help_scream.svg"
+                icon_path = asset_path("graphics/ui/help_scream.svg")
                 if os.path.exists(icon_path):
                     try:
                         import cairosvg
@@ -454,7 +455,7 @@ class ActionButton:
 
             # Load white flag icon if not cached
             if self.white_flag_icon is None:
-                icon_path = "graphics/ui/white_flag.svg"
+                icon_path = asset_path("graphics/ui/white_flag.svg")
                 if os.path.exists(icon_path):
                     try:
                         import cairosvg

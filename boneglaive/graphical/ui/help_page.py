@@ -8,6 +8,7 @@ import os
 from typing import Optional, Dict, List, Tuple
 from boneglaive.utils.constants import UnitType
 from .scrollbar import Scrollbar
+from boneglaive.utils.paths import asset_path
 
 # Colors
 COLOR_BG = (25, 28, 32)
@@ -80,9 +81,9 @@ class HelpPage:
 
         # Determine path based on type
         if icon_type == "skill":
-            icon_path = f"graphics/skill_icons/{icon_name}.svg"
+            icon_path = asset_path(f"graphics/skill_icons/{icon_name}.svg")
         else:  # status
-            icon_path = f"graphics/status_icons/{icon_name}.svg"
+            icon_path = asset_path(f"graphics/status_icons/{icon_name}.svg")
 
         if not os.path.exists(icon_path):
             return None
