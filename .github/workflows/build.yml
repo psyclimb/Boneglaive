@@ -115,9 +115,12 @@ jobs:
               sdl2_ttf \
               zip
             python3.11 -m pip install --upgrade pip
-            sudo mkdir -p /usr/include/linux
-            echo '' | sudo tee /usr/include/linux/videodev2.h
-            python3.11 -m pip install pygame cairosvg cairocffi pyinstaller
+            cd /tmp && python3.11 -m pip download --no-binary :all: --no-deps pygame
+            tar xzf pygame-*.tar.gz && cd pygame-*/
+            printf '' > buildconfig/Setup_Unix.in
+            python3.11 -m pip install .
+            cd /home/runner/work/Boneglaive/Boneglaive
+            python3.11 -m pip install cairosvg cairocffi pyinstaller
             python3.11 -m pip install -e .
             python3.11 -m PyInstaller boneglaive.spec --distpath dist/freebsd
             cd dist/freebsd && zip -r ../../boneglaive-freebsd.zip boneglaive/
