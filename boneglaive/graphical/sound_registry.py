@@ -66,11 +66,11 @@ SKILL_SOUNDS = {
     "LIVING_AEROSOL_GAS": "vapor_spawn",
     "DIVERGE": "diverge",
     "AEROSOLIZE_ARMS": "aerosolize_arms",
-    "VAPOR_AOE_BROACHING": "vapor_tick",
-    "VAPOR_AOE_SAFETY": "vapor_tick",
-    "VAPOR_AOE_COOLANT": "vapor_tick",
-    "VAPOR_AOE_CUTTING": "vapor_tick",
-    "VAPOR_AOE_CALIBRATION": "vapor_tick",
+    "VAPOR_AOE_BROACHING": "vapor_tick_broaching",
+    "VAPOR_AOE_SAFETY": "vapor_tick_safety",
+    "VAPOR_AOE_COOLANT": "vapor_tick_coolant",
+    "VAPOR_AOE_CUTTING": "vapor_tick_cutting",
+    "VAPOR_AOE_CALIBRATION": "vapor_tick_calibration",
 
     # DELPHIC APPRAISER skills
     "MARKET_FUTURES": "market_futures",
@@ -374,6 +374,22 @@ MULTI_EVENT_SOUNDS = {
     # DERELICTIONIST - Vagal Run (2 events, shared with Abreaction variant)
     "vagal_run_cast": "sounds/skills/vagal_run_cast.wav",   # Lightning arc connects caster to target — electric strike
     "vagal_run_burst": "sounds/skills/vagal_run_burst.wav", # Fracture explosion at nerve terminus — shattering discharge
+
+    # GAS MACHINIST - Basic Attack (2 events)
+    "gas_attack_release": "sounds/skills/gas_attack_release.wav",  # Pressurized gas jet fires — industrial hiss burst
+    "gas_attack_impact": "sounds/skills/gas_attack_impact.wav",    # Mixed gas cloud hits target — wet chemical splat
+
+    # GAS MACHINIST - Vapor Spawn (2 events)
+    "vapor_spawn_erupt": "sounds/skills/vapor_spawn_erupt.wav",      # Ground cracks, gas erupts violently — pressurized burst
+    "vapor_spawn_condense": "sounds/skills/vapor_spawn_condense.wav",# Gas contracts into vapor entity — wet dense compression
+
+    # GAS MACHINIST - Diverge (2 events, shared with upgraded variant)
+    "diverge_compress": "sounds/skills/diverge_compress.wav",  # Vapors pulled inward — suction hiss
+    "diverge_split": "sounds/skills/diverge_split.wav",        # Gas streams split and fly outward — explosive bifurcation
+
+    # GAS MACHINIST - Aerosolize Arms (2 events)
+    "aerosolize_extract": "sounds/skills/aerosolize_extract.wav",  # Weapon extracted and aerosolized — metallic dissolve
+    "aerosolize_disarm": "sounds/skills/aerosolize_disarm.wav",    # Disarm applied — hollow clank of weapon gone
 }
 
 

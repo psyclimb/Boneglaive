@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, VaporParticleCloud
+from boneglaive.graphical.sound_helper import play_sound
 
 
 class VaporSpawnAnimation:
@@ -58,6 +59,8 @@ class VaporSpawnAnimation:
         self.eruption_duration = 0.3
         self.expansion_duration = 0.4
         self.condensation_duration = 0.3
+
+        play_sound("vapor_spawn_erupt")
 
         # Visual elements
         self.crack_lines = []
@@ -152,6 +155,9 @@ class VaporSpawnAnimation:
 
         elif self.phase == "condensation":
             # Cloud contracts and eyes appear
+            if self.timer == 0 or not hasattr(self, "_condense_triggered"):
+                play_sound("vapor_spawn_condense")
+                self._condense_triggered = True
             progress = self.timer / self.condensation_duration
             self.condensation_progress = progress
             self.eyes_alpha = int(255 * min(1.0, progress * 2))
@@ -522,6 +528,7 @@ class DivergeAnimation:
         """Phase 1: Compression."""
         self.phase = "compression"
         self.timer = 0
+        play_sound("diverge_compress")
 
         # Light screen shake
         self.screen_shake_callback(intensity=4, duration=0.3)
@@ -530,6 +537,7 @@ class DivergeAnimation:
         """Phase 2: Split."""
         self.phase = "split"
         self.timer = 0
+        play_sound("diverge_split")
 
         # NOW find vapor positions - they should exist by the time split phase starts
         if not self.vapor_positions_found and self.game:
@@ -833,6 +841,7 @@ class DivergeAnimationUpgraded:
         """Phase 1: Compression."""
         self.phase = "compression"
         self.timer = 0
+        play_sound("diverge_compress")
 
         # Light screen shake
         self.screen_shake_callback(intensity=4, duration=0.3)
@@ -841,6 +850,7 @@ class DivergeAnimationUpgraded:
         """Phase 2: Split into THREE streams."""
         self.phase = "split"
         self.timer = 0
+        play_sound("diverge_split")
 
         # NOW find vapor positions - they should exist by the time split phase starts
         if not self.vapor_positions_found and self.game:
@@ -1140,6 +1150,8 @@ class AerosolizeArmsAnimation:
         self.formation_duration = 0.5
         self.disarm_duration = 0.3
 
+        play_sound("aerosolize_extract")
+
         # Visual elements
         self.beam_alpha = 0
         self.weapon_particles = []
@@ -1308,6 +1320,7 @@ class AerosolizeArmsAnimation:
         """Phase 4: Disarm Effect."""
         self.phase = "disarm"
         self.timer = 0
+        play_sound("aerosolize_disarm")
         # Quick flash
         self.screen_flash_callback(color=(100, 100, 100), duration=0.1)
 
@@ -1922,6 +1935,7 @@ class GasMachinistPressurizedAttack:
 
     def _trigger_release(self):
         """Phase 2: Release pressurized gas jet."""
+        play_sound("gas_attack_release")
         # Create streaming gas particles along attack path
         for i in range(25):
             progress = i / 25
@@ -1952,6 +1966,7 @@ class GasMachinistPressurizedAttack:
 
     def _trigger_impact(self):
         """Phase 3: Gas cloud impact."""
+        play_sound("gas_attack_impact")
         # Mixed gas cloud explosion at target
         for _ in range(22):
             angle = random.uniform(0, 2 * math.pi)
