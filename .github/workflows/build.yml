@@ -107,6 +107,7 @@ jobs:
             sudo pkg install -y \
               python311 \
               py311-pip \
+              py311-game_sdl2 \
               cairo \
               pkgconf \
               sdl2 \
@@ -115,9 +116,9 @@ jobs:
               sdl2_ttf \
               zip
             python3.11 -m pip install --upgrade pip
-            python3.11 -m pip install pygame cairosvg cairocffi pyinstaller
+            python3.11 -m pip install cairosvg cairocffi pyinstaller
             python3.11 -m pip install -e .
-            python3.11 -m PyInstaller boneglaive.spec --distpath dist/freebsd
+            PYTHONPATH=/usr/local/lib/python3.11/site-packages python3.11 -m PyInstaller boneglaive.spec --distpath dist/freebsd
             cd dist/freebsd && zip -r ../../boneglaive-freebsd.zip boneglaive/
 
       - name: Upload artifact
