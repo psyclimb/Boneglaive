@@ -103,6 +103,7 @@ jobs:
           version: '14.2'
           shell: sh
           run: |
+            set -ex
             sudo pkg install -y \
               python311 \
               py311-pip \
