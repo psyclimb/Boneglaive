@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, COLOR_DAMAGE, COLOR_SKILL
+from boneglaive.graphical.sound_helper import play_sound
 
 
 class LunacyEffect:
@@ -208,6 +209,9 @@ class PedestalStrike:
         self.dust_particles = []
         self.damage_applied = False
 
+        # Play pedestal strike impact sound immediately
+        play_sound("pedestal_strike_impact")
+
     def update(self, delta_time):
         """Update impact effects."""
         if not self.active:
@@ -238,6 +242,7 @@ class PedestalStrike:
             else:
                 self.phase = "shockwave"
                 self.timer = 0
+                play_sound("pedestal_strike_shockwave")
                 # Reset target stretch
                 if self.target:
                     self.target.pry_stretch_y = 1.0
@@ -363,6 +368,9 @@ class InfuseEffect:
         self.spiral_angle = 0
         self.core_glow_radius = 0
 
+        # Petals beginning to gather
+        play_sound("infuse_gather")
+
     def update(self, delta_time):
         """Update infuse animation."""
         if not self.active:
@@ -410,6 +418,7 @@ class InfuseEffect:
             else:
                 self.phase = "swirling"
                 self.timer = 0
+                play_sound("infuse_swirl")
 
         elif self.phase == "swirling":
             # Petals swirl around caster (0.6s)
@@ -431,6 +440,7 @@ class InfuseEffect:
             else:
                 self.phase = "infusion"
                 self.timer = 0
+                play_sound("infuse_burst")
 
         elif self.phase == "infusion":
             # Petals burst outward and fade, potpourri absorbed (0.5s)
@@ -547,6 +557,10 @@ class GraniteGeasEffect:
         self.infused = infused
 
         self.phase = "strike"  # strike -> mark_appear -> binding -> complete
+
+        # Pedestal strike landing on target
+        play_sound("granite_geas_strike")
+
         self.timer = 0
         self.active = True
 
@@ -588,6 +602,7 @@ class GraniteGeasEffect:
             else:
                 self.phase = "mark_appear"
                 self.timer = 0
+                play_sound("granite_geas_mark")
 
         elif self.phase == "mark_appear":
             # Aromatic oil mark appears (0.5s)
@@ -630,6 +645,7 @@ class GraniteGeasEffect:
             else:
                 self.phase = "binding"
                 self.timer = 0
+                play_sound("granite_geas_bind")
 
         elif self.phase == "binding":
             # Show magical binding (1.5s for normal, 2.5s for infused)
@@ -887,6 +903,9 @@ class GeasBreakHeal:
         self.heal_amount = heal_amount
 
         self.phase = "release"  # release -> travel -> inhale -> complete
+
+        # Geas seal shattering
+        play_sound("geas_break_release")
         self.timer = 0
         self.active = True
 
@@ -1012,6 +1031,7 @@ class GeasBreakHeal:
             if self.timer >= 0.6 or len(self.fume_stream) == 0:
                 self.phase = "inhale"
                 self.timer = 0
+                play_sound("geas_break_inhale")
 
         elif self.phase == "inhale":
             # Caster inhales, healing sparkles appear (0.5s)
@@ -1144,6 +1164,9 @@ class DemiluneSwing:
         self.camera = camera
 
         self.phase = "windup"  # windup -> swing -> impact -> settling -> complete
+
+        # Pedestal pulling back
+        play_sound("demilune_windup")
         self.timer = 0
         self.active = True
 
@@ -1296,6 +1319,7 @@ class DemiluneSwing:
             else:
                 self.phase = "swing"
                 self.timer = 0
+                play_sound("demilune_swing")
 
         elif self.phase == "swing":
             # Sweeping arc motion (0.25s - faster)
@@ -1397,6 +1421,7 @@ class DemiluneSwing:
             else:
                 self.phase = "impact"
                 self.timer = 0
+                play_sound("demilune_impact")
                 # Reset caster rotation
                 if self.caster:
                     self.caster.wind_up_rotation = 0
@@ -1844,6 +1869,7 @@ class MelangeEminence:
             else:
                 self.phase = "inhale"
                 self.timer = 0
+                play_sound("melange_inhale")
 
         elif self.phase == "inhale":
             # Vapors are drawn toward caster's center (0.5s)
@@ -2057,6 +2083,9 @@ class MelangeEminenceHealAnimation:
         self.aura_intensity = 0
         self.aura_radius = 0
 
+        # Aromatic vapors drawn in for healing
+        play_sound("melange_heal_inhale")
+
     def _spawn_initial_particles(self):
         """Spawn particles for inhale phase."""
         num_particles = 12
@@ -2087,6 +2116,7 @@ class MelangeEminenceHealAnimation:
             if self.timer >= self.inhale_duration:
                 self.phase = "restore"
                 self.timer = 0
+                play_sound("melange_heal_restore")
 
         elif self.phase == "restore":
             # Pulse aura
@@ -2265,6 +2295,9 @@ class MelangeEminenceInfusedHealAnimation:
         self.aura_radius = 0
         self.color_cycle = 0
 
+        # Rich infused vapors drawn in
+        play_sound("melange_heal_infused_inhale")
+
     def _spawn_initial_petals(self):
         """Spawn petal particles for inhale phase."""
         num_petals = 20
@@ -2298,6 +2331,7 @@ class MelangeEminenceInfusedHealAnimation:
             if self.timer >= self.inhale_duration:
                 self.phase = "restore"
                 self.timer = 0
+                play_sound("melange_heal_infused_restore")
 
         elif self.phase == "restore":
             # Strong pulsing aura
@@ -2541,7 +2575,10 @@ class PotpourristAromaticAttack:
 
     def _trigger_windup(self):
         """Phase 1: Windup pedestal swing."""
+        play_sound("aromatic_attack_windup")
+
         # Small dust particles as pedestal pulls back
+
         for _ in range(6):
             angle = random.uniform(0, 2 * math.pi)
             speed = random.uniform(30, 60)
@@ -2559,11 +2596,13 @@ class PotpourristAromaticAttack:
 
     def _trigger_swing(self):
         """Phase 2: Swing pedestal (no particles during swing)."""
+        play_sound("aromatic_attack_swing")
         # Just the visual arc swing - no potpourri flies out until impact
-        pass
 
     def _trigger_impact(self):
         """Phase 3: Potpourri impact burst."""
+        play_sound("aromatic_attack_impact")
+
         # Colorful aromatic burst at target
         for _ in range(25):
             angle = random.uniform(0, 2 * math.pi)
@@ -2731,6 +2770,9 @@ class SelenicBackdraftZone:
         # Phase durations
         self.fade_in_duration = 0.4
         self.fade_out_duration = 0.6
+
+        # Moonlight zone appearing
+        play_sound("selenic_backdraft_appear")
 
         # Color scheme from demilune.svg
         self.color_light_core = (255, 255, 255)      # #ffffff - bright white
