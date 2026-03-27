@@ -7,6 +7,7 @@ import pygame
 import random
 import math
 from .core import TILE_SIZE, Particle
+from boneglaive.graphical.sound_helper import play_sound
 
 
 class RespawnAnimation:
@@ -57,6 +58,7 @@ class RespawnAnimation:
 
         # Store starting position
         if self.caster:
+            play_sound("unit_respawn", category="general")
             self.start_y = self.caster.y
             self.caster.respawn_phase = "ground_crack"
             self.caster.respawn_timer = 0

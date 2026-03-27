@@ -409,7 +409,7 @@ class Unit:
         elif display_type == "FOWL_CONTRIVANCE":
             # Use a shorter name if requested (for UI menus)
             if shortened:
-                display_type = "F.CONTRIVANCE"
+                display_type = "F.CONTRIV"
             else:
                 display_type = "FOWL CONTRIVANCE"
         elif display_type == "GAS_MACHINIST":

@@ -158,6 +158,9 @@ class GraphicalUIAdapter:
         # Death effect: fade out with particles
         unit_animated.is_dead = True
 
+        from boneglaive.graphical.sound_helper import play_sound
+        play_sound("unit_death", category="general")
+
         # Add death particles
         from .animations import DebrisParticle
         for _ in range(20):

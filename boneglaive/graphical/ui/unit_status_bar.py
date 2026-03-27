@@ -46,6 +46,21 @@ TITLE_HEIGHT = scale_manager.scale(35, 'y')
 HP_BAR_HEIGHT = scale_manager.scale(4, 'y')
 SPRITE_SIZE = scale_manager.scale(32, 'uniform')
 
+# Shortened display names for unit types (used for dead units via DeadUnit)
+_UNIT_TYPE_SHORT_NAMES = {
+    'MANDIBLE_FOREMAN': 'M.FOREMAN',
+    'MARROW_CONDENSER': 'M.CONDENSER',
+    'FOWL_CONTRIVANCE': 'F.CONTRIV',
+    'GAS_MACHINIST': 'G.MACHINIST',
+    'DELPHIC_APPRAISER': 'D.APPRAISER',
+    'HEINOUS_VAPOR': 'H.VAPOR',
+}
+
+def _unit_type_short_name(unit_type) -> str:
+    """Get shortened display name from a UnitType enum value."""
+    type_name = str(unit_type).split('.')[-1]
+    return _UNIT_TYPE_SHORT_NAMES.get(type_name, type_name.replace('_', ' '))
+
 
 class UnitCard:
     """Individual unit card in the status bar."""
@@ -259,12 +274,13 @@ class UnitCard:
             else:
                 surface.blit(self.sprite_surface, (sprite_x, sprite_y))
 
-        # Draw unit symbol and Greek ID below sprite
-        symbol = self.get_unit_symbol()
-        greek_id = self.get_greek_id()
-
-        # Combine symbol and ID
-        display_text = f"{symbol}{greek_id}"
+        # Draw unit name below sprite
+        if self.is_dead:
+            display_text = _unit_type_short_name(self.game_unit.unit_type)
+        elif hasattr(self.game_unit, 'is_doppelganger') and self.game_unit.is_doppelganger:
+            display_text = "DOPPELGNGR"
+        else:
+            display_text = self.game_unit.get_display_name(shortened=True)
 
         # Choose text color
         if self.is_dead:
@@ -274,23 +290,12 @@ class UnitCard:
         else:
             text_color = player_color
 
-        # Position text below sprite with more spacing
-        text_y = y + sprite_y_offset + SPRITE_SIZE + 10
-        text_surface = render_fitted_text(
-            display_text,
-            max_width=UNIT_CARD_WIDTH - 6,
-            max_height=18,
-            color=text_color,
-            base_font_size=16,
-            min_font_size=12,
-            max_font_size=18
-        )
-        text_rect = text_surface.get_rect(center=(x + UNIT_CARD_WIDTH // 2, text_y))
-        surface.blit(text_surface, text_rect)
+        # Anchor text rows from the bottom of the card, above the HP bar
+        bottom_anchor = y + UNIT_CARD_HEIGHT - HP_BAR_HEIGHT - 4
 
         # Draw READY badge for units with queued actions
         if not self.is_dead and self.has_queued_actions():
-            ready_badge_y = y + UNIT_CARD_HEIGHT - HP_BAR_HEIGHT - 16
+            ready_badge_y = bottom_anchor - 8
             ready_text = render_fitted_text(
                 "READY",
                 max_width=UNIT_CARD_WIDTH - 10,
@@ -304,6 +309,21 @@ class UnitCard:
                 center=(x + UNIT_CARD_WIDTH // 2, ready_badge_y)
             )
             surface.blit(ready_text, ready_rect)
+            name_y = ready_badge_y - ready_text.get_height() // 2 - 10
+        else:
+            name_y = bottom_anchor - 10
+
+        text_surface = render_fitted_text(
+            display_text,
+            max_width=UNIT_CARD_WIDTH - 6,
+            max_height=18,
+            color=text_color,
+            base_font_size=16,
+            min_font_size=12,
+            max_font_size=18
+        )
+        text_rect = text_surface.get_rect(center=(x + UNIT_CARD_WIDTH // 2, name_y))
+        surface.blit(text_surface, text_rect)
 
         # Draw HP bar for alive units
         if not self.is_dead:

@@ -309,7 +309,7 @@ class GraphicalRenderer:
         self._grid_fully_dirty = True  # Flag to force full redraw
 
         # FPS counter (for troubleshooting)
-        self.show_fps = True  # Set to False to hide FPS counter
+        self.show_fps = False  # Set to True to show FPS counter
         self.fps_values = []  # Rolling window of recent FPS values
         self.fps_display = 0  # Smoothed FPS to display
 
@@ -2070,6 +2070,8 @@ class GraphicalRenderer:
 
                 # Create RetchAnimation
                 from boneglaive.graphical.animations.core import RetchAnimation
+                from boneglaive.graphical.sound_helper import play_sound
+                play_sound("retch", category="general")
                 retch_animation = RetchAnimation(retch_x, retch_y, self.camera)
                 self.active_animations.append(retch_animation)
 
@@ -2186,6 +2188,8 @@ class GraphicalRenderer:
             visual_unit = self._get_visual_unit(unit)
             if visual_unit:
                 animated_unit = visual_unit.animated_unit
+                from boneglaive.graphical.sound_helper import play_sound
+                play_sound("unit_death", category="general")
                 # Create blood explosion
                 self.particle_emitter.emit_blood_explosion(
                     animated_unit.x,
