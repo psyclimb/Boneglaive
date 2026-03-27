@@ -16,6 +16,7 @@ a = Analysis(
         ('sounds',    'sounds'),
         ('maps',      'maps'),
         ('config.json', '.'),
+        ('LICENSE', '.'),
     ],
     hiddenimports=[
         'cairosvg',
