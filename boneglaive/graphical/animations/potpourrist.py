@@ -209,9 +209,6 @@ class PedestalStrike:
         self.dust_particles = []
         self.damage_applied = False
 
-        # Play pedestal strike impact sound immediately
-        play_sound("pedestal_strike_impact")
-
     def update(self, delta_time):
         """Update impact effects."""
         if not self.active:
@@ -242,7 +239,6 @@ class PedestalStrike:
             else:
                 self.phase = "shockwave"
                 self.timer = 0
-                play_sound("pedestal_strike_shockwave")
                 # Reset target stretch
                 if self.target:
                     self.target.pry_stretch_y = 1.0
@@ -369,7 +365,7 @@ class InfuseEffect:
         self.core_glow_radius = 0
 
         # Petals beginning to gather
-        play_sound("infuse_gather")
+        play_sound("infuse_cast")
 
     def update(self, delta_time):
         """Update infuse animation."""
@@ -418,7 +414,6 @@ class InfuseEffect:
             else:
                 self.phase = "swirling"
                 self.timer = 0
-                play_sound("infuse_swirl")
 
         elif self.phase == "swirling":
             # Petals swirl around caster (0.6s)
@@ -602,7 +597,6 @@ class GraniteGeasEffect:
             else:
                 self.phase = "mark_appear"
                 self.timer = 0
-                play_sound("granite_geas_mark")
 
         elif self.phase == "mark_appear":
             # Aromatic oil mark appears (0.5s)
@@ -905,7 +899,7 @@ class GeasBreakHeal:
         self.phase = "release"  # release -> travel -> inhale -> complete
 
         # Geas seal shattering
-        play_sound("geas_break_release")
+        play_sound("geas_break")
         self.timer = 0
         self.active = True
 
@@ -1031,7 +1025,6 @@ class GeasBreakHeal:
             if self.timer >= 0.6 or len(self.fume_stream) == 0:
                 self.phase = "inhale"
                 self.timer = 0
-                play_sound("geas_break_inhale")
 
         elif self.phase == "inhale":
             # Caster inhales, healing sparkles appear (0.5s)
@@ -1166,7 +1159,7 @@ class DemiluneSwing:
         self.phase = "windup"  # windup -> swing -> impact -> settling -> complete
 
         # Pedestal pulling back
-        play_sound("demilune_windup")
+        play_sound("demilune_swing")
         self.timer = 0
         self.active = True
 
@@ -1319,7 +1312,6 @@ class DemiluneSwing:
             else:
                 self.phase = "swing"
                 self.timer = 0
-                play_sound("demilune_swing")
 
         elif self.phase == "swing":
             # Sweeping arc motion (0.25s - faster)
@@ -2575,7 +2567,6 @@ class PotpourristAromaticAttack:
 
     def _trigger_windup(self):
         """Phase 1: Windup pedestal swing."""
-        play_sound("aromatic_attack_windup")
 
         # Small dust particles as pedestal pulls back
 

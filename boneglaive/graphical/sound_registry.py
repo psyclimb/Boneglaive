@@ -316,32 +316,23 @@ MULTI_EVENT_SOUNDS = {
     "fowl_attack_charge": "sounds/skills/fowl_attack_charge.wav",  # Brief EM charge-up before firing
     "fowl_attack_impact": "sounds/skills/fowl_attack_impact.wav",  # Electromagnetic bolt impact - cyan spark burst
 
-    # POTPOURRIST - Basic Attack (3 events)
-    "aromatic_attack_windup": "sounds/skills/aromatic_attack_windup.wav",  # Pedestal pulling back - stone scrape
+    # POTPOURRIST - Basic Attack (2 events)
     "aromatic_attack_swing": "sounds/skills/aromatic_attack_swing.wav",    # Pedestal swinging through arc - whoosh
     "aromatic_attack_impact": "sounds/skills/aromatic_attack_impact.wav",  # Potpourri burst on hit - colorful splat
 
-    # POTPOURRIST - PedestalStrike effect (used by Granite Geas slam, 2 events)
-    "pedestal_strike_impact": "sounds/skills/pedestal_strike_impact.wav",    # Pedestal slams down - stone crunch
-    "pedestal_strike_shockwave": "sounds/skills/pedestal_strike_shockwave.wav",  # Shockwave expanding outward
-
-    # POTPOURRIST - Infuse (3 events)
-    "infuse_gather": "sounds/skills/infuse_gather.wav",  # Petals beginning to gather inward - soft rustle
-    "infuse_swirl": "sounds/skills/infuse_swirl.wav",    # Petals swirling in vortex around caster
+    # POTPOURRIST - Infuse (2 events)
+    "infuse_cast": "sounds/skills/infuse_cast.wav",      # Petals gathering and swirling into vortex
     "infuse_burst": "sounds/skills/infuse_burst.wav",    # Potpourri absorbed - fragrant burst outward
 
-    # POTPOURRIST - Granite Geas (3 events)
+    # POTPOURRIST - Granite Geas (2 events)
     "granite_geas_strike": "sounds/skills/granite_geas_strike.wav",  # Pedestal strike landing - stone crack
-    "granite_geas_mark": "sounds/skills/granite_geas_mark.wav",      # Aromatic oil mark appearing on target
     "granite_geas_bind": "sounds/skills/granite_geas_bind.wav",      # Magical binding activating - runes rising
 
-    # POTPOURRIST - Geas Break Heal (2 events)
-    "geas_break_release": "sounds/skills/geas_break_release.wav",  # Geas seal shattering violently
-    "geas_break_inhale": "sounds/skills/geas_break_inhale.wav",    # Caster inhales the released fumes
+    # POTPOURRIST - Geas Break Heal (1 event)
+    "geas_break": "sounds/skills/geas_break.wav",  # Seal shatters and caster inhales released fumes
 
-    # POTPOURRIST - Demilune (3 events, also used by Demilune Infused)
-    "demilune_windup": "sounds/skills/demilune_windup.wav",  # Pedestal pulling back for wide sweep
-    "demilune_swing": "sounds/skills/demilune_swing.wav",    # Pedestal sweeping arc across tiles
+    # POTPOURRIST - Demilune (2 events, also used by Demilune Infused)
+    "demilune_swing": "sounds/skills/demilune_swing.wav",    # Pedestal windup and sweeping arc
     "demilune_impact": "sounds/skills/demilune_impact.wav",  # Final stone impact at end of sweep
 
     # POTPOURRIST - Melange Eminence passive (1 event)
