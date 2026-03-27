@@ -310,4 +310,4 @@ class MenuManager:
 
     def cleanup(self):
         """Clean up pygame resources."""
-        pygame.quit()
+        pass

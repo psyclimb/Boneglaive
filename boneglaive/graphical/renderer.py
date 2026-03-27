@@ -40,6 +40,7 @@ from .ui.setup_window import SetupWindow, SetupPlacementBar
 from .ui.setup_unit_help import SetupUnitHelp
 from .ui.game_over_window import GameOverWindow
 from .ui.concede_dialog import ConcedeDialog
+from .ui.setup_exit_dialog import SetupExitDialog
 from .ui_adapter import GraphicalUIAdapter
 
 # Import TerrainType for terrain/furniture rendering
@@ -241,6 +242,7 @@ class GraphicalRenderer:
         self.setup_unit_help = SetupUnitHelp(self.font, self.small_font)
         self.game_over_window = GameOverWindow(self.font, self.small_font, self.large_font)
         self.concede_dialog = ConcedeDialog(self.font, self.small_font)
+        self.setup_exit_dialog = SetupExitDialog(self.font, self.small_font)
 
         # Track current action mode for top bar display
         self.current_action_mode = "SELECT"
@@ -907,10 +909,23 @@ class GraphicalRenderer:
 
                 # Handle setup mode input (mouse-only, but allow ESC to exit)
                 if self.setup_mode:
-                    if self.setup_placing_unit:
+                    if self.setup_exit_dialog.visible:
+                        action = self.setup_exit_dialog.handle_key(event.key)
+                        if action == "cancel":
+                            self.setup_exit_dialog.hide()
+                        elif action == "main_menu":
+                            self.setup_exit_dialog.hide()
+                            self.return_to_main_menu()
+                        elif action == "quit":
+                            self.running = False
+                    elif self.setup_placing_unit:
                         # During placement, ESC returns to unit selection
                         if event.key == pygame.K_ESCAPE:
                             self.return_to_unit_selection()
+                    elif self.setup_selecting_unit:
+                        # During unit selection, ESC opens exit dialog
+                        if event.key == pygame.K_ESCAPE:
+                            self.setup_exit_dialog.show()
                     # Ignore all other keys in setup mode
                     continue
 
@@ -1003,8 +1018,11 @@ class GraphicalRenderer:
                 # Track if we should skip other modal handlers (when game over is minimized)
                 skip_modal_handlers = self.game_over_window.visible and self.game_over_window.minimized
 
+                # Handle setup exit dialog mouse motion
+                if self.setup_exit_dialog.visible:
+                    self.setup_exit_dialog.handle_mouse_motion(event.pos)
                 # Handle concede dialog mouse motion
-                if self.concede_dialog.visible:
+                elif self.concede_dialog.visible:
                     self.concede_dialog.handle_mouse_motion(event.pos)
                 # Handle game over window mouse motion (only block when not minimized)
                 elif self.game_over_window.visible and not self.game_over_window.minimized:
@@ -1086,8 +1104,19 @@ class GraphicalRenderer:
                         # Add scroll support for respawn window too
                         pass
                 elif event.button == 1:  # Left click
+                    # Handle setup exit dialog clicks
+                    if self.setup_exit_dialog.visible:
+                        action = self.setup_exit_dialog.handle_mouse_click(event.pos)
+                        if action == "cancel":
+                            self.setup_exit_dialog.hide()
+                        elif action == "main_menu":
+                            self.setup_exit_dialog.hide()
+                            self.return_to_main_menu()
+                        elif action == "quit":
+                            self.running = False
+                        continue
                     # Handle concede dialog clicks
-                    if self.concede_dialog.visible:
+                    elif self.concede_dialog.visible:
                         action = self.concede_dialog.handle_mouse_click(event.pos)
                         if action == "cancel":
                             self.concede_dialog.hide()
@@ -1424,6 +1453,7 @@ class GraphicalRenderer:
             if unit.player == current_player:
                 # Select friendly unit WITHOUT showing movement range (player must click Move button)
                 self.selected_unit = unit
+                self.viewed_opponent_unit = None
                 self.show_movement_range = False
                 self.show_target_range = False
                 self.current_action_mode = None
@@ -1504,6 +1534,7 @@ class GraphicalRenderer:
                                 enemy_astral_value = appraiser.passive_skill._get_enemy_astral_value(
                                     self.game_adapter.game, current_player, game_unit
                                 )
+                        self.viewed_opponent_unit = game_unit
                         self.status_effects_panel.update(game_unit)
                         self.unit_info_panel.update(unit, game_unit, enemy_astral_value)
                 else:
@@ -1520,9 +1551,11 @@ class GraphicalRenderer:
                                     self.game_adapter.game, current_player, game_unit
                                 )
                         # Update status effects panel and unit info to show enemy info
+                        self.viewed_opponent_unit = game_unit
                         self.status_effects_panel.update(game_unit)
                         self.unit_info_panel.update(unit, game_unit, enemy_astral_value)
                     else:
+                        self.viewed_opponent_unit = None
                         self.status_effects_panel.update(None)
                         self.unit_info_panel.update(None, None)
         else:
@@ -1714,15 +1747,12 @@ class GraphicalRenderer:
                         pass  # No upgrades available
 
         elif action == "help":
-            pass  # Help button clicked
-            # Show help page for selected unit
             if self.selected_unit:
                 game_unit = self._get_game_unit(self.selected_unit)
                 if game_unit:
                     self.help_page.show(game_unit.type)
-                    pass  # Showing help
-            else:
-                pass  # No unit selected
+            elif self.viewed_opponent_unit:
+                self.help_page.show(self.viewed_opponent_unit.type)
 
         elif action == "execute":
             pass
@@ -3650,6 +3680,10 @@ class GraphicalRenderer:
             self.setup_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT, setup_window_x)
             self.setup_help_panel_rect = self.setup_unit_help.draw(self.screen, help_panel_x, help_panel_y, help_panel_width, help_panel_height)
 
+        # Draw setup exit dialog (on top of setup window)
+        if self.setup_exit_dialog.visible:
+            self.setup_exit_dialog.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
+
         # Draw concede dialog (on top of everything except help page and message log)
         if self.concede_dialog.visible:
             self.concede_dialog.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -4497,6 +4531,7 @@ class GraphicalRenderer:
 
         # Clear selection and skill mode
         self.selected_unit = None
+        self.viewed_opponent_unit = None  # Opponent unit currently shown in info panel
         self.selected_skill = None
         self.skill_bar.set_selected_skill(None)
         self.show_movement_range = False
@@ -5547,9 +5582,7 @@ class GraphicalRenderer:
             self.update(delta_time)
             self.draw()
 
-        # Only quit pygame if NOT returning to menu
-        if not self.return_to_menu:
-            pygame.quit()
+        pass
 
 
 def main():

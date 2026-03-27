@@ -56,9 +56,9 @@ class AboutScreen:
         # About screen content with improved spacing
         # Format: (text, font, color, line_height_multiplier)
         lines = [
-            ("Boneglaive v0.9.0b BETA", self.large_font, COLOR_TEXT, 2.5),
+            ("Boneglaive v1.0", self.large_font, COLOR_TEXT, 2.5),
             ("Tactical Turn-Based Combat Game", self.font, COLOR_TEXT, 1.2),
-            ("Beta Release", self.font, COLOR_TEXT, 1.8),
+            ("", self.font, COLOR_TEXT, 1.8),
             ("Copyright (C) 2026 Psyclimb", self.font, (100, 200, 255), 2.0),
             ("This program is free software licensed under GPL-3.0", self.font, (100, 200, 255), 1.2),
             ("This program comes with ABSOLUTELY NO WARRANTY.", self.font, COLOR_TEXT, 2.0),

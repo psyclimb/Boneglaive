@@ -113,7 +113,7 @@ class MainMenuScreen(MenuScreen):
         self._draw_title_art(surface)
 
         # Draw version subtitle
-        version_text = "v0.9.0b BETA"
+        version_text = "v1.0"
         version_surface = self.font.render(version_text, True, COLOR_TEXT)
         version_rect = version_surface.get_rect(centerx=self.screen_width // 2, top=200)
         surface.blit(version_surface, version_rect)

@@ -876,7 +876,7 @@ class UnitHelpComponent(UIComponent):
                     'The MARROW CONDENSER is a quadrupedal bone manipulator that creates wall structures to trap enemies. Each death within a Marrow Dike triggers Dominion, upgrading the unit\'s stats and active skills. This tank grows stronger throughout battle, draining life from trapped enemies while reinforcing its defenses.',
                     '',
                     'Role: Tank / Frontline Fighter / Displacer',
-                    'Difficulty: ***'
+                    'Difficulty: ****'
                 ],
                 'stats': [
                     'HP: 22',
@@ -998,7 +998,7 @@ class UnitHelpComponent(UIComponent):
                     'An industrial chemist who deploys autonomous vapor entities in areas that passively affect all units within each turn. This utility specialist excels at area control and sustained support through strategic vapor deployment.',
                     '',
                     'Role: Summoner / Utility / Healer',
-                    'Difficulty: ****'
+                    'Difficulty: *****'
                 ],
                 'stats': [
                     'HP: 20',
@@ -1250,7 +1250,7 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'MELANGE EMINENCE (Passive)',
-                        'description': 'The POTPOURRIST heals 1 HP at the start of every turn, including enemy turns. This healing cannot be suppressed by any curse or healing prevention effect. When infused with potpourri, healing increases to 2 HP per turn.',
+                        'description': 'The POTPOURRIST heals 1 HP at the start of every turn, including enemy turns. This healing cannot be prevented. When infused with potpourri, healing increases to 2 HP per turn.',
                         'details': []
                     },
                     {

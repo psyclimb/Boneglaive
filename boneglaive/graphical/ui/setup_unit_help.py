@@ -199,7 +199,7 @@ class SetupUnitHelp:
                 ]
             },
             UnitType.MARROW_CONDENSER: {
-                'difficulty': 3,  # Out of 5
+                'difficulty': 4,  # Out of 5
                 'role': 'Tank / Frontline Fighter / Displacer',
                 'overview': 'A quadrupedal bone manipulator that creates wall structures to trap enemies. This tank grows stronger with each kill, draining life from trapped enemies while reinforcing its defenses.',
                 'passive': {
@@ -222,7 +222,7 @@ class SetupUnitHelp:
                 ]
             },
             UnitType.GAS_MACHINIST: {
-                'difficulty': 4,  # Out of 5
+                'difficulty': 5,  # Out of 5
                 'role': 'Summoner / Utility / Healer',
                 'overview': 'An industrial chemist who deploys autonomous vapor entities in areas that passively affect all units within each turn. This utility specialist excels at area control and sustained support through strategic vapor deployment.',
                 'passive': {
@@ -319,7 +319,7 @@ class SetupUnitHelp:
                 'overview': 'A durable tank who wields a heavy granite pedestal as both weapon and incense burner. This unit specializes in persistent regeneration and damage mitigation through disorienting debuffs and magical bindings.',
                 'passive': {
                     'name': 'MELANGE EMINENCE',
-                    'desc': 'The aromatic blend continuously restores vitality at the start of every turn. This regeneration cannot be suppressed by any curse or healing prevention effect.'
+                    'desc': 'The aromatic blend continuously restores vitality at the start of every turn. This regeneration cannot be prevented.'
                 },
                 'skills': [
                     {

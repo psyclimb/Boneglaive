@@ -112,6 +112,9 @@ def main():
 
     args = parser.parse_args()
 
+    import pygame
+    pygame.init()
+
     if args.skip_menu:
         # Skip menu, go directly to game
         print("Skipping menu...")
@@ -135,6 +138,9 @@ def main():
                 # User quit from menu
                 print("Exiting Boneglaive. Goodbye!")
                 break
+
+        import pygame
+        pygame.quit()
 
 
 if __name__ == "__main__":
