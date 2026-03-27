@@ -4,7 +4,10 @@ Skills and abilities system for Boneglaive units.
 This module provides the foundation for implementing unit skills.
 """
 
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 from enum import Enum, auto
 from typing import Optional, Dict, List, Any, Tuple, TYPE_CHECKING
 from boneglaive.utils.constants import UnitType, UNIT_STATS

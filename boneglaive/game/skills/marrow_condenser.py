@@ -6,7 +6,10 @@ This module contains all passive and active abilities for MARROW CONDENSER units
 
 from typing import Optional, TYPE_CHECKING
 import random
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType

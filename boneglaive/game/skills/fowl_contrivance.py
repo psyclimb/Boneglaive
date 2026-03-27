@@ -10,7 +10,10 @@ import random
 import time
 from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.game.map import TerrainType

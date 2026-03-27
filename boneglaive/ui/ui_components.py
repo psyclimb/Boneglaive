@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 import time
 import os
 import json

@@ -4,7 +4,10 @@ Abstract input handling to support multiple input sources.
 Maps raw input to logical game actions.
 """
 
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 from enum import Enum, auto
 from typing import Callable, Dict, Optional, Set, List
 

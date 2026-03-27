@@ -7,7 +7,10 @@ The DERELICTIONIST is a support/healer unit focused on psychological abandonment
 trauma processing, and distance-based healing mechanics.
 """
 
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 import time
 import random
 import math

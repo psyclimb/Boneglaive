@@ -4,7 +4,10 @@ Skills specific to the GAS_MACHINIST unit type.
 This module contains all passive and active abilities for GAS_MACHINIST units.
 """
 
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 import time
 import random
 from typing import Optional, List, Dict, Tuple, TYPE_CHECKING

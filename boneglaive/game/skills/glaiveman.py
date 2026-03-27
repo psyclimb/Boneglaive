@@ -4,7 +4,10 @@ Skills specific to the GLAIVEMAN unit type.
 This module contains all passive and active abilities for GLAIVEMAN units.
 """
 
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 import time
 from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 

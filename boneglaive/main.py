@@ -3,7 +3,10 @@
 Main entry point for the game.
 Handles argument parsing and starts the game.
 """
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 import argparse
 import os
 import sys

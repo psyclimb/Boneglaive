@@ -3,7 +3,10 @@
 Recruitment menu UI component for unit selection during setup phase.
 """
 
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 from typing import List, Optional, Tuple
 from boneglaive.utils.constants import UnitType, UNIT_STATS, UNIT_DISPLAY_NAMES, HEIGHT, WIDTH
 from boneglaive.game.recruitment import recruitment_system

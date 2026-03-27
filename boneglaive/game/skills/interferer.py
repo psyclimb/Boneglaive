@@ -4,7 +4,10 @@ Skills specific to the INTERFERER unit type.
 This module contains all passive and active abilities for INTERFERER units.
 """
 
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 import time
 import random
 from typing import Optional, TYPE_CHECKING

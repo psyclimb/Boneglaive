@@ -4,7 +4,10 @@ Menu system for the game.
 Handles main menu, settings, and multiplayer lobby.
 """
 
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 import sys
 import random
 from typing import Dict, List, Optional, Tuple, Callable

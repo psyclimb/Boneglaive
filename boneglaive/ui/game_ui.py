@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-import curses
+try:
+    import curses
+except ImportError:
+    curses = None
 from typing import Optional, List, Tuple, Dict
 
 from boneglaive.utils.constants import HEIGHT, WIDTH, UnitType
