@@ -113,9 +113,9 @@ jobs:
               sdl2_image \
               sdl2_ttf \
               zip
-            pip-3.11 install --upgrade pip
-            pip-3.11 install pygame cairosvg cairocffi pyinstaller
-            pip-3.11 install -e .
+            python3.11 -m pip install --upgrade pip
+            python3.11 -m pip install pygame cairosvg cairocffi pyinstaller
+            python3.11 -m pip install -e .
             python3.11 -m PyInstaller boneglaive.spec --distpath dist/freebsd
             cd dist/freebsd && zip -r ../../boneglaive-freebsd.zip boneglaive/
 
