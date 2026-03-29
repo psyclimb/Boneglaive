@@ -3,14 +3,23 @@
 PyInstaller spec file for Boneglaive.
 Produces a single-folder distribution with all assets bundled.
 """
+import sys
+import os
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
+# On Windows, bundle the Cairo DLL from MSYS2 so cairosvg works without a system install
+extra_binaries = []
+if sys.platform == 'win32':
+    cairo_dll = r'C:\msys64\mingw64\bin\libcairo-2.dll'
+    if os.path.exists(cairo_dll):
+        extra_binaries.append((cairo_dll, '.'))
+
 a = Analysis(
     ['run_graphical.py'],
     pathex=['.'],
-    binaries=[],
+    binaries=extra_binaries,
     datas=[
         ('graphics',  'graphics'),
         ('sounds',    'sounds'),
