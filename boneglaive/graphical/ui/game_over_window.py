@@ -191,20 +191,19 @@ class GameOverWindow:
         # Draw bar background with gradient
         from .menu_components import draw_gradient_rect, draw_glow_rect
         draw_gradient_rect(screen, bar_rect, COLOR_WINDOW_BG_TOP, COLOR_WINDOW_BG_BOTTOM, alpha=240)
-        title_color = COLOR_VICTORY if self.is_victory else COLOR_DEFEAT
-        pygame.draw.rect(screen, title_color, bar_rect, 3, border_radius=5)
+        winner_color = COLOR_PLAYER1 if self.winner_player == 1 else COLOR_PLAYER2
+        pygame.draw.rect(screen, winner_color, bar_rect, 3, border_radius=5)
 
         # Draw result text on left side of bar
         text_x = bar_x + 20
         text_y = bar_y + 15
 
-        # Title (VICTORY/DEFEAT)
-        title_text = "VICTORY!" if self.is_victory else "DEFEAT"
-        title_surface = self.font.render(title_text, True, title_color)
+        # Title (Player X Victory)
+        title_text = f"PLAYER {self.winner_player} VICTORY"
+        title_surface = self.font.render(title_text, True, winner_color)
         screen.blit(title_surface, (text_x, text_y))
 
         # Winner info
-        winner_color = COLOR_PLAYER1 if self.winner_player == 1 else COLOR_PLAYER2
         winner_text = f"{self.winner_name}: {self.winner_gp} GP"
         winner_surface = self.small_font.render(winner_text, True, winner_color)
         screen.blit(winner_surface, (text_x + 120, text_y + 5))
@@ -332,12 +331,12 @@ class GameOverWindow:
 
         # Draw title bar with gradient
         title_rect = pygame.Rect(window_x, window_y, WINDOW_WIDTH, 60)
-        title_color = COLOR_VICTORY if self.is_victory else COLOR_DEFEAT
+        title_color = COLOR_PLAYER1 if self.winner_player == 1 else COLOR_PLAYER2
         draw_gradient_rect(screen, title_rect, COLOR_TITLE_BG_TOP, COLOR_TITLE_BG_BOTTOM)
         pygame.draw.rect(screen, title_color, title_rect, 3)
 
         # Draw title text
-        title_text = "VICTORY!" if self.is_victory else "DEFEAT"
+        title_text = f"PLAYER {self.winner_player} VICTORY"
         title_surface = self.large_font.render(title_text, True, title_color)
         title_x = window_x + (WINDOW_WIDTH - title_surface.get_width()) // 2
         title_y = window_y + (60 - title_surface.get_height()) // 2
@@ -359,16 +358,6 @@ class GameOverWindow:
         loser_surface = self.small_font.render(loser_text, True, COLOR_TEXT_DIM)
         loser_x = window_x + (WINDOW_WIDTH - loser_surface.get_width()) // 2
         screen.blit(loser_surface, (loser_x, content_y))
-
-        # Flavor text
-        content_y += 50
-        if self.is_victory:
-            flavor = "A tactical triumph! Your strategic prowess is unmatched."
-        else:
-            flavor = "Defeat, but not dishonor. Study your opponent's tactics."
-        flavor_surface = self.small_font.render(flavor, True, COLOR_TEXT_DIM)
-        flavor_x = window_x + (WINDOW_WIDTH - flavor_surface.get_width()) // 2
-        screen.blit(flavor_surface, (flavor_x, content_y))
 
         # Draw buttons (3 equal-width buttons)
         button_y = window_y + WINDOW_HEIGHT - 100

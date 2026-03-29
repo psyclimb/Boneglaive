@@ -67,26 +67,19 @@ class MainMenuScreen(MenuScreen):
             Button(
                 start_x, buttons_top + (button_height + button_spacing) * 2,
                 button_width, button_height,
-                "Profile",
-                font,
-                lambda: self._set_action("profile")
-            ),
-            Button(
-                start_x, buttons_top + (button_height + button_spacing) * 3,
-                button_width, button_height,
                 "Settings",
                 font,
                 lambda: self._set_action("settings")
             ),
             Button(
-                start_x, buttons_top + (button_height + button_spacing) * 4,
+                start_x, buttons_top + (button_height + button_spacing) * 3,
                 button_width, button_height,
                 "About",
                 font,
                 lambda: self._set_action("about")
             ),
             Button(
-                start_x, buttons_top + (button_height + button_spacing) * 5,
+                start_x, buttons_top + (button_height + button_spacing) * 4,
                 button_width, button_height,
                 "Quit",
                 font,
@@ -130,14 +123,6 @@ class MainMenuScreen(MenuScreen):
         version_surface = self.font.render(version_text, True, COLOR_TEXT)
         version_rect = version_surface.get_rect(centerx=self.screen_width // 2, top=self._version_top)
         surface.blit(version_surface, version_rect)
-
-        # Draw profile indicator (top-right corner)
-        profile = profile_manager.get_current_profile()
-        if profile:
-            profile_text = f"Profile: {profile.name}"
-            profile_surface = self.font.render(profile_text, True, (180, 160, 165))
-            profile_rect = profile_surface.get_rect(right=self.screen_width - 20, top=20)
-            surface.blit(profile_surface, profile_rect)
 
         # Draw buttons
         for button in self.buttons:

@@ -372,15 +372,12 @@ class RespawnWindow:
             text_x = item_rect.x + 65  # 8 + 48 + 9 spacing
             text_y = item_rect.y + 10
 
-            # Unit name and Greek ID
-            name_text = self.font.render(f"{dead_unit.greek_id}", True, COLOR_TEXT)
-            surface.blit(name_text, (text_x, text_y))
-
-            # Unit type (smaller text below)
+            # Unit type
             # Handle both UnitType enum and int (for DLC units)
             unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
-            type_text = self.small_font.render(f"{unit_type_name}", True, COLOR_TEXT_DIM)
-            surface.blit(type_text, (text_x, text_y + 22))
+            unit_type_name = unit_type_name.replace('_', ' ')
+            type_text = self.font.render(f"{unit_type_name}", True, COLOR_TEXT)
+            surface.blit(type_text, (text_x, text_y))
 
             # Respawn timer info (right side)
             if dead_unit.ready_for_respawn:
