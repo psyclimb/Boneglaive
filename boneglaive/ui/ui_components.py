@@ -719,7 +719,7 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 22',
-                    'Attack: 4',
+                    'Attack: 3',
                     'Defense: 1',
                     'Movement: 3',
                     'Range: 1'

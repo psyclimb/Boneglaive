@@ -187,17 +187,15 @@ class SkillSlot:
             if si != SKILL_ICON_SIZE:
                 icon_to_draw = pygame.transform.smoothscale(self.icon_surface, (si, si))
 
-            # Apply grayscale if on cooldown
+            # Apply dim effect if on cooldown (no numpy required)
             if not self.is_available():
                 if self.gray_icon_surface is None or self.gray_icon_surface.get_size() != (si, si):
-                    gray_icon = icon_to_draw.copy()
-                    arr = pygame.surfarray.pixels3d(gray_icon)
-                    gray = (arr[:,:,0] * 0.3 + arr[:,:,1] * 0.59 + arr[:,:,2] * 0.11).astype('uint8')
-                    arr[:,:,0] = gray
-                    arr[:,:,1] = gray
-                    arr[:,:,2] = gray
-                    del arr
-                    self.gray_icon_surface = gray_icon
+                    # Create a darkened copy using the icon's own alpha as mask
+                    dimmed = icon_to_draw.copy()
+                    dark = pygame.Surface((si, si), pygame.SRCALPHA)
+                    dark.fill((0, 0, 0, 160))
+                    dimmed.blit(dark, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
+                    self.gray_icon_surface = dimmed
                 surface.blit(self.gray_icon_surface, (icon_x, icon_y))
             else:
                 surface.blit(icon_to_draw, (icon_x, icon_y))

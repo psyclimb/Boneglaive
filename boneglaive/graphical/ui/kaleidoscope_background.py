@@ -48,7 +48,7 @@ class KaleidoscopeBackground:
             import cairosvg
             from io import BytesIO
             has_cairosvg = True
-        except ImportError:
+        except Exception:
             has_cairosvg = False
 
         # Directories to load from
