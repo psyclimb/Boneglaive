@@ -234,10 +234,11 @@ class MenuManager:
         self.screen_width = new_width
         self.screen_height = new_height
 
-        # Refresh scale_manager so all UI geometry re-derives from the new resolution
-        from .scale_utils import scale_manager
+        # Refresh scale_manager and all module-level constants in UI files
+        from .scale_utils import scale_manager, refresh_all_module_constants
         scale_manager.config = self.config
         scale_manager.update_scale()
+        refresh_all_module_constants()
 
         # Rebuild fonts for new resolution
         font_scale = new_height / 800.0

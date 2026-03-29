@@ -103,6 +103,131 @@ class ScaleManager:
             return tuple(int(v * scale_factor) for v in values)
 
 
-# Create a new instance each time the module is imported to ensure fresh config values
-# UI components should import this as: from .scale_utils import scale_manager
+# Singleton instance — UI components import this as: from .scale_utils import scale_manager
 scale_manager = ScaleManager()
+
+
+def refresh_all_module_constants():
+    """Re-evaluate module-level constants in all UI files that cache scale_manager values.
+
+    Must be called after scale_manager.update_scale() whenever the resolution
+    changes so that stale module-level constants are replaced with fresh values.
+    """
+    import boneglaive.graphical.ui.skill_bar as _skill_bar
+    _skill_bar.SKILL_SLOT_WIDTH = scale_manager.skill_slot_width
+    _skill_bar.SKILL_SLOT_HEIGHT = scale_manager.skill_slot_height
+    _skill_bar.SKILL_SLOT_PADDING = scale_manager.skill_slot_padding
+    _skill_bar.SKILL_BAR_PADDING = scale_manager.scale(20)
+    _skill_bar.SKILL_ICON_SIZE = scale_manager.skill_icon_size
+
+    import boneglaive.graphical.ui.action_menu as _action_menu
+    _action_menu.BUTTON_WIDTH = scale_manager.button_width
+    _action_menu.BUTTON_HEIGHT = scale_manager.button_height
+    _action_menu.BUTTON_SPACING = scale_manager.button_spacing
+    _action_menu.MENU_PADDING = scale_manager.scale(8)
+
+    import boneglaive.graphical.ui.combat_log as _combat_log
+    _combat_log.LOG_WIDTH = scale_manager.scale(900, 'x')
+    _combat_log.LOG_HEIGHT = scale_manager.scale(90, 'y')
+    _combat_log.LOG_PADDING = scale_manager.scale(8)
+    _combat_log.LINE_HEIGHT = scale_manager.scale(16, 'y')
+
+    import boneglaive.graphical.ui.unit_status_bar as _usb
+    _usb.PANEL_WIDTH = scale_manager.left_panel_width
+    _usb.UNIT_CARD_WIDTH = scale_manager.scale(84, 'x')
+    _usb.UNIT_CARD_HEIGHT = scale_manager.scale(70, 'y')
+    _usb.CARD_PADDING = scale_manager.scale(6)
+    _usb.TITLE_HEIGHT = scale_manager.scale(35, 'y')
+    _usb.HP_BAR_HEIGHT = scale_manager.scale(4, 'y')
+    _usb.SPRITE_SIZE = scale_manager.scale(32, 'uniform')
+
+    import boneglaive.graphical.ui.respawn_window as _rw
+    _rw.WINDOW_WIDTH = scale_manager.scale(500, 'x')
+    _rw.WINDOW_HEIGHT = scale_manager.scale(400, 'y')
+    _rw.ITEM_HEIGHT = scale_manager.scale(60, 'y')
+    _rw.ITEM_PADDING = scale_manager.scale(10)
+    _rw.SCROLL_SPEED = scale_manager.scale(3, 'y')
+
+    import boneglaive.graphical.ui.upgrade_window as _uw
+    _uw.WINDOW_WIDTH = scale_manager.scale(800, 'x')
+    _uw.WINDOW_HEIGHT = scale_manager.scale(650, 'y')
+    _uw.ITEM_HEIGHT = scale_manager.scale(110, 'y')
+    _uw.ITEM_PADDING = scale_manager.scale(15)
+
+    import boneglaive.graphical.ui.top_bar as _tb
+    _tb.TOP_BAR_HEIGHT = scale_manager.scale(60, 'y')
+    _tb.SECTION_PADDING = scale_manager.scale(20)
+    _tb.TEXT_PADDING = scale_manager.scale(15)
+
+    import boneglaive.graphical.ui.unit_info as _ui
+    _ui.PANEL_WIDTH = scale_manager.unit_info_width
+    _ui.PANEL_HEIGHT = scale_manager.scale(440, 'y')
+    _ui.PANEL_PADDING = scale_manager.scale(10)
+    _ui.LINE_HEIGHT = scale_manager.scale(18, 'y')
+    _ui.HP_BAR_HEIGHT = scale_manager.scale(20, 'y')
+
+    import boneglaive.graphical.ui.help_page as _hp
+    _hp.MARGIN = scale_manager.scale(30)
+    _hp.CONTENT_WIDTH = scale_manager.scale(700, 'x')
+    _hp.ICON_SIZE = scale_manager.scale(40, 'uniform')
+    _hp.LINE_SPACING = scale_manager.scale(24, 'y')
+    _hp.PARAGRAPH_SPACING = scale_manager.scale(12, 'y')
+    _hp.SECTION_SPACING = scale_manager.scale(20, 'y')
+
+    import boneglaive.graphical.ui.status_effects as _se
+    _se.PANEL_WIDTH = scale_manager.scale(350, 'x')
+    _se.PANEL_PADDING = scale_manager.scale(10)
+    _se.EFFECT_HEIGHT = scale_manager.scale(50, 'y')
+    _se.ICON_SIZE = scale_manager.status_icon_size
+    _se.SPACING = scale_manager.scale(8)
+
+    import boneglaive.graphical.ui.message_log_window as _mlw
+    _mlw.LINE_HEIGHT = scale_manager.scale(20, 'y')
+    _mlw.PADDING = scale_manager.scale(20)
+    _mlw.SCROLLBAR_WIDTH = scale_manager.scale(12, 'x')
+
+    import boneglaive.graphical.ui.motor_animation as _ma
+    _ma.MOTOR_WIDTH = scale_manager.scale(250, 'x')
+    _ma.MOTOR_HEIGHT = scale_manager.scale(180, 'y')
+
+    import boneglaive.graphical.ui.setup_window as _sw
+    _sw.WINDOW_WIDTH = scale_manager.scale(550, 'x')
+    _sw.WINDOW_HEIGHT = scale_manager.scale(700, 'y')
+    _sw.ITEM_HEIGHT = scale_manager.scale(55, 'y')
+    _sw.ITEM_PADDING = scale_manager.scale(8)
+    _sw.SCROLL_SPEED = scale_manager.scale(3, 'y')
+
+    # Refresh TILE_SIZE in animations/core.py and all animation modules that
+    # imported it at module level (from .core import TILE_SIZE copies the value)
+    import boneglaive.graphical.animations.core as _anim_core
+    screen_width = scale_manager.screen_width
+    left_panel_ratio = 0.21875
+    game_board_width = screen_width * (1 - 2 * left_panel_ratio)
+    new_tile_size = int(game_board_width // 20)
+    _anim_core.TILE_SIZE = new_tile_size
+
+    # Update all animation modules that copied TILE_SIZE via top-level import
+    _anim_modules = [
+        'boneglaive.graphical.animations.derelictionist',
+        'boneglaive.graphical.animations.interferer',
+        'boneglaive.graphical.animations.glaiveman',
+        'boneglaive.graphical.animations.marrow_condenser',
+        'boneglaive.graphical.animations.grayman',
+        'boneglaive.graphical.animations.potpourrist',
+        'boneglaive.graphical.animations.core_animations',
+        'boneglaive.graphical.animations.animation_factory',
+        'boneglaive.graphical.animations.fowl_contrivance',
+        'boneglaive.graphical.animations.gas_machinist',
+        'boneglaive.graphical.animations.delphic_appraiser',
+        'boneglaive.graphical.animations.mandible_foreman',
+    ]
+    import sys
+    for mod_name in _anim_modules:
+        mod = sys.modules.get(mod_name)
+        if mod and hasattr(mod, 'TILE_SIZE'):
+            mod.TILE_SIZE = new_tile_size
+
+    # Also refresh in game_state.py if loaded (uses TILE_SIZE in functions)
+    _gs = sys.modules.get('boneglaive.graphical.game_state')
+    if _gs and hasattr(_gs, 'TILE_SIZE'):
+        _gs.TILE_SIZE = new_tile_size

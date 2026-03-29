@@ -116,6 +116,30 @@ class GraphicalRenderer:
     """
 
     def __init__(self, game_adapter: GameStateAdapter = None):
+        # Reload config and refresh module-level layout constants so that
+        # resolution changes made in the settings screen take effect here.
+        global config, SCREEN_WIDTH, SCREEN_HEIGHT
+        global TOP_BAR_HEIGHT, BOTTOM_BAR_HEIGHT, LEFT_PANEL_WIDTH, RIGHT_PANEL_WIDTH
+        global GAME_BOARD_WIDTH, TILE_SIZE, GAME_BOARD_HEIGHT, GRID_OFFSET_X, GRID_OFFSET_Y
+        config = ConfigManager()
+        SCREEN_WIDTH = config.get('window_width', 1280)
+        SCREEN_HEIGHT = config.get('window_height', 720)
+        TOP_BAR_HEIGHT = int(SCREEN_HEIGHT * 0.0694)
+        BOTTOM_BAR_HEIGHT = int(SCREEN_HEIGHT * 0.1111)
+        LEFT_PANEL_WIDTH = int(SCREEN_WIDTH * 0.21875)
+        RIGHT_PANEL_WIDTH = int(SCREEN_WIDTH * 0.21875)
+        GAME_BOARD_WIDTH = SCREEN_WIDTH - LEFT_PANEL_WIDTH - RIGHT_PANEL_WIDTH
+        TILE_SIZE = GAME_BOARD_WIDTH // GRID_WIDTH
+        GAME_BOARD_HEIGHT = GRID_HEIGHT * TILE_SIZE
+        GRID_OFFSET_X = LEFT_PANEL_WIDTH
+        GRID_OFFSET_Y = TOP_BAR_HEIGHT + ((SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT - GAME_BOARD_HEIGHT) // 2)
+
+        # Refresh scale_manager and all module-level constants in UI files
+        from boneglaive.graphical.ui.scale_utils import scale_manager, refresh_all_module_constants
+        scale_manager.config = config
+        scale_manager.update_scale()
+        refresh_all_module_constants()
+
         # Set SDL2 hints BEFORE pygame.init() for better icon support
         import os
         icon_path = asset_path('graphics/boneglaive_icon.png')
@@ -3376,7 +3400,14 @@ class GraphicalRenderer:
         self.draw_range_indicators(main_surface)
 
         # Draw selection highlight (before units so it's behind them)
-        if self.selected_unit:
+        # Skip when in self-target skill mode so the purple pulse is visible
+        _self_target_active = (
+            self.show_skill_range and self.skill_positions
+            and len(self.skill_positions) == 1 and self.selected_unit
+            and self.skill_positions[0][0] == self.selected_unit.grid_x
+            and self.skill_positions[0][1] == self.selected_unit.grid_y
+        )
+        if self.selected_unit and not _self_target_active:
             self.draw_selection_highlight(main_surface, self.selected_unit)
 
         # Draw imbued furniture effects (Market Futures)
@@ -3985,10 +4016,29 @@ class GraphicalRenderer:
         # Draw skill range (purple)
         if self.show_skill_range and self.skill_positions:
             skill_color = (140, 80, 200)  # Darker purple for skills (matches pip color)
+
+            # Detect self-target: only one valid tile and it's the selected unit's position
+            is_self_target = False
+            if len(self.skill_positions) == 1 and self.selected_unit:
+                sp = self.skill_positions[0]
+                if sp[0] == self.selected_unit.grid_x and sp[1] == self.selected_unit.grid_y:
+                    is_self_target = True
+
             for grid_x, grid_y in self.skill_positions:
                 indicator_surf.fill((0, 0, 0, 0))
-                pygame.draw.rect(indicator_surf, (*skill_color, 120), indicator_rect)  # Less transparent
-                pygame.draw.rect(indicator_surf, (*skill_color, 200), indicator_rect, 2)  # Less transparent border
+
+                if is_self_target:
+                    # Pulsing highlight so player knows to click their own unit
+                    pulse = (math.sin(pygame.time.get_ticks() * 0.006) + 1) / 2  # 0..1
+                    fill_alpha = int(80 + 100 * pulse)
+                    border_alpha = int(160 + 95 * pulse)
+                    border_width = 3
+                    pygame.draw.rect(indicator_surf, (*skill_color, fill_alpha), indicator_rect)
+                    pygame.draw.rect(indicator_surf, (*skill_color, border_alpha), indicator_rect, border_width)
+                else:
+                    pygame.draw.rect(indicator_surf, (*skill_color, 120), indicator_rect)
+                    pygame.draw.rect(indicator_surf, (*skill_color, 200), indicator_rect, 2)
+
                 surface.blit(
                     indicator_surf,
                     (GRID_OFFSET_X + grid_x * TILE_SIZE, GRID_OFFSET_Y + grid_y * TILE_SIZE)

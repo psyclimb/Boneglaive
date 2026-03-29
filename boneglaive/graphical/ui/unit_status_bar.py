@@ -268,7 +268,7 @@ class UnitCard:
         # Anchor text rows from the bottom of the card, above the HP bar
         bottom_anchor = y + UNIT_CARD_HEIGHT - HP_BAR_HEIGHT - 4
 
-        # Draw READY badge for units with queued actions
+        # Draw READY badge for alive units with queued actions
         if not self.is_dead and self.has_queued_actions():
             ready_badge_y = bottom_anchor - 8
             ready_text = render_fitted_text(
@@ -285,6 +285,9 @@ class UnitCard:
             )
             surface.blit(ready_text, ready_rect)
             name_y = ready_badge_y - ready_text.get_height() // 2 - 10
+        elif self.is_dead:
+            # Push name up to make room for timer/READY badge below
+            name_y = bottom_anchor - 22
         else:
             name_y = bottom_anchor - 10
 
@@ -304,36 +307,32 @@ class UnitCard:
         if not self.is_dead:
             self._draw_hp_bar(surface, x, y + UNIT_CARD_HEIGHT - HP_BAR_HEIGHT - 3)
         else:
-            # Draw respawn timer for dead units
+            # Draw respawn timer or READY badge at the bottom of the card
+            badge_y = y + UNIT_CARD_HEIGHT - 12
             if self.respawn_timer > 0:
-                timer_text = render_fitted_text(
+                badge_surface = render_fitted_text(
                     str(self.respawn_timer),
                     max_width=30,
-                    max_height=18,
+                    max_height=12,
                     color=COLOR_TEXT_DIM,
-                    base_font_size=16,
-                    min_font_size=12,
-                    max_font_size=20
+                    base_font_size=12,
+                    min_font_size=10,
+                    max_font_size=14
                 )
-                timer_rect = timer_text.get_rect(
-                    center=(x + UNIT_CARD_WIDTH // 2, y + UNIT_CARD_HEIGHT - 12)
-                )
-                surface.blit(timer_text, timer_rect)
             else:
-                # Ready to respawn
-                ready_text = render_fitted_text(
+                badge_surface = render_fitted_text(
                     "READY",
                     max_width=UNIT_CARD_WIDTH - 10,
-                    max_height=18,
+                    max_height=12,
                     color=COLOR_HP_BAR_FULL,
-                    base_font_size=16,
-                    min_font_size=12,
-                    max_font_size=18
+                    base_font_size=12,
+                    min_font_size=10,
+                    max_font_size=14
                 )
-                ready_rect = ready_text.get_rect(
-                    center=(x + UNIT_CARD_WIDTH // 2, y + UNIT_CARD_HEIGHT - 12)
-                )
-                surface.blit(ready_text, ready_rect)
+            badge_rect = badge_surface.get_rect(
+                center=(x + UNIT_CARD_WIDTH // 2, badge_y)
+            )
+            surface.blit(badge_surface, badge_rect)
 
     def _draw_hp_bar(self, surface: pygame.Surface, x: int, y: int):
         """Draw HP bar for alive units with gradient."""
