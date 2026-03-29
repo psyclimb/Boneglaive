@@ -262,14 +262,11 @@ class UnitCard:
 
             # Apply gray tint for dead units
             if self.is_dead:
-                # Create grayscale version
+                # Dim sprite for dead units without numpy
                 gray_sprite = self.sprite_surface.copy()
-                arr = pygame.surfarray.pixels3d(gray_sprite)
-                gray = (arr[:,:,0] * 0.3 + arr[:,:,1] * 0.59 + arr[:,:,2] * 0.11).astype('uint8')
-                arr[:,:,0] = gray
-                arr[:,:,1] = gray
-                arr[:,:,2] = gray
-                del arr
+                dark = pygame.Surface(gray_sprite.get_size(), pygame.SRCALPHA)
+                dark.fill((0, 0, 0, 160))
+                gray_sprite.blit(dark, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
                 surface.blit(gray_sprite, (sprite_x, sprite_y))
             else:
                 surface.blit(self.sprite_surface, (sprite_x, sprite_y))
