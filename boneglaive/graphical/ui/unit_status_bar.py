@@ -105,10 +105,8 @@ class UnitCard:
                 self.sprite_surface = pygame.image.load(BytesIO(png_data))
                 self.sprite_surface = self.sprite_surface.convert_alpha()
                 return
-            except ImportError:
+            except Exception:
                 pass  # cairosvg not available, try PNG fallback below
-            except Exception as e:
-                pass  # SVG loading failed, try PNG fallback below
 
             # Fallback: Try to load PNG version if it exists
             png_path = asset_path(f"graphics/units/{unit_type_name}.png")

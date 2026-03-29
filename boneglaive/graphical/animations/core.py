@@ -420,7 +420,7 @@ class AnimatedUnit:
                         # Convert SVG to PNG in memory
                         png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
                         self.sprite = pygame.image.load(BytesIO(png_data))
-                    except ImportError:
+                    except Exception:
                         pass
                         # Fallback: create a colored square placeholder
                         self.sprite = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
@@ -883,7 +883,7 @@ class AnimatedUnit:
                                             from io import BytesIO
                                             png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
                                             doppelganger_base_sprite = pygame.image.load(BytesIO(png_data))
-                                        except ImportError:
+                                        except Exception:
                                             pass
                                     else:
                                         doppelganger_base_sprite = pygame.image.load(sprite_path)
@@ -1157,7 +1157,7 @@ class StatusIconFlash:
                     # Convert SVG to PNG in memory
                     png_data = cairosvg.svg2png(url=icon_path, output_width=self.icon_size, output_height=self.icon_size)
                     self.icon_surface = pygame.image.load(BytesIO(png_data))
-                except ImportError:
+                except Exception:
                     pass
                     # Fallback: create colored circle as placeholder
                     self.icon_surface = pygame.Surface((self.icon_size, self.icon_size), pygame.SRCALPHA)

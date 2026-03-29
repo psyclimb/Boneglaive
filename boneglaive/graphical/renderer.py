@@ -418,7 +418,7 @@ class GraphicalRenderer:
                 # Cache the surface
                 self.terrain_tiles[terrain_type] = surface
                 return surface
-            except ImportError:
+            except Exception:
                 pass
                 return None
         except Exception as e:
@@ -448,7 +448,7 @@ class GraphicalRenderer:
 
             # Cache the universal rail surface
             self.rail_universal = surface
-        except ImportError:
+        except Exception:
             pass
         except Exception as e:
             pass
@@ -476,7 +476,7 @@ class GraphicalRenderer:
 
             # Cache the scalar node trap surface
             self.scalar_node_trap = surface
-        except ImportError:
+        except Exception:
             pass
         except Exception as e:
             pass
@@ -505,7 +505,7 @@ class GraphicalRenderer:
 
             # Cache the fragcrest trap surface
             self.fragcrest_trap = surface
-        except ImportError:
+        except Exception:
             pass
         except Exception as e:
             pass
@@ -533,7 +533,7 @@ class GraphicalRenderer:
 
             # Cache the rail junction overlay surface
             self.rail_junction_overlay = surface
-        except ImportError:
+        except Exception:
             pass
         except Exception as e:
             pass

@@ -182,13 +182,7 @@ class LOTORenderer:
                 pass
                 self.tag_icon = self._create_fallback_tag()
 
-        except ImportError:
-            pass
-            self.chain_icon = self._create_fallback_chain()
-            self.lock_icon = self._create_fallback_lock()
-            self.tag_icon = self._create_fallback_tag()
-        except Exception as e:
-            pass
+        except Exception:
             self.chain_icon = self._create_fallback_chain()
             self.lock_icon = self._create_fallback_lock()
             self.tag_icon = self._create_fallback_tag()

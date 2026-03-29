@@ -9,12 +9,36 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
-# On Windows, bundle the Cairo DLL from MSYS2 so cairosvg works without a system install
+# On Windows, bundle Cairo and all its dependency DLLs from MSYS2
 extra_binaries = []
 if sys.platform == 'win32':
-    cairo_dll = r'C:\msys64\mingw64\bin\libcairo-2.dll'
-    if os.path.exists(cairo_dll):
-        extra_binaries.append((cairo_dll, '.'))
+    msys2_bin = r'C:\msys64\mingw64\bin'
+    # Cairo and its full dependency tree
+    cairo_dlls = [
+        'libcairo-2.dll',
+        'libcairo-gobject-2.dll',
+        'libpixman-1-0.dll',
+        'libfontconfig-1.dll',
+        'libfreetype-6.dll',
+        'libpng16-16.dll',
+        'zlib1.dll',
+        'libexpat-1.dll',
+        'libharfbuzz-0.dll',
+        'libglib-2.0-0.dll',
+        'libgobject-2.0-0.dll',
+        'libintl-8.dll',
+        'libiconv-2.dll',
+        'libpcre2-8-0.dll',
+        'libffi-8.dll',
+        'libbz2-1.dll',
+        'libbrotlidec.dll',
+        'libbrotlicommon.dll',
+        'libgraphite2.dll',
+    ]
+    for dll in cairo_dlls:
+        dll_path = os.path.join(msys2_bin, dll)
+        if os.path.exists(dll_path):
+            extra_binaries.append((dll_path, '.'))
 
 a = Analysis(
     ['run_graphical.py'],
@@ -37,7 +61,7 @@ a = Analysis(
     ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['runtime_hook_cairo.py'],
     excludes=['curses', '_curses'],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

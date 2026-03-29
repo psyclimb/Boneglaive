@@ -208,7 +208,7 @@ class MapSelectionMenu(MenuScreen):
                 surface = pygame.image.load(BytesIO(png_data))
                 surface = surface.convert_alpha()
                 return surface
-            except ImportError:
+            except Exception:
                 return None
         except Exception as e:
             pass

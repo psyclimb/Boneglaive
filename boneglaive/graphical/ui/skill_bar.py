@@ -75,10 +75,8 @@ class SkillSlot:
             icon_surface = icon_surface.convert_alpha()
             self.icon_cache[skill_name] = icon_surface
             return icon_surface
-        except ImportError:
+        except Exception:
             pass  # cairosvg not available, try PNG fallback
-        except Exception as e:
-            pass
 
         # Fallback: Try PNG version
         png_path = asset_path(f"graphics/skill_icons/{skill_name}.png")

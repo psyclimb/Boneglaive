@@ -97,7 +97,7 @@ class HelpPage:
             icon_surface = icon_surface.convert_alpha()
             self.icon_cache[cache_key] = icon_surface
             return icon_surface
-        except ImportError:
+        except Exception:
             pass
         except Exception:
             pass
