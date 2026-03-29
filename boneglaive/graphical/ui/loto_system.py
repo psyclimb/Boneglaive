@@ -7,6 +7,7 @@ from typing import Optional, Set
 import pygame
 import os
 from boneglaive.utils.paths import asset_path
+from boneglaive.utils.constants import UnitType
 
 
 class LOTOChecker:
@@ -62,6 +63,13 @@ class LOTOChecker:
         # Check disarm effect (Aerosolize Arms)
         if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
             blocked.add('attack')
+
+        # MANDIBLE FOREMAN cannot attack while trapping a unit
+        if hasattr(unit, 'type') and unit.type == UnitType.MANDIBLE_FOREMAN:
+            game = getattr(unit, '_game', None)
+            if game:
+                if any(u.is_alive() and u.trapped_by is unit for u in game.units):
+                    blocked.add('attack')
 
         # Check all-action-blocking effects
         if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge:

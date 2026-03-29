@@ -1854,6 +1854,11 @@ class Game:
         if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
             return False
 
+        # MANDIBLE FOREMAN cannot attack while it has a unit trapped
+        if unit.type == UnitType.MANDIBLE_FOREMAN:
+            if any(u.is_alive() and u.trapped_by is unit for u in self.units):
+                return False
+
         # First check for unit targets
         target = self.get_unit_at(y, x)
 

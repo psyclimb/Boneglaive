@@ -727,7 +727,7 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'VISEROY (Passive)',
-                        'description': 'Every basic attack automatically traps the target. Trapped enemies cannot move or use skills and take continuous damage each turn until the MANDIBLE FOREMAN moves away, is displaced, or is killed.',
+                        'description': 'Every basic attack automatically traps the target. Trapped enemies cannot move or use skills and take continuous damage each turn until the MANDIBLE FOREMAN moves away, is displaced, or is killed. While a unit is trapped, the MANDIBLE FOREMAN cannot basic attack.',
                         'details': []
                     },
                     {
