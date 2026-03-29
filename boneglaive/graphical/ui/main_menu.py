@@ -3,15 +3,13 @@
 Main Menu Screen
 The primary menu screen for Boneglaive graphical version.
 """
-import os
 import pygame
 from typing import Optional
 from .menu_components import MenuScreen, Button, COLOR_BG, COLOR_TEXT
 from boneglaive.game.player_profile import profile_manager
 from .animated_background import AnimatedBackground
 from .kaleidoscope_background import KaleidoscopeBackground
-
-_ASSETS_DIR = os.path.join(os.path.dirname(__file__), '..', 'assets')
+from boneglaive.utils.paths import asset_path
 
 
 class MainMenuScreen(MenuScreen):
@@ -30,7 +28,7 @@ class MainMenuScreen(MenuScreen):
         # self.background = AnimatedBackground(screen_width, screen_height)
 
         # Load Creepster horror font for title, scaled to screen height
-        creepster_path = os.path.join(_ASSETS_DIR, 'Creepster-Regular.ttf')
+        creepster_path = asset_path('boneglaive/graphical/assets/Creepster-Regular.ttf')
         title_size = max(48, int(screen_height * 0.12))
         try:
             self.title_font = pygame.font.Font(creepster_path, title_size)

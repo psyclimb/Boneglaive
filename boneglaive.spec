@@ -17,6 +17,7 @@ a = Analysis(
         ('maps',      'maps'),
         ('config.json', '.'),
         ('LICENSE', '.'),
+        ('boneglaive/graphical/assets', 'boneglaive/graphical/assets'),
     ],
     hiddenimports=[
         'cairosvg',
@@ -48,7 +49,7 @@ exe = EXE(
     strip=False,
     upx=True,
     console=False,
-    icon='graphics/boneglaive_icon.png',
+    icon='graphics/boneglaive_icon.ico',
 )
 
 coll = COLLECT(
