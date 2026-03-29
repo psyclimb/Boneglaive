@@ -8,7 +8,7 @@ import os
 from typing import Optional, List, Tuple, Dict, Set
 from .font_utils import render_fitted_text
 from .loto_system import LOTORenderer
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 
 # Colors - matching bone/industrial theme from main menu
 COLOR_BG_TOP = (74, 74, 79)  # Metal gradient top
@@ -63,34 +63,10 @@ class SkillSlot:
 
         icon_path = asset_path(f"graphics/skill_icons/{skill_name}.svg")
 
-        if not os.path.exists(icon_path):
-            return None
-
-        try:
-            # Try to load SVG using cairosvg
-            import cairosvg
-            from io import BytesIO
-            png_data = cairosvg.svg2png(url=icon_path, output_width=SKILL_ICON_SIZE, output_height=SKILL_ICON_SIZE)
-            icon_surface = pygame.image.load(BytesIO(png_data))
-            icon_surface = icon_surface.convert_alpha()
+        icon_surface = load_svg(icon_path, SKILL_ICON_SIZE, SKILL_ICON_SIZE)
+        if icon_surface:
             self.icon_cache[skill_name] = icon_surface
-            return icon_surface
-        except Exception:
-            pass  # cairosvg not available, try PNG fallback
-
-        # Fallback: Try PNG version
-        png_path = asset_path(f"graphics/skill_icons/{skill_name}.png")
-        if os.path.exists(png_path):
-            try:
-                icon_surface = pygame.image.load(png_path)
-                icon_surface = pygame.transform.scale(icon_surface, (SKILL_ICON_SIZE, SKILL_ICON_SIZE))
-                icon_surface = icon_surface.convert_alpha()
-                self.icon_cache[skill_name] = icon_surface
-                return icon_surface
-            except Exception:
-                pass
-
-        return None
+        return icon_surface
 
     def is_available(self) -> bool:
         """Check if skill can be used (not on cooldown)."""

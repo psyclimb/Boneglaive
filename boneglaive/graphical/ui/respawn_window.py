@@ -6,7 +6,7 @@ Modal window for selecting dead units to respawn.
 import pygame
 from typing import Optional, List, Tuple
 from .scrollbar import Scrollbar
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 
 # Colors - matching bone/industrial theme
 COLOR_OVERLAY = (0, 0, 0, 200)  # Semi-transparent black overlay
@@ -147,25 +147,9 @@ class RespawnWindow:
 
         sprite_path = asset_path(f"graphics/units/{sprite_name}.svg")
 
-        try:
-            import cairosvg
-            import io
-
-            # Convert SVG to PNG in memory
-            png_data = cairosvg.svg2png(url=sprite_path, output_width=48, output_height=48)
-
-            # Load PNG data into pygame surface
-            png_bytes = io.BytesIO(png_data)
-            sprite = pygame.image.load(png_bytes)
-
-            # Cache the sprite
-            self.sprite_cache[unit_type] = sprite
-            return sprite
-
-        except Exception as e:
-            # Cache None to avoid repeated attempts
-            self.sprite_cache[unit_type] = None
-            return None
+        sprite = load_svg(sprite_path, 48, 48)
+        self.sprite_cache[unit_type] = sprite
+        return sprite
 
     def handle_mouse_motion(self, mouse_pos: Tuple[int, int]):
         """Update hovered item based on mouse position."""

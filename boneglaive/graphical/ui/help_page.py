@@ -8,7 +8,7 @@ import os
 from typing import Optional, Dict, List, Tuple
 from boneglaive.utils.constants import UnitType
 from .scrollbar import Scrollbar
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 
 # Colors
 COLOR_BG = (25, 28, 32)
@@ -85,36 +85,10 @@ class HelpPage:
         else:  # status
             icon_path = asset_path(f"graphics/status_icons/{icon_name}.svg")
 
-        if not os.path.exists(icon_path):
-            return None
-
-        try:
-            # Try SVG first
-            import cairosvg
-            from io import BytesIO
-            png_data = cairosvg.svg2png(url=icon_path, output_width=ICON_SIZE, output_height=ICON_SIZE)
-            icon_surface = pygame.image.load(BytesIO(png_data))
-            icon_surface = icon_surface.convert_alpha()
+        icon_surface = load_svg(icon_path, ICON_SIZE, ICON_SIZE)
+        if icon_surface:
             self.icon_cache[cache_key] = icon_surface
-            return icon_surface
-        except Exception:
-            pass
-        except Exception:
-            pass
-
-        # Try PNG fallback
-        png_path = icon_path.replace('.svg', '.png')
-        if os.path.exists(png_path):
-            try:
-                icon_surface = pygame.image.load(png_path)
-                icon_surface = pygame.transform.scale(icon_surface, (ICON_SIZE, ICON_SIZE))
-                icon_surface = icon_surface.convert_alpha()
-                self.icon_cache[cache_key] = icon_surface
-                return icon_surface
-            except Exception:
-                pass
-
-        return None
+        return icon_surface
 
     def _wrap_text(self, text: str, max_width: int, font) -> List[str]:
         """Wrap text to fit within max_width pixels."""

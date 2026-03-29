@@ -7,7 +7,7 @@ import pygame
 import random
 import os
 from typing import List, Tuple
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 
 
 class KaleidoscopeBackground:
@@ -43,14 +43,6 @@ class KaleidoscopeBackground:
 
         graphics_base = asset_path("graphics")
 
-        # Try to import cairosvg for SVG support
-        try:
-            import cairosvg
-            from io import BytesIO
-            has_cairosvg = True
-        except Exception:
-            has_cairosvg = False
-
         # Directories to load from
         icon_dirs = [
             "units",
@@ -64,21 +56,22 @@ class KaleidoscopeBackground:
             dir_path = os.path.join(graphics_base, dir_name)
             if os.path.exists(dir_path):
                 files = os.listdir(dir_path)
+                seen = set()
                 for filename in files:
-                    if filename.endswith('.svg') and has_cairosvg:
+                    stem = filename.rsplit('.', 1)[0]
+                    if stem in seen:
+                        continue
+                    if filename.endswith('.svg'):
+                        seen.add(stem)
                         filepath = os.path.join(dir_path, filename)
-                        try:
-                            # Load SVG using cairosvg (same method as game)
-                            png_data = cairosvg.svg2png(url=filepath, output_width=icon_size, output_height=icon_size)
-                            icon = pygame.image.load(BytesIO(png_data))
+                        icon = load_svg(filepath, icon_size, icon_size)
+                        if icon:
                             icons.append(icon)
-                        except Exception:
-                            pass
                     elif filename.endswith('.png'):
+                        seen.add(stem)
                         filepath = os.path.join(dir_path, filename)
                         try:
                             icon = pygame.image.load(filepath)
-                            # Scale to fit cell with padding
                             icon = pygame.transform.scale(icon, (icon_size, icon_size))
                             icons.append(icon)
                         except Exception:

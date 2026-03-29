@@ -14,6 +14,8 @@ from typing import List, Tuple, Optional
 import sys
 import os
 
+from boneglaive.utils.paths import load_svg
+
 
 # Constants (shared across all modules)
 # TILE_SIZE is now dynamically calculated based on resolution
@@ -410,32 +412,15 @@ class AnimatedUnit:
         self.sprite_rect = None
 
         # Load sprite if path provided
-        if sprite_path and os.path.exists(sprite_path):
-            try:
-                # Try to load SVG using cairosvg if available
-                if sprite_path.endswith('.svg'):
-                    try:
-                        import cairosvg
-                        from io import BytesIO
-                        # Convert SVG to PNG in memory
-                        png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-                        self.sprite = pygame.image.load(BytesIO(png_data))
-                    except Exception:
-                        pass
-                        # Fallback: create a colored square placeholder
-                        self.sprite = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-                        # Draw a simple representation
-                        pygame.draw.circle(self.sprite, self.color, (TILE_SIZE//2, TILE_SIZE//2), TILE_SIZE//3)
-                        pygame.draw.circle(self.sprite, (255, 255, 255), (TILE_SIZE//2, TILE_SIZE//2), TILE_SIZE//3, 2)
-                else:
-                    self.sprite = pygame.image.load(sprite_path)
-                    # Scale to fit tile size
-                    self.sprite = pygame.transform.smoothscale(self.sprite, (TILE_SIZE, TILE_SIZE))
-
+        if sprite_path:
+            self.sprite = load_svg(sprite_path, TILE_SIZE, TILE_SIZE)
+            if self.sprite is None:
+                # Fallback: create a colored circle placeholder
+                self.sprite = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                pygame.draw.circle(self.sprite, self.color, (TILE_SIZE//2, TILE_SIZE//2), TILE_SIZE//3)
+                pygame.draw.circle(self.sprite, (255, 255, 255), (TILE_SIZE//2, TILE_SIZE//2), TILE_SIZE//3, 2)
+            if self.sprite:
                 self.sprite_rect = self.sprite.get_rect()
-            except Exception as e:
-                pass
-                self.sprite = None
 
     def _detect_vapor_type(self):
         """Detect if this unit is a HEINOUS VAPOR and initialize particle cloud."""
@@ -875,23 +860,11 @@ class AnimatedUnit:
                         else:
                             # Load the sprite ONCE and cache it
                             sprite_path = f"graphics/units/{banished_unit_type_name}.svg"
-                            if os.path.exists(sprite_path):
-                                try:
-                                    if sprite_path.endswith('.svg'):
-                                        try:
-                                            import cairosvg
-                                            from io import BytesIO
-                                            png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-                                            doppelganger_base_sprite = pygame.image.load(BytesIO(png_data))
-                                        except Exception:
-                                            pass
-                                    else:
-                                        doppelganger_base_sprite = pygame.image.load(sprite_path)
-                                        doppelganger_base_sprite = pygame.transform.smoothscale(doppelganger_base_sprite, (TILE_SIZE, TILE_SIZE))
-                                    # Cache the loaded base sprite
-                                    setattr(self, base_cache_key, doppelganger_base_sprite)
-                                except Exception:
-                                    pass
+                            loaded_sprite = load_svg(sprite_path, TILE_SIZE, TILE_SIZE)
+                            if loaded_sprite:
+                                doppelganger_base_sprite = loaded_sprite
+                                # Cache the loaded base sprite
+                                setattr(self, base_cache_key, doppelganger_base_sprite)
 
                     # Apply rotation if needed
                     if total_rotation != 0:
@@ -1148,31 +1121,12 @@ class StatusIconFlash:
         self.icon_size = 96  # Icon size in pixels
         icon_path = f"graphics/status_icons/{effect_name}.svg"
 
-        if os.path.exists(icon_path):
-            try:
-                # Try to load SVG using cairosvg if available
-                try:
-                    import cairosvg
-                    from io import BytesIO
-                    # Convert SVG to PNG in memory
-                    png_data = cairosvg.svg2png(url=icon_path, output_width=self.icon_size, output_height=self.icon_size)
-                    self.icon_surface = pygame.image.load(BytesIO(png_data))
-                except Exception:
-                    pass
-                    # Fallback: create colored circle as placeholder
-                    self.icon_surface = pygame.Surface((self.icon_size, self.icon_size), pygame.SRCALPHA)
-                    pygame.draw.circle(self.icon_surface, (255, 100, 100), (self.icon_size//2, self.icon_size//2), self.icon_size//3)
-                    pygame.draw.circle(self.icon_surface, (255, 255, 255), (self.icon_size//2, self.icon_size//2), self.icon_size//3, 2)
-            except Exception as e:
-                pass
-                # Create fallback surface
-                self.icon_surface = pygame.Surface((self.icon_size, self.icon_size), pygame.SRCALPHA)
-                pygame.draw.circle(self.icon_surface, (255, 100, 100), (self.icon_size//2, self.icon_size//2), self.icon_size//3)
-        else:
-            pass
-            # Create fallback surface
+        self.icon_surface = load_svg(icon_path, self.icon_size, self.icon_size)
+        if self.icon_surface is None:
+            # Fallback: create colored circle as placeholder
             self.icon_surface = pygame.Surface((self.icon_size, self.icon_size), pygame.SRCALPHA)
             pygame.draw.circle(self.icon_surface, (255, 100, 100), (self.icon_size//2, self.icon_size//2), self.icon_size//3)
+            pygame.draw.circle(self.icon_surface, (255, 255, 255), (self.icon_size//2, self.icon_size//2), self.icon_size//3, 2)
 
 
     def update(self, delta_time):

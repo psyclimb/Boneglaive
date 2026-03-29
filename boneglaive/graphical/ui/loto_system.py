@@ -6,7 +6,7 @@ Checks unit status effects to determine which actions are blocked.
 from typing import Optional, Set
 import pygame
 import os
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 from boneglaive.utils.constants import UnitType
 
 
@@ -153,38 +153,16 @@ class LOTORenderer:
         lock_path = asset_path('graphics/ui/loto_lock.svg')
         tag_path = asset_path('graphics/ui/loto_tag.svg')
 
-        # Try loading SVGs with cairosvg
-        try:
-            import cairosvg
-            from io import BytesIO
-
-            # Load chain icon
-            if os.path.exists(chain_path):
-                png_data = cairosvg.svg2png(url=chain_path, output_width=icon_size, output_height=icon_size)
-                self.chain_icon = pygame.image.load(BytesIO(png_data)).convert_alpha()
-            else:
-                pass
-                self.chain_icon = self._create_fallback_chain()
-
-            # Load lock icon
-            if os.path.exists(lock_path):
-                png_data = cairosvg.svg2png(url=lock_path, output_width=icon_size, output_height=icon_size)
-                self.lock_icon = pygame.image.load(BytesIO(png_data)).convert_alpha()
-            else:
-                pass
-                self.lock_icon = self._create_fallback_lock()
-
-            # Load tag icon
-            if os.path.exists(tag_path):
-                png_data = cairosvg.svg2png(url=tag_path, output_width=icon_size, output_height=icon_size)
-                self.tag_icon = pygame.image.load(BytesIO(png_data)).convert_alpha()
-            else:
-                pass
-                self.tag_icon = self._create_fallback_tag()
-
-        except Exception:
+        self.chain_icon = load_svg(chain_path, icon_size, icon_size)
+        if not self.chain_icon:
             self.chain_icon = self._create_fallback_chain()
+
+        self.lock_icon = load_svg(lock_path, icon_size, icon_size)
+        if not self.lock_icon:
             self.lock_icon = self._create_fallback_lock()
+
+        self.tag_icon = load_svg(tag_path, icon_size, icon_size)
+        if not self.tag_icon:
             self.tag_icon = self._create_fallback_tag()
 
     def _create_fallback_chain(self) -> pygame.Surface:

@@ -91,3 +91,4 @@ better_profile.py
 fix_all_empty_blocks.py
 profile_*.py
 quick_profile.py
+python3.11.core

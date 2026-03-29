@@ -7,7 +7,7 @@ import pygame
 from typing import Optional, Tuple, Callable, Set
 from .font_utils import render_fitted_text
 from .loto_system import LOTORenderer, LOTOChecker
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 
 # Colors - matching bone/industrial theme from main menu
 COLOR_BG_TOP = (74, 74, 79)  # Metal gradient top
@@ -182,16 +182,7 @@ class ActionButton:
             # Load tank treads icon if not cached
             if self.tank_treads_icon is None:
                 icon_path = asset_path("graphics/ui/tank_treads.svg")
-                if os.path.exists(icon_path):
-                    try:
-                        import cairosvg
-                        from io import BytesIO
-                        # Load at 28x28 to fit nicely on button
-                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
-                        self.tank_treads_icon = pygame.image.load(BytesIO(png_data))
-                        self.tank_treads_icon = self.tank_treads_icon.convert_alpha()
-                    except:
-                        pass  # Failed to load icon
+                self.tank_treads_icon = load_svg(icon_path, 28, 28)
 
             # Draw tank treads icon on the right side of button
             if self.tank_treads_icon:
@@ -216,16 +207,7 @@ class ActionButton:
             # Load skeletal hand icon if not cached
             if self.skeletal_hand_icon is None:
                 icon_path = asset_path("graphics/ui/skeletal_hand.svg")
-                if os.path.exists(icon_path):
-                    try:
-                        import cairosvg
-                        from io import BytesIO
-                        # Load at 28x28 to fit nicely on button
-                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
-                        self.skeletal_hand_icon = pygame.image.load(BytesIO(png_data))
-                        self.skeletal_hand_icon = self.skeletal_hand_icon.convert_alpha()
-                    except:
-                        pass  # Failed to load icon
+                self.skeletal_hand_icon = load_svg(icon_path, 28, 28)
 
             # Draw skeletal hand icon on the right side of button
             if self.skeletal_hand_icon:
@@ -265,16 +247,7 @@ class ActionButton:
             # Load lightning bolt icon if not cached
             if self.lightning_bolt_icon is None:
                 icon_path = asset_path("graphics/ui/lightning_bolt.svg")
-                if os.path.exists(icon_path):
-                    try:
-                        import cairosvg
-                        from io import BytesIO
-                        # Load at 28x28 to fit nicely on button
-                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
-                        self.lightning_bolt_icon = pygame.image.load(BytesIO(png_data))
-                        self.lightning_bolt_icon = self.lightning_bolt_icon.convert_alpha()
-                    except:
-                        pass  # Failed to load icon
+                self.lightning_bolt_icon = load_svg(icon_path, 28, 28)
 
             # Draw lightning bolt icon on the right side of button
             if self.lightning_bolt_icon:
@@ -312,16 +285,7 @@ class ActionButton:
             # Load gears icon if not cached
             if self.gears_icon is None:
                 icon_path = asset_path("graphics/ui/gears.svg")
-                if os.path.exists(icon_path):
-                    try:
-                        import cairosvg
-                        from io import BytesIO
-                        # Load at 28x28 to fit nicely on button
-                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
-                        self.gears_icon = pygame.image.load(BytesIO(png_data))
-                        self.gears_icon = self.gears_icon.convert_alpha()
-                    except:
-                        pass  # Failed to load icon
+                self.gears_icon = load_svg(icon_path, 28, 28)
 
             # Draw gears icon on the right side of button
             if self.gears_icon:
@@ -348,16 +312,7 @@ class ActionButton:
             # Load glaive icon if not cached
             if self.glaive_icon is None:
                 icon_path = asset_path("graphics/ui/glaive.svg")
-                if os.path.exists(icon_path):
-                    try:
-                        import cairosvg
-                        from io import BytesIO
-                        # Load at 28x28 to fit nicely on button
-                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
-                        self.glaive_icon = pygame.image.load(BytesIO(png_data))
-                        self.glaive_icon = self.glaive_icon.convert_alpha()
-                    except:
-                        pass  # Failed to load icon
+                self.glaive_icon = load_svg(icon_path, 28, 28)
 
             # Draw glaive icon on the right side of button
             if self.glaive_icon:
@@ -384,16 +339,7 @@ class ActionButton:
             # Load toolbox icon if not cached
             if self.toolbox_icon is None:
                 icon_path = asset_path("graphics/ui/toolbox.svg")
-                if os.path.exists(icon_path):
-                    try:
-                        import cairosvg
-                        from io import BytesIO
-                        # Load at 28x28 to fit nicely on button
-                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
-                        self.toolbox_icon = pygame.image.load(BytesIO(png_data))
-                        self.toolbox_icon = self.toolbox_icon.convert_alpha()
-                    except:
-                        pass  # Failed to load icon
+                self.toolbox_icon = load_svg(icon_path, 28, 28)
 
             # Draw toolbox icon on the right side of button
             if self.toolbox_icon:
@@ -420,16 +366,7 @@ class ActionButton:
             # Load help scream icon if not cached
             if self.help_scream_icon is None:
                 icon_path = asset_path("graphics/ui/help_scream.svg")
-                if os.path.exists(icon_path):
-                    try:
-                        import cairosvg
-                        from io import BytesIO
-                        # Load at 28x28 to fit nicely on button
-                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
-                        self.help_scream_icon = pygame.image.load(BytesIO(png_data))
-                        self.help_scream_icon = self.help_scream_icon.convert_alpha()
-                    except:
-                        pass  # Failed to load icon
+                self.help_scream_icon = load_svg(icon_path, 28, 28)
 
             # Draw help scream icon on the right side of button
             if self.help_scream_icon:
@@ -456,16 +393,7 @@ class ActionButton:
             # Load white flag icon if not cached
             if self.white_flag_icon is None:
                 icon_path = asset_path("graphics/ui/white_flag.svg")
-                if os.path.exists(icon_path):
-                    try:
-                        import cairosvg
-                        from io import BytesIO
-                        # Load at 28x28 to fit nicely on button
-                        png_data = cairosvg.svg2png(url=icon_path, output_width=28, output_height=28)
-                        self.white_flag_icon = pygame.image.load(BytesIO(png_data))
-                        self.white_flag_icon = self.white_flag_icon.convert_alpha()
-                    except:
-                        pass  # Failed to load icon
+                self.white_flag_icon = load_svg(icon_path, 28, 28)
 
             # Draw white flag icon on the right side of button
             if self.white_flag_icon:

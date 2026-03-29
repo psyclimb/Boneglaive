@@ -9,7 +9,7 @@ from pathlib import Path
 from .font_utils import render_fitted_text
 from .scrollbar import Scrollbar
 from .menu_components import draw_gradient_rect, draw_glow_rect
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 
 # Import unit types
 import sys
@@ -228,25 +228,9 @@ class SetupWindow:
 
         sprite_path = asset_path(f"graphics/units/{sprite_name}.svg")
 
-        try:
-            import cairosvg
-            import io
-
-            # Convert SVG to PNG in memory
-            png_data = cairosvg.svg2png(url=sprite_path, output_width=40, output_height=40)
-
-            # Load PNG data into pygame surface
-            png_bytes = io.BytesIO(png_data)
-            sprite = pygame.image.load(png_bytes)
-
-            # Cache the sprite
-            self.sprite_cache[unit_type] = sprite
-            return sprite
-
-        except Exception as e:
-            # Cache None to avoid repeated attempts
-            self.sprite_cache[unit_type] = None
-            return None
+        sprite = load_svg(sprite_path, 40, 40)
+        self.sprite_cache[unit_type] = sprite
+        return sprite
 
     def _ensure_visible(self, index: int):
         """Ensure the item at index is visible in the scroll view."""

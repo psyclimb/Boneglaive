@@ -8,7 +8,7 @@ import os
 from typing import List, Optional, Tuple, Dict
 from boneglaive.utils.constants import UNIT_SYMBOLS
 from .font_utils import render_fitted_text
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 
 # Colors - matching bone/industrial theme
 COLOR_BG_TOP = (42, 42, 47)  # Panel top
@@ -93,27 +93,7 @@ class UnitCard:
             unit_type_name = str(unit_type).split('.')[-1].lower()
             sprite_path = asset_path(f"graphics/units/{unit_type_name}.svg")
 
-            if not os.path.exists(sprite_path):
-                return
-
-            # Try to load SVG using cairosvg
-            try:
-                import cairosvg
-                from io import BytesIO
-                # Convert SVG to PNG in memory
-                png_data = cairosvg.svg2png(url=sprite_path, output_width=SPRITE_SIZE, output_height=SPRITE_SIZE)
-                self.sprite_surface = pygame.image.load(BytesIO(png_data))
-                self.sprite_surface = self.sprite_surface.convert_alpha()
-                return
-            except Exception:
-                pass  # cairosvg not available, try PNG fallback below
-
-            # Fallback: Try to load PNG version if it exists
-            png_path = asset_path(f"graphics/units/{unit_type_name}.png")
-            if os.path.exists(png_path):
-                self.sprite_surface = pygame.image.load(png_path)
-                self.sprite_surface = pygame.transform.scale(self.sprite_surface, (SPRITE_SIZE, SPRITE_SIZE))
-                self.sprite_surface = self.sprite_surface.convert_alpha()
+            self.sprite_surface = load_svg(sprite_path, SPRITE_SIZE, SPRITE_SIZE)
         except Exception as e:
             pass  # Sprite loading failed, will fall back to text-only
 

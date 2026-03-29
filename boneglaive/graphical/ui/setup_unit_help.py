@@ -7,7 +7,7 @@ import pygame
 from typing import Optional, Tuple
 from pathlib import Path
 import sys
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 
 # Import unit types and skills
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
@@ -558,17 +558,9 @@ class SetupUnitHelp:
 
         sprite_path = asset_path(f"graphics/units/{sprite_name}.svg")
 
-        try:
-            import cairosvg
-            import io
-            png_data = cairosvg.svg2png(url=sprite_path, output_width=size, output_height=size)
-            png_bytes = io.BytesIO(png_data)
-            sprite = pygame.image.load(png_bytes)
-            self.sprite_cache[cache_key] = sprite
-            return sprite
-        except Exception as e:
-            self.sprite_cache[cache_key] = None
-            return None
+        sprite = load_svg(sprite_path, size, size)
+        self.sprite_cache[cache_key] = sprite
+        return sprite
 
     def _load_skill_icon(self, skill_name: str, size: int = 32) -> Optional[pygame.Surface]:
         """Load skill icon from SVG at specified size."""
@@ -581,18 +573,9 @@ class SetupUnitHelp:
         icon_name = ''.join(c for c in icon_name if c not in r'\/:*?"<>|')
         icon_path = asset_path(f"graphics/skill_icons/{icon_name}.svg")
 
-        try:
-            import cairosvg
-            import io
-            png_data = cairosvg.svg2png(url=icon_path, output_width=size, output_height=size)
-            png_bytes = io.BytesIO(png_data)
-            icon = pygame.image.load(png_bytes)
-            self.skill_icon_cache[cache_key] = icon
-            return icon
-        except Exception as e:
-            # Silently fail for missing icons
-            self.skill_icon_cache[cache_key] = None
-            return None
+        icon = load_svg(icon_path, size, size)
+        self.skill_icon_cache[cache_key] = icon
+        return icon
 
     def _draw_glaive(self, surface: pygame.Surface, x: int, y: int, size: int, alpha: int, color: tuple):
         """

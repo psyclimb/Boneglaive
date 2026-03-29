@@ -9,7 +9,7 @@ from typing import Optional, List
 from .menu_components import MenuScreen, Button, COLOR_TEXT, COLOR_BG
 from boneglaive.utils.config import ConfigManager, NetworkMode
 from boneglaive.game.map import MapFactory
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 
 
 class PlaySubmenu(MenuScreen):
@@ -195,24 +195,7 @@ class MapSelectionMenu(MenuScreen):
             return None
 
         icon_path = asset_path(f"graphics/map_icons/{icon_filename}")
-        if not os.path.exists(icon_path):
-            return None
-
-        try:
-            # Try to load SVG using cairosvg
-            try:
-                import cairosvg
-                from io import BytesIO
-                # Convert SVG to PNG in memory (128x128 as that's the icon size)
-                png_data = cairosvg.svg2png(url=icon_path, output_width=128, output_height=128)
-                surface = pygame.image.load(BytesIO(png_data))
-                surface = surface.convert_alpha()
-                return surface
-            except Exception:
-                return None
-        except Exception as e:
-            pass
-            return None
+        return load_svg(icon_path, 128, 128)
 
     def update(self, delta_time: float, mouse_pos, mouse_pressed):
         """Update screen state."""

@@ -5,7 +5,7 @@ Modal window for selecting unit skill upgrades during gameplay.
 """
 import pygame
 from typing import Optional, List, Dict
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 
 # Colors - matching bone/industrial theme
 COLOR_OVERLAY = (0, 0, 0, 180)  # Semi-transparent black overlay
@@ -129,34 +129,13 @@ class UpgradeWindow:
         filename = ''.join(c for c in filename if c not in r'\/:*?"<>|')
         icon_path = asset_path(f"graphics/skill_icons/{filename}.svg")
 
-        try:
-            import cairosvg
-            import io
-            from PIL import Image
-
-            # Render SVG to PNG in memory
-            png_data = cairosvg.svg2png(url=icon_path, output_width=64, output_height=64)
-
-            # Load PNG data into PIL Image
-            pil_image = Image.open(io.BytesIO(png_data))
-
-            # Convert PIL Image to pygame Surface
-            mode = pil_image.mode
-            size = pil_image.size
-            data = pil_image.tobytes()
-
-            surface = pygame.image.fromstring(data, size, mode)
-
-            # Cache it
-            self.icon_cache[skill_name] = surface
-            return surface
-        except Exception as e:
-            print(f"Failed to load skill icon for {skill_name}: {e}")
+        surface = load_svg(icon_path, 64, 64)
+        if surface is None:
             # Return a placeholder surface
-            placeholder = pygame.Surface((64, 64), pygame.SRCALPHA)
-            placeholder.fill((60, 60, 60))
-            self.icon_cache[skill_name] = placeholder
-            return placeholder
+            surface = pygame.Surface((64, 64), pygame.SRCALPHA)
+            surface.fill((60, 60, 60))
+        self.icon_cache[skill_name] = surface
+        return surface
 
     def draw(self, surface: pygame.Surface):
         """Draw the upgrade window."""

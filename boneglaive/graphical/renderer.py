@@ -11,7 +11,7 @@ import random
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
-from boneglaive.utils.paths import asset_path
+from boneglaive.utils.paths import asset_path, load_svg
 
 # Add parent directory to path to import animations
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -403,27 +403,10 @@ class GraphicalRenderer:
         if not svg_path or not os.path.exists(svg_path):
             return None
 
-        try:
-            # Try to load SVG using cairosvg
-            try:
-                import cairosvg
-                from io import BytesIO
-                # Convert SVG to PNG in memory
-                png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-                surface = pygame.image.load(BytesIO(png_data))
-
-                # Convert to alpha format to preserve transparency
-                surface = surface.convert_alpha()
-
-                # Cache the surface
-                self.terrain_tiles[terrain_type] = surface
-                return surface
-            except Exception:
-                pass
-                return None
-        except Exception as e:
-            pass
-            return None
+        surface = load_svg(svg_path, TILE_SIZE, TILE_SIZE)
+        if surface:
+            self.terrain_tiles[terrain_type] = surface
+        return surface
 
     def _load_rail_overlays(self) -> None:
         """
@@ -432,26 +415,9 @@ class GraphicalRenderer:
         """
         svg_path = asset_path("graphics/terrain/rail_universal.svg")
 
-        if not os.path.exists(svg_path):
-            pass
-            return
-
-        try:
-            import cairosvg
-            from io import BytesIO
-            # Convert SVG to PNG in memory
-            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-            surface = pygame.image.load(BytesIO(png_data))
-
-            # Set alpha for semi-transparent overlay effect
-            surface = surface.convert_alpha()
-
-            # Cache the universal rail surface
+        surface = load_svg(svg_path, TILE_SIZE, TILE_SIZE)
+        if surface:
             self.rail_universal = surface
-        except Exception:
-            pass
-        except Exception as e:
-            pass
 
     def _load_scalar_node_overlay(self) -> None:
         """
@@ -460,26 +426,9 @@ class GraphicalRenderer:
         """
         svg_path = asset_path("graphics/terrain/scalar_node_trap.svg")
 
-        if not os.path.exists(svg_path):
-            pass
-            return
-
-        try:
-            import cairosvg
-            from io import BytesIO
-            # Convert SVG to PNG in memory
-            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-            surface = pygame.image.load(BytesIO(png_data))
-
-            # Set alpha for semi-transparent overlay effect
-            surface = surface.convert_alpha()
-
-            # Cache the scalar node trap surface
+        surface = load_svg(svg_path, TILE_SIZE, TILE_SIZE)
+        if surface:
             self.scalar_node_trap = surface
-        except Exception:
-            pass
-        except Exception as e:
-            pass
 
     def _load_fragcrest_trap_overlay(self) -> None:
         """
@@ -489,26 +438,9 @@ class GraphicalRenderer:
         """
         svg_path = asset_path("graphics/terrain/fragcrest_trap.svg")
 
-        if not os.path.exists(svg_path):
-            pass
-            return
-
-        try:
-            import cairosvg
-            from io import BytesIO
-            # Convert SVG to PNG in memory
-            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-            surface = pygame.image.load(BytesIO(png_data))
-
-            # Set alpha for semi-transparent overlay effect
-            surface = surface.convert_alpha()
-
-            # Cache the fragcrest trap surface
+        surface = load_svg(svg_path, TILE_SIZE, TILE_SIZE)
+        if surface:
             self.fragcrest_trap = surface
-        except Exception:
-            pass
-        except Exception as e:
-            pass
 
     def _load_rail_junction_overlay(self) -> None:
         """
@@ -517,26 +449,9 @@ class GraphicalRenderer:
         """
         svg_path = asset_path("graphics/ui/rail_junction_overlay.svg")
 
-        if not os.path.exists(svg_path):
-            pass
-            return
-
-        try:
-            import cairosvg
-            from io import BytesIO
-            # Convert SVG to PNG in memory
-            png_data = cairosvg.svg2png(url=svg_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-            surface = pygame.image.load(BytesIO(png_data))
-
-            # Set alpha for semi-transparent overlay effect
-            surface = surface.convert_alpha()
-
-            # Cache the rail junction overlay surface
+        surface = load_svg(svg_path, TILE_SIZE, TILE_SIZE)
+        if surface:
             self.rail_junction_overlay = surface
-        except Exception:
-            pass
-        except Exception as e:
-            pass
 
     # ASCII renderer compatibility stubs
     def animate_attack_sequence(self, y, x, sequence, color, duration):
@@ -4102,60 +4017,38 @@ class GraphicalRenderer:
             sprite_path = self._get_sprite_path(self.selected_dead_unit.unit_type)
 
             # Try to load and display the sprite
-            if sprite_path and os.path.exists(sprite_path):
-                try:
-                    # Load sprite
-                    if sprite_path.endswith('.svg'):
-                        import cairosvg
-                        from io import BytesIO
-                        png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-                        sprite = pygame.image.load(BytesIO(png_data))
-                    else:
-                        sprite = pygame.image.load(sprite_path)
-                        sprite = pygame.transform.smoothscale(sprite, (TILE_SIZE, TILE_SIZE))
+            sprite = load_svg(sprite_path, TILE_SIZE, TILE_SIZE) if sprite_path else None
 
-                    # Create ghost surface with semi-transparent sprite
-                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+            # Create ghost surface
+            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
 
-                    # Draw sprite with transparency
-                    sprite_copy = sprite.copy()
-                    sprite_copy.set_alpha(120)  # Semi-transparent
-                    ghost_surf.blit(sprite_copy, (0, 0))
-
-                    # Add colored tint overlay (green for respawn)
-                    tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-                    if pos_valid:
-                        tint_surf.fill((100, 255, 150, 60))  # Green tint for valid respawn
-                    else:
-                        tint_surf.fill((255, 100, 100, 60))  # Red tint for invalid
-                    ghost_surf.blit(tint_surf, (0, 0))
-
-                    # Draw the ghost preview
-                    surface.blit(
-                        ghost_surf,
-                        (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
-                    )
-                except Exception as e:
-                    # Fallback to text if sprite loading fails
-                    pass  # Sprite load failed
-                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-                    ghost_surf.fill((100, 255, 150, 60))  # Green tint
-                    if hasattr(self.selected_dead_unit, 'unit_type'):
-                        unit_type_name = self.selected_dead_unit.unit_type.name if hasattr(self.selected_dead_unit.unit_type, 'name') else str(self.selected_dead_unit.unit_type)
-                        text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
-                        text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
-                        ghost_surf.blit(text, text_rect)
-                    surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+            if sprite:
+                # Draw sprite with transparency
+                sprite_copy = sprite.copy()
+                sprite_copy.set_alpha(120)  # Semi-transparent
+                ghost_surf.blit(sprite_copy, (0, 0))
             else:
-                # Fallback to text if no sprite path found
-                ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                # Fallback to text
                 ghost_surf.fill((100, 255, 150, 60))  # Green tint
                 if hasattr(self.selected_dead_unit, 'unit_type'):
                     unit_type_name = self.selected_dead_unit.unit_type.name if hasattr(self.selected_dead_unit.unit_type, 'name') else str(self.selected_dead_unit.unit_type)
                     text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
                     text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
                     ghost_surf.blit(text, text_rect)
-                surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+
+            # Add colored tint overlay (green for respawn)
+            tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+            if pos_valid:
+                tint_surf.fill((100, 255, 150, 60))  # Green tint for valid respawn
+            else:
+                tint_surf.fill((255, 100, 100, 60))  # Red tint for invalid
+            ghost_surf.blit(tint_surf, (0, 0))
+
+            # Draw the ghost preview
+            surface.blit(
+                ghost_surf,
+                (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+            )
 
         # Draw queued respawn ghosts (after confirmation, before execution)
         if self.game_adapter.game:
@@ -4168,57 +4061,35 @@ class GraphicalRenderer:
                     sprite_path = self._get_sprite_path(dead_unit.unit_type)
 
                     # Try to load and display the sprite
-                    if sprite_path and os.path.exists(sprite_path):
-                        try:
-                            # Load sprite
-                            if sprite_path.endswith('.svg'):
-                                import cairosvg
-                                from io import BytesIO
-                                png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-                                sprite = pygame.image.load(BytesIO(png_data))
-                            else:
-                                sprite = pygame.image.load(sprite_path)
-                                sprite = pygame.transform.smoothscale(sprite, (TILE_SIZE, TILE_SIZE))
+                    sprite = load_svg(sprite_path, TILE_SIZE, TILE_SIZE) if sprite_path else None
 
-                            # Create ghost surface with semi-transparent sprite
-                            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    # Create ghost surface
+                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
 
-                            # Draw sprite with transparency
-                            sprite_copy = sprite.copy()
-                            sprite_copy.set_alpha(120)  # Semi-transparent
-                            ghost_surf.blit(sprite_copy, (0, 0))
-
-                            # Add colored tint overlay (green for queued respawn)
-                            tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-                            tint_surf.fill((100, 255, 150, 60))  # Green tint
-                            ghost_surf.blit(tint_surf, (0, 0))
-
-                            # Draw the ghost preview
-                            surface.blit(
-                                ghost_surf,
-                                (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
-                            )
-                        except Exception as e:
-                            # Fallback to text if sprite loading fails
-                            pass  # Sprite load failed
-                            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-                            ghost_surf.fill((100, 255, 150, 60))  # Green tint
-                            if hasattr(dead_unit, 'unit_type'):
-                                unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
-                                text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
-                                text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
-                                ghost_surf.blit(text, text_rect)
-                            surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+                    if sprite:
+                        # Draw sprite with transparency
+                        sprite_copy = sprite.copy()
+                        sprite_copy.set_alpha(120)  # Semi-transparent
+                        ghost_surf.blit(sprite_copy, (0, 0))
                     else:
-                        # Fallback to text if no sprite path found
-                        ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                        # Fallback to text
                         ghost_surf.fill((100, 255, 150, 60))  # Green tint
                         if hasattr(dead_unit, 'unit_type'):
                             unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
                             text = self.small_font.render(unit_type_name[:3], True, (255, 255, 255))
                             text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
                             ghost_surf.blit(text, text_rect)
-                        surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+
+                    # Add colored tint overlay (green for queued respawn)
+                    tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                    tint_surf.fill((100, 255, 150, 60))  # Green tint
+                    ghost_surf.blit(tint_surf, (0, 0))
+
+                    # Draw the ghost preview
+                    surface.blit(
+                        ghost_surf,
+                        (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+                    )
 
         # Draw setup valid tiles (blue/cyan)
         if self.setup_placing_unit and self.setup_valid_tiles:
@@ -4243,55 +4114,18 @@ class GraphicalRenderer:
             sprite_path = self._get_sprite_path(self.selected_unit_type)
 
             # Try to load and display the sprite
-            if sprite_path and os.path.exists(sprite_path):
-                try:
-                    # Load sprite
-                    if sprite_path.endswith('.svg'):
-                        import cairosvg
-                        from io import BytesIO
-                        png_data = cairosvg.svg2png(url=sprite_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-                        sprite = pygame.image.load(BytesIO(png_data))
-                    else:
-                        sprite = pygame.image.load(sprite_path)
-                        sprite = pygame.transform.smoothscale(sprite, (TILE_SIZE, TILE_SIZE))
+            sprite = load_svg(sprite_path, TILE_SIZE, TILE_SIZE) if sprite_path else None
 
-                    # Create ghost surface with semi-transparent sprite
-                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+            # Create ghost surface
+            ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
 
-                    # Draw sprite with transparency
-                    sprite_copy = sprite.copy()
-                    sprite_copy.set_alpha(120)  # Semi-transparent
-                    ghost_surf.blit(sprite_copy, (0, 0))
-
-                    # Add colored tint overlay
-                    tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-                    if pos_valid:
-                        tint_surf.fill((100, 200, 255, 60))  # Blue tint for valid
-                    else:
-                        tint_surf.fill((255, 100, 100, 60))  # Red tint for invalid
-                    ghost_surf.blit(tint_surf, (0, 0))
-
-                    # Draw the ghost preview
-                    surface.blit(
-                        ghost_surf,
-                        (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
-                    )
-                except Exception as e:
-                    # Fallback to text if sprite loading fails
-                    pass  # Sprite load failed
-                    ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
-                    if pos_valid:
-                        ghost_surf.fill((100, 200, 255, 80))
-                    else:
-                        ghost_surf.fill((255, 100, 100, 80))
-                    unit_display_name = self.setup_window.unit_names.get(self.selected_unit_type, str(self.selected_unit_type))
-                    text = self.small_font.render(unit_display_name[:3], True, (255, 255, 255))
-                    text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
-                    ghost_surf.blit(text, text_rect)
-                    surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+            if sprite:
+                # Draw sprite with transparency
+                sprite_copy = sprite.copy()
+                sprite_copy.set_alpha(120)  # Semi-transparent
+                ghost_surf.blit(sprite_copy, (0, 0))
             else:
-                # Fallback to text if sprite path not found
-                ghost_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+                # Fallback to text
                 if pos_valid:
                     ghost_surf.fill((100, 200, 255, 80))
                 else:
@@ -4300,7 +4134,20 @@ class GraphicalRenderer:
                 text = self.small_font.render(unit_display_name[:3], True, (255, 255, 255))
                 text_rect = text.get_rect(center=(TILE_SIZE // 2, TILE_SIZE // 2))
                 ghost_surf.blit(text, text_rect)
-                surface.blit(ghost_surf, (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE))
+
+            # Add colored tint overlay
+            tint_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
+            if pos_valid:
+                tint_surf.fill((100, 200, 255, 60))  # Blue tint for valid
+            else:
+                tint_surf.fill((255, 100, 100, 60))  # Red tint for invalid
+            ghost_surf.blit(tint_surf, (0, 0))
+
+            # Draw the ghost preview
+            surface.blit(
+                ghost_surf,
+                (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
+            )
 
     def draw_ui(self, surface: pygame.Surface):
         """Draw UI elements using new three-zone layout."""
@@ -4966,13 +4813,9 @@ class GraphicalRenderer:
                         icon_filename = 'saft-e-gas.svg'
 
                     icon_path = asset_path(f"graphics/skill_icons/{icon_filename}")
-                    try:
-                        # Load and render SVG as PNG
-                        import cairosvg
-                        from io import BytesIO
-                        png_data = cairosvg.svg2png(url=icon_path, output_width=TILE_SIZE, output_height=TILE_SIZE)
-                        icon_surface = pygame.image.load(BytesIO(png_data))
+                    icon_surface = load_svg(icon_path, TILE_SIZE, TILE_SIZE)
 
+                    if icon_surface:
                         # Use icon with transparency
                         shadow_sprite = icon_surface.copy()
 
@@ -4988,7 +4831,7 @@ class GraphicalRenderer:
                         # Draw shadow centered at position
                         shadow_rect = shadow_sprite.get_rect(center=(shadow_x, shadow_y))
                         surface.blit(shadow_sprite, shadow_rect)
-                    except Exception as e:
+                    else:
                         # Fallback to text abbreviation if icon can't be loaded
                         fallback_surf = pygame.Surface((TILE_SIZE, TILE_SIZE), pygame.SRCALPHA)
                         fallback_surf.fill((150, 200, 255, base_alpha))
