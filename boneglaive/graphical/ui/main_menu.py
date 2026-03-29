@@ -3,12 +3,15 @@
 Main Menu Screen
 The primary menu screen for Boneglaive graphical version.
 """
+import os
 import pygame
 from typing import Optional
 from .menu_components import MenuScreen, Button, COLOR_BG, COLOR_TEXT
 from boneglaive.game.player_profile import profile_manager
 from .animated_background import AnimatedBackground
 from .kaleidoscope_background import KaleidoscopeBackground
+
+_ASSETS_DIR = os.path.join(os.path.dirname(__file__), '..', 'assets')
 
 
 class MainMenuScreen(MenuScreen):
@@ -26,54 +29,66 @@ class MainMenuScreen(MenuScreen):
         # Or use AnimatedBackground for skull glaive sun
         # self.background = AnimatedBackground(screen_width, screen_height)
 
-        # Button dimensions
-        button_width = 300
-        button_height = 60
-        button_spacing = 20
+        # Load Creepster horror font for title, scaled to screen height
+        creepster_path = os.path.join(_ASSETS_DIR, 'Creepster-Regular.ttf')
+        title_size = max(48, int(screen_height * 0.12))
+        try:
+            self.title_font = pygame.font.Font(creepster_path, title_size)
+        except Exception:
+            self.title_font = large_font
 
-        # Calculate center position
+        # Derive layout positions from title height so nothing overlaps
+        self._title_top = int(screen_height * 0.06)
+        title_h = self.title_font.render("BONEGLAIVE", True, (0, 0, 0)).get_height()
+        self._version_top = self._title_top + title_h + int(screen_height * 0.01)
+        buttons_top = self._version_top + font.get_height() + int(screen_height * 0.03)
+
+        # Button dimensions, scaled to screen
+        button_width = max(200, int(screen_width * 0.23))
+        button_height = max(40, int(screen_height * 0.07))
+        button_spacing = max(10, int(screen_height * 0.015))
+
         start_x = (screen_width - button_width) // 2
-        start_y = 250
 
         # Create buttons
         self.buttons = [
             Button(
-                start_x, start_y,
+                start_x, buttons_top,
                 button_width, button_height,
                 "Play",
                 font,
                 lambda: self._set_action("play")
             ),
             Button(
-                start_x, start_y + (button_height + button_spacing) * 1,
+                start_x, buttons_top + (button_height + button_spacing) * 1,
                 button_width, button_height,
                 "How to Play",
                 font,
                 lambda: self._set_action("how_to_play")
             ),
             Button(
-                start_x, start_y + (button_height + button_spacing) * 2,
+                start_x, buttons_top + (button_height + button_spacing) * 2,
                 button_width, button_height,
                 "Profile",
                 font,
                 lambda: self._set_action("profile")
             ),
             Button(
-                start_x, start_y + (button_height + button_spacing) * 3,
+                start_x, buttons_top + (button_height + button_spacing) * 3,
                 button_width, button_height,
                 "Settings",
                 font,
                 lambda: self._set_action("settings")
             ),
             Button(
-                start_x, start_y + (button_height + button_spacing) * 4,
+                start_x, buttons_top + (button_height + button_spacing) * 4,
                 button_width, button_height,
                 "About",
                 font,
                 lambda: self._set_action("about")
             ),
             Button(
-                start_x, start_y + (button_height + button_spacing) * 5,
+                start_x, buttons_top + (button_height + button_spacing) * 5,
                 button_width, button_height,
                 "Quit",
                 font,
@@ -115,7 +130,7 @@ class MainMenuScreen(MenuScreen):
         # Draw version subtitle
         version_text = "v1.0"
         version_surface = self.font.render(version_text, True, COLOR_TEXT)
-        version_rect = version_surface.get_rect(centerx=self.screen_width // 2, top=200)
+        version_rect = version_surface.get_rect(centerx=self.screen_width // 2, top=self._version_top)
         surface.blit(version_surface, version_rect)
 
         # Draw profile indicator (top-right corner)
@@ -131,11 +146,13 @@ class MainMenuScreen(MenuScreen):
             button.draw(surface)
 
     def _draw_title_art(self, surface: pygame.Surface):
-        """Draw the Boneglaive title in large text."""
-        # For now, use a simple large text title
-        # Could be enhanced with actual ASCII art later
-        # Use the large_font passed in constructor which is already scaled
-        # Dark metallic color with slight red tint to match apocalyptic theme
-        title_surface = self.large_font.render("BONEGLAIVE", True, (180, 160, 165))
-        title_rect = title_surface.get_rect(centerx=self.screen_width // 2, top=100)
+        """Draw the Boneglaive title using the Creepster horror font."""
+        # Dark shadow for depth
+        shadow_surface = self.title_font.render("BONEGLAIVE", True, (40, 0, 0))
+        shadow_rect = shadow_surface.get_rect(centerx=self.screen_width // 2 + 3, top=self._title_top + 3)
+        surface.blit(shadow_surface, shadow_rect)
+
+        # Main title in blood red
+        title_surface = self.title_font.render("BONEGLAIVE", True, (180, 20, 20))
+        title_rect = title_surface.get_rect(centerx=self.screen_width // 2, top=self._title_top)
         surface.blit(title_surface, title_rect)
