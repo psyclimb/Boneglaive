@@ -31,8 +31,7 @@ def asset_path(relative: str) -> str:
 
 def load_svg(svg_path: str, width: int, height: int):
     """
-    Load an SVG as a pygame Surface. Tries pre-rendered PNG first (same path
-    with .png extension), then falls back to cairosvg runtime conversion.
+    Load an SVG as a pygame Surface using cairosvg for full-fidelity rendering.
 
     Args:
         svg_path: Absolute path to the .svg file
@@ -44,17 +43,6 @@ def load_svg(svg_path: str, width: int, height: int):
     """
     import pygame
 
-    # Try PNG version first (works everywhere, no native deps)
-    png_path = svg_path.rsplit('.svg', 1)[0] + '.png' if svg_path.endswith('.svg') else svg_path
-    if os.path.exists(png_path):
-        try:
-            surface = pygame.image.load(png_path)
-            surface = pygame.transform.smoothscale(surface, (width, height))
-            return surface.convert_alpha()
-        except Exception:
-            pass
-
-    # Fall back to cairosvg runtime conversion
     if os.path.exists(svg_path):
         try:
             import cairosvg

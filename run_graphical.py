@@ -25,6 +25,49 @@ from boneglaive.graphical.game_state import GameStateAdapter
 from boneglaive.utils.config import ConfigManager
 
 
+def check_cairo():
+    """Verify cairosvg is working. Show a clear error dialog and exit if not."""
+    try:
+        import cairosvg
+        from io import BytesIO
+        # Render a minimal SVG to confirm Cairo native libs are loaded
+        cairosvg.svg2png(bytestring=b'<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>', output_width=1, output_height=1)
+    except Exception as e:
+        import pygame
+        import traceback
+        pygame.init()
+        screen = pygame.display.set_mode((640, 300))
+        pygame.display.set_caption("Boneglaive — Missing Dependency")
+        font_large = pygame.font.SysFont("Arial", 22, bold=True)
+        font_small = pygame.font.SysFont("Arial", 16)
+        error_lines = [
+            "Boneglaive could not load the Cairo graphics library.",
+            "",
+            "The game requires Cairo to render its visuals.",
+            "Please reinstall the game or contact support.",
+            "",
+            f"Error: {str(e)[:80]}",
+            "",
+            "Press any key or close this window to exit.",
+        ]
+        running = True
+        while running:
+            screen.fill((20, 20, 30))
+            y = 40
+            for i, line in enumerate(error_lines):
+                font = font_large if i == 0 else font_small
+                color = (220, 80, 80) if i == 0 else (200, 200, 200)
+                surf = font.render(line, True, color)
+                screen.blit(surf, (40, y))
+                y += font.get_height() + 6
+            pygame.display.flip()
+            for event in pygame.event.get():
+                if event.type in (pygame.QUIT, pygame.KEYDOWN):
+                    running = False
+        pygame.quit()
+        sys.exit(1)
+
+
 def run_game():
     """Run the game after menu configuration."""
     config = ConfigManager()
@@ -114,6 +157,7 @@ def main():
 
     import pygame
     pygame.init()
+    check_cairo()
 
     if args.skip_menu:
         # Skip menu, go directly to game

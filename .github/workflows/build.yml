@@ -66,19 +66,81 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          install: mingw-w64-x86_64-cairo mingw-w64-x86_64-pkg-config
+          update: true
+          install: >-
+            mingw-w64-x86_64-cairo
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-fontconfig
+            mingw-w64-x86_64-freetype
+            mingw-w64-x86_64-harfbuzz
+            mingw-w64-x86_64-glib2
 
-      - name: Add MSYS2 MinGW64 to PATH
-        run: echo "C:\msys64\mingw64\bin" >> $env:GITHUB_PATH
+      - name: Add MSYS2 MinGW64 to PATH for all subsequent steps
+        # Must use $env:GITHUB_PATH so it persists to the PyInstaller step
+        run: |
+          echo "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Verify Cairo DLLs are present
+        run: |
+          $dlls = @(
+            'libcairo-2.dll', 'libpixman-1-0.dll', 'libfontconfig-1.dll',
+            'libfreetype-6.dll', 'libpng16-16.dll', 'zlib1.dll'
+          )
+          $missing = @()
+          foreach ($dll in $dlls) {
+            $path = "C:\msys64\mingw64\bin\$dll"
+            if (Test-Path $path) {
+              Write-Host "OK: $dll"
+            } else {
+              $missing += $dll
+              Write-Host "MISSING: $dll"
+            }
+          }
+          if ($missing.Count -gt 0) {
+            Write-Error "Missing Cairo DLLs: $($missing -join ', ')"
+            exit 1
+          }
 
       - name: Install Python dependencies
+        # PATH already includes MSYS2 so cairocffi can find libcairo at install time
         run: |
           pip install --upgrade pip
           pip install pygame cairosvg cairocffi pyinstaller
           pip install -e .
 
+      - name: Verify cairocffi can load Cairo
+        run: |
+          python -c "import cairocffi; print('cairocffi OK:', cairocffi.cairo_version_string())"
+
+      - name: Verify cairosvg works end-to-end
+        run: |
+          python -c "
+          import cairosvg, sys
+          result = cairosvg.svg2png(bytestring=b'<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"2\" height=\"2\"><rect width=\"2\" height=\"2\" fill=\"red\"/></svg>', output_width=2, output_height=2)
+          assert len(result) > 0, 'cairosvg produced empty output'
+          print('cairosvg OK, output bytes:', len(result))
+          "
+
       - name: Build with PyInstaller
         run: pyinstaller boneglaive.spec --distpath dist\windows
+
+      - name: Verify Cairo DLLs were bundled
+        run: |
+          $bundleDir = "dist\windows\boneglaive"
+          $required = @('libcairo-2.dll', 'libpixman-1-0.dll', 'libfreetype-6.dll')
+          $missing = @()
+          foreach ($dll in $required) {
+            if (Test-Path "$bundleDir\$dll") {
+              Write-Host "Bundled OK: $dll"
+            } else {
+              $missing += $dll
+              Write-Host "NOT BUNDLED: $dll"
+            }
+          }
+          if ($missing.Count -gt 0) {
+            Write-Error "Cairo DLLs missing from bundle: $($missing -join ', ')"
+            exit 1
+          }
 
       - name: Package artifact
         run: |

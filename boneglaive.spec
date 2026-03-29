@@ -13,32 +13,63 @@ block_cipher = None
 extra_binaries = []
 if sys.platform == 'win32':
     msys2_bin = r'C:\msys64\mingw64\bin'
-    # Cairo and its full dependency tree
+
+    # Full Cairo dependency tree for cairosvg/cairocffi
+    # Order matters: core libs first, then dependents
     cairo_dlls = [
+        # Core Cairo
         'libcairo-2.dll',
         'libcairo-gobject-2.dll',
+        # Cairo dependencies
         'libpixman-1-0.dll',
-        'libfontconfig-1.dll',
-        'libfreetype-6.dll',
         'libpng16-16.dll',
         'zlib1.dll',
-        'libexpat-1.dll',
+        # Font rendering
+        'libfontconfig-1.dll',
+        'libfreetype-6.dll',
         'libharfbuzz-0.dll',
+        'libgraphite2.dll',
+        # XML parsing (fontconfig needs this)
+        'libexpat-1.dll',
+        # GLib (gobject backend)
         'libglib-2.0-0.dll',
         'libgobject-2.0-0.dll',
+        'libgio-2.0-0.dll',
+        'libgmodule-2.0-0.dll',
+        # i18n / encoding
         'libintl-8.dll',
         'libiconv-2.dll',
+        # PCRE (glib dependency)
         'libpcre2-8-0.dll',
+        # FFI (gobject/glib dependency)
         'libffi-8.dll',
+        # Compression
         'libbz2-1.dll',
+        'liblzma-5.dll',
+        # Brotli (freetype dependency)
         'libbrotlidec.dll',
         'libbrotlicommon.dll',
-        'libgraphite2.dll',
+        # Windows runtime (MinGW)
+        'libwinpthread-1.dll',
+        'libgcc_s_seh-1.dll',
+        'libstdc++-6.dll',
     ]
+
+    missing = []
     for dll in cairo_dlls:
         dll_path = os.path.join(msys2_bin, dll)
         if os.path.exists(dll_path):
             extra_binaries.append((dll_path, '.'))
+        else:
+            missing.append(dll)
+
+    if missing:
+        print(f"\nWARNING: The following Cairo DLLs were NOT found in {msys2_bin}:")
+        for m in missing:
+            print(f"  MISSING: {m}")
+        print("The Windows build may fail to render SVGs at runtime.\n")
+    else:
+        print(f"Cairo: all {len(cairo_dlls)} DLLs found in {msys2_bin}")
 
 a = Analysis(
     ['run_graphical.py'],
@@ -54,8 +85,17 @@ a = Analysis(
     ],
     hiddenimports=[
         'cairosvg',
+        'cairosvg.surface',
+        'cairosvg.url',
         'cairocffi',
         'cairocffi._generated.ffi',
+        'cairocffi.constants',
+        'cairocffi.context',
+        'cairocffi.fonts',
+        'cairocffi.matrix',
+        'cairocffi.patterns',
+        'cairocffi.surfaces',
+        'cffi',
         'boneglaive.game.dlc_manager',
         'boneglaive.utils.paths',
     ],
