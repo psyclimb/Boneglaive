@@ -1,6 +1,7 @@
 # Boneglaive
 
-A tactical turn-based combat game. Available on [itch.io](#).
+A tactical turn-based combat game.
+Download the game at https://psyclimb.itch.io/boneglaive
 
 ## License
 
