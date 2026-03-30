@@ -67,6 +67,8 @@ class HowToPlayScreen:
             ("", self.font, COLOR_BODY),
             ("Once you finish planning and execute your turn, the Execution Phase begins. All planned actions resolve in sequence based on the order in which they were issued. After all actions complete, control passes to your opponent for their turn.", self.font, COLOR_BODY),
             ("", self.font, COLOR_BODY),
+            ("Important: Movement must be issued before attacks or skills. Once a unit is assigned an attack or skill, it is locked in and cannot be moved that turn.", self.font, (255, 200, 100)),
+            ("", self.font, COLOR_BODY),
 
             # Upgrade Points
             ("Upgrade Point Thresholds", self.font, COLOR_SUBHEADING),
@@ -80,6 +82,8 @@ class HowToPlayScreen:
             # Respawn System
             ("Respawn System", self.font, COLOR_SUBHEADING),
             ("When a unit is killed, it is not permanently removed from the battle. Instead, dead units enter a respawn queue with a 3 turn countdown timer. Once the timer expires, you may select a spawn location to return the unit to the battlefield.", self.font, COLOR_BODY),
+            ("", self.font, COLOR_BODY),
+            ("Important: Respawning a unit takes effect when you execute your turn, not immediately. Select your spawn location during the Planning Phase, then execute to place the unit.", self.font, (255, 200, 100)),
             ("", self.font, COLOR_BODY),
             ("Units return with full health and retain any skill upgrades they earned before death. This system keeps battles dynamic and prevents early leads from becoming insurmountable.", self.font, COLOR_BODY),
             ("", self.font, COLOR_BODY),
