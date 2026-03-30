@@ -101,9 +101,11 @@ jobs:
       - name: Install Python dependencies
         run: |
           $env:PATH = "${{ env.MINGW64_BIN }};$env:PATH"
-          pip install --upgrade pip
-          pip install pygame cairosvg cairocffi pyinstaller
-          pip install -e .
+          python -m pip install --upgrade pip
+          python -m pip install pygame cairosvg cairocffi pyinstaller
+          python -m pip install -e .
+          # Confirm packages are visible to the exact Python being used
+          python -m pip show cairocffi cairosvg pygame pyinstaller
 
       - name: Verify cairocffi can load Cairo
         run: |
