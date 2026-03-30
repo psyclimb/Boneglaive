@@ -70,15 +70,9 @@ jobs:
         run: |
           C:\msys64\usr\bin\pacman.exe -S --noconfirm --needed mingw-w64-x86_64-cairo mingw-w64-x86_64-fontconfig mingw-w64-x86_64-freetype mingw-w64-x86_64-harfbuzz mingw-w64-x86_64-glib2 mingw-w64-x86_64-pkg-config
 
-      - name: Add MSYS2 MinGW64 to PATH (persistent for all steps)
-        run: |
-          echo "${{ env.MINGW64_BIN }}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          # Also set immediately for this step's child processes
-          $env:PATH = "${{ env.MINGW64_BIN }};$env:PATH"
-
       - name: Verify Cairo DLLs are present
         run: |
-          $env:PATH = "${{ env.MINGW64_BIN }};$env:PATH"
+          $env:PATH = "$env:PATH;${{ env.MINGW64_BIN }}"
           $dlls = @(
             'libcairo-2.dll', 'libpixman-1-0.dll', 'libfontconfig-1.dll',
             'libfreetype-6.dll', 'libpng16-16.dll', 'zlib1.dll'
@@ -100,7 +94,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          $env:PATH = "${{ env.MINGW64_BIN }};$env:PATH"
+          $env:PATH = "$env:PATH;${{ env.MINGW64_BIN }}"
           python -m pip install --upgrade pip
           python -m pip install pygame cairosvg cairocffi pyinstaller
           python -m pip install -e .
@@ -109,12 +103,12 @@ jobs:
 
       - name: Verify cairocffi can load Cairo
         run: |
-          $env:PATH = "${{ env.MINGW64_BIN }};$env:PATH"
+          $env:PATH = "$env:PATH;${{ env.MINGW64_BIN }}"
           python -c "import cairocffi; print('cairocffi OK:', cairocffi.cairo_version_string())"
 
       - name: Verify cairosvg works end-to-end
         run: |
-          $env:PATH = "${{ env.MINGW64_BIN }};$env:PATH"
+          $env:PATH = "$env:PATH;${{ env.MINGW64_BIN }}"
           python -c "
           import cairosvg, sys
           result = cairosvg.svg2png(bytestring=b'<svg xmlns=""http://www.w3.org/2000/svg"" width=""2"" height=""2""><rect width=""2"" height=""2"" fill=""red""/></svg>', output_width=2, output_height=2)
@@ -124,7 +118,7 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          $env:PATH = "${{ env.MINGW64_BIN }};$env:PATH"
+          $env:PATH = "$env:PATH;${{ env.MINGW64_BIN }}"
           pyinstaller boneglaive.spec --distpath dist\windows
 
       - name: Verify Cairo DLLs were bundled
