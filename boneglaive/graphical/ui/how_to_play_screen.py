@@ -51,7 +51,7 @@ class HowToPlayScreen:
 
             # Setup Phase
             ("Setup Phase", self.font, COLOR_SUBHEADING),
-            ("Before the battle begins, each player selects 3 units to deploy. You must choose 3 different unit types. Duplicate units are not allowed during setup.", self.font, COLOR_BODY),
+            ("Before the battle begins, each player selects 3 units to deploy. You must choose 3 different unit types. You cannot field two of the same unit on your team.", self.font, COLOR_BODY),
             ("", self.font, COLOR_BODY),
             ("Position your units carefully on your side of the battlefield. Your starting positions can greatly influence your early game strategy and control of key areas.", self.font, COLOR_BODY),
             ("", self.font, COLOR_BODY),
@@ -143,8 +143,8 @@ class HowToPlayScreen:
         """Called when screen becomes active."""
         self.activation_timer = 0.0
         self.scroll_offset = 0
-        if not self.content_surface:
-            self._render_content()
+        self.content_surface = None
+        self._render_content()
 
     def on_exit(self):
         """Called when leaving screen."""
