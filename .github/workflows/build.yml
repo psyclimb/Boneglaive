@@ -123,18 +123,15 @@ jobs:
 
       - name: List bundle directory contents
         run: |
-          Write-Host "=== Bundle root ==="
-          Get-ChildItem "dist\windows\boneglaive" -Filter "*.dll" | ForEach-Object { Write-Host $_.Name }
+          Write-Host "=== All DLLs in _internal ==="
+          Get-ChildItem "dist\windows\boneglaive\_internal" -Filter "*.dll" | ForEach-Object { Write-Host $_.Name }
           Write-Host ""
-          Write-Host "=== Looking for libcairo anywhere in bundle ==="
-          Get-ChildItem "dist\windows\boneglaive" -Recurse -Filter "libcairo*" | ForEach-Object { Write-Host $_.FullName }
-          Write-Host ""
-          Write-Host "=== All directories in bundle ==="
-          Get-ChildItem "dist\windows\boneglaive" -Directory -Recurse | ForEach-Object { Write-Host $_.FullName }
+          Write-Host "=== Looking for lib* DLLs anywhere in bundle ==="
+          Get-ChildItem "dist\windows\boneglaive" -Recurse -Filter "lib*.dll" | ForEach-Object { Write-Host $_.FullName }
 
       - name: Verify Cairo DLLs were bundled
         run: |
-          $bundleDir = "dist\windows\boneglaive"
+          $bundleDir = "dist\windows\boneglaive\_internal"
           $required = @('libcairo-2.dll', 'libpixman-1-0.dll', 'libfreetype-6.dll')
           $missing = @()
           foreach ($dll in $required) {

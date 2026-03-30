@@ -71,6 +71,10 @@ if sys.platform == 'win32':
     else:
         print(f"Cairo: all {len(cairo_dlls)} DLLs found in {msys2_bin}")
 
+    print(f"extra_binaries has {len(extra_binaries)} entries:")
+    for src, dst in extra_binaries:
+        print(f"  {src} -> {dst}")
+
 a = Analysis(
     ['run_graphical.py'],
     pathex=['.'],
