@@ -4,4 +4,6 @@ A tactical turn-based combat game. Available on [itch.io](#).
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 (GPL-3.0). See the [LICENSE](LICENSE) file for full details.
+**Source code:** GNU General Public License v3.0 (GPL-3.0) — see [LICENSE](LICENSE).
+
+**Game assets** (graphics, audio, maps): Copyright (C) 2026 Psyclimb. All rights reserved — see [ASSETS_LICENSE.md](ASSETS_LICENSE.md).
