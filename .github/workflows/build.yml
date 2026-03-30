@@ -121,14 +121,6 @@ jobs:
           $env:PATH = "$env:PATH;${{ env.MINGW64_BIN }}"
           pyinstaller boneglaive.spec --distpath dist\windows
 
-      - name: List bundle directory contents
-        run: |
-          Write-Host "=== All DLLs in _internal ==="
-          Get-ChildItem "dist\windows\boneglaive\_internal" -Filter "*.dll" | ForEach-Object { Write-Host $_.Name }
-          Write-Host ""
-          Write-Host "=== Looking for lib* DLLs anywhere in bundle ==="
-          Get-ChildItem "dist\windows\boneglaive" -Recurse -Filter "lib*.dll" | ForEach-Object { Write-Host $_.FullName }
-
       - name: Verify Cairo DLLs were bundled
         run: |
           $bundleDir = "dist\windows\boneglaive\_internal"
