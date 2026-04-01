@@ -1563,7 +1563,7 @@ class ParallaxSkill(ActiveSkill):
         anchor_pos, anchor = self._find_adjacent_anchor(user, game)
         if not anchor_pos or not anchor:
             message_log.add_message(
-                f"{user.get_display_name()} cannot find a nearby anchor",
+                f"{user.get_display_name()} cannot find a nearby locus",
                 MessageType.WARNING,
                 player=user.player
             )

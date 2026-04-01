@@ -283,11 +283,11 @@ class SetupUnitHelp:
                 'skills': [
                     {
                         'name': 'MARKET FUTURES',
-                        'desc': 'Imbues a furniture piece with investment energy, creating a teleportation anchor. The anchor lasts a limited number of turns or until activated by an adjacent ally.'
+                        'desc': 'Imbues a furniture piece with investment energy, creating a teleportation locus. The locus lasts a limited number of turns or until activated by an adjacent ally.'
                     },
                     {
                         'name': 'PARALLAX',
-                        'desc': 'Appears when adjacent to a Market Futures anchor. Instantly teleports the unit up to a distance equal to the anchor\'s astral value. Grants increased attack range and growing attack bonuses for a limited duration.'
+                        'desc': 'Appears when adjacent to a Market Futures locus. Instantly teleports the unit up to a distance equal to the locus\'s astral value. Grants increased attack range and growing attack bonuses for a limited duration.'
                     },
                     {
                         'name': 'AUCTION CURSE',

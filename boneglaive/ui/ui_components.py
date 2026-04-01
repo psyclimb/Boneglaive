@@ -1088,7 +1088,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'MARKET FUTURES (Active)',
-                        'description': 'The DELPHIC APPRAISER imbues a furniture piece with investment energy, creating a teleportation anchor. The anchor remains active for 3 turns or until one ally activates it. Allies adjacent to the anchor can use Parallax to teleport through it.',
+                        'description': 'The DELPHIC APPRAISER imbues a furniture piece with investment energy, creating a teleportation locus. The locus remains active for 3 turns or until one ally activates it. Allies adjacent to the locus can use Parallax to teleport through it.',
                         'details': [
                             'Range: 4',
                             'Cooldown: 4 turns'
@@ -1096,11 +1096,11 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'PARALLAX (Active)',
-                        'description': 'Appears when the DELPHIC APPRAISER or an ally is adjacent to an active Market Futures anchor. Instantly teleports the unit to any passable destination within a range equal to the anchor\'s astral value (1-14 tiles). Upon arrival, the unit gains the Investment effect: +1 attack range for 3 turns and growing attack bonuses that mature right before attacking (+1 attack on turn 1, +2 on turn 2, +3 on turn 3). Activating the anchor deactivates it.',
+                        'description': 'Appears when the DELPHIC APPRAISER or an ally is adjacent to an active Market Futures locus. Instantly teleports the unit to any passable destination within a range equal to the locus\'s astral value. Upon arrival, the unit gains the Investment effect: +1 attack range for 3 turns and growing attack bonuses (+1 attack on turn 1, +2 on turn 2, +3 on turn 3). The locus deactivates after one use.',
                         'details': [
-                            'Range: Equal to anchor\'s astral value (1-14)',
+                            'Range: Equal to locus\'s astral value (1-14)',
                             'Cooldown: None',
-                            'Appears when adjacent to a Market Futures anchor.'
+                            'Appears when adjacent to a Market Futures locus.'
                         ]
                     },
                     {
@@ -1993,7 +1993,7 @@ class HelpComponent(UIComponent):
             content_lines.append(("m                 Enter movement mode for selected unit", 1, 0))
             content_lines.append(("a                 Enter attack mode for selected unit", 1, 0))
             content_lines.append(("s                 Use selected unit's active skill", 1, 0))
-            content_lines.append(("p                 Use a teleport anchor created by Market Futures", 1, 0))
+            content_lines.append(("p                 Use a teleport locus created by Market Futures", 1, 0))
             content_lines.append(("t                 End current player's turn", 1, 0))
             content_lines.append(("", 1, 0))  # Empty line
             
@@ -3679,7 +3679,7 @@ class GameModeManager(UIComponent):
                     self.publish_event(
                         EventType.MESSAGE_DISPLAY_REQUESTED,
                         MessageDisplayEventData(
-                            message="No adjacent teleport anchors available. Move next to a teleport anchor to use it.",
+                            message="No adjacent teleport loci available. Move next to a teleport locus to use it.",
                             message_type=MessageType.WARNING
                         )
                     )
@@ -3693,7 +3693,7 @@ class GameModeManager(UIComponent):
                 self.teleport_anchor = None
 
                 # Show user instruction in UI
-                self.game_ui.message = "Select a teleport anchor"
+                self.game_ui.message = "Select a teleport locus"
             else:
                 # Use event system for message
                 self.publish_event(
@@ -3828,7 +3828,7 @@ class GameModeManager(UIComponent):
             self.publish_event(
                 EventType.MESSAGE_DISPLAY_REQUESTED,
                 MessageDisplayEventData(
-                    message="No teleport anchors available",
+                    message="No teleport loci available",
                     message_type=MessageType.WARNING
                 )
             )
@@ -3857,7 +3857,7 @@ class GameModeManager(UIComponent):
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
-                        message="No teleport anchor at this location",
+                        message="No teleport locus at this location",
                         message_type=MessageType.WARNING
                     )
                 )
@@ -3923,7 +3923,7 @@ class GameModeManager(UIComponent):
                 self.publish_event(
                     EventType.MESSAGE_DISPLAY_REQUESTED,
                     MessageDisplayEventData(
-                        message="Teleport anchor creator not found",
+                        message="Teleport locus creator not found",
                         message_type=MessageType.WARNING
                     )
                 )
