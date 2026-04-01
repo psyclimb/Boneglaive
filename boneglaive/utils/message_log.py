@@ -346,6 +346,19 @@ class MessageLog:
                             adjusted_damage = max(0, original_damage - target_unit.last_prt_absorbed)
                             from boneglaive.utils.debug import logger
                             logger.debug(f"PRT MESSAGE ADJUST: {target_name} damage {original_damage} -> {adjusted_damage} (PRT absorbed {target_unit.last_prt_absorbed})")
+
+                        # Check for Demilune halving: attacker has lunacy debuff from target unit
+                        attacker_name_stored = msg.get('attacker_name')
+                        if attacker_name_stored and target_unit:
+                            attacker_unit = self._find_unit_by_name(attacker_name_stored)
+                            if (attacker_unit and
+                                    hasattr(attacker_unit, 'demilune_debuffed') and
+                                    attacker_unit.demilune_debuffed and
+                                    hasattr(attacker_unit, 'demilune_debuffed_by') and
+                                    attacker_unit.demilune_debuffed_by is target_unit):
+                                adjusted_damage = adjusted_damage // 2
+                                from boneglaive.utils.debug import logger
+                                logger.debug(f"DEMILUNE MESSAGE ADJUST: {attacker_name_stored} damage {original_damage} -> {adjusted_damage} (Lunacy halving)")
                     
                     # Replace with the adjusted damage number
                     if f"for {original_damage} damage" in text:

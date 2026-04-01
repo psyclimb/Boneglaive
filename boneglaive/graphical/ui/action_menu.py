@@ -52,8 +52,10 @@ class ActionButton:
         self.blocked_actions = set()  # LOTO: Set of blocked action types
         self.has_upgrade_points = False  # Special flag for upgrade button glow
         self.has_respawns_available = False  # Special flag for respawn button icon + glow
+        self.severance_glow = False  # Special flag for move button Severance glow (DERELICTIONIST)
         self.has_actions_queued = False  # Special flag for execute button to show green when actions queued
         self.tank_treads_icon = None  # Cached tank treads icon
+        self.severance_icon = None  # Cached severance skill icon (shown during Severance state)
         self.skeletal_hand_icon = None  # Cached skeletal hand icon
         self.lightning_bolt_icon = None  # Cached lightning bolt icon
         self.gears_icon = None  # Cached gears icon
@@ -137,6 +139,16 @@ class ActionButton:
             overlay_surf.fill((240, 232, 216, alpha))  # Bone white color
             surface.blit(overlay_surf, self.rect.topleft)
 
+        # Add pulsating cold void-to-glow overlay for move button when Severance is active
+        if self.action == "move" and self.severance_glow:
+            import time
+            import math
+            overlay_surf = pygame.Surface((self.rect.width, self.rect.height), pygame.SRCALPHA)
+            pulse = (math.sin(time.time() * 2.0) + 1) / 2  # slower, heavier pulse
+            alpha = int(30 + pulse * 70)  # 30 to 100 alpha — subtler than gold
+            overlay_surf.fill((74, 122, 154, alpha))  # #4a7a9a — DERELICTIONIST dark suit blue
+            surface.blit(overlay_surf, self.rect.topleft)
+
         # Draw glow effect on hover/active
         if show_glow:
             draw_glow_rect(surface, self.rect, COLOR_BORDER_GLOW, intensity=0.5, width=1)
@@ -170,29 +182,46 @@ class ActionButton:
             )
             border_width = 3  # Thicker border for emphasis
             pygame.draw.rect(surface, border_color, self.rect, border_width, border_radius=5)
+        elif self.action == "move" and self.severance_glow:
+            import time
+            import math
+            pulse = (math.sin(time.time() * 2.0) + 1) / 2  # slower, heavier pulse
+            # Void dark (#4a7a9a) breathing out to signature glow blue (#7abae8)
+            void_dark = (74, 122, 154)    # #4a7a9a — dark suit blue
+            glow_bright = (122, 186, 232) # #7abae8 — DERELICTIONIST signature glow
+            border_color = (
+                int(void_dark[0] + (glow_bright[0] - void_dark[0]) * pulse),
+                int(void_dark[1] + (glow_bright[1] - void_dark[1]) * pulse),
+                int(void_dark[2] + (glow_bright[2] - void_dark[2]) * pulse)
+            )
+            border_width = 3
+            pygame.draw.rect(surface, border_color, self.rect, border_width, border_radius=5)
         else:
             border_color = COLOR_BORDER_HOVER if (self.hovered or self.active) else COLOR_BORDER
             border_width = 2
             pygame.draw.rect(surface, border_color, self.rect, border_width, border_radius=5)
 
         # Draw tank treads icon on move button - ALWAYS visible
+        # During Severance, swap to the severance skill icon
         if self.action == "move":
-            import os
+            if self.severance_glow:
+                # Load severance icon if not cached
+                if not hasattr(self, 'severance_icon') or self.severance_icon is None:
+                    self.severance_icon = load_svg(asset_path("graphics/skill_icons/severance.svg"), 28, 28)
+                move_icon = self.severance_icon
+            else:
+                # Load tank treads icon if not cached
+                if self.tank_treads_icon is None:
+                    icon_path = asset_path("graphics/ui/tank_treads.svg")
+                    self.tank_treads_icon = load_svg(icon_path, 28, 28)
+                move_icon = self.tank_treads_icon
 
-            # Load tank treads icon if not cached
-            if self.tank_treads_icon is None:
-                icon_path = asset_path("graphics/ui/tank_treads.svg")
-                self.tank_treads_icon = load_svg(icon_path, 28, 28)
-
-            # Draw tank treads icon on the right side of button
-            if self.tank_treads_icon:
+            if move_icon:
                 icon_x = x + BUTTON_WIDTH - 35  # Position on right side
                 icon_y = y + (BUTTON_HEIGHT - 28) // 2  # Center vertically
 
-                # Create a colored version of the icon (grey or white based on enabled state)
-                colored_icon = self.tank_treads_icon.copy()
+                colored_icon = move_icon.copy()
                 if not self.enabled:
-                    # Tint grey when disabled
                     grey_tint = (100, 100, 100, 255)
                     colored_icon.fill(grey_tint, special_flags=pygame.BLEND_RGBA_MULT)
 
@@ -427,9 +456,14 @@ class ActionButton:
         surface.blit(hotkey_text, (x + 8, y + 5))
 
         # Draw label text (centered)
-        text_color = COLOR_TEXT_DISABLED if not self.enabled else COLOR_TEXT
+        if self.action == "move" and self.severance_glow:
+            label_str = "SEVERANCE"
+            text_color = (122, 186, 232)  # #7abae8 — DERELICTIONIST signature glow blue
+        else:
+            label_str = self.label
+            text_color = COLOR_TEXT_DISABLED if not self.enabled else COLOR_TEXT
         label_text = render_fitted_text(
-            self.label,
+            label_str,
             max_width=BUTTON_WIDTH - 20,
             max_height=BUTTON_HEIGHT - 10,
             color=text_color,
@@ -525,10 +559,21 @@ class ActionMenu:
                     if selected_unit.type != UnitType.DERELICTIONIST:
                         button.enabled = False
 
+                # Severance glow: light up Move button when DERELICTIONIST has Severance active
+                from boneglaive.utils.constants import UnitType
+                button.severance_glow = (
+                    selected_unit is not None and
+                    selected_unit.type == UnitType.DERELICTIONIST and
+                    hasattr(selected_unit, 'severance_active') and
+                    selected_unit.severance_active and
+                    button.enabled
+                )
+
                 # Check if movement is blocked (e.g., immobilized by Jawline)
                 if selected_unit and LOTOChecker.is_action_blocked(selected_unit, 'move'):
                     button.blocked_actions = blocked_actions
                     button.enabled = False
+                    button.severance_glow = False
                 else:
                     button.blocked_actions = set()
             elif button.action == "attack":

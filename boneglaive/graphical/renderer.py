@@ -517,7 +517,6 @@ class GraphicalRenderer:
                 self.game_adapter.create_visual_unit(game_unit, animated_unit)
 
                 # Check if this is a respawning unit (not a brand new unit or vapor)
-                from boneglaive.utils.constants import UnitType
                 is_vapor = hasattr(game_unit, 'type') and game_unit.type == UnitType.HEINOUS_VAPOR
                 is_doppelganger = hasattr(game_unit, 'is_doppelganger') and game_unit.is_doppelganger
                 is_respawn = hasattr(game_unit, '_just_respawned') and game_unit._just_respawned
@@ -1397,7 +1396,6 @@ class GraphicalRenderer:
                     self.unit_info_panel.update(unit, game_unit)
 
                     # Check if selected unit is DELPHIC APPRAISER - show astral values
-                    from boneglaive.utils.constants import UnitType
                     if game_unit.type == UnitType.DELPHIC_APPRAISER:
                         self.show_astral_values = True
                     else:
@@ -1421,24 +1419,48 @@ class GraphicalRenderer:
                             game_unit.attack_target = (target_unit.y, target_unit.x)
                             game_unit.took_no_actions = False
 
+                            # DERELICTIONIST: issuing an attack activates Severance just like a skill
+                            if game_unit.type == UnitType.DERELICTIONIST:
+                                game_unit.can_move_post_skill = True
+                                game_unit.used_skill_this_turn = True
+                                game_unit.severance_active = True
+                                game_unit.severance_duration = 1
+                                # Store position at queue time so range check survives post-move
+                                game_unit.attack_queued_from = (game_unit.y, game_unit.x)
+
                             # Track action order
                             game_unit.action_timestamp = self.game_adapter.game.action_counter
                             self.game_adapter.game.action_counter += 1
 
                             pass  # Attack planned
 
-                            # Clear selection
-                            self.selected_unit = None
-                            self.show_movement_range = False
-                            self.show_target_range = False
-                            self.show_skills = False  # Hide skill bar
-                            self.show_astral_values = False  # Hide astral values
-                            self.valid_positions = []
-                            self.attack_positions = []
-                            self.skill_bar.update(None, None)
-                            self.status_effects_panel.update(None)
-                            self.unit_info_panel.update(None, None)
-                            self.current_action_mode = "SELECT"
+                            # DERELICTIONIST keeps selection after attack for Severance move
+                            if game_unit.type == UnitType.DERELICTIONIST:
+                                self.show_movement_range = False
+                                self.show_target_range = False
+                                self.show_skills = False
+                                self.valid_positions = []
+                                self.attack_positions = []
+                                self.current_action_mode = "SELECT"
+                                # Update UI panels to reflect new state
+                                has_actions = any(u.move_target or u.attack_target or u.skill_target
+                                                for u in self.game_adapter.game.units if u.is_alive())
+                                force_disable_actions = self.game_over_window.visible and self.game_over_window.minimized
+                                self.action_menu.update(self.game_adapter.game, game_unit, self.current_action_mode, has_actions, force_disable=force_disable_actions)
+                                self.skill_bar.update(self.selected_unit, game_unit)
+                            else:
+                                # Clear selection for all other units
+                                self.selected_unit = None
+                                self.show_movement_range = False
+                                self.show_target_range = False
+                                self.show_skills = False  # Hide skill bar
+                                self.show_astral_values = False  # Hide astral values
+                                self.valid_positions = []
+                                self.attack_positions = []
+                                self.skill_bar.update(None, None)
+                                self.status_effects_panel.update(None)
+                                self.unit_info_panel.update(None, None)
+                                self.current_action_mode = "SELECT"
                     else:
                         pass  # Enemy out of attack range
                 elif self.selected_unit and self.current_action_mode != "ATTACK":
@@ -1531,6 +1553,15 @@ class GraphicalRenderer:
                             game_unit.attack_target = (grid_y, grid_x)
                             game_unit.took_no_actions = False
 
+                            # DERELICTIONIST: issuing an attack activates Severance just like a skill
+                            if game_unit.type == UnitType.DERELICTIONIST:
+                                game_unit.can_move_post_skill = True
+                                game_unit.used_skill_this_turn = True
+                                game_unit.severance_active = True
+                                game_unit.severance_duration = 1
+                                # Store position at queue time so range check survives post-move
+                                game_unit.attack_queued_from = (game_unit.y, game_unit.x)
+
                             # Track action order
                             game_unit.action_timestamp = self.game_adapter.game.action_counter
                             self.game_adapter.game.action_counter += 1
@@ -1538,18 +1569,32 @@ class GraphicalRenderer:
                             wall_info = self.game_adapter.game.marrow_dike_tiles[(grid_y, grid_x)]
                             pass  # Attack planned on wall
 
-                            # Clear selection
-                            self.selected_unit = None
-                            self.show_movement_range = False
-                            self.show_target_range = False
-                            self.show_skills = False
-                            self.show_astral_values = False
-                            self.valid_positions = []
-                            self.attack_positions = []
-                            self.skill_bar.update(None, None)
-                            self.status_effects_panel.update(None)
-                            self.unit_info_panel.update(None, None)
-                            self.current_action_mode = "SELECT"
+                            # DERELICTIONIST keeps selection after attack for Severance move
+                            if game_unit.type == UnitType.DERELICTIONIST:
+                                self.show_movement_range = False
+                                self.show_target_range = False
+                                self.show_skills = False
+                                self.valid_positions = []
+                                self.attack_positions = []
+                                self.current_action_mode = "SELECT"
+                                has_actions = any(u.move_target or u.attack_target or u.skill_target
+                                                for u in self.game_adapter.game.units if u.is_alive())
+                                force_disable_actions = self.game_over_window.visible and self.game_over_window.minimized
+                                self.action_menu.update(self.game_adapter.game, game_unit, self.current_action_mode, has_actions, force_disable=force_disable_actions)
+                                self.skill_bar.update(self.selected_unit, game_unit)
+                            else:
+                                # Clear selection for all other units
+                                self.selected_unit = None
+                                self.show_movement_range = False
+                                self.show_target_range = False
+                                self.show_skills = False
+                                self.show_astral_values = False
+                                self.valid_positions = []
+                                self.attack_positions = []
+                                self.skill_bar.update(None, None)
+                                self.status_effects_panel.update(None)
+                                self.unit_info_panel.update(None, None)
+                                self.current_action_mode = "SELECT"
                     else:
                         pass  # Wall out of attack range
 

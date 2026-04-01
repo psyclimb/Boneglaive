@@ -62,6 +62,7 @@ class Unit:
         self.attack_target = None
         self.skill_target = None
         self.selected_skill = None
+        self.attack_queued_from = None  # Position at attack queue time (for Severance range validation)
         
         # Visual indicators for skills
         self.vault_target_indicator = None  # Visual indicator for Vault destination
@@ -291,7 +292,7 @@ class Unit:
         # Calculate base stats with bonuses
         stats = {
             'hp': self.max_hp + self.hp_bonus + pumped_up_bonus,
-            'attack': max(1, self.attack + self.attack_bonus + estrange_penalty + pumped_up_bonus),
+            'attack': max(0 if self.type == UnitType.DERELICTIONIST else 1, self.attack + self.attack_bonus + estrange_penalty + pumped_up_bonus),
             'defense': 0 if shredded_override else max(0, self.defense + self.defense_bonus + terrain_defense_bonus + estrange_penalty + pumped_up_bonus),
             'attack_range': max(1, self.attack_range + self.attack_range_bonus + estrange_penalty + pumped_up_bonus)
         }
@@ -683,6 +684,7 @@ class Unit:
         self.attack_target = None
         self.skill_target = None
         self.selected_skill = None
+        self.attack_queued_from = None
         
         # Clear visual indicators
         self.vault_target_indicator = None

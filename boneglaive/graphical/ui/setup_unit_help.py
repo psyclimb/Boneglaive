@@ -343,7 +343,7 @@ class SetupUnitHelp:
                 'overview': 'A psychological abandonment therapist who weaponized distance-based therapeutic techniques into a tactical support system. This healer manipulates interpersonal distance to provide powerful healing and protective effects that scale with range.',
                 'passive': {
                     'name': 'SEVERANCE',
-                    'desc': 'After using any active skill, enters a dissociative state that grants enhanced movement range for a single move, allowing tactical repositioning.'
+                    'desc': 'After issuing a skill or basic attack, gains +1 to MV for 1 turn and is given the opportunity to move. Can still only be issued 1 move command each turn. Basic attack damage is also increased based on the distance between the DERELICTIONIST and his target.'
                 },
                 'skills': [
                     {

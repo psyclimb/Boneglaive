@@ -1195,7 +1195,7 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'SEVERANCE (Passive)',
-                        'description': 'After using any active skill, the DERELICTIONIST gains +1 movement range for a single move. Allows movement after issuing a skill. The unit cannot move twice in one turn.',
+                        'description': 'Allows increased movement after being issued a skill or attack. Attack damage is increased by distance. Cannot move twice in one turn.',
                         'details': []
                     },
                     {
@@ -2504,6 +2504,15 @@ class CursorManager(UIComponent):
 
                 # Set the attack target
                 self.selected_unit.attack_target = target_position
+
+                # DERELICTIONIST: issuing an attack activates Severance just like a skill
+                if self.selected_unit.type == UnitType.DERELICTIONIST:
+                    self.selected_unit.can_move_post_skill = True
+                    self.selected_unit.used_skill_this_turn = True
+                    self.selected_unit.severance_active = True
+                    self.selected_unit.severance_duration = 1
+                    # Store position at queue time so range check survives post-move
+                    self.selected_unit.attack_queued_from = (self.selected_unit.y, self.selected_unit.x)
 
                 # Mark that this unit is taking an action (won't regenerate HP)
                 self.selected_unit.took_no_actions = False

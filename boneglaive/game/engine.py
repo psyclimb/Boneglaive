@@ -3505,8 +3505,14 @@ class Game:
                 unit.took_no_actions = False
                 
                 # Calculate attacking position (either unit's current position or move target)
-                attacking_pos = (unit.y, unit.x)  # Unit's position is already updated if it moved
-                
+                # DERELICTIONIST Severance attack: validate from where attack was queued (pre-move),
+                # since the unit may have moved away after queuing the attack.
+                if (unit.type == UnitType.DERELICTIONIST and
+                        hasattr(unit, 'attack_queued_from') and unit.attack_queued_from):
+                    attacking_pos = unit.attack_queued_from
+                else:
+                    attacking_pos = (unit.y, unit.x)  # Unit's position is already updated if it moved
+
                 # Verify attack is within range from the attacking position
                 attack_distance = self.chess_distance(attacking_pos[0], attacking_pos[1], y, x)
                 
@@ -3662,6 +3668,13 @@ class Game:
                         # Calculate base attack damage FIRST (before animation so we can show correct damage)
                         effective_stats = unit.get_effective_stats()
                         effective_attack = effective_stats['attack']
+
+                        # DERELICTIONIST: distance-based attack (pure chess/Chebyshev distance)
+                        # Uses move_target if Severance move is planned, so post-move distance is used
+                        if unit.type == UnitType.DERELICTIONIST:
+                            source_y, source_x = (unit.move_target[0], unit.move_target[1]) if unit.move_target else (unit.y, unit.x)
+                            attack_distance = self.chess_distance(source_y, source_x, target.y, target.x)
+                            effective_attack += attack_distance
 
                         # Check for Granite Geas attack reduction (attacking POTPOURRIST)
                         if (target.type == UnitType.POTPOURRIST and
@@ -5495,7 +5508,7 @@ class Game:
                 # Apply damage to the trapped unit
                 previous_hp = unit.hp
                 unit.hp = max(0, unit.hp - damage)
-                
+
                 # Log the damage
                 message_log.add_combat_message(
                     attacker_name=foreman.get_display_name(),

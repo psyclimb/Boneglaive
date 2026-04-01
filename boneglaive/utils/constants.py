@@ -50,7 +50,7 @@ UNIT_STATS = {
     UnitType.HEINOUS_VAPOR: (1, 0, 0, 4, 1),
     UnitType.DELPHIC_APPRAISER: (20, 5, 0, 4, 1),
     UnitType.INTERFERER: (18, 4, 0, 4, 1),
-    UnitType.DERELICTIONIST: (18, 6, 0, 4, 1),
+    UnitType.DERELICTIONIST: (18, 0, 0, 4, 1),
     UnitType.POTPOURRIST: (24, 5, 0, 3, 1)
 }
 
