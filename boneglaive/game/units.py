@@ -771,7 +771,7 @@ class Unit:
                 if self.partition_shield_caster:
                     from boneglaive.game.upgrades import UpgradeManager
                     is_upgraded = UpgradeManager.is_skill_upgraded(self.partition_shield_caster, "Partition")
-                    dissociation_cooldown = 6 if is_upgraded else 8
+                    dissociation_cooldown = 4 if is_upgraded else 6
 
                     for skill in self.partition_shield_caster.active_skills:
                         if hasattr(skill, 'name') and skill.name == "Partition":

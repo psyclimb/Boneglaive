@@ -672,7 +672,7 @@ class DerelictSkill(ActiveSkill):
         source_y, source_x = (user.move_target[0], user.move_target[1]) if user.move_target else (user.y, user.x)
         distance_to_derelictionist = game.chess_distance(final_y, final_x, source_y, source_x)
 
-        heal_amount = distance_to_derelictionist
+        heal_amount = int(distance_to_derelictionist * 1.7)
         
         # Apply healing if needed
         if target.hp < target.max_hp:

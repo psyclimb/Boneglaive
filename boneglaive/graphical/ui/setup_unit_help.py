@@ -348,15 +348,15 @@ class SetupUnitHelp:
                 'skills': [
                     {
                         'name': 'VAGAL RUN',
-                        'desc': 'Stimulates an ally\'s vagus nerve to clear all status effects. The therapeutic response varies with distance: close range causes damage, while long range provides powerful healing.'
+                        'desc': 'Clears all status effects from an ally. At close range deals 1-3 piercing damage that cannot kill. At long range restores HP equal to how far beyond 6 tiles away the DERELICTIONIST is. After 3 turns an abreaction triggers the effect again.'
                     },
                     {
                         'name': 'DERELICT',
-                        'desc': 'Forcefully pushes an ally away in a straight line, inducing therapeutic abandonment. The ally heals for an amount equal to the final distance between them.'
+                        'desc': 'Forcefully pushes an ally away in a straight line. Applies Derelicted on their arrival, reducing their MV to 0. The ally is healed for 1-15 HP based on the final distance between them and the DERELICTIONIST.'
                     },
                     {
                         'name': 'PARTITION',
-                        'desc': 'Creates a protective psychological partition on an ally that reduces incoming damage. If the ally would die while shielded, they dissociate completely to ignore fatal damage.'
+                        'desc': 'Creates a protective psychological partition on an ally that reduces incoming damage. If the ally would die while shielded, they dissociate completely to ignore fatal damage. Triggering the dissociation increases Partition\'s cooldown to 6 turns.'
                     }
                 ]
             },
