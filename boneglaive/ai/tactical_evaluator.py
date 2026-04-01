@@ -127,9 +127,20 @@ class TacticalEvaluator:
                 if not self.game.has_line_of_sight(unit.y, unit.x, enemy.y, enemy.x):
                     continue  # Skip this enemy - no LOS
 
-                score = self._score_attack(unit, enemy, analysis, plan, damage)
+                # DERELICTIONIST: damage = chess distance from post-Severance position
+                # Find the best retreat tile and use that distance as expected damage
+                if unit.type == UnitType.DERELICTIONIST:
+                    severance_pos = self._derelictionist_best_retreat(unit, enemy)
+                    effective_damage = self.game.chess_distance(
+                        severance_pos[0], severance_pos[1], enemy.y, enemy.x)
+                else:
+                    effective_damage = damage
+
+                score = self._score_attack(unit, enemy, analysis, plan, effective_damage)
                 action = Action("attack", target=enemy, priority=score)
-                action.data['can_kill'] = enemy.hp <= damage
+                action.data['can_kill'] = enemy.hp <= effective_damage
+                if unit.type == UnitType.DERELICTIONIST:
+                    action.data['severance_move'] = severance_pos
                 actions.append(action)
 
         return actions
@@ -672,9 +683,15 @@ class TacticalEvaluator:
                     if not self.game.has_line_of_sight(y, x, enemy.y, enemy.x):
                         continue  # Skip if blocked by walls
 
+                    # DERELICTIONIST: damage = chess distance from the move position
+                    if unit.type == UnitType.DERELICTIONIST:
+                        effective_damage = distance_from_new_pos
+                    else:
+                        effective_damage = damage
+
                     # Score the combo: position value + attack value
                     move_score = self._score_move_position(unit, pos, analysis, plan)
-                    attack_score = self._score_attack(unit, enemy, analysis, plan, damage)
+                    attack_score = self._score_attack(unit, enemy, analysis, plan, effective_damage)
 
                     # Combo score is sum with a bonus
                     combo_score = move_score + attack_score + 10
@@ -2580,3 +2597,39 @@ class TacticalEvaluator:
             score += 25.0  # Choke point - enemies forced through
 
         return score
+
+    def _derelictionist_best_retreat(self, unit: 'Unit', enemy: 'Unit') -> Tuple[int, int]:
+        """
+        Find the best Severance retreat tile for DERELICTIONIST after attacking.
+        Maximizes chess distance from the attack target while staying on a valid tile.
+
+        Args:
+            unit: The DERELICTIONIST unit
+            enemy: The enemy being attacked
+
+        Returns:
+            Best (y, x) position to retreat to, or current position if no retreat found
+        """
+        stats = unit.get_effective_stats()
+        move_range = stats['move_range'] + 1  # +1 from Severance
+
+        best_pos = (unit.y, unit.x)
+        best_dist = self.game.chess_distance(unit.y, unit.x, enemy.y, enemy.x)
+
+        for dy in range(-move_range, move_range + 1):
+            for dx in range(-move_range, move_range + 1):
+                ny, nx = unit.y + dy, unit.x + dx
+                if self.game.chess_distance(unit.y, unit.x, ny, nx) > move_range:
+                    continue
+                if not self.game.is_valid_position(ny, nx):
+                    continue
+                if not self.game.map.is_passable(ny, nx):
+                    continue
+                if self.game.get_unit_at(ny, nx) and (ny, nx) != (unit.y, unit.x):
+                    continue
+                dist = self.game.chess_distance(ny, nx, enemy.y, enemy.x)
+                if dist > best_dist:
+                    best_dist = dist
+                    best_pos = (ny, nx)
+
+        return best_pos

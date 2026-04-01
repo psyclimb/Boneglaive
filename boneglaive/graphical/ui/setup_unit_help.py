@@ -200,7 +200,7 @@ class SetupUnitHelp:
                 ]
             },
             UnitType.MARROW_CONDENSER: {
-                'difficulty': 4,  # Out of 5
+                'difficulty': 3,  # Out of 5
                 'role': 'Tank / Frontline Fighter / Displacer',
                 'overview': 'A quadrupedal bone manipulator that creates wall structures to trap enemies. This tank grows stronger with each kill, draining life from trapped enemies while reinforcing its defenses.',
                 'passive': {
@@ -338,12 +338,12 @@ class SetupUnitHelp:
                 ]
             },
             UnitType.DERELICTIONIST: {
-                'difficulty': 3,  # Out of 5
+                'difficulty': 4,  # Out of 5
                 'role': 'Utility / Healer / Disabler / Displacer',
                 'overview': 'A psychological abandonment therapist who weaponized distance-based therapeutic techniques into a tactical support system. This healer manipulates interpersonal distance to provide powerful healing and protective effects that scale with range.',
                 'passive': {
                     'name': 'SEVERANCE',
-                    'desc': 'After issuing a skill or basic attack, gains +1 to MV for 1 turn and is given the opportunity to move. Can still only be issued 1 move command each turn. Basic attack damage is also increased based on the distance between the DERELICTIONIST and his target.'
+                    'desc': 'Allows increased movement after being issued a skill or attack. Attack damage is increased by distance. Cannot move twice in one turn.'
                 },
                 'skills': [
                     {

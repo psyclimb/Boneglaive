@@ -623,6 +623,14 @@ class LimeFoyerMap(GameMap):
             if self.get_terrain_at(y, x) == TerrainType.EMPTY:
                 self.set_terrain_at(y, x, TerrainType.DUST)
 
+        # Replace specific tiles with dust (positions given as x,y, stored as y,x)
+        dust_overrides = [
+            (4, 3), (4, 4), (5, 3), (5, 4),    # (x,y): (3,4) (4,4) (3,5) (4,5)
+            (4, 15), (5, 15), (4, 16), (5, 16)  # (x,y): (15,4) (15,5) (16,4) (16,5)
+        ]
+        for y, x in dust_overrides:
+            self.set_terrain_at(y, x, TerrainType.DUST)
+
         # Cosmic values will be assigned when needed during gameplay
 
 
@@ -723,6 +731,14 @@ class NewLimeFoyerMap(GameMap):
             # Only set dust if the tile is empty
             if self.get_terrain_at(y, x) == TerrainType.EMPTY:
                 self.set_terrain_at(y, x, TerrainType.DUST)
+
+        # Replace specific tiles with dust (display coords x,y → stored as y,x)
+        dust_overrides = [
+            (4, 3), (4, 4), (5, 3), (5, 4),    # (3,4) (4,4) (3,5) (4,5)
+            (4, 15), (4, 16), (5, 15), (5, 16)  # (15,4) (16,4) (15,5) (16,5)
+        ]
+        for y, x in dust_overrides:
+            self.set_terrain_at(y, x, TerrainType.DUST)
 
 
 class StainedStonesMap(GameMap):

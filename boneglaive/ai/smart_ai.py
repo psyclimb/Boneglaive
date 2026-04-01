@@ -211,8 +211,24 @@ class SmartAI:
             action: Action to execute
         """
         if action.type == "attack":
+            from boneglaive.utils.constants import UnitType
             target = action.target
             unit.attack_target = (target.y, target.x)
+
+            # DERELICTIONIST: activate Severance and set retreat move to maximize damage
+            if unit.type == UnitType.DERELICTIONIST:
+                unit.can_move_post_skill = True
+                unit.used_skill_this_turn = True
+                unit.severance_active = True
+                unit.severance_duration = 1
+                unit.attack_queued_from = (unit.y, unit.x)
+                # Use pre-computed retreat position if available, otherwise compute it
+                if 'severance_move' in action.data:
+                    retreat_pos = action.data['severance_move']
+                else:
+                    retreat_pos = self.evaluator._derelictionist_best_retreat(unit, target)
+                if retreat_pos != (unit.y, unit.x):
+                    unit.move_target = retreat_pos
 
         elif action.type == "move":
             pos = action.target

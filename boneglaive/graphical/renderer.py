@@ -1539,6 +1539,20 @@ class GraphicalRenderer:
 
                     return  # Don't process as movement
 
+                else:
+                    # Clicked on a floor/terrain tile - show terrain info
+                    terrain_name = self._get_terrain_name(terrain)
+                    terrain_info = {
+                        'name': terrain_name,
+                        'position': (grid_x, grid_y),
+                        'astral_value': None,
+                        'has_appraiser': None,
+                        'is_terrain': True,
+                    }
+                    self.unit_info_panel.update_furniture(terrain_info)
+                    self.skill_bar.update(None, None)
+                    self.status_effects_panel.update(None)
+
                 # Check if it's a Marrow Dike wall tile (attackable obstacle)
                 if (self.selected_unit and self.current_action_mode == "ATTACK" and
                     hasattr(self.game_adapter.game, 'marrow_dike_tiles') and
@@ -1726,6 +1740,23 @@ class GraphicalRenderer:
         elif action == "concede":
             pass  # Concede requested
             self.concede_dialog.show()
+
+    def _get_terrain_name(self, terrain_type) -> str:
+        """Convert TerrainType to readable terrain name."""
+        terrain_names = {
+            TerrainType.LIMESTONE: "Limestone",
+            TerrainType.DUST: "Dust",
+            TerrainType.PILLAR: "Pillar",
+            TerrainType.MARROW_WALL: "Marrow Wall",
+            TerrainType.STAINED_STONE: "Stained Stone",
+            TerrainType.CANYON_FLOOR: "Canyon Floor",
+            TerrainType.HYDRAULIC_PRESS: "Hydraulic Press",
+            TerrainType.CONCRETE_FLOOR: "Concrete Floor",
+            TerrainType.LEAF_PIT: "Leaf Pit",
+            TerrainType.MELANGE_FUME: "Melange Fume",
+            TerrainType.BLOOD_PLASMA: "Blood Plasma",
+        }
+        return terrain_names.get(terrain_type, terrain_type.name.replace('_', ' ').title() if hasattr(terrain_type, 'name') else "Floor")
 
     def _get_furniture_name(self, terrain_type) -> str:
         """Convert TerrainType to readable furniture name."""

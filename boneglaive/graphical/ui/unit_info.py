@@ -132,18 +132,17 @@ class UnitInfoPanel:
         surface.blit(player_text, (x + PANEL_PADDING, current_y))
         current_y += 22
 
-        # Draw Greek ID if available
-        if hasattr(self.game_unit, 'greek_id') and self.game_unit.greek_id:
-            id_text = render_fitted_text(
-                f"ID: {self.game_unit.greek_id}",
-                max_width=75,
-                max_height=20,
-                color=COLOR_TEXT_DIM,
-                base_font_size=16,
-                min_font_size=12,
-                max_font_size=18
-            )
-            surface.blit(id_text, (x + PANEL_WIDTH - 80, current_y - 22))
+        # Draw position coordinates
+        pos_text = render_fitted_text(
+            f"Position: ({self.game_unit.x}, {self.game_unit.y})",
+            max_width=120,
+            max_height=20,
+            color=COLOR_TEXT_DIM,
+            base_font_size=16,
+            min_font_size=12,
+            max_font_size=18
+        )
+        surface.blit(pos_text, (x + PANEL_WIDTH - 125, current_y - 22))
 
         # Draw HP bar
         current_y = self._draw_hp_bar(surface, x + PANEL_PADDING, current_y, PANEL_WIDTH - PANEL_PADDING * 2)
@@ -579,8 +578,9 @@ class UnitInfoPanel:
         current_y += 32
 
         # Draw type label
+        type_label = "Terrain" if self.furniture_info.get('is_terrain') else "Furniture"
         type_text = render_fitted_text(
-            "Furniture",
+            type_label,
             max_width=120,
             max_height=20,
             color=COLOR_TEXT_DIM,
@@ -635,16 +635,5 @@ class UnitInfoPanel:
             surface.blit(value_text, (x + PANEL_WIDTH - 60, current_y - 5))
             current_y += 25
         elif self.furniture_info.get('has_appraiser') == False:
-            # Player doesn't have DELPHIC APPRAISER
-            current_y += 5
-            hint_text = render_fitted_text(
-                "(Requires DELPHIC APPRAISER)",
-                max_width=PANEL_WIDTH - PANEL_PADDING * 2,
-                max_height=18,
-                color=COLOR_TEXT_DIM,
-                base_font_size=16,
-                min_font_size=12,
-                max_font_size=18
-            )
-            surface.blit(hint_text, (x + PANEL_PADDING, current_y))
+            pass
             current_y += 20

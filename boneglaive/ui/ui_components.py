@@ -879,7 +879,7 @@ class UnitHelpComponent(UIComponent):
                     'The MARROW CONDENSER is a quadrupedal bone manipulator that creates wall structures to trap enemies. Each death within a Marrow Dike triggers Dominion, upgrading the unit\'s stats and active skills. This tank grows stronger throughout battle, draining life from trapped enemies while reinforcing its defenses.',
                     '',
                     'Role: Tank / Frontline Fighter / Displacer',
-                    'Difficulty: ****'
+                    'Difficulty: ***'
                 ],
                 'stats': [
                     'HP: 22',
@@ -1183,7 +1183,7 @@ class UnitHelpComponent(UIComponent):
                     'The DERELICTIONIST is a distance-based healer who manipulates interpersonal distance to provide powerful healing and protective effects that scale with range. This utility specialist clears status effects, pushes allies to safety while healing them, and shields allies from fatal damage. Healing effectiveness increases with distance from the DERELICTIONIST.',
                     '',
                     'Role: Utility / Healer / Disabler / Displacer',
-                    'Difficulty: ***'
+                    'Difficulty: ****'
                 ],
                 'stats': [
                     'HP: 18',
@@ -1195,7 +1195,7 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'SEVERANCE (Passive)',
-                        'description': 'Allows increased movement after being issued a skill or attack. Attack damage is increased by distance. Cannot move twice in one turn.',
+                        'description': 'After issuing a skill or basic attack, gains +1 to MV for 1 turn and is given the opportunity to move. Can still only be issued 1 move command each turn. Basic attack damage is also increased based on the distance between the DERELICTIONIST and his target.',
                         'details': []
                     },
                     {
