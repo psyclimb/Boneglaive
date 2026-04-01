@@ -20,8 +20,10 @@ jobs:
           ssh-key: ${{ secrets.ASSETS_DEPLOY_KEY }}
           path: boneglaive-assets
 
-      - name: Copy sounds into place
-        run: cp -r boneglaive-assets/sounds sounds
+      - name: Copy assets into place
+        run: |
+          cp -r boneglaive-assets/sounds sounds
+          cp -r boneglaive-assets/graphics graphics
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -77,8 +79,10 @@ jobs:
           ssh-key: ${{ secrets.ASSETS_DEPLOY_KEY }}
           path: boneglaive-assets
 
-      - name: Copy sounds into place
-        run: Copy-Item -Recurse boneglaive-assets\sounds sounds
+      - name: Copy assets into place
+        run: |
+          Copy-Item -Recurse boneglaive-assets\sounds sounds
+          Copy-Item -Recurse boneglaive-assets\graphics graphics
 
       - name: Set up Python
         uses: actions/setup-python@v5
