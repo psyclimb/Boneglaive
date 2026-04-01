@@ -1040,6 +1040,16 @@ class UnitHelpComponent(UIComponent):
                             'Range: 4',
                             'Cooldown: 4 turns'
                         ]
+                    },
+                    {
+                        'name': 'AEROSOLIZE ARMS (Active)',
+                        'description': 'The GAS MACHINIST aerosolizes a target\'s weaponry, disarming them and spawning a LIVING AEROSOL adjacent to them under their player\'s control. The LIVING AEROSOL inherits the target\'s attack stat and acts independently. Both the disarm and the LIVING AEROSOL persist for a duration equal to consumed Effluvium charges. Requires line of sight.',
+                        'details': [
+                            'Target: Enemy or ally unit',
+                            'Range: 4',
+                            'Cooldown: 3 turns',
+                            'Learned through upgrading Effluvium Lathe.'
+                        ]
                     }
                 ],
                 'tips': [
@@ -1078,10 +1088,19 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'MARKET FUTURES (Active)',
-                        'description': 'The DELPHIC APPRAISER imbues a furniture piece with investment energy. Allies standing adjacent to the imbued furniture can activate it to teleport up to a distance equal to the furniture\'s astral value. Teleport range scales from 1-14 tiles. Upon teleporting, the ally gains +1 attack range for 3 turns and growing attack bonuses: +1 attack on turn 1, +2 attack on turn 2, +3 attack on turn 3. After one ally uses the imbued furniture, it deactivates.',
+                        'description': 'The DELPHIC APPRAISER imbues a furniture piece with investment energy, creating a teleportation anchor. The anchor remains active for 3 turns or until one ally activates it. Allies adjacent to the anchor can use Parallax to teleport through it.',
                         'details': [
                             'Range: 4',
-                            'Cooldown: 6 turns'
+                            'Cooldown: 4 turns'
+                        ]
+                    },
+                    {
+                        'name': 'PARALLAX (Active)',
+                        'description': 'Appears when the DELPHIC APPRAISER or an ally is adjacent to an active Market Futures anchor. Instantly teleports the unit to any passable destination within a range equal to the anchor\'s astral value (1-14 tiles). Upon arrival, the unit gains the Investment effect: +1 attack range for 3 turns and growing attack bonuses that mature right before attacking (+1 attack on turn 1, +2 on turn 2, +3 on turn 3). Activating the anchor deactivates it.',
+                        'details': [
+                            'Range: Equal to anchor\'s astral value (1-14)',
+                            'Cooldown: None',
+                            'Appears when adjacent to a Market Futures anchor.'
                         ]
                     },
                     {
@@ -1100,6 +1119,15 @@ class UnitHelpComponent(UIComponent):
                             'Range: 3',
                             'Area: 7x7',
                             'Cooldown: 5 turns'
+                        ]
+                    },
+                    {
+                        'name': 'DEFT(?) REROLL (Active)',
+                        'icon': 'deft_reroll',
+                        'description': 'A temporary skill that replaces Divine Depreciation after it is used. Instantly rerolls all furniture values 1-14 in the area affected by the last Divine Depreciation, allowing the DELPHIC APPRAISER to immediately re-randomize the astral landscape. Increases Divine Depreciation\'s cooldown by 1 turn. Disappears after use.',
+                        'details': [
+                            'Cooldown: None',
+                            'Learned through upgrading Divine Depreciation.'
                         ]
                     }
                 ],

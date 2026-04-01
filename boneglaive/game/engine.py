@@ -1457,6 +1457,12 @@ class Game:
             if hasattr(dead_unit, 'upgraded_skills') and dead_unit.upgraded_skills:
                 unit.upgraded_skills = set(dead_unit.upgraded_skills)
                 logger.info(f"RESPAWN: Restored {len(unit.upgraded_skills)} skill upgrades for {unit.get_display_name()}: {unit.upgraded_skills}")
+
+                # Re-apply skills unlocked by upgrades (not added by initialize_skills)
+                if unit.type == UnitType.GAS_MACHINIST and "Effluvium Lathe" in unit.upgraded_skills:
+                    from boneglaive.game.skills.gas_machinist import AerosolizeArmsSkill
+                    if not any(s.name == "Aerosolize Arms" for s in unit.active_skills):
+                        unit.active_skills.append(AerosolizeArmsSkill())
             else:
                 unit.upgraded_skills = set()
 

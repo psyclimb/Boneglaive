@@ -242,6 +242,10 @@ class SetupUnitHelp:
                     {
                         'name': 'DIVERGE',
                         'desc': 'Splits an existing vapor or self into two specialized vapor entities. When targeting self, dissolves completely until both vapors expire, then reforms.'
+                    },
+                    {
+                        'name': 'AEROSOLIZE ARMS',
+                        'desc': 'Disarms a target and spawns a LIVING AEROSOL under their control. The aerosol inherits the target\'s attack stat. Unlocked by upgrading Effluvium Lathe.'
                     }
                 ]
             },
@@ -279,7 +283,11 @@ class SetupUnitHelp:
                 'skills': [
                     {
                         'name': 'MARKET FUTURES',
-                        'desc': 'Infuses a furniture piece with temporal energy, creating a teleportation anchor. Allies can teleport and receive growing attack bonuses.'
+                        'desc': 'Imbues a furniture piece with investment energy, creating a teleportation anchor. The anchor lasts a limited number of turns or until activated by an adjacent ally.'
+                    },
+                    {
+                        'name': 'PARALLAX',
+                        'desc': 'Appears when adjacent to a Market Futures anchor. Instantly teleports the unit up to a distance equal to the anchor\'s astral value. Grants increased attack range and growing attack bonuses for a limited duration.'
                     },
                     {
                         'name': 'AUCTION CURSE',
@@ -288,6 +296,11 @@ class SetupUnitHelp:
                     {
                         'name': 'DIVINE DEPRECIATION',
                         'desc': 'Reappraises a furniture piece as worthless, creating a reality sinkhole. Enemies take damage, are pulled inward, and furniture values reroll.'
+                    },
+                    {
+                        'name': 'DEFT(?) REROLL',
+                        'icon': 'deft_reroll',
+                        'desc': 'Temporarily replaces Divine Depreciation after use. Instantly rerolls all furniture values with wider variance, and increases Divine Depreciation\'s cooldown. Unlocked by upgrading Divine Depreciation.'
                     }
                 ]
             },
@@ -650,7 +663,7 @@ class SetupUnitHelp:
         unit_data = self.simplified_info[self.unit_type]
 
         # Estimate content height
-        estimated_height = 1200
+        estimated_height = 1800
         content_surface = pygame.Surface((width, estimated_height), pygame.SRCALPHA)
         content_width = width - 40  # Increased padding to prevent text cutoff
         current_y = 0
@@ -784,7 +797,10 @@ class SetupUnitHelp:
                 # Skill name and icon (2x larger)
                 # Render directly from SVG at larger size for crisp quality
                 skill_name = skill_data['name']
-                large_icon = self._load_skill_icon(skill_name, size=64)
+                if 'icon' in skill_data:
+                    large_icon = self._load_skill_icon(skill_data['icon'], size=64)
+                else:
+                    large_icon = self._load_skill_icon(skill_name, size=64)
 
                 icon_x = 20
                 if large_icon:
@@ -819,7 +835,7 @@ class SetupUnitHelp:
         unit_data = self.unit_help_data[self.unit_type]
 
         # Estimate content height
-        estimated_height = 2500
+        estimated_height = 3500
         content_surface = pygame.Surface((width, estimated_height), pygame.SRCALPHA)
         content_width = width - 40  # Increased padding to prevent text cutoff
         current_y = 0

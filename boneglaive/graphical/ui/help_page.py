@@ -120,7 +120,7 @@ class HelpPage:
         unit_data = self.unit_help_data[self.unit_type]
 
         # Estimate height needed - increased to handle units with many skills
-        estimated_height = 4000  # Generous estimate to prevent cutoff
+        estimated_height = 5000  # Generous estimate to prevent cutoff
         self.content_surface = pygame.Surface((CONTENT_WIDTH, estimated_height), pygame.SRCALPHA)
 
         y = 0
@@ -170,7 +170,10 @@ class HelpPage:
 
             # Try to load skill icon
             # Extract skill name without (Passive/Active) and [Key: X]
-            skill_icon_name = skill['name'].split(' (')[0].lower().replace(' ', '_')
+            if 'icon' in skill:
+                skill_icon_name = skill['icon']
+            else:
+                skill_icon_name = skill['name'].split(' (')[0].lower().replace(' ', '_')
             skill_icon = self._load_icon(skill_icon_name, "skill")
 
             if skill_icon:
