@@ -13,6 +13,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout assets
+        uses: actions/checkout@v4
+        with:
+          repository: psyclimb/boneglaive-assets
+          ssh-key: ${{ secrets.ASSETS_DEPLOY_KEY }}
+          path: boneglaive-assets
+
+      - name: Copy sounds into place
+        run: cp -r boneglaive-assets/sounds sounds
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -59,6 +69,16 @@ jobs:
       MINGW64_BIN: C:\msys64\mingw64\bin
     steps:
       - uses: actions/checkout@v4
+
+      - name: Checkout assets
+        uses: actions/checkout@v4
+        with:
+          repository: psyclimb/boneglaive-assets
+          ssh-key: ${{ secrets.ASSETS_DEPLOY_KEY }}
+          path: boneglaive-assets
+
+      - name: Copy sounds into place
+        run: Copy-Item -Recurse boneglaive-assets\sounds sounds
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -149,50 +169,9 @@ jobs:
           name: boneglaive-windows
           path: boneglaive-windows.zip
 
-  build-freebsd:
-    name: FreeBSD
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build on FreeBSD
-        uses: cross-platform-actions/action@v0.32.0
-        with:
-          operating_system: freebsd
-          version: '14.2'
-          shell: sh
-          run: |
-            set -ex
-            sudo pkg install -y \
-              python311 \
-              py311-pip \
-              cairo \
-              pkgconf \
-              sdl2 \
-              sdl2_mixer \
-              sdl2_image \
-              sdl2_ttf \
-              zip
-            python3.11 -m pip install --upgrade pip
-            cd /tmp && python3.11 -m pip download --no-binary :all: --no-deps pygame
-            tar xzf pygame-*.tar.gz && cd pygame-*/
-            printf '' > buildconfig/Setup_Unix.in
-            python3.11 -m pip install .
-            cd /home/runner/work/Boneglaive/Boneglaive
-            python3.11 -m pip install cairosvg cairocffi pyinstaller
-            python3.11 -m pip install -e .
-            python3.11 -m PyInstaller boneglaive.spec --distpath dist/freebsd
-            cd dist/freebsd && zip -r ../../boneglaive-freebsd.zip boneglaive/
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: boneglaive-freebsd
-          path: boneglaive-freebsd.zip
-
   release:
     name: Attach to Release
-    needs: [build-linux, build-windows, build-freebsd]
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
@@ -205,4 +184,3 @@ jobs:
           files: |
             boneglaive-linux/boneglaive-linux.zip
             boneglaive-windows/boneglaive-windows.zip
-            boneglaive-freebsd/boneglaive-freebsd.zip

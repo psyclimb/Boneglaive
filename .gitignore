@@ -80,6 +80,9 @@ logs/
 .claude/
 *.local.json
 
+# Sound assets (kept in private boneglaive-assets repo)
+sounds/**/*.wav
+
 # Game-specific
 *.save
 game_state_*.json

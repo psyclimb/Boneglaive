@@ -111,13 +111,13 @@ class RailGenesis(PassiveSkill):
                     # Make damage text more prominent with flashing effect
                     for i in range(3):
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        attrs = (curses.A_BOLD if curses else 0) if i % 2 == 0 else 0
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
                     
                     # Final damage display (stays visible a bit longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, (curses.A_BOLD if curses else 0))
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.2)
                 
@@ -430,13 +430,13 @@ class GaussianDuskSkill(ActiveSkill):
                     # Make damage text more prominent with flashing effect
                     for i in range(3):
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        attrs = (curses.A_BOLD if curses else 0) if i % 2 == 0 else 0
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
 
                     # Final damage display (stays visible a bit longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, (curses.A_BOLD if curses else 0))
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.2)
 
@@ -852,13 +852,13 @@ class BigArcSkill(ActiveSkill):
                     # Make damage text more prominent with flashing effect
                     for i in range(3):
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        attrs = (curses.A_BOLD if curses else 0) if i % 2 == 0 else 0
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
 
                     # Final damage display (stays visible a bit longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, (curses.A_BOLD if curses else 0))
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.2)
 
@@ -906,12 +906,12 @@ class BigArcSkill(ActiveSkill):
 
                         for i in range(3):
                             ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            attrs = (curses.A_BOLD if curses else 0) if i % 2 == 0 else 0
                             ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
 
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, (curses.A_BOLD if curses else 0))
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.2)
 
@@ -1293,13 +1293,13 @@ class FragcrestSkill(ActiveSkill):
                     # Make damage text more prominent with flashing effect
                     for i in range(3):
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        attrs = (curses.A_BOLD if curses else 0) if i % 2 == 0 else 0
                         ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
                     
                     # Final damage display (stays visible a bit longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, (curses.A_BOLD if curses else 0))
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.2)
         
