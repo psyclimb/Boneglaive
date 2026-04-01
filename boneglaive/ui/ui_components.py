@@ -801,10 +801,10 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'ESTRANGE (Active)',
-                        'description': 'The GRAYMAN fires a beam that deals 6 damage and applies Estrangement, reducing all of the target\'s stats by 2. Requires line of sight.',
+                        'description': 'The GRAYMAN fires a beam that deals 4 damage and applies Estrangement, reducing all of the target\'s stats by 2. Requires line of sight.',
                         'details': [
                             'Range: 5',
-                            'Damage: 6',
+                            'Damage: 4',
                             'Cooldown: 3 turns'
                         ]
                     },

@@ -100,6 +100,9 @@ class UnitInfoPanel:
         # Special handling for doppelgangers
         if hasattr(self.game_unit, 'is_doppelganger') and self.game_unit.is_doppelganger:
             unit_name = "DOPPELGANGER"
+        # Special handling for HEINOUS VAPOR - use vapor-specific name
+        elif hasattr(self.game_unit, 'vapor_type') and self.game_unit.vapor_type:
+            unit_name = self.game_unit.get_display_name()
         # Handle both base units (with .name) and DLC units (integers)
         elif hasattr(self.game_unit.type, 'name'):
             unit_name = self.game_unit.type.name.replace('_', ' ')

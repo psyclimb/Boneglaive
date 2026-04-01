@@ -525,7 +525,7 @@ class EstrangeSkill(ActiveSkill):
             cooldown=3,
             range_=5
         )
-        self.damage = 6
+        self.damage = 4
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
