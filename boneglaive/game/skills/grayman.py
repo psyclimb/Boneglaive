@@ -525,7 +525,7 @@ class EstrangeSkill(ActiveSkill):
             cooldown=3,
             range_=5
         )
-        self.damage = 3  # Increased from 2 to 3
+        self.damage = 6
     
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         # Basic validation
@@ -673,18 +673,11 @@ class EstrangeSkill(ActiveSkill):
                 
                 ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
         
-        # Apply damage
-        damage = self.damage
+        # Apply damage with defense reduction
+        effective_defense = target.get_effective_stats()['defense']
+        damage = max(1, self.damage - effective_defense)
         previous_hp = target.hp
         target.hp = max(0, target.hp - damage)
-        
-        # Add message that estrangement bypasses defenses
-        message_log.add_message(
-            f"The estrangement beam bypasses {target.get_display_name()}'s defenses",
-            MessageType.ABILITY,
-            player=user.player,
-            target_name=target.get_display_name()
-        )
         
         # Log the damage
         message_log.add_combat_message(
@@ -709,8 +702,8 @@ class EstrangeSkill(ActiveSkill):
         
         # Apply estranged effect if not immune
         if not target.is_immune_to_effects():
-            # Apply the estranged effect permanently (no duration)
             target.estranged = True
+            target.estranged_duration = 3
 
             # Check if Estrange is upgraded
             from boneglaive.game.upgrades import UpgradeManager
@@ -1002,7 +995,7 @@ class GraeExchangeSkill(ActiveSkill):
         doppelganger_unit.original_unit = user
         doppelganger_unit.hp = 12
         doppelganger_unit.max_hp = 12
-        doppelganger_unit.attack = 3
+        doppelganger_unit.attack = 4
 
         # Store the banished unit in the doppelganger so we can return them later
         doppelganger_unit.banished_unit = target

@@ -801,16 +801,16 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'ESTRANGE (Active)',
-                        'description': 'The GRAYMAN fires a beam that deals 3 defense-piercing damage and applies Estrangement, reducing all of the target\'s stats by 2. Requires line of sight.',
+                        'description': 'The GRAYMAN fires a beam that deals 6 damage and applies Estrangement, reducing all of the target\'s stats by 2. Requires line of sight.',
                         'details': [
                             'Range: 5',
-                            'Damage: 3',
+                            'Damage: 6',
                             'Cooldown: 3 turns'
                         ]
                     },
                     {
                         'name': 'GRÆ EXCHANGE (Active)',
-                        'description': 'The GRAYMAN banishes a target enemy unit for 1 turn and creates a psychic doppelganger in their place with 12 HP and 3 attack. The doppelganger cannot move or use skills. When the doppelganger is destroyed or expires, it explodes for 3 damage to all adjacent enemies, and the banished unit returns. Requires line of sight.',
+                        'description': 'The GRAYMAN banishes a target enemy unit for 1 turn and creates a psychic doppelganger in their place with 12 HP and 4 attack. The doppelganger cannot move or use skills. When the doppelganger is destroyed or expires, it explodes for 6 damage to all adjacent enemies, and the banished unit returns. Requires line of sight.',
                         'details': [
                             'Range: 5',
                             'Cooldown: 3 turns'
@@ -840,7 +840,7 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 12',
-                    'Attack: 3',
+                    'Attack: 4',
                     'Defense: 0',
                     'Movement: 0',
                     'Range: 1'
@@ -853,9 +853,9 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'DEATH EXPLOSION (On Death)',
-                        'description': 'When destroyed or when its duration expires, the doppelganger explodes, dealing 3 damage to all adjacent enemy units. The banished unit then returns to the doppelganger\'s position.',
+                        'description': 'When destroyed or when its duration expires, the doppelganger explodes, dealing 6 damage to all adjacent enemy units. The banished unit then returns to the doppelganger\'s position.',
                         'details': [
-                            'Damage: 3'
+                            'Damage: 6'
                         ]
                     }
                 ],
@@ -1187,7 +1187,7 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 18',
-                    'Attack: 6',
+                    'Attack: 0',
                     'Defense: 0',
                     'Movement: 4',
                     'Range: 1',
@@ -1196,7 +1196,9 @@ class UnitHelpComponent(UIComponent):
                     {
                         'name': 'SEVERANCE (Passive)',
                         'description': 'After issuing a skill or basic attack, gains +1 to MV for 1 turn and is given the opportunity to move. Can still only be issued 1 move command each turn. Basic attack damage is also increased based on the distance between the DERELICTIONIST and his target.',
-                        'details': []
+                        'details': [
+                            'Attack damage bypasses defense.'
+                        ]
                     },
                     {
                         'name': 'VAGAL RUN (Active)',
@@ -1218,6 +1220,7 @@ class UnitHelpComponent(UIComponent):
                         'name': 'PARTITION (Active)',
                         'description': 'The DERELICTIONIST shields an ally, reducing all incoming damage by 1 for 3 turns. If the ally would receive fatal damage while the shield is active, the ally ignores all damage that turn and the partition ends. When this emergency effect triggers, the DERELICTIONIST teleports 4 tiles away.',
                         'details': [
+                            'Target: Ally (including self)',
                             'Range: 3',
                             'Cooldown: 4 turns'
                         ]
@@ -2511,8 +2514,11 @@ class CursorManager(UIComponent):
                     self.selected_unit.used_skill_this_turn = True
                     self.selected_unit.severance_active = True
                     self.selected_unit.severance_duration = 1
-                    # Store position at queue time so range check survives post-move
-                    self.selected_unit.attack_queued_from = (self.selected_unit.y, self.selected_unit.x)
+                    # If a move is already planned, attack executes from move_target position
+                    if self.selected_unit.move_target:
+                        self.selected_unit.attack_queued_from = self.selected_unit.move_target
+                    else:
+                        self.selected_unit.attack_queued_from = (self.selected_unit.y, self.selected_unit.x)
 
                 # Mark that this unit is taking an action (won't regenerate HP)
                 self.selected_unit.took_no_actions = False

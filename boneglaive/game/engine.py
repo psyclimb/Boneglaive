@@ -2988,6 +2988,21 @@ class Game:
                         player=unit.player
                     )
 
+            # Process estranged status effect (Estrange skill)
+            if hasattr(unit, 'estranged') and unit.estranged:
+                unit.estranged_duration -= 1
+                if unit.estranged_duration <= 0:
+                    unit.estranged = False
+                    unit.estranged_duration = 0
+                    if hasattr(unit, 'estranged_original_max_hp'):
+                        unit.max_hp = unit.estranged_original_max_hp
+                        delattr(unit, 'estranged_original_max_hp')
+                    message_log.add_message(
+                        f"{unit.get_display_name()} returns to normal spacetime",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
             # Process DERELICTIONIST status effects
             # Process Vagal Run status effect
             if hasattr(unit, 'vagal_run_active') and unit.vagal_run_active and hasattr(unit, 'vagal_run_duration'):
@@ -3690,28 +3705,10 @@ class Game:
                         raw_damage = effective_attack
                         
                         # Apply defense to damage
-                        # GRAYMAN's attacks bypass defense (both original and doppelganger)
-                        if unit.type == UnitType.GRAYMAN or (hasattr(unit, 'is_doppelganger') and unit.is_doppelganger and unit.type == UnitType.GRAYMAN):
-                            damage = raw_damage  # Bypass defense (PRT handled by HP setter)
-                            
-                            from boneglaive.utils.message_log import message_log, MessageType
-                            # Different messages for original GRAYMAN vs doppelganger
-                            if hasattr(unit, 'is_doppelganger') and unit.is_doppelganger:
-                                message_log.add_message(
-                                    f"The doppelganger's psychic attack bypasses {target.get_display_name()}'s defenses",
-                                    MessageType.ABILITY,
-                                    player=unit.player,
-                                    target_name=target.get_display_name()
-                                )
-                            else:
-                                message_log.add_message(
-                                    f"{unit.get_display_name()}'s psychic attack bypasses {target.get_display_name()}'s defenses",
-                                    MessageType.ABILITY,
-                                    player=unit.player,
-                                    target_name=target.get_display_name()
-                                )
+                        # DERELICTIONIST's attacks bypass defense
+                        if unit.type == UnitType.DERELICTIONIST:
+                            damage = raw_damage
                         else:
-                            # Normal defense calculation
                             damage = max(1, raw_damage - effective_defense)
                         
                         # Store previous HP to check for status changes
@@ -6522,7 +6519,7 @@ class Game:
                 new_doppelganger.original_unit = doppelganger_unit.original_unit if hasattr(doppelganger_unit, 'original_unit') else doppelganger_unit
                 new_doppelganger.hp = 5
                 new_doppelganger.max_hp = 5
-                new_doppelganger.attack = 3
+                new_doppelganger.attack = 4
 
                 # Store the banished unit in the new doppelganger so we can return them later
                 new_doppelganger.banished_unit = unit
@@ -6562,7 +6559,7 @@ class Game:
             else:
                 # NORMAL: Just apply damage
                 # Doppelganger explosion damage
-                damage = 3
+                damage = 6
                 # Apply defense reduction for explosions
                 effective_defense = unit.get_effective_stats()['defense']
                 damage = max(1, damage - effective_defense)

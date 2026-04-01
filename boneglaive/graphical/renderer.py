@@ -1425,8 +1425,11 @@ class GraphicalRenderer:
                                 game_unit.used_skill_this_turn = True
                                 game_unit.severance_active = True
                                 game_unit.severance_duration = 1
-                                # Store position at queue time so range check survives post-move
-                                game_unit.attack_queued_from = (game_unit.y, game_unit.x)
+                                # If a move is already planned, attack executes from move_target position
+                                if game_unit.move_target:
+                                    game_unit.attack_queued_from = game_unit.move_target
+                                else:
+                                    game_unit.attack_queued_from = (game_unit.y, game_unit.x)
 
                             # Track action order
                             game_unit.action_timestamp = self.game_adapter.game.action_counter
@@ -1573,8 +1576,11 @@ class GraphicalRenderer:
                                 game_unit.used_skill_this_turn = True
                                 game_unit.severance_active = True
                                 game_unit.severance_duration = 1
-                                # Store position at queue time so range check survives post-move
-                                game_unit.attack_queued_from = (game_unit.y, game_unit.x)
+                                # If a move is already planned, attack executes from move_target position
+                                if game_unit.move_target:
+                                    game_unit.attack_queued_from = game_unit.move_target
+                                else:
+                                    game_unit.attack_queued_from = (game_unit.y, game_unit.x)
 
                             # Track action order
                             game_unit.action_timestamp = self.game_adapter.game.action_counter
@@ -1711,6 +1717,10 @@ class GraphicalRenderer:
                 # Toggle skill bar visibility
                 self.show_skills = not self.show_skills
                 self.current_action_mode = "SKILLS" if self.show_skills else "SELECT"
+                # Always refresh skill bar when showing, in case unit state changed (e.g. after move)
+                if self.show_skills:
+                    game_unit = self._get_game_unit(self.selected_unit)
+                    self.skill_bar.update(self.selected_unit, game_unit)
 
         elif action == "respawn":
             pass  # Respawn mode activated

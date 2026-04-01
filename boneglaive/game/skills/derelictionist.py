@@ -952,10 +952,6 @@ class PartitionSkill(ActiveSkill):
         if not target_pos or not game:
             return False
 
-        # Check if Partition is upgraded (allows self-cast)
-        from boneglaive.game.upgrades import UpgradeManager
-        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Partition")
-
         # Check range first (use move_target if DERELICTIONIST moved first due to Severance)
         source_y, source_x = (user.move_target[0], user.move_target[1]) if user.move_target else (user.y, user.x)
         distance = game.chess_distance(source_y, source_x, target_pos[0], target_pos[1])
@@ -971,12 +967,8 @@ class PartitionSkill(ActiveSkill):
         if not target:
             return False
 
-        # Can only target allies (or self if upgraded)
+        # Can only target allies (including self)
         if target.player != user.player:
-            return False
-
-        # If not upgraded, cannot target self
-        if not is_upgraded and target == user:
             return False
 
         # Check if target already has partition shield

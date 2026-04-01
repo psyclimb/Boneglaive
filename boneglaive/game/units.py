@@ -105,6 +105,7 @@ class Unit:
         self.status_imbued_player = None  # Which player imbued this unit
         self.status_imbued_cosmic_value = None  # The cosmic value assigned to this imbued unit
         self.estranged = False  # Track if unit is affected by Estrange skill
+        self.estranged_duration = 0  # Duration remaining for estranged effect
         self.mired = False  # Track if unit is affected by upgraded Marrow Dike
         self.mired_duration = 0  # Duration remaining for mired effect
         self.shredded = False  # Track if unit is affected by Gaussian Dusk upgrade

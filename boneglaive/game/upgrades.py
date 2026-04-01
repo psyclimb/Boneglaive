@@ -241,7 +241,7 @@ SKILL_UPGRADES = {
         },
         "Partition": {
             "name": "Partition",
-            "description": "Allows self cast and removes the cooldown penalty from the dissociation save.",
+            "description": "Removes the cooldown penalty from the dissociation save.",
             "type": "buff",
             "cost": 1
         }
