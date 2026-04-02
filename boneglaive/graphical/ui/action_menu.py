@@ -90,7 +90,7 @@ class ActionButton:
 
         # Special coloring for execute and concede buttons
         execute_or_concede_special = False
-        if self.action == "execute" and self.enabled and not self.active and self.has_actions_queued:
+        if self.action == "execute" and self.enabled and not self.active:
             # Keep gradient but with green tint
             execute_or_concede_special = True
         elif self.action == "concede":
@@ -502,8 +502,8 @@ class ActionMenu:
             ActionButton("skills", "S", "SKILLS"),
             ActionButton("upgrade", "U", "UPGRADE"),
             ActionButton("respawn", "R", "RESPAWN"),
+            ActionButton("help", "H", "UNIT HELP"),
             ActionButton("execute", "T", "EXECUTE TURN"),
-            ActionButton("help", "H", "HELP"),
             ActionButton("concede", "C", "CONCEDE"),
         ]
 
@@ -551,8 +551,11 @@ class ActionMenu:
                 button.enabled = selected_unit is not None and not (hasattr(selected_unit, 'move_target') and selected_unit.move_target)
                 button.active = (self.current_mode == "move")
 
-                # Disable move if unit has used a skill (except DERELICTIONIST)
-                if selected_unit and hasattr(selected_unit, 'skill_target') and selected_unit.skill_target:
+                # Disable move if unit has used a skill or attacked (except DERELICTIONIST)
+                if selected_unit and (
+                    (hasattr(selected_unit, 'skill_target') and selected_unit.skill_target) or
+                    (hasattr(selected_unit, 'attack_target') and selected_unit.attack_target)
+                ):
                     # Import UnitType to check for DERELICTIONIST
                     from boneglaive.utils.constants import UnitType
                     # DERELICTIONIST can move after using a skill (passive ability)
@@ -580,8 +583,11 @@ class ActionMenu:
                 button.enabled = selected_unit is not None
                 button.active = (self.current_mode == "attack")
 
-                # Disable attack if unit has used a skill
-                if selected_unit and hasattr(selected_unit, 'skill_target') and selected_unit.skill_target:
+                # Disable attack if unit has used a skill or already attacked
+                if selected_unit and (
+                    (hasattr(selected_unit, 'skill_target') and selected_unit.skill_target) or
+                    (hasattr(selected_unit, 'attack_target') and selected_unit.attack_target)
+                ):
                     button.enabled = False
 
                 # Check if attack is blocked (e.g., during gaussian recharge)
@@ -591,8 +597,11 @@ class ActionMenu:
                 else:
                     button.blocked_actions = set()
             elif button.action == "skills":
-                # Skills button enabled when unit selected and hasn't used a skill yet
-                button.enabled = selected_unit is not None and not (hasattr(selected_unit, 'skill_target') and selected_unit.skill_target)
+                # Skills button enabled when unit selected and hasn't used a skill or attacked yet
+                button.enabled = selected_unit is not None and not (
+                    (hasattr(selected_unit, 'skill_target') and selected_unit.skill_target) or
+                    (hasattr(selected_unit, 'attack_target') and selected_unit.attack_target)
+                )
                 button.active = (self.current_mode == "skills")
 
                 # Check if skills are blocked (e.g., Neural Shunt)

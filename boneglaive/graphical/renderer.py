@@ -1060,10 +1060,10 @@ class GraphicalRenderer:
                             # Full window mode or button was clicked - block all other interactions
                             continue
 
-                    # Handle help page scrollbar clicks
+                    # Handle help page clicks - block all click-through
                     if self.help_page.visible:
-                        if self.help_page.handle_mouse_down(event.pos):
-                            continue  # Scrollbar was clicked, don't process other clicks
+                        self.help_page.handle_mouse_down(event.pos)
+                        continue  # Always consume clicks when help page is open
 
                     # Handle upgrade window clicks (must be before other UI elements)
                     if self.upgrade_window.visible:
@@ -1219,6 +1219,11 @@ class GraphicalRenderer:
                             self.handle_grid_click(grid_pos[0], grid_pos[1])
 
                 elif event.button == 3:  # Right click
+                    # Close help page if open
+                    if self.help_page.visible:
+                        self.help_page.hide()
+                        continue
+
                     # Check if message log window is open first
                     if self.message_log_window.visible:
                         self.message_log_window.hide()
@@ -1642,19 +1647,16 @@ class GraphicalRenderer:
 
                         pass  # Move planned
 
-                        # Keep unit selected but update to show attack range from new position
                         # Clear movement range since unit already moved
                         self.show_movement_range = False
                         self.valid_positions = []
 
-                        # Calculate and show attack range from ghost position
+                        # Pre-calculate attack range for when player manually presses Attack
                         self.attack_positions = self.game_adapter.get_attack_range(game_unit, from_pos=game_unit.move_target)
-                        self.show_target_range = True
+                        self.show_target_range = False
 
-                        # Switch to ATTACK mode automatically so user can attack after moving
-                        self.current_action_mode = "ATTACK"
-
-                        pass  # Attack range updated
+                        # Return to SELECT mode - player must press Attack to enter attack mode
+                        self.current_action_mode = "SELECT"
                     else:
                         pass  # Could not find game unit
                 else:
