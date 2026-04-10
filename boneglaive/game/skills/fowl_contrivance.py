@@ -77,8 +77,10 @@ class RailGenesis(PassiveSkill):
         for rail_y, rail_x in rail_positions:
             unit = game.get_unit_at(rail_y, rail_x)
 
-            # Only damage enemy units (not allies)
-            if unit and unit.is_alive() and unit.player != user.player:
+            # Only damage enemy units (not allies, not FOWL_CONTRIVANCE)
+            if unit and unit.is_alive() and unit.player != user.player and not (
+                hasattr(unit, 'type') and unit.type == UnitType.FOWL_CONTRIVANCE
+            ):
                 damage = 6  # Fixed death explosion damage (buffed from 4)
                 
                 # Store previous HP for critical health check
@@ -139,7 +141,6 @@ class RailGenesis(PassiveSkill):
                     game.check_critical_health(unit, user, previous_hp, ui)
 
         # Check if this was the last FOWL CONTRIVANCE - if so, remove rails
-        from boneglaive.utils.constants import UnitType
         remaining_fowl = sum(1 for u in game.units
                             if u.is_alive() and
                             hasattr(u, 'type') and

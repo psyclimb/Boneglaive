@@ -950,7 +950,7 @@ class UnitHelpComponent(UIComponent):
                 'skills': [
                     {
                         'name': 'RAIL GENESIS (Passive)',
-                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a rail network across passable terrain, shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 6 damage to all enemy units standing on rail tiles. When the last FOWL CONTRIVANCE dies, the rail network is removed.',
+                        'description': 'The first FOWL CONTRIVANCE to deploy establishes a rail network across passable terrain, shared by all FOWL CONTRIVANCES. Whenever any FOWL CONTRIVANCE dies, the rail network detonates, dealing 6 damage to all enemy units standing on rail tiles. FOWL CONTRIVANCE units are immune to this explosion. When the last FOWL CONTRIVANCE dies, the rail network is removed.',
                         'details': [
                             'Damage: 6'
                         ]
@@ -1075,10 +1075,10 @@ class UnitHelpComponent(UIComponent):
                 ],
                 'stats': [
                     'HP: 20',
-                    'Attack: 5',
+                    'Attack: 3',
                     'Defense: 0',
                     'Movement: 4',
-                    'Range: 1',
+                    'Range: 2',
                 ],
                 'skills': [
                     {
@@ -1091,7 +1091,7 @@ class UnitHelpComponent(UIComponent):
                         'description': 'The DELPHIC APPRAISER imbues a furniture piece with investment energy, creating a teleportation locus. The locus remains active for 3 turns or until one ally activates it. Allies adjacent to the locus can use Parallax to teleport through it.',
                         'details': [
                             'Range: 4',
-                            'Cooldown: 4 turns'
+                            'Cooldown: 5 turns'
                         ]
                     },
                     {
@@ -2536,17 +2536,18 @@ class CursorManager(UIComponent):
                 # Set the attack target
                 self.selected_unit.attack_target = target_position
 
+                # Record position at queue time for all units (used by Demilune zone and Severance checks)
+                if self.selected_unit.move_target:
+                    self.selected_unit.attack_queued_from = self.selected_unit.move_target
+                else:
+                    self.selected_unit.attack_queued_from = (self.selected_unit.y, self.selected_unit.x)
+
                 # DERELICTIONIST: issuing an attack activates Severance just like a skill
                 if self.selected_unit.type == UnitType.DERELICTIONIST:
                     self.selected_unit.can_move_post_skill = True
                     self.selected_unit.used_skill_this_turn = True
                     self.selected_unit.severance_active = True
                     self.selected_unit.severance_duration = 1
-                    # If a move is already planned, attack executes from move_target position
-                    if self.selected_unit.move_target:
-                        self.selected_unit.attack_queued_from = self.selected_unit.move_target
-                    else:
-                        self.selected_unit.attack_queued_from = (self.selected_unit.y, self.selected_unit.x)
 
                 # Mark that this unit is taking an action (won't regenerate HP)
                 self.selected_unit.took_no_actions = False
