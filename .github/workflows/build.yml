@@ -81,7 +81,7 @@ jobs:
 
       - name: Copy assets into place
         run: |
-          Copy-Item -Recurse boneglaive-assets\sounds\* sounds\
+          Copy-Item -Recurse -Force boneglaive-assets\sounds\* sounds\
           Copy-Item -Recurse boneglaive-assets\graphics graphics
 
       - name: Set up Python
