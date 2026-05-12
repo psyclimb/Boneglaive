@@ -30,6 +30,92 @@ if TYPE_CHECKING:
 # Left for potential legacy compatibility, but should not be used in new code
 
 
+def _place_derelict_building(target, user, game, ui):
+    """Place a ring of DERELICT_BUILDING tiles around target, displacing any units. Restore terrain on expiry."""
+    from boneglaive.utils.coordinates import get_adjacent_positions
+    from boneglaive.game.map import TerrainType
+
+    building_positions = get_adjacent_positions(target.y, target.x)
+
+    if not hasattr(game, 'derelict_building_tiles'):
+        game.derelict_building_tiles = {}
+    if not hasattr(game, 'previous_terrain'):
+        game.previous_terrain = {}
+
+    buildings_placed = 0
+    displaced_units = []
+
+    for pos_y, pos_x in building_positions:
+        pos_tuple = (pos_y, pos_x)
+
+        if not game.is_valid_position(pos_y, pos_x):
+            continue
+
+        # Displace any unit occupying this tile
+        unit_at_pos = game.get_unit_at(pos_y, pos_x)
+        if unit_at_pos is not None:
+            displacement_found = False
+            for dy in [-1, 0, 1]:
+                for dx in [-1, 0, 1]:
+                    if dy == 0 and dx == 0:
+                        continue
+                    new_y = pos_y + dy
+                    new_x = pos_x + dx
+                    if (game.is_valid_position(new_y, new_x) and
+                            game.map.is_passable(new_y, new_x) and
+                            game.get_unit_at(new_y, new_x) is None):
+                        old_y, old_x = unit_at_pos.y, unit_at_pos.x
+                        unit_at_pos.y = new_y
+                        unit_at_pos.x = new_x
+                        displaced_units.append({
+                            'unit': unit_at_pos,
+                            'old_pos': (old_y, old_x),
+                            'new_pos': (new_y, new_x)
+                        })
+                        displacement_found = True
+                        break
+                if displacement_found:
+                    break
+            if not displacement_found:
+                continue
+
+        # Save existing terrain and place building tile
+        current_terrain = game.map.get_terrain_at(pos_y, pos_x)
+        game.previous_terrain[pos_tuple] = current_terrain
+        game.map.set_terrain_at(pos_y, pos_x, TerrainType.DERELICT_BUILDING)
+        game.derelict_building_tiles[pos_tuple] = {
+            'target': target,
+            'duration': 1,
+            'original_terrain': current_terrain
+        }
+        buildings_placed += 1
+
+    if buildings_placed > 0:
+        message_log.add_message(
+            f"An old decrepit building forms around {target.get_display_name()}",
+            MessageType.WARNING,
+            player=user.player
+        )
+        for displacement in displaced_units:
+            message_log.add_message(
+                f"{displacement['unit'].get_display_name()} is displaced by the building",
+                MessageType.WARNING,
+                player=user.player
+            )
+        if ui and hasattr(ui, 'renderer'):
+            building_frames = ['.', ':', '|', '+', '&']
+            building_tile_positions = [
+                (pos_y, pos_x) for pos_y, pos_x in building_positions
+                if (pos_y, pos_x) in game.derelict_building_tiles
+            ]
+            for frame in building_frames:
+                for pos_y, pos_x in building_tile_positions:
+                    color_id = 3 if target.player == 1 else 4
+                    ui.renderer.draw_damage_text(pos_y, pos_x * 2, frame, color_id)
+                ui.renderer.refresh()
+                time.sleep(0.08)
+
+
 class Severance(PassiveSkill):
     """
     Passive skill for DERELICTIONIST.
@@ -243,13 +329,13 @@ class VagalRunSkill(ActiveSkill):
         if distance >= 7 and not target.is_immune_to_effects():
             target.derelicted = True
             target.derelicted_duration = 1
-            
+
             message_log.add_message(
                 f"{target.get_display_name()} becomes anchored by abandonment",
                 MessageType.WARNING,
                 player=target.player
             )
-            
+
             # Show dereliction animation - becoming anchored/bolted down
             if ui and hasattr(ui, 'renderer'):
                 derelict_animation = ['|', 'T', '+', '#', '#', '+', '*', 'H', 'X', '&']  # Structure forming, then anchored abandonment
@@ -259,6 +345,8 @@ class VagalRunSkill(ActiveSkill):
                     1,  # Red color for abandonment trauma
                     0.6  # Slower for heavy, deliberate immobilization
                 )
+
+            _place_derelict_building(target, user, game, ui)
         
         # Show execution animation if UI available
         if ui and hasattr(ui, 'renderer'):
@@ -417,13 +505,31 @@ class VagalRunSkill(ActiveSkill):
             target.status_site_inspection = False
             if hasattr(target, 'status_site_inspection_duration'):
                 target.status_site_inspection_duration = 0
+            target.attack_bonus -= 1
+            target.move_range_bonus -= 1
+            if hasattr(target, 'status_site_inspection_had_defense') and target.status_site_inspection_had_defense:
+                target.defense_bonus -= 1
+                target.status_site_inspection_had_defense = False
             cleared_effects.append("Site Inspection")
-            
+
         if hasattr(target, 'status_site_inspection_partial') and target.status_site_inspection_partial:
             target.status_site_inspection_partial = False
             if hasattr(target, 'status_site_inspection_partial_duration'):
                 target.status_site_inspection_partial_duration = 0
+            target.move_range_bonus -= 1
+            if hasattr(target, 'status_site_inspection_partial_had_defense') and target.status_site_inspection_partial_had_defense:
+                target.defense_bonus -= 1
+                target.status_site_inspection_partial_had_defense = False
             cleared_effects.append("Site Inspection Partial")
+
+        if hasattr(target, 'status_site_inspection_obstructed') and target.status_site_inspection_obstructed:
+            target.status_site_inspection_obstructed = False
+            if hasattr(target, 'status_site_inspection_obstructed_duration'):
+                target.status_site_inspection_obstructed_duration = 0
+            target.defense_bonus -= 1
+            if hasattr(target, 'status_site_inspection_obstructed_had_defense'):
+                target.status_site_inspection_obstructed_had_defense = False
+            cleared_effects.append("Site Inspection Obstructed")
             
         if hasattr(target, 'valuation_oracle_buff') and target.valuation_oracle_buff:
             target.valuation_oracle_buff = False
@@ -462,6 +568,7 @@ class VagalRunSkill(ActiveSkill):
                 target.partition_shield_blocked_fatal = False
             if hasattr(target, 'partition_shield_caster'):
                 target.partition_shield_caster = None
+            target.prt = 0
             cleared_effects.append("Partition Shield")
             
         if hasattr(target, 'gaussian_dusk_recharge') and target.gaussian_dusk_recharge > 0:
@@ -739,185 +846,7 @@ class DerelictSkill(ActiveSkill):
                     0.6  # Slower for heavy, deliberate immobilization
                 )
 
-            # Check if Derelict is upgraded - spawn building around target
-            from boneglaive.game.upgrades import UpgradeManager
-            if UpgradeManager.is_skill_upgraded(user, "Derelict"):
-                # Create 3x3 "circle" (square ring) of building walls around target
-                from boneglaive.utils.coordinates import get_adjacent_positions
-                from boneglaive.game.map import TerrainType
-
-                building_positions = get_adjacent_positions(target.y, target.x)
-
-                # Initialize tracking dictionary if it doesn't exist
-                if not hasattr(game, 'derelict_building_tiles'):
-                    game.derelict_building_tiles = {}
-                if not hasattr(game, 'previous_terrain'):
-                    game.previous_terrain = {}
-
-                # Place building tiles
-                buildings_placed = 0
-                displaced_units = []
-
-                for pos_y, pos_x in building_positions:
-                    pos_tuple = (pos_y, pos_x)
-
-                    # Check if position is valid
-                    if not game.is_valid_position(pos_y, pos_x):
-                        continue
-
-                    # Check if position is occupied by a unit - if so, displace them
-                    unit_at_pos = game.get_unit_at(pos_y, pos_x)
-                    if unit_at_pos is not None:
-                        # Find a valid position to displace the unit to (1 tile away from building position)
-                        displacement_found = False
-
-                        # Try all 8 directions around the building tile
-                        for dy in [-1, 0, 1]:
-                            for dx in [-1, 0, 1]:
-                                if dy == 0 and dx == 0:
-                                    continue  # Skip center
-
-                                new_y = pos_y + dy
-                                new_x = pos_x + dx
-
-                                # Check if displacement position is valid and empty
-                                if (game.is_valid_position(new_y, new_x) and
-                                    game.map.is_passable(new_y, new_x) and
-                                    game.get_unit_at(new_y, new_x) is None):
-
-                                    # Displace the unit
-                                    old_y, old_x = unit_at_pos.y, unit_at_pos.x
-                                    unit_at_pos.y = new_y
-                                    unit_at_pos.x = new_x
-
-                                    displaced_units.append({
-                                        'unit': unit_at_pos,
-                                        'old_pos': (old_y, old_x),
-                                        'new_pos': (new_y, new_x)
-                                    })
-
-                                    displacement_found = True
-                                    break
-
-                            if displacement_found:
-                                break
-
-                        # If we couldn't find a valid displacement, skip placing building here
-                        if not displacement_found:
-                            continue
-
-                    # Get current terrain
-                    current_terrain = game.map.get_terrain_at(pos_y, pos_x)
-
-                    # Check if terrain is impassable (furniture, walls, etc.)
-                    if not game.map.is_passable(pos_y, pos_x):
-                        # Try to displace furniture (if it's furniture and not permanent walls)
-                        from boneglaive.game.map import TerrainType
-
-                        # Only displace furniture, not permanent terrain like walls/pillars
-                        displaceable_terrain = [
-                            TerrainType.LECTERN, TerrainType.COAT_RACK,
-                            TerrainType.OTTOMAN, TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF,
-                            TerrainType.TIFFANY_LAMP, TerrainType.EASEL, TerrainType.SCULPTURE,
-                            TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
-                            TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
-                            TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                            TerrainType.POTPOURRI_BOWL
-                        ]
-
-                        if current_terrain in displaceable_terrain:
-                            # Find a valid position to displace the furniture
-                            furniture_displacement_found = False
-
-                            # Try all 8 directions around the building tile
-                            for dy in [-1, 0, 1]:
-                                for dx in [-1, 0, 1]:
-                                    if dy == 0 and dx == 0:
-                                        continue  # Skip center
-
-                                    new_y = pos_y + dy
-                                    new_x = pos_x + dx
-
-                                    # Check if displacement position is valid, empty, and passable
-                                    if (game.is_valid_position(new_y, new_x) and
-                                        game.map.get_terrain_at(new_y, new_x) == TerrainType.EMPTY and
-                                        game.get_unit_at(new_y, new_x) is None):
-
-                                        # Move furniture to new position
-                                        game.map.set_terrain_at(new_y, new_x, current_terrain)
-
-                                        # Copy any cosmic values if they exist
-                                        if hasattr(game.map, 'cosmic_values'):
-                                            for player_num in game.map.cosmic_values:
-                                                if pos_tuple in game.map.cosmic_values[player_num]:
-                                                    game.map.cosmic_values[player_num][(new_y, new_x)] = game.map.cosmic_values[player_num][pos_tuple]
-                                                    del game.map.cosmic_values[player_num][pos_tuple]
-
-                                        furniture_displacement_found = True
-                                        break
-
-                                if furniture_displacement_found:
-                                    break
-
-                            # If we couldn't displace furniture, skip placing building here
-                            if not furniture_displacement_found:
-                                continue
-                        else:
-                            # Non-displaceable terrain (walls, pillars, etc.) - skip
-                            continue
-
-                    # Store original terrain for restoration
-                    game.previous_terrain[pos_tuple] = current_terrain
-
-                    # Set the tile to DERELICT_BUILDING terrain
-                    game.map.set_terrain_at(pos_y, pos_x, TerrainType.DERELICT_BUILDING)
-
-                    # Track this building tile
-                    game.derelict_building_tiles[pos_tuple] = {
-                        'target': target,  # The unit this building surrounds
-                        'duration': 1,  # Matches derelicted duration
-                        'original_terrain': current_terrain
-                    }
-
-                    buildings_placed += 1
-
-                # Log building creation if any were placed
-                if buildings_placed > 0:
-                    message_log.add_message(
-                        f"An old decrepit building forms around {target.get_display_name()}",
-                        MessageType.WARNING,
-                        player=user.player
-                    )
-
-                    # Log displacement messages
-                    for displacement in displaced_units:
-                        displaced_unit = displacement['unit']
-                        message_log.add_message(
-                            f"{displaced_unit.get_display_name()} is displaced by the building",
-                            MessageType.WARNING,
-                            player=user.player
-                        )
-
-                    # Show building formation animation - all tiles rise simultaneously
-                    if ui and hasattr(ui, 'renderer'):
-                        import time
-                        # Animation sequence: rising from ground
-                        building_frames = ['.', ':', '|', '+', '&']  # Ground -> rising -> full structure
-
-                        # Get all building tile positions
-                        building_tile_positions = [
-                            (pos_y, pos_x) for pos_y, pos_x in building_positions
-                            if (pos_y, pos_x) in game.derelict_building_tiles
-                        ]
-
-                        # Animate all tiles simultaneously frame by frame
-                        for frame in building_frames:
-                            for pos_y, pos_x in building_tile_positions:
-                                # Determine color based on target's player
-                                color_id = 3 if target.player == 1 else 4
-                                ui.renderer.draw_damage_text(pos_y, pos_x * 2, frame, color_id)
-                            ui.renderer.refresh()
-                            time.sleep(0.08)  # Quick rise (0.08s per frame = 0.4s total)
+            _place_derelict_building(target, user, game, ui)
         
         # Clean up stored direction data
         if hasattr(target, 'derelict_push_direction'):

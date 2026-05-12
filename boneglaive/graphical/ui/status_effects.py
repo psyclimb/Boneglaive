@@ -72,6 +72,7 @@ STATUS_EFFECTS = {
         "type": "debuff",
         "icon": "E",
         "description": "All stats reduced by 1",
+        "duration_key": "estranged_duration",
         "check": lambda u: u.estranged
     },
     "mired": {

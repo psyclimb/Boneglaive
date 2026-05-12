@@ -869,28 +869,16 @@ class BoneTitheSkill(ActiveSkill):
             # Base version: Flat damage with no kill count bonus
             damage = self.base_damage
 
-        # Generate area of effect - always 5x5 beam pattern
+        # Generate area of effect - full 5x5 area around caster
         effect_area = []
         center_y, center_x = user.y, user.x
 
-        # Beam pattern in 8 directions, extending 2 tiles out
-        directions = [
-            (-1, 0),   # North
-            (-1, 1),   # Northeast
-            (0, 1),    # East
-            (1, 1),    # Southeast
-            (1, 0),    # South
-            (1, -1),   # Southwest
-            (0, -1),   # West
-            (-1, -1)   # Northwest
-        ]
-
-        # For each direction, add tiles at range 1 and range 2
-        for dy, dx in directions:
-            for distance in [1, 2]:
-                tile_y = center_y + (dy * distance)
-                tile_x = center_x + (dx * distance)
-
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                if dy == 0 and dx == 0:
+                    continue  # Skip caster's own tile
+                tile_y = center_y + dy
+                tile_x = center_x + dx
                 if game.is_valid_position(tile_y, tile_x):
                     effect_area.append((tile_y, tile_x))
         
@@ -944,8 +932,8 @@ class BoneTitheSkill(ActiveSkill):
                     # Use centralized death handling
                     game.handle_unit_death(target, user, cause="bone_tithe", ui=ui)
                 
-                # Gain HP for each enemy hit (doubled when upgraded)
-                hp_gain_amount = 2 if self.upgraded else 1
+                # Gain HP for each enemy hit (doubled when Dominion upgraded)
+                hp_gain_amount = 2 if dominion_upgraded else 1
                 hp_gained += hp_gain_amount
         
         # Apply HP gain to user based on number of enemies hit

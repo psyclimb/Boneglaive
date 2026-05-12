@@ -1872,8 +1872,9 @@ class Game:
         unit_y, unit_x = from_pos if from_pos else (unit.y, unit.x)
 
         # Check if attacker is in any POTPOURRIST's Demilune zone (GRAYMAN is immune)
+        # Use queued-from position so moving out of the zone before attacking doesn't bypass it
         if unit.type != UnitType.GRAYMAN:
-            attacker_pos = (unit_y, unit_x)
+            attacker_pos = unit.attack_queued_from if (hasattr(unit, 'attack_queued_from') and unit.attack_queued_from) else (unit_y, unit_x)
             for potpourrist in self.units:
                 if (potpourrist.type == UnitType.POTPOURRIST and
                     potpourrist.is_alive() and
@@ -3563,8 +3564,9 @@ class Game:
                     continue  # Skip this attack and go to next unit
 
                 # Check if attacker is in a Demilune zone blocking this attack (GRAYMAN is immune)
+                # Use queued-from position so moving out of the zone before attacking doesn't bypass it
                 if unit.type != UnitType.GRAYMAN:
-                    attacker_pos = (unit.y, unit.x)
+                    attacker_pos = unit.attack_queued_from if (hasattr(unit, 'attack_queued_from') and unit.attack_queued_from) else (unit.y, unit.x)
                     for potpourrist in self.units:
                         if (potpourrist.type == UnitType.POTPOURRIST and
                             potpourrist.is_alive() and
@@ -5031,7 +5033,7 @@ class Game:
         # Apply derelicted status to protected unit
         protected_unit.derelicted = True
         protected_unit.derelicted_duration = 1  # Standard derelict duration
-        
+
         message_log.add_message(
             f"{protected_unit.get_display_name()} becomes anchored by abandonment",
             MessageType.WARNING,
@@ -5047,6 +5049,8 @@ class Game:
         protected_unit.partition_shield_caster = None
         if hasattr(protected_unit, 'partition_dissociation_caster'):
             protected_unit.partition_dissociation_caster = None
+        if protected_unit.type != UnitType.HEINOUS_VAPOR:
+            protected_unit.prt = 0
         
         message_log.add_message(
             f"{protected_unit.get_display_name()}'s partition emergency ends - {caster.get_display_name()} teleports away and abandonment trauma sets in",

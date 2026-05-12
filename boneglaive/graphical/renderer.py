@@ -385,6 +385,7 @@ class GraphicalRenderer:
             TerrainType.LEAF_PIT: asset_path("graphics/terrain/leaf_pit.svg"),
             TerrainType.MELANGE_FUME: asset_path("graphics/terrain/melange_fume.svg"),
             TerrainType.BLOOD_PLASMA: asset_path("graphics/terrain/blood_plasma.svg"),
+            TerrainType.DERELICT_BUILDING: asset_path("graphics/terrain/derelict_building.svg"),
 
             # Furniture types
             TerrainType.LECTERN: asset_path("graphics/furniture/lectern.svg"),
@@ -5151,7 +5152,6 @@ class GraphicalRenderer:
         # Show respawn window
         self.respawn_window.show(ready_dead_units)
 
-        self.combat_log.add_message(f"Select unit to respawn ({len(ready_dead_units)} available)", "system")
 
     def confirm_respawn_unit_selection(self):
         """Confirm unit selection and enter location selection mode."""
@@ -5177,10 +5177,6 @@ class GraphicalRenderer:
             )
             self.respawn_valid_tiles = valid_tiles
 
-        self.combat_log.add_message(
-            f"Select respawn location for {selected_unit.greek_id}",
-            "system"
-        )
 
     def confirm_respawn_location(self):
         """Confirm respawn at current ghost position."""
@@ -5202,10 +5198,6 @@ class GraphicalRenderer:
         success = self.game_adapter.game.queue_respawn(self.selected_dead_unit, pos)
 
         if success:
-            self.combat_log.add_message(
-                f"{self.selected_dead_unit.greek_id} respawn queued at {pos}",
-                "system"
-            )
             self.exit_respawn_mode()
         else:
             self.combat_log.add_message("Invalid respawn location (blocked or occupied)", "system")

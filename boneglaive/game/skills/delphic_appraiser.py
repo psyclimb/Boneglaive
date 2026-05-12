@@ -225,7 +225,7 @@ class MarketFuturesSkill(ActiveSkill):
             key="M",
             description="Infuses a furniture piece with temporal investment energy. Creates a teleportation anchor that allies can activate. Grants maturing investment: +1 ATK (turn 1), +2 ATK (turn 2), +3 ATK (turn 3) with +1 Range for all 3 turns. Maturation occurs right before attacking.",
             target_type=TargetType.AREA,
-            cooldown=4,
+            cooldown=5,
             range_=4
         )
         

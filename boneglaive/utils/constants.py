@@ -48,7 +48,7 @@ UNIT_STATS = {
     UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 3, 3),
     UnitType.GAS_MACHINIST: (20, 4, 1, 3, 2),
     UnitType.HEINOUS_VAPOR: (1, 0, 0, 4, 1),
-    UnitType.DELPHIC_APPRAISER: (20, 4, 0, 4, 2),
+    UnitType.DELPHIC_APPRAISER: (20, 3, 0, 4, 2),
     UnitType.INTERFERER: (18, 4, 0, 4, 1),
     UnitType.DERELICTIONIST: (18, 0, 0, 4, 1),
     UnitType.POTPOURRIST: (24, 5, 0, 3, 1)

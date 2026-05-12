@@ -194,27 +194,33 @@ class GameOverWindow:
         winner_color = COLOR_PLAYER1 if self.winner_player == 1 else COLOR_PLAYER2
         pygame.draw.rect(screen, winner_color, bar_rect, 3, border_radius=5)
 
-        # Draw result text on left side of bar
+        # Draw buttons on right side of bar (use scaled dimensions)
+        button_x_start = bar_x + bar_width - (scaled_button_width * 3 + scaled_button_spacing * 2 + int(screen_width * 0.014))
+
+        # Draw result text on left side of bar, bounded by button area
         text_x = bar_x + 20
         text_y = bar_y + 15
+        text_max_x = button_x_start - 10  # Leave a gap before the buttons
 
         # Title (Player X Victory)
         title_text = f"PLAYER {self.winner_player} VICTORY"
         title_surface = self.font.render(title_text, True, winner_color)
         screen.blit(title_surface, (text_x, text_y))
 
-        # Winner info
+        # Winner and loser info - lay out sequentially, clipping if they would overflow
+        score_x = text_x + title_surface.get_width() + 15
+        score_y = text_y + (title_surface.get_height() - self.small_font.get_height()) // 2
+
         winner_text = f"{self.winner_name}: {self.winner_gp} GP"
         winner_surface = self.small_font.render(winner_text, True, winner_color)
-        screen.blit(winner_surface, (text_x + 120, text_y + 5))
+        if score_x + winner_surface.get_width() <= text_max_x:
+            screen.blit(winner_surface, (score_x, score_y))
+            score_x += winner_surface.get_width() + 10
 
-        # Loser info
-        loser_text = f"| {self.loser_name}: {self.loser_gp} GP"
-        loser_surface = self.small_font.render(loser_text, True, COLOR_TEXT_DIM)
-        screen.blit(loser_surface, (text_x + 120 + winner_surface.get_width() + 10, text_y + 5))
-
-        # Draw buttons on right side of bar (use scaled dimensions)
-        button_x_start = bar_x + bar_width - (scaled_button_width * 3 + scaled_button_spacing * 2 + int(screen_width * 0.014))
+            loser_text = f"| {self.loser_name}: {self.loser_gp} GP"
+            loser_surface = self.small_font.render(loser_text, True, COLOR_TEXT_DIM)
+            if score_x + loser_surface.get_width() <= text_max_x:
+                screen.blit(loser_surface, (score_x, score_y))
         button_y = bar_y + (scaled_bar_height - scaled_button_height) // 2
 
         self.buttons = {}  # Reset buttons dict

@@ -755,13 +755,18 @@ class Unit:
                 # Apply derelicted immediately
                 self.derelicted = True
                 self.derelicted_duration = 1
-                
+
                 from boneglaive.utils.message_log import message_log, MessageType
                 message_log.add_message(
                     f"{self.get_display_name()} becomes anchored by abandonment",
                     MessageType.WARNING,
                     player=self.player
                 )
+
+                # Spawn building around the derelicted unit
+                if self._game and self.partition_dissociation_caster:
+                    from boneglaive.game.skills.derelictionist import _place_derelict_building
+                    _place_derelict_building(self, self.partition_dissociation_caster, self._game, ui=None)
                 
                 # Remove partition shield status (but keep prt=999 until end of turn)
                 self.partition_shield_active = False
