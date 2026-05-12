@@ -22,7 +22,7 @@ jobs:
 
       - name: Copy assets into place
         run: |
-          cp -r boneglaive-assets/sounds sounds
+          cp -r boneglaive-assets/sounds/* sounds/
           cp -r boneglaive-assets/graphics graphics
 
       - name: Set up Python
@@ -55,13 +55,13 @@ jobs:
       - name: Package artifact
         run: |
           cd dist/linux
-          zip -r ../../boneglaive-v1.1-linux.zip boneglaive/
+          zip -r ../../boneglaive-v1.2-linux.zip boneglaive/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: boneglaive-linux
-          path: boneglaive-v1.1-linux.zip
+          path: boneglaive-v1.2-linux.zip
 
   build-windows:
     name: Windows
@@ -81,7 +81,7 @@ jobs:
 
       - name: Copy assets into place
         run: |
-          Copy-Item -Recurse boneglaive-assets\sounds sounds
+          Copy-Item -Recurse boneglaive-assets\sounds\* sounds\
           Copy-Item -Recurse boneglaive-assets\graphics graphics
 
       - name: Set up Python
@@ -165,13 +165,13 @@ jobs:
 
       - name: Package artifact
         run: |
-          Compress-Archive -Path dist\windows\boneglaive\* -DestinationPath boneglaive-v1.1-windows.zip
+          Compress-Archive -Path dist\windows\boneglaive\* -DestinationPath boneglaive-v1.2-windows.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: boneglaive-windows
-          path: boneglaive-v1.1-windows.zip
+          path: boneglaive-v1.2-windows.zip
 
   release:
     name: Attach to Release
@@ -186,5 +186,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            boneglaive-linux/boneglaive-v1.1-linux.zip
-            boneglaive-windows/boneglaive-v1.1-windows.zip
+            boneglaive-linux/boneglaive-v1.2-linux.zip
+            boneglaive-windows/boneglaive-v1.2-windows.zip
