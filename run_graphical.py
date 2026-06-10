@@ -90,24 +90,21 @@ def run_game():
     from boneglaive.graphical.ui_adapter import GraphicalUIAdapter
     ui_adapter = GraphicalUIAdapter(renderer)
 
-    # Get network mode from config
+    # Get game mode from config
     from boneglaive.utils.config import NetworkMode
-    network_mode = config.get('network_mode', NetworkMode.VS_AI.value)
+    game_mode = config.get('network_mode', NetworkMode.VS_AI.value)
 
     # Initialize game with selected configuration
     # skip_setup=False means game starts in setup phase
-    adapter.initialize_game(skip_setup=False, map_name=selected_map, network_mode=network_mode, ui_adapter=ui_adapter)
+    adapter.initialize_game(skip_setup=False, map_name=selected_map, game_mode=game_mode, ui_adapter=ui_adapter)
 
     # Set up terrain change callback so renderer marks tiles dirty when terrain changes
     if adapter.game and adapter.game.map:
         adapter.game.map.terrain_change_callback = renderer.mark_tile_dirty
         print("Terrain change callback registered for dynamic terrain updates")
 
-    # Set multiplayer mode based on config
-    if network_mode == NetworkMode.LOCAL_MULTIPLAYER.value:
-        adapter.game.local_multiplayer = True
-    else:
-        adapter.game.local_multiplayer = False
+    # Set local multiplayer flag based on config
+    adapter.game.local_multiplayer = (game_mode == NetworkMode.LOCAL_MULTIPLAYER.value)
 
     # Set UI reference on game for animations
     adapter.game.set_ui_reference(ui_adapter)

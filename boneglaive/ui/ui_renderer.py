@@ -339,11 +339,6 @@ class UIRenderer:
             combined_text = gp_text + up_text
             self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + 6, combined_text, 1)
             
-            # Add turn indicator for network play
-            if self.game_ui.multiplayer.is_network_multiplayer():
-                turn_text = "YOUR TURN" if self.game_ui.multiplayer.is_current_player_turn() else "WAITING"
-                self.renderer.draw_text(header_y, len(player_text) + len(mode_text) + len(combined_text) + 8, turn_text, 1, curses.A_BOLD)
-        
         # Add chat mode indicator if active
         if chat_component.chat_mode:
             chat_text = "CHAT MODE"

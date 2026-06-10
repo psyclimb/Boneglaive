@@ -203,7 +203,7 @@ class GameStateAdapter:
         # Set of (y, x) positions that have been revealed by Site Inspection
         self.revealed_scalar_nodes: set = set()
 
-    def initialize_game(self, game_instance=None, skip_setup=False, map_name="hard_pressed", network_mode="single", ui_adapter=None):
+    def initialize_game(self, game_instance=None, skip_setup=False, map_name="hard_pressed", game_mode="single", ui_adapter=None):
         """
         Initialize or attach to a game instance.
 
@@ -211,7 +211,7 @@ class GameStateAdapter:
             game_instance: Existing game instance, or None to create new
             skip_setup: If False (default), game starts in setup phase where players place units
             map_name: Name of the map to use
-            network_mode: Network mode ("single", "vs_ai", "local", etc.)
+            game_mode: Game mode ("single", "vs_ai", "local")
             ui_adapter: GraphicalUIAdapter for AI animations
         """
         if game_instance:
@@ -222,13 +222,10 @@ class GameStateAdapter:
             self.game = Game(skip_setup=skip_setup, map_name=map_name)
 
         # Initialize AI if in vs_ai mode
-        if network_mode == "vs_ai":
-            pass
+        if game_mode == "vs_ai":
             from boneglaive.ai.ai_interface import AIInterface
             self.ai_interface = AIInterface()
             self.ai_interface.initialize(self.game, ui=ui_adapter)
-        else:
-            pass
 
         # Register callbacks for detecting status effects
         self.game.pre_status_clear_callback = self._detect_status_effects_callback

@@ -2235,17 +2235,8 @@ class CursorManager(UIComponent):
         # Always allow in test mode
         if self.game_ui.game.test_mode:
             return True
-        
-        # In multiplayer, check if it's the player's turn
-        if self.game_ui.multiplayer.is_multiplayer():
-            # In local multiplayer, can control active player's units
-            if self.game_ui.multiplayer.is_local_multiplayer():
-                return True
-            # In network multiplayer, can only act on own turn
-            return self.game_ui.multiplayer.is_current_player_turn()
-        
-        # Single player can always act
-        return True
+
+        return self.game_ui.multiplayer.is_current_player_turn()
     
     def get_unit_at_cursor(self):
         """Get the unit at the current cursor position."""

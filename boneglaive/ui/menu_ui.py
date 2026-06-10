@@ -137,16 +137,6 @@ class MenuUI:
         menu.parent = self._find_menu_by_title("Settings")
         return menu
     
-    def _create_network_settings_menu(self) -> Menu:
-        """Create the network settings menu."""
-        menu = Menu("Network Settings", [
-            MenuItem(f"Server IP: {self.config.get('server_ip')}", self._set_server_ip),
-            MenuItem(f"Server Port: {self.config.get('server_port')}", self._set_server_port),
-            MenuItem("Back", lambda: ("submenu", None))
-        ])
-        menu.parent = self._find_menu_by_title("Settings")
-        return menu
-    
     def _find_menu_by_title(self, title: str) -> Optional[Menu]:
         """Find a menu by its title."""
         if self.current_menu.title == title:
@@ -173,20 +163,6 @@ class MenuUI:
         logger.info("Selected local multiplayer mode")
         return ("submenu", self._create_map_selection_menu())
     
-    def _start_lan_host(self):
-        """Set LAN host mode and go to map selection."""
-        self.config.set('network_mode', NetworkMode.LAN_HOST.value)
-        self.config.save_config()
-        logger.info("Selected LAN host mode")
-        return ("submenu", self._create_map_selection_menu())
-    
-    def _start_lan_client(self):
-        """Set LAN client mode and go to map selection."""
-        self.config.set('network_mode', NetworkMode.LAN_CLIENT.value)
-        self.config.save_config()
-        logger.info("Selected LAN client mode")
-        return ("submenu", self._create_map_selection_menu())
-        
     def _start_vs_ai(self):
         """Set VS AI mode and go to map selection."""
         self.config.set('network_mode', NetworkMode.VS_AI.value)
@@ -258,22 +234,6 @@ class MenuUI:
         
         # Refresh the menu to show updated label
         return ("submenu", self._create_display_settings_menu())
-    
-    def _set_server_ip(self):
-        """Set the server IP address."""
-        # In a real implementation, this would show a text input dialog
-        # For now, we'll just use a placeholder
-        self.config.set('server_ip', "192.168.1.100")  # Placeholder
-        self.config.save_config()
-        return ("submenu", self._create_network_settings_menu())  # Refresh menu
-    
-    def _set_server_port(self):
-        """Set the server port."""
-        # In a real implementation, this would show a number input dialog
-        # For now, we'll just use a placeholder
-        self.config.set('server_port', 7777)  # Placeholder
-        self.config.save_config()
-        return ("submenu", self._create_network_settings_menu())  # Refresh menu
     
     def _show_about(self):
         """Show the about screen with license information."""

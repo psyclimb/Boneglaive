@@ -20,8 +20,6 @@ class NetworkMode(Enum):
     """Network mode options."""
     SINGLE_PLAYER = "single"
     LOCAL_MULTIPLAYER = "local"
-    LAN_HOST = "lan_host"
-    LAN_CLIENT = "lan_client"
     VS_AI = "vs_ai"
 
 @dataclass
@@ -40,8 +38,6 @@ class GameConfig:
     
     # Network settings
     network_mode: str = NetworkMode.VS_AI.value
-    server_ip: str = "127.0.0.1"
-    server_port: int = 7777
     player_name: str = "Player"
 
     # Profile settings

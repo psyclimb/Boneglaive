@@ -146,9 +146,7 @@ class GameUI:
             # Show multiplayer mode information in UI message only
             if self.multiplayer.is_local_multiplayer():
                 self.message = "Local multiplayer mode. Players will take turns on this computer."
-            elif self.multiplayer.is_network_multiplayer():
-                self.message = "LAN multiplayer mode. Connected to remote player."
-                
+
             # Publish turn started event for initial turn
             self._publish_event(
                 EventType.TURN_STARTED,
@@ -317,20 +315,15 @@ class GameUI:
 
         # Update multiplayer manager to use the new game
         self.multiplayer.game = self.game
-        
-        # Reinitialize the network interface (including AI) with the new game
-        if self.multiplayer.network_interface:
-            # Clean up old interface
-            if hasattr(self.multiplayer.network_interface, 'cleanup'):
-                self.multiplayer.network_interface.cleanup()
-            
-            # Reinitialize with new game
-            if hasattr(self.multiplayer.network_interface, 'initialize'):
-                success = self.multiplayer.network_interface.initialize(self.game, ui=self)
-                if not success:
-                    logger.error("Failed to reinitialize network interface after game reset")
-                else:
-                    logger.info("Network interface successfully reinitialized after game reset")
+
+        # Reinitialize the AI interface with the new game
+        if self.multiplayer.ai_interface:
+            self.multiplayer.ai_interface.cleanup()
+            success = self.multiplayer.ai_interface.initialize(self.game, ui=self)
+            if not success:
+                logger.error("Failed to reinitialize AI interface after game reset")
+            else:
+                logger.info("AI interface successfully reinitialized after game reset")
 
         # Set UI reference in game engine for animations
         self.game.set_ui_reference(self)

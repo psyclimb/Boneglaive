@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class SmartAI:
     """
     Intelligent AI controller using modular decision-making systems.
-    Replaces the hardcoded simple_ai.py with strategic thinking.
+    Modular AI controller with strategic thinking.
     """
 
     def __init__(self, game: 'Game', ui: Optional['GameUI'] = None):
