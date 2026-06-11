@@ -12,7 +12,7 @@ import sys
 import random
 from typing import Dict, List, Optional, Tuple, Callable
 
-from boneglaive.utils.config import ConfigManager, NetworkMode, DisplayMode
+from boneglaive.utils.config import ConfigManager, GameMode, DisplayMode
 from boneglaive.utils.debug import debug_config, logger
 from boneglaive.renderers.curses_renderer import CursesRenderer
 from boneglaive.utils.render_interface import RenderInterface
@@ -158,14 +158,14 @@ class MenuUI:
     
     def _start_local_multiplayer(self):
         """Set local multiplayer mode and go to map selection."""
-        self.config.set('network_mode', NetworkMode.LOCAL_MULTIPLAYER.value)
+        self.config.set('game_mode', GameMode.LOCAL_MULTIPLAYER.value)
         self.config.save_config()
         logger.info("Selected local multiplayer mode")
         return ("submenu", self._create_map_selection_menu())
     
     def _start_vs_ai(self):
         """Set VS AI mode and go to map selection."""
-        self.config.set('network_mode', NetworkMode.VS_AI.value)
+        self.config.set('game_mode', GameMode.VS_AI.value)
         self.config.save_config()
         logger.info("Selected VS AI mode")
         return ("submenu", self._create_map_selection_menu())
@@ -245,7 +245,7 @@ class MenuUI:
         
         # About screen content
         lines = [
-            "Boneglaive v0.9.0b BETA",
+            "Boneglaive v1.2",
             "Tactical Turn-Based Combat Game",
             "Beta Release",
             "",
@@ -282,7 +282,7 @@ class MenuUI:
             if line:  # Non-empty line
                 # Center the text horizontally
                 col = max(2, (width - len(line)) // 2)
-                if "v0.9.0b BETA" in line:
+                if "v1.2" in line:
                     # Title in bold
                     self.renderer.draw_text(start_row + i, col, line, 1, curses.A_BOLD)
                 elif "Copyright" in line or "GPL-3.0" in line:
@@ -558,7 +558,7 @@ class MenuUI:
             self.renderer.draw_text(start_row + i, col, line, 1, 0)
         
         # Add subtitle
-        subtitle = "v0.9.0b BETA"
+        subtitle = "v1.2"
         subtitle_col = max(0, (width - len(subtitle)) // 2)
         self.renderer.draw_text(start_row + len(title_art) + 1, subtitle_col, subtitle, 1, 0)
         

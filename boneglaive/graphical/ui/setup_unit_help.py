@@ -104,28 +104,9 @@ class SetupUnitHelp:
                 return str(unit_type)
 
     def _load_unit_help_data(self):
-        """Load unit help data - reuses data from ASCII help component and adds DLC help data."""
-        from boneglaive.ui.ui_components import UnitHelpComponent
-
-        # Create a dummy component just to get the help data
-        class DummyRenderer:
-            pass
-        class DummyUI:
-            pass
-
-        dummy_component = UnitHelpComponent(DummyRenderer(), DummyUI())
-        help_data = dummy_component.unit_help_data.copy()
-
-        # Add DLC unit help data
-        from boneglaive.game.dlc_manager import get_dlc_manager
-        dlc_manager = get_dlc_manager()
-        for unit_id in dlc_manager.get_loaded_units():
-            unit_enum = dlc_manager.loaded_units[unit_id]['enum_value']
-            dlc_help_data = dlc_manager.get_unit_help_data(unit_id)
-            if dlc_help_data:
-                help_data[unit_enum] = dlc_help_data
-
-        return help_data
+        """Load unit help data including DLC units."""
+        from boneglaive.game.unit_help_data import get_unit_help_data
+        return get_unit_help_data()
 
     def _load_simplified_info(self):
         """Load simplified unit info for setup phase - brief descriptions only."""

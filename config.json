@@ -6,7 +6,7 @@
   "animation_speed": 1.4,
   "show_grid": true,
   "selected_map": "hard_pressed",
-  "network_mode": "vs_ai",
+  "game_mode": "vs_ai",
   "player_name": "Player",
   "current_profile": "PLAYER",
   "ai_difficulty": "medium",

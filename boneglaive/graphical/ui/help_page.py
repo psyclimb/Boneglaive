@@ -4,7 +4,6 @@ Help Page UI Component for Graphical Mode
 Displays unit help pages with skill icons and status effect icons.
 """
 import pygame
-import os
 from typing import Optional, Dict, List, Tuple
 from boneglaive.utils.constants import UnitType
 from .scrollbar import Scrollbar
@@ -52,18 +51,9 @@ class HelpPage:
         self.unit_help_data = self._load_unit_help_data()
 
     def _load_unit_help_data(self):
-        """Load unit help data - reuses data from ASCII help component."""
-        # Import here to avoid circular dependency
-        from boneglaive.ui.ui_components import UnitHelpComponent
-
-        # Create a dummy component just to get the help data
-        class DummyRenderer:
-            pass
-        class DummyUI:
-            pass
-
-        dummy_component = UnitHelpComponent(DummyRenderer(), DummyUI())
-        return dummy_component.unit_help_data
+        """Load unit help data."""
+        from boneglaive.game.unit_help_data import get_unit_help_data
+        return get_unit_help_data()
 
     def _load_icon(self, icon_name: str, icon_type: str = "skill") -> Optional[pygame.Surface]:
         """

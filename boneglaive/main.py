@@ -13,15 +13,10 @@ import sys
 import logging
 from typing import Optional, Tuple
 
-# try:
-#     from boneglaive.utils.force_autumn import *
-# except ImportError:
-#     pass  # Normal operation if force_autumn doesn't exist
-
 from boneglaive.ui.game_ui import GameUI
 from boneglaive.ui.menu_ui import MenuUI
 from boneglaive.utils.debug import debug_config, logger, LogLevel
-from boneglaive.utils.config import ConfigManager, NetworkMode, DisplayMode
+from boneglaive.utils.config import ConfigManager, GameMode, DisplayMode
 from boneglaive.utils.platform_compat import setup_terminal_optimizations, get_platform_name
 
 def parse_args():
@@ -59,12 +54,12 @@ def configure_settings(args):
     
     # Network mode
     if args.mode:
-        network_mode_map = {
-            'single': NetworkMode.SINGLE_PLAYER.value,
-            'local': NetworkMode.LOCAL_MULTIPLAYER.value,
-            'vs_ai': NetworkMode.VS_AI.value
+        game_mode_map = {
+            'single': GameMode.SINGLE_PLAYER.value,
+            'local': GameMode.LOCAL_MULTIPLAYER.value,
+            'vs_ai': GameMode.VS_AI.value
         }
-        config.set('network_mode', network_mode_map[args.mode])
+        config.set('game_mode', game_mode_map[args.mode])
 
     # AI settings
     if args.mode == 'vs_ai':

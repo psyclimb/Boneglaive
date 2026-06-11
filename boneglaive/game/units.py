@@ -70,9 +70,6 @@ class Unit:
         self.teleport_target_indicator = None  # Visual indicator for Delta Config destination
         self.expedite_path_indicator = None  # Visual indicator for Expedite path
         self.jawline_indicator = None  # Visual indicator for Jawline network area
-        
-        # Old indicator removed - new skills have their own indicators
-        # Old emetic flange indicator removed
         self.broaching_gas_indicator = None  # Visual indicator for Broaching Gas target
         self.saft_e_gas_indicator = None  # Visual indicator for Saft-E-Gas target
         self.market_futures_indicator = None  # Visual indicator for Market Futures furniture target
@@ -111,7 +108,11 @@ class Unit:
         self.shredded = False  # Track if unit is affected by Gaussian Dusk upgrade
         self.shredded_duration = 0  # Duration remaining for shredded effect
         self.shredded_original_defense = 0  # Store original defense to restore later
-        
+
+        # First turn move bonus (player 2 gets +1 move on first turn)
+        self.first_turn_move_bonus = False
+        self.first_turn_move_bonus_duration = 0
+
         # Græ Exchange echo properties
         self.is_doppelganger = False  # Whether this unit is a doppelganger created by Græ Exchange
         self.doppelganger_duration = 0  # Number of OWNER'S turns the doppelganger remains (decremented only on owner's turn)
@@ -278,10 +279,6 @@ class Unit:
         # Apply Estrange effect (-2 to all stats) if unit is estranged
         estrange_penalty = -2 if self.estranged else 0
         
-        # Calculate terrain-based bonuses
-        terrain_defense_bonus = 0
-        # Terrain bonuses removed - leaf pits no longer provide defense bonus
-        
         # Apply Pumped Up status effect bonuses (+1 to all stats including PRT)
         pumped_up_bonus = 0
         if hasattr(self, 'pumped_up_active') and self.pumped_up_active:
@@ -294,7 +291,7 @@ class Unit:
         stats = {
             'hp': self.max_hp + self.hp_bonus + pumped_up_bonus,
             'attack': max(0 if self.type == UnitType.DERELICTIONIST else 1, self.attack + self.attack_bonus + estrange_penalty + pumped_up_bonus),
-            'defense': 0 if shredded_override else max(0, self.defense + self.defense_bonus + terrain_defense_bonus + estrange_penalty + pumped_up_bonus),
+            'defense': 0 if shredded_override else max(0, self.defense + self.defense_bonus + estrange_penalty + pumped_up_bonus),
             'attack_range': max(1, self.attack_range + self.attack_range_bonus + estrange_penalty + pumped_up_bonus)
         }
         

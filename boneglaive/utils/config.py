@@ -16,7 +16,7 @@ class DisplayMode(Enum):
     TEXT = "text"
     GRAPHICAL = "graphical"
 
-class NetworkMode(Enum):
+class GameMode(Enum):
     """Network mode options."""
     SINGLE_PLAYER = "single"
     LOCAL_MULTIPLAYER = "local"
@@ -37,7 +37,7 @@ class GameConfig:
     selected_map: str = "lime_foyer"
     
     # Network settings
-    network_mode: str = NetworkMode.VS_AI.value
+    game_mode: str = GameMode.VS_AI.value
     player_name: str = "Player"
 
     # Profile settings

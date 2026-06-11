@@ -307,9 +307,9 @@ class Game:
                             break
         
         # Check if we're in VS_AI mode
-        from boneglaive.utils.config import ConfigManager, NetworkMode
+        from boneglaive.utils.config import ConfigManager, GameMode
         config = ConfigManager()
-        is_vs_ai_mode = config.get('network_mode') == NetworkMode.VS_AI.value
+        is_vs_ai_mode = config.get('game_mode') == GameMode.VS_AI.value
         
         if is_vs_ai_mode and player == 2:
             # In VS_AI mode, use random unit types for player 2 with max 2 of each type
@@ -538,12 +538,12 @@ class Game:
         self.units = []
         
         # Check if we're in VS_AI mode - we need to handle this specifically
-        from boneglaive.utils.config import ConfigManager, NetworkMode
+        from boneglaive.utils.config import ConfigManager, GameMode
         config = ConfigManager()
-        is_vs_ai_mode = config.get('network_mode') == NetworkMode.VS_AI.value
+        is_vs_ai_mode = config.get('game_mode') == GameMode.VS_AI.value
         
         # Print debug info
-        logger.info(f"Game Mode: {config.get('network_mode')}, VS_AI Mode: {is_vs_ai_mode}")
+        logger.info(f"Game Mode: {config.get('game_mode')}, VS_AI Mode: {is_vs_ai_mode}")
         
         # Define available unit types for Player 2 in VS_AI mode (random selection)
         vs_ai_p2_unit_types = [
@@ -793,9 +793,9 @@ class Game:
             emergency_p2_positions = [(2, 8, 16), (2, 8, 17), (2, 8, 18)]
             
             # Check if we're in VS_AI mode
-            from boneglaive.utils.config import ConfigManager, NetworkMode
+            from boneglaive.utils.config import ConfigManager, GameMode
             config = ConfigManager()
-            is_vs_ai_mode = config.get('network_mode') == NetworkMode.VS_AI.value
+            is_vs_ai_mode = config.get('game_mode') == GameMode.VS_AI.value
             
             # For VS_AI mode, add random unit types for player 2 with max 2 of each
             if is_vs_ai_mode and p2_missing > 0:
@@ -4560,19 +4560,6 @@ class Game:
             # Process removals and restore original terrain
             for tile_y, tile_x in tiles_to_remove:
                 tile = (tile_y, tile_x)
-
-                # Create wall despawn animation if UI with graphical renderer is available
-                # DISABLED: Animation implemented but not triggered
-                # if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'create_animation'):
-                #     # Check if this is graphical mode (has camera)
-                #     if hasattr(ui.renderer, 'camera'):
-                #         ui.renderer.create_animation(
-                #             skill_name="MARROW_DIKE_WALL_DESPAWN",
-                #             caster_unit=None,
-                #             target_pos=(tile_y, tile_x),
-                #             camera=ui.renderer.camera,
-                #             game=self
-                #         )
 
                 # Restore original terrain only if current terrain is still MARROW_WALL
                 # This prevents restoring incorrect terrain if overlapping occurred

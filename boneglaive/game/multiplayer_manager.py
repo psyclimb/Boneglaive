@@ -8,7 +8,7 @@ from typing import Optional
 
 from boneglaive.game.engine import Game
 from boneglaive.ai.ai_interface import AIInterface
-from boneglaive.utils.config import ConfigManager, NetworkMode
+from boneglaive.utils.config import ConfigManager, GameMode
 from boneglaive.utils.debug import logger
 from boneglaive.utils.message_log import message_log, MessageType
 
@@ -31,15 +31,15 @@ class MultiplayerManager:
 
     def _initialize_mode(self) -> bool:
         """Initialize the appropriate game mode."""
-        network_mode = self.config.get('network_mode')
+        game_mode = self.config.get('game_mode')
 
-        if network_mode == NetworkMode.SINGLE_PLAYER.value:
+        if game_mode == GameMode.SINGLE_PLAYER.value:
             logger.info("Initializing single player mode")
             self.game.local_multiplayer = False
             self.initialized = True
             return True
 
-        elif network_mode == NetworkMode.LOCAL_MULTIPLAYER.value:
+        elif game_mode == GameMode.LOCAL_MULTIPLAYER.value:
             logger.info("Initializing local multiplayer")
             self._is_local_multiplayer = True
             self.game.local_multiplayer = True
@@ -47,7 +47,7 @@ class MultiplayerManager:
             logger.info("Local multiplayer initialized successfully")
             return True
 
-        elif network_mode == NetworkMode.VS_AI.value:
+        elif game_mode == GameMode.VS_AI.value:
             logger.info("Initializing VS AI mode")
             self.ai_interface = AIInterface()
             result = self.ai_interface.initialize(self.game, ui=getattr(self.game, 'ui', None))
@@ -62,7 +62,7 @@ class MultiplayerManager:
             return result
 
         else:
-            logger.error(f"Unknown network mode: {network_mode}")
+            logger.error(f"Unknown network mode: {game_mode}")
             self.initialized = False
             return False
 
@@ -167,8 +167,6 @@ class MultiplayerManager:
 
     def _apply_player2_first_turn_buff(self) -> None:
         """Apply +1 move range buff to all player 2 units on their first turn."""
-        from boneglaive.utils.message_log import message_log, MessageType
-
         # Find all player 2 units and apply the buff
         player2_units = [unit for unit in self.game.units if unit.player == 2 and unit.is_alive()]
 

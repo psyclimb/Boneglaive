@@ -64,7 +64,6 @@ class SoundManager:
             if not pygame.mixer.get_init():
                 pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=2048)
         except Exception as e:
-            pass
             self.enabled = False
 
     def load_sound(self, sound_key: str, category: str = "skills") -> bool:
@@ -93,7 +92,6 @@ class SoundManager:
 
         if not sound_path.exists():
             if sound_key not in self._missing_sounds:
-                pass
                 self._missing_sounds.add(sound_key)
             return False
 
@@ -102,7 +100,6 @@ class SoundManager:
             self._sound_cache[sound_key] = sound
             return True
         except Exception as e:
-            pass
             return False
 
     def play(self, sound_key: str, category: str = "skills", loops: int = 0) -> bool:
@@ -136,7 +133,6 @@ class SoundManager:
             sound.play(loops=loops)
             return True
         except Exception as e:
-            pass
             return False
 
     def stop(self, sound_key: str):

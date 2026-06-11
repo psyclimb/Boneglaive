@@ -10,7 +10,7 @@ from boneglaive.game.engine import Game
 from boneglaive.utils.coordinates import Position
 from boneglaive.utils.debug import debug_config, measure_perf, logger
 from boneglaive.utils.asset_manager import AssetManager
-from boneglaive.utils.config import ConfigManager, NetworkMode
+from boneglaive.utils.config import ConfigManager, GameMode
 from boneglaive.utils.input_handler import InputHandler, GameAction
 from boneglaive.game.player_profile import profile_manager
 from boneglaive.renderers.curses_renderer import CursesRenderer
@@ -79,8 +79,8 @@ class GameUI:
             logger.info("GameUI: No profile selected, using default 'Player 1'")
 
         # Check if Player 2 is AI
-        network_mode = self.config_manager.get('network_mode', NetworkMode.VS_AI.value)
-        if network_mode == NetworkMode.VS_AI.value:
+        game_mode = self.config_manager.get('game_mode', GameMode.VS_AI.value)
+        if game_mode == GameMode.VS_AI.value:
             player_names[2] = "AI"
             logger.info("GameUI: Player 2 is AI opponent")
         else:
@@ -164,11 +164,6 @@ class GameUI:
     
     def _setup_event_handlers(self):
         """Set up event handlers for the main UI."""
-        # Subscribe to events
-        self._subscribe_to_event(EventType.CURSOR_MOVED, self._on_cursor_moved)
-        self._subscribe_to_event(EventType.UNIT_SELECTED, self._on_unit_selected)
-        self._subscribe_to_event(EventType.UNIT_DESELECTED, self._on_unit_deselected)
-        self._subscribe_to_event(EventType.MODE_CHANGED, self._on_mode_changed)
         self._subscribe_to_event(EventType.GAME_OVER, self._on_game_over)
         self._subscribe_to_event(EventType.UI_REDRAW_REQUESTED, self._on_ui_redraw_requested)
         self._subscribe_to_event(EventType.MESSAGE_DISPLAY_REQUESTED, self._on_message_display_requested)
@@ -181,26 +176,6 @@ class GameUI:
     def _publish_event(self, event_type, event_data=None):
         """Publish an event."""
         self.event_manager.publish(event_type, event_data)
-    
-    def _on_cursor_moved(self, event_type, event_data):
-        """Handle cursor moved events."""
-        # No specific action needed yet - just provides a hook for future behavior
-        pass
-    
-    def _on_unit_selected(self, event_type, event_data):
-        """Handle unit selected events."""
-        # No specific action needed yet - just provides a hook for future behavior
-        pass
-    
-    def _on_unit_deselected(self, event_type, event_data):
-        """Handle unit deselected events."""
-        # No specific action needed yet - just provides a hook for future behavior
-        pass
-    
-    def _on_mode_changed(self, event_type, event_data):
-        """Handle mode changed events."""
-        # No specific action needed yet - just provides a hook for future behavior
-        pass
     
     def _on_game_over(self, event_type, event_data):
         """Handle game over events."""

@@ -21,11 +21,7 @@ class MainMenuScreen(MenuScreen):
         self.screen_height = screen_height
         self.use_panel = False  # Main menu uses full kaleidoscope background
 
-        # Animated background - switch between styles
-        # Use KaleidoscopeBackground for geometric patterns
         self.background = KaleidoscopeBackground(screen_width, screen_height)
-        # Or use AnimatedBackground for skull glaive sun
-        # self.background = AnimatedBackground(screen_width, screen_height)
 
         # Load Creepster horror font for title, scaled to screen height
         creepster_path = asset_path('boneglaive/graphical/assets/Creepster-Regular.ttf')

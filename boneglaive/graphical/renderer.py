@@ -141,7 +141,6 @@ class GraphicalRenderer:
         refresh_all_module_constants()
 
         # Set SDL2 hints BEFORE pygame.init() for better icon support
-        import os
         icon_path = asset_path('graphics/boneglaive_icon.png')
         os.environ['SDL_VIDEO_WINDOW_ICON'] = icon_path
 
@@ -525,8 +524,6 @@ class GraphicalRenderer:
                 # Trigger respawn animation ONLY for actual respawns (not vapors, doppelgangers, or initial spawns)
                 # Vapors and doppelgangers have their own spawn animations
                 if is_respawn and not is_vapor and not is_doppelganger:
-                    pass
-
                     # Create respawn animation IMMEDIATELY (not queued)
                     from boneglaive.graphical.animations import AnimationFactory
                     respawn_animation = AnimationFactory.create_animation(
@@ -786,7 +783,6 @@ class GraphicalRenderer:
                             game_unit = self.upgrade_window.unit
                             success = self.game_adapter.game.apply_unit_upgrade(game_unit, upgrade['skill_name'])
                             if success:
-                                pass
                                 self.combat_log.add_message(f"Upgraded {upgrade['skill_name']}!", "system")
                                 # Refresh the upgrade window with updated available upgrades
                                 if not self.upgrade_window.show(game_unit):
@@ -1075,7 +1071,6 @@ class GraphicalRenderer:
                                 game_unit = self.upgrade_window.unit
                                 success = self.game_adapter.game.apply_unit_upgrade(game_unit, upgrade['skill_name'])
                                 if success:
-                                    pass
                                     self.combat_log.add_message(f"Upgraded {upgrade['skill_name']}!", "system")
                                     # Refresh the upgrade window with updated available upgrades
                                     if not self.upgrade_window.show(game_unit):
@@ -5545,11 +5540,11 @@ class GraphicalRenderer:
 
 def main():
     """Entry point for graphical version."""
-    # Load config to get selected map and network mode
+    # Load config to get selected map and game mode
     from boneglaive.utils.config import ConfigManager
     config = ConfigManager()
     selected_map = config.get('selected_map', 'hard_pressed')
-    network_mode = config.get('network_mode', 'single')
+    game_mode = config.get('game_mode', 'single')
 
     # Create game state adapter
     adapter = GameStateAdapter()
@@ -5561,15 +5556,12 @@ def main():
     from boneglaive.graphical.ui_adapter import GraphicalUIAdapter
     ui_adapter = GraphicalUIAdapter(renderer)
 
-    # Initialize game with real game logic
-    pass  # Network mode set
-    # skip_setup=False means game starts in setup phase
-    adapter.initialize_game(skip_setup=False, map_name=selected_map, network_mode=network_mode, ui_adapter=ui_adapter)
+    # Initialize game
+    adapter.initialize_game(skip_setup=False, map_name=selected_map, game_mode=game_mode, ui_adapter=ui_adapter)
 
     # Set up terrain change callback so renderer marks tiles dirty when terrain changes
     if adapter.game and adapter.game.map:
         adapter.game.map.terrain_change_callback = renderer.mark_tile_dirty
-        pass  # Terrain callback registered
 
     # Sync units from game
     pass  # Syncing units

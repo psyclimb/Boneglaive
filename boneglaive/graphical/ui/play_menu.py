@@ -4,10 +4,9 @@ Play Menu Screens
 Screens for game mode selection and map selection.
 """
 import pygame
-import os
 from typing import Optional, List
 from .menu_components import MenuScreen, Button, COLOR_TEXT, COLOR_BG
-from boneglaive.utils.config import ConfigManager, NetworkMode
+from boneglaive.utils.config import ConfigManager, GameMode
 from boneglaive.game.map import MapFactory
 from boneglaive.utils.paths import asset_path, load_svg
 
@@ -65,10 +64,10 @@ class PlaySubmenu(MenuScreen):
     def _set_action(self, action: str):
         """Set the action result and configure game mode."""
         if action == "vs_ai":
-            self.config.set('network_mode', NetworkMode.VS_AI.value)
+            self.config.set('game_mode', GameMode.VS_AI.value)
             self.config.save_config()
         elif action == "local_mp":
-            self.config.set('network_mode', NetworkMode.LOCAL_MULTIPLAYER.value)
+            self.config.set('game_mode', GameMode.LOCAL_MULTIPLAYER.value)
             self.config.save_config()
 
         self._action_result = action

@@ -91,8 +91,8 @@ def run_game():
     ui_adapter = GraphicalUIAdapter(renderer)
 
     # Get game mode from config
-    from boneglaive.utils.config import NetworkMode
-    game_mode = config.get('network_mode', NetworkMode.VS_AI.value)
+    from boneglaive.utils.config import GameMode
+    game_mode = config.get('game_mode', GameMode.VS_AI.value)
 
     # Initialize game with selected configuration
     # skip_setup=False means game starts in setup phase
@@ -104,7 +104,7 @@ def run_game():
         print("Terrain change callback registered for dynamic terrain updates")
 
     # Set local multiplayer flag based on config
-    adapter.game.local_multiplayer = (game_mode == NetworkMode.LOCAL_MULTIPLAYER.value)
+    adapter.game.local_multiplayer = (game_mode == GameMode.LOCAL_MULTIPLAYER.value)
 
     # Set UI reference on game for animations
     adapter.game.set_ui_reference(ui_adapter)

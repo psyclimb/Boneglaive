@@ -1,10 +1,4 @@
-#!/usr/bin/env python3
-try:
-    import curses
-except ImportError:
-    curses = None
-import time
-from boneglaive.utils.constants import UnitType, ATTACK_EFFECTS, UNIT_SYMBOLS
+"""Bresenham line-drawing utility for projectile paths and line-of-sight."""
 
 def get_line(y0, x0, y1, x1):
     """Get points in a line from (y0,x0) to (y1,x1) using Bresenham's algorithm"""
