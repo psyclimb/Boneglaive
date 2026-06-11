@@ -82,6 +82,13 @@ from boneglaive.graphical.animations.gas_machinist import (
 from boneglaive.graphical.animations.core_animations import (
     RespawnAnimation,
 )
+from boneglaive.graphical.animations.landscaper import (
+    HornswoggleAnimation,
+    TopiaryBreathAnimation,
+    LithophoneAnimation,
+    SlagWallDespawnAnimation,
+    TopiaryRevertAnimation,
+)
 
 # Import sound system
 from boneglaive.graphical.sound_registry import get_sound_for_skill
@@ -193,6 +200,13 @@ class AnimationFactory:
         "DERELICT_PUSH_TRAIL": (DerelictPushTrail, {}),  # Push trail for base Derelict skill
         "DERELICT_BUILDING_FORMATION": (DerelictBuildingFormation, {}),  # Dust cloud animation
         "DERELICT_BUILDING_TILES": (DerelictBuildingTiles, {}),  # Persistent building tiles
+
+        # LANDSCAPER skills
+        "HORNSWOGGLE": (HornswoggleAnimation, {}),
+        "TOPIARY_BREATH": (TopiaryBreathAnimation, {}),
+        "LITHOPHONE": (LithophoneAnimation, {}),
+        "SLAG_WALL_DESPAWN": (SlagWallDespawnAnimation, {}),
+        "TOPIARY_REVERT": (TopiaryRevertAnimation, {}),
 
         # Core game events
         "RESPAWN": (RespawnAnimation, {}),
@@ -1332,6 +1346,54 @@ class AnimationFactory:
                     building_tiles=building_tiles,
                     camera=camera,
                     game=game
+                )
+            elif anim_class.__name__ in ["HornswoggleAnimation", "TopiaryBreathAnimation"]:
+                # Landscaper directional skills - read data from game unit
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
+                )
+            elif anim_class.__name__ == "LithophoneAnimation":
+                # Landscaper terrain shatter - needs target position and game
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game'),
+                    target_x=kwargs.get('target_x', 0),
+                    target_y=kwargs.get('target_y', 0)
+                )
+            elif anim_class.__name__ in ["SlagWallDespawnAnimation", "TopiaryRevertAnimation"]:
+                # Landscaper terrain despawn/revert animations
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=None,
+                    target_pos=target_pos,
+                    particle_emitter=particle_emitter,
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    camera=camera,
+                    game=kwargs.get('game'),
+                    target_x=kwargs.get('target_x', 0),
+                    target_y=kwargs.get('target_y', 0)
                 )
             elif anim_class.__name__ == "RespawnAnimation":
                 # Respawn - Unit rises from ground with bone particles

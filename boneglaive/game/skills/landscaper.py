@@ -460,6 +460,18 @@ class HornswoggleSkill(ActiveSkill):
                      f"from ({grab_y},{grab_x}), dragged {drag_dir_name}, "
                      f"{len(slag_positions)} slag walls, deposited at ({deposit_y},{deposit_x})")
 
+        # Store execution data for graphical animation to read
+        user.last_hornswoggle_data = {
+            'source': (source_y, source_x),
+            'direction': direction,
+            'grab_pos': (grab_y, grab_x),
+            'drag_direction': drag_dir_name,
+            'slag_positions': list(slag_positions),
+            'deposit_pos': (deposit_y, deposit_x),
+            'grabbed_terrain': grabbed_terrain,
+            'grabbed_topiary': grabbed_topiary_unit is not None,
+        }
+
         self.fire_direction = None
         self.fire_source = None
 
@@ -655,6 +667,14 @@ class TopiaryBreathSkill(ActiveSkill):
 
         logger.info(f"TOPIARY BREATH EXECUTED: {user.get_display_name()} transformed "
                      f"{units_transformed} units in {direction} cone")
+
+        # Store execution data for graphical animation to read
+        user.last_topiary_breath_data = {
+            'source': (source_y, source_x),
+            'direction': direction,
+            'cone_tiles': list(cone_tiles),
+            'transformed_units': [(u.y, u.x) for u in caught_units[:units_transformed]],
+        }
 
         self.fire_direction = None
         self.fire_source = None
@@ -861,6 +881,12 @@ class LithophoneSkill(ActiveSkill):
                 MessageType.ABILITY,
                 player=user.player
             )
+
+        # Store execution data for graphical animation to read
+        user.last_lithophone_data = {
+            'target_pos': (ty, tx),
+            'was_topiary': topiary_unit is not None,
+        }
 
         logger.info(f"LITHOPHONE EXECUTED: {user.get_display_name()} shattered {shattered_name} "
                      f"at ({ty},{tx}), {total_hits} shrapnel hits for {shrapnel_damage} each")

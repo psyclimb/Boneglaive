@@ -327,18 +327,10 @@ Cooldowns need careful balancing around Translative Stroke. With 4 minimum damag
 basic attack, she reduces cooldowns by 4 every turn she attacks. If buffed, she reduces
 even faster.
 
-**Current values** (set by user where specified, TBD otherwise):
-- Hornswoggle: **8** (2 attacks to cycle at base ATK, 1 attack if buffed to ATK 3+)
-- Topiary Breath: **TBD** (should be the highest — this is the most impactful skill)
-- Lithophone: **4** (1 attack to cycle at base ATK — fast, but requires adjacent terrain)
-
-**Balancing considerations**:
-- Lithophone at 4 means she can use it almost every other turn if attacking. This is
-  fine because it consumes terrain — she runs out of things to shatter if she spams it.
-- Hornswoggle at 8 means ~2 turns of attacking to cycle. This feels right — she needs
-  time between terrain reshapes, and it gives opponents time to react.
-- Topiary Breath should be high (10-12?) since it's the most game-warping skill.
-  Even with Translative Stroke, it should take 2-3 attacks to cycle back.
+**Final values**:
+- Hornswoggle: **4** (1 attack to cycle — fast terrain reshaping)
+- Topiary Breath: **8** (2 attacks to cycle — powerful CC needs longer cooldown)
+- Lithophone: **4** (1 attack to cycle — fast but consumes terrain)
 
 ---
 
@@ -346,33 +338,35 @@ even faster.
 
 When ready to implement:
 
-- [ ] Add LANDSCAPER to UnitType enum in constants.py
-- [ ] Add stat tuple (20, 1, 2, 3, 1) to UNIT_STATS
-- [ ] Add display name, symbol, attack effect to constants.py
-- [ ] Add to GP_ELIGIBLE_UNITS
-- [ ] Create boneglaive/game/skills/landscaper.py
-      (Translative Stroke, Hornswoggle, Topiary Breath, Lithophone)
-- [ ] Register skills in boneglaive/game/skills/registry.py
-- [ ] Add upgrades to boneglaive/game/upgrades.py
-- [ ] Add unit help data to boneglaive/game/unit_help_data.py
-- [ ] Add to recruitment order in boneglaive/game/recruitment.py
-- [ ] Add to setup_window.py unit list and display names
-- [ ] Create terrain type SLAG_WALL in map.py
-- [ ] Create terrain type TOPIARY in map.py (or handle as unit state, not terrain type)
+### Done (text mode)
+- [x] Add LANDSCAPER to UnitType enum in constants.py
+- [x] Add stat tuple (20, 1, 2, 3, 1) to UNIT_STATS
+- [x] Add display name, symbol, attack effect to constants.py
+- [x] Add to GP_ELIGIBLE_UNITS
+- [x] Create boneglaive/game/skills/landscaper.py
+- [x] Register skills in boneglaive/game/skills/registry.py
+- [x] Add upgrades to boneglaive/game/upgrades.py (placeholders)
+- [x] Add to recruitment order in boneglaive/game/recruitment.py
+- [x] Add to setup_window.py unit list and display names (graphical + text)
+- [x] Create terrain types SLAG_WALL and TOPIARY in map.py
+- [x] Add to text mode UI (skill menu, help data, unit selection, status effects)
+- [x] Handle Translative Stroke 4-hit logic in engine.py
+- [x] Handle Hornswoggle wave/grab/drag/slag in engine.py
+- [x] Handle Topiary Breath cone/transform/checker/revert in engine.py
+- [x] Handle topiary-unit interaction with Hornswoggle and Lithophone
+- [x] Handle Lithophone shatter/shrapnel in engine.py
+- [x] Handle slag wall and topiary duration processing in engine.py
+- [x] Topiary status effect across all systems (999 PRT, immunity, action blocking)
+- [x] ASCII animations for all skills and basic attack
+- [x] Terrain rendering (slag walls, topiaries) in text mode
+
+### Remaining
 - [ ] Create graphics/terrain/slag_wall.svg
 - [ ] Create skill icon SVGs (hornswoggle.svg, topiary_breath.svg, lithophone.svg)
 - [ ] Add AI handling in tactical_evaluator.py
 - [ ] Create boneglaive/graphical/animations/landscaper.py
 - [ ] Add to animation_factory.py
 - [ ] Add sound entries to sound_registry.py
-- [ ] Add to text mode UI (ui_components.py skill menu)
-- [ ] Add to setup_unit_help.py simplified info
-- [ ] Handle Translative Stroke 4-hit logic in engine.py combat resolution
-- [ ] Handle Hornswoggle wave/grab/drag/slag in engine.py
-- [ ] Handle Topiary Breath cone/transform/checker/revert in engine.py
-- [ ] Handle topiary-unit interaction with Hornswoggle and Lithophone
-- [ ] Handle Lithophone shatter/shrapnel in engine.py
-- [ ] Handle slag wall duration/cleanup in engine.py status effect processing
-- [ ] Handle topiary revert after 1 turn in engine.py turn processing
+- [ ] Design and implement upgrades (4 total)
 
-## STATUS: DRAFT — base kit designed, Topiary Breath cooldown and all upgrades TBD
+## STATUS: TEXT MODE COMPLETE — graphical mode, AI, upgrades remaining

@@ -1329,7 +1329,7 @@ class UnitHelpComponent(UIComponent):
                 'overview': [
                     'The LANDSCAPER is a four-armed terrain manipulator who reshapes the battlefield through acoustic resonance. She wields quartz crystal tuning forks and a Tibetan horn array to grab terrain, build slag walls, turn units into topiary sculptures, and shatter terrain for piercing shrapnel.',
                     '',
-                    'Role: Terrain Controller / Support'
+                    'Role: Disabler / Displacer / Utility / Frontline Fighter'
                 ],
                 'stats': [
                     'HP: 20',
@@ -1346,43 +1346,44 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'HORNSWOGGLE (Active)',
-                        'description': 'Fire a sonic wave in one of 8 directions. The wave grabs the first terrain it hits and drags it 90 degrees counter-clockwise, depositing temporary slag walls along the drag path. Can grab any terrain including dynamic terrain.',
+                        'description': 'Fire a sonic wave in one of 8 directions. The wave grabs the first terrain it hits and drags it 90 degrees counter-clockwise. Terrain flies over all obstacles to max drag range. Slag walls are deposited along the drag path, displacing any units or terrain in the way. Can grab any terrain including topiaries.',
                         'details': [
-                            'Beam range: 3, Drag range: 3',
+                            'Wave range: 3, Drag range: 4',
                             'Slag wall duration: 3 turns',
-                            'Cooldown: 8 turns'
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
                         'name': 'TOPIARY BREATH (Active)',
-                        'description': 'Blast a cone of petrifying resonance that transforms ALL units caught (allies and enemies) into topiary terrain sculptures for 1 turn. Units are rearranged into a checker pattern. Topiaries block movement and LOS, and can be Hornswoggled or Lithophoned.',
+                        'description': 'Blast a cone of petrifying resonance that transforms ALL units caught (allies and enemies) into invulnerable topiary terrain sculptures for 2 turns. Units are rearranged into a checker pattern. Topiaries have 999 PRT, block movement and LOS, are immune to status effects, and cannot act. Topiaries can be Hornswoggled or Lithophoned.',
                         'details': [
                             'Cone: 3/5/7/7 tiles wide over 4 rows',
-                            'Duration: 1 turn',
-                            'Cooldown: 10 turns'
+                            'Duration: 2 turns',
+                            'Cooldown: 8 turns'
                         ]
                     },
                     {
                         'name': 'LITHOPHONE (Active)',
-                        'description': 'Strike adjacent terrain with all four tuning forks, shattering it. Shrapnel flies in all 8 directions dealing ATKx2 piercing damage (ignores DEF). Shrapnel stops at terrain but passes through multiple units. Can shatter topiary-units for bonus damage.',
+                        'description': 'Shatter a terrain tile within range. Shrapnel flies in all 8 directions dealing 3 piercing damage (ignores DEF). Shrapnel stops at terrain but passes through multiple units. Shattering a topiary-unit deals 6 piercing damage to them plus shrapnel radiates outward.',
                         'details': [
-                            'Shrapnel range: 3',
-                            'Damage: ATKx2 piercing',
+                            'Cast range: 3, Shrapnel range: 2',
+                            'Damage: 6 piercing (primary), 3 piercing (shrapnel)',
                             'Cooldown: 4 turns'
                         ]
                     }
                 ],
                 'tips': [
                     '- Hornswoggle to build slag walls, then Lithophone to shatter them near enemies',
-                    '- Topiary Breath + Lithophone: turn an enemy into terrain, then shatter them',
+                    '- Topiary Breath + Lithophone: turn an enemy into terrain, then shatter them for 6 + 3 piercing',
                     '- Topiary Breath + Hornswoggle: drag a petrified enemy across the map',
-                    '- Get ATK buffs from teammates to increase Translative Stroke cycling and Lithophone damage',
-                    '- Careful with Topiary Breath — it affects your allies too!'
+                    '- Get ATK buffs from teammates to increase Translative Stroke cycling speed',
+                    '- Careful with Topiary Breath — it affects your allies too!',
+                    '- Slag walls displace units and overwrite existing terrain'
                 ],
                 'tactical': [
-                    '- Strong against: Static defensive units, clustered formations',
-                    '- Vulnerable to: Ranged focus fire, PRT (blocks each Translative Stroke hit)',
-                    '- Best positioning: Mid-line near terrain, adjacent to enemies for Translative Stroke'
+                    '- Strong against: Static defensive units, clustered formations, terrain-dependent strategies',
+                    '- Vulnerable to: Ranged focus fire, PRT (blocks each Translative Stroke hit), Stasiality (resists Topiary)',
+                    '- Best positioning: Mid-line near terrain, in melee range for Translative Stroke cooldown cycling'
                 ]
             },
             'HEINOUS_VAPOR_BROACHING': {

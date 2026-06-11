@@ -3174,6 +3174,11 @@ class Game:
                     if hasattr(self, 'topiary_units') and (unit.y, unit.x) in self.topiary_units:
                         del self.topiary_units[(unit.y, unit.x)]
 
+                    # Store for graphical animation detection
+                    if not hasattr(self, 'last_reverted_topiaries'):
+                        self.last_reverted_topiaries = []
+                    self.last_reverted_topiaries.append((unit.y, unit.x))
+
                     message_log.add_message(
                         f"{unit.get_display_name()} reverts from topiary",
                         MessageType.ABILITY,
@@ -3327,6 +3332,9 @@ class Game:
                 pos_y, pos_x = pos_tuple
                 self.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
                 del self.slag_wall_tiles[pos_tuple]
+
+            # Store for graphical animation detection
+            self.last_despawned_slag_walls = list(slag_to_remove)
 
             if slag_to_remove:
                 message_log.add_message(

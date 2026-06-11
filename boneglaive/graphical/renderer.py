@@ -388,6 +388,8 @@ class GraphicalRenderer:
             TerrainType.MELANGE_FUME: asset_path("graphics/terrain/melange_fume.svg"),
             TerrainType.BLOOD_PLASMA: asset_path("graphics/terrain/blood_plasma.svg"),
             TerrainType.DERELICT_BUILDING: asset_path("graphics/terrain/derelict_building.svg"),
+            TerrainType.SLAG_WALL: asset_path("graphics/terrain/slag_wall.svg"),
+            TerrainType.TOPIARY: asset_path("graphics/terrain/topiary.svg"),
 
             # Furniture types
             TerrainType.LECTERN: asset_path("graphics/furniture/lectern.svg"),
@@ -3105,10 +3107,22 @@ class GraphicalRenderer:
                 else:
                     pass
 
+            elif attacker.type == UnitType.LANDSCAPER and attack_target and target_unit:
+                from boneglaive.graphical.animations.landscaper import TranslativeStrokeAnimation
+
+                translative_attack = TranslativeStrokeAnimation(
+                    attacker_unit=attacker_animated,
+                    target_unit=target_unit,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake
+                )
+                if translative_attack:
+                    self.active_animations.append(translative_attack)
+
             if attacker.type not in [UnitType.INTERFERER, UnitType.MANDIBLE_FOREMAN, UnitType.GLAIVEMAN,
                                       UnitType.GRAYMAN, UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE,
                                       UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST, UnitType.DERELICTIONIST,
-                                      UnitType.POTPOURRIST] or not attack_target:
+                                      UnitType.POTPOURRIST, UnitType.LANDSCAPER] or not attack_target:
                 pass
 
     def _create_skill_animation(self, event):

@@ -338,26 +338,26 @@ class SetupUnitHelp:
                     }
                 ]
             },
-            "LANDSCAPER": {
-                'difficulty': 5,  # Out of 5
-                'role': '??? / ??? / ???',
-                'overview': 'A mysterious terrain manipulator with unknown capabilities. Details unknown. Coming soon...',
+            UnitType.LANDSCAPER: {
+                'difficulty': 4,  # Out of 5
+                'role': 'Disabler / Displacer / Utility / Frontline Fighter',
+                'overview': 'A four-armed acoustic resonance master wielding quartz tuning forks and a Tibetan horn array. This terrain specialist grabs and moves terrain, creates temporary slag walls, petrifies enemies into garden sculptures, and shatters terrain into lethal shrapnel.',
                 'passive': {
-                    'name': '???',
-                    'desc': 'Placeholder ability description. This unit is not yet available.'
+                    'name': 'TRANSLATIVE STROKE',
+                    'desc': 'Basic attacks hit 4 times with tuning forks. All active skill cooldowns are reduced by the total damage dealt across all four hits.'
                 },
                 'skills': [
                     {
-                        'name': '???',
-                        'desc': 'Placeholder skill description. This unit is not yet available.'
+                        'name': 'HORNSWOGGLE',
+                        'desc': 'Fires a sonic wave that grabs the first terrain hit and drags it 90 degrees counter-clockwise. Slag walls form along the drag path, displacing anything in the way.'
                     },
                     {
-                        'name': '???',
-                        'desc': 'Placeholder skill description. This unit is not yet available.'
+                        'name': 'TOPIARY BREATH',
+                        'desc': 'Breathes petrifying resonance in a wide cone. All units caught are transformed into invulnerable topiary sculptures for 2 turns. Topiaries can be shattered by Lithophone.'
                     },
                     {
-                        'name': '???',
-                        'desc': 'Placeholder skill description. This unit is not yet available.'
+                        'name': 'LITHOPHONE',
+                        'desc': 'Strikes terrain at range with all four forks, shattering it completely. Shrapnel flies in all 8 directions dealing piercing damage. Shattering a topiary deals heavy bonus damage.'
                     }
                 ]
             },
