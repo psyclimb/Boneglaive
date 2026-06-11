@@ -43,7 +43,7 @@ class ScaleManager:
         self.bottom_bar_height = int(80 * self.scale_y)
 
         # Button dimensions
-        self.button_width = int(264 * self.scale_x)
+        self.button_width = int(234 * self.scale_x)
         self.button_height = int(40 * self.scale_y)
         self.button_spacing = int(6 * self.scale_y)
 

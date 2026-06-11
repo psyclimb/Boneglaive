@@ -320,6 +320,9 @@ class GraphicalRenderer:
         self._right_panel_surface = pygame.Surface((RIGHT_PANEL_WIDTH, SCREEN_HEIGHT - TOP_BAR_HEIGHT - BOTTOM_BAR_HEIGHT))
         self._flash_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
 
+        # Cached game background (gradient + dust + vignette, rendered once)
+        self._bg_surface = self._create_game_background(SCREEN_WIDTH, SCREEN_HEIGHT)
+
         # Cached grid surface (to avoid redrawing 200 tiles every frame)
         self._grid_surface = pygame.Surface((GAME_BOARD_WIDTH, GAME_BOARD_HEIGHT))
 
@@ -1091,11 +1094,12 @@ class GraphicalRenderer:
                         # Use same scaled values as drawing code to ensure click area matches visual
                         from boneglaive.graphical.ui.scale_utils import scale_manager
                         log_spacing = scale_manager.scale(10)
-                        log_height = scale_manager.scale(90, 'y')
 
-                        combat_log_x = LEFT_PANEL_WIDTH + log_spacing
+                        combat_log_x = GRID_OFFSET_X
                         combat_log_y = GRID_OFFSET_Y + GAME_BOARD_HEIGHT + log_spacing
-                        combat_log_width = GAME_BOARD_WIDTH - log_spacing * 2
+                        combat_log_width = GRID_WIDTH * TILE_SIZE
+                        action_bottom = getattr(self, '_action_menu_bottom_y', combat_log_y + scale_manager.scale(90, 'y'))
+                        log_height = max(scale_manager.scale(90, 'y'), action_bottom - combat_log_y)
                         combat_log_rect = pygame.Rect(combat_log_x, combat_log_y, combat_log_width, log_height)
                         if combat_log_rect.collidepoint(event.pos):
                             # Open expanded message log
@@ -3469,7 +3473,7 @@ class GraphicalRenderer:
 
         # Reuse main surface (performance: avoid allocation)
         main_surface = self._main_surface
-        main_surface.fill(COLOR_BG)
+        main_surface.blit(self._bg_surface, (0, 0))
 
         # Draw grid
         self.draw_grid(main_surface)
@@ -3622,16 +3626,17 @@ class GraphicalRenderer:
         if self.show_skills:
             self.skill_bar.draw(main_surface, SCREEN_WIDTH, SCREEN_HEIGHT, TOP_BAR_HEIGHT)
 
-        # Draw combat log (below map, horizontal bar - dynamically scaled)
-        # Position it in the game board area with proper spacing
+        # Draw combat log (below map, matches game field width)
         from boneglaive.graphical.ui.scale_utils import scale_manager
         log_spacing = scale_manager.scale(10)
-        log_height = scale_manager.scale(90, 'y')
 
-        combat_log_x = LEFT_PANEL_WIDTH + log_spacing
+        combat_log_x = GRID_OFFSET_X
         combat_log_y = GRID_OFFSET_Y + GAME_BOARD_HEIGHT + log_spacing
-        # Width should fill the game board area (between the two side panels)
-        combat_log_width = GAME_BOARD_WIDTH - log_spacing * 2
+        combat_log_width = GRID_WIDTH * TILE_SIZE
+
+        # Height extends to match action menu panel bottom
+        action_bottom = getattr(self, '_action_menu_bottom_y', combat_log_y + scale_manager.scale(90, 'y'))
+        log_height = max(scale_manager.scale(90, 'y'), action_bottom - combat_log_y)
 
         self.combat_log.draw(main_surface, combat_log_x, combat_log_y, height=log_height, width=combat_log_width)
 
@@ -3639,7 +3644,7 @@ class GraphicalRenderer:
         self.draw_ui(main_surface)
 
         # Apply shake offset and blit to screen
-        self.screen.fill(COLOR_BG)
+        self.screen.blit(self._bg_surface, (0, 0))
         self.screen.blit(main_surface, (int(shake_offset_x), int(shake_offset_y)))
 
         # Draw flash overlay (performance: reuse surface)
@@ -4320,17 +4325,8 @@ class GraphicalRenderer:
         ui_layout = config.get('ui_layout', 'default')
 
         # === LEFT PANEL (Dedicated Space) ===
-        left_panel_x = 0  # Starts at left edge
+        left_panel_x = 0
         left_panel_y = TOP_BAR_HEIGHT
-
-        # Draw solid background (performance: reuse cached surface)
-        self._left_panel_surface.fill((30, 34, 42))  # Solid dark background
-        surface.blit(self._left_panel_surface, (left_panel_x, left_panel_y))
-
-        # Draw border on right side
-        pygame.draw.line(surface, (60, 64, 72),
-                        (LEFT_PANEL_WIDTH - 1, TOP_BAR_HEIGHT),
-                        (LEFT_PANEL_WIDTH - 1, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT), 2)
 
         # Scale panel spacing values
         from boneglaive.graphical.ui.scale_utils import scale_manager
@@ -4348,10 +4344,10 @@ class GraphicalRenderer:
             motor_y = turn_y + turn_spacing
             self.motor_animation.draw(surface, left_panel_x + panel_padding_lg, motor_y)
             action_menu_y = motor_y + motor_height_spacing
-            self.action_menu.draw(surface, left_panel_x + panel_padding_sm, action_menu_y)
+            self.action_menu.draw(surface, left_panel_x + panel_padding_lg, action_menu_y)
         else:
             # Draw player indicator, unit status bar, and unit info on left panel
-            player_y = left_panel_y + panel_padding_sm
+            player_y = left_panel_y + panel_padding_md
             self._draw_player_indicator(surface, left_panel_x, player_y)
             unit_bar_y = player_y + player_spacing
             unit_bar_height = self.unit_status_bar.get_height()
@@ -4360,21 +4356,12 @@ class GraphicalRenderer:
             self.unit_info_panel.draw(surface, left_panel_x + panel_padding_md, unit_info_y)
 
         # === RIGHT PANEL (Dedicated Space) ===
-        right_panel_x = SCREEN_WIDTH - RIGHT_PANEL_WIDTH  # Starts at right edge - panel width
+        right_panel_x = SCREEN_WIDTH - RIGHT_PANEL_WIDTH
         right_panel_y = TOP_BAR_HEIGHT
-
-        # Draw solid background (performance: reuse cached surface)
-        self._right_panel_surface.fill((30, 34, 42))  # Solid dark background
-        surface.blit(self._right_panel_surface, (right_panel_x, right_panel_y))
-
-        # Draw border on left side
-        pygame.draw.line(surface, (60, 64, 72),
-                        (right_panel_x, TOP_BAR_HEIGHT),
-                        (right_panel_x, SCREEN_HEIGHT - BOTTOM_BAR_HEIGHT), 2)
 
         if ui_layout == "reversed":
             # Draw player indicator, unit status bar, and unit info on right panel
-            player_y = right_panel_y + panel_padding_sm
+            player_y = right_panel_y + panel_padding_md
             self._draw_player_indicator(surface, right_panel_x, player_y)
             unit_bar_y = player_y + player_spacing
             unit_bar_height = self.unit_status_bar.get_height()
@@ -4388,58 +4375,105 @@ class GraphicalRenderer:
             motor_y = turn_y + turn_spacing
             self.motor_animation.draw(surface, right_panel_x + panel_padding_lg, motor_y)
             action_menu_y = motor_y + motor_height_spacing
-            self.action_menu.draw(surface, right_panel_x + panel_padding_sm, action_menu_y)
+            self.action_menu.draw(surface, right_panel_x + panel_padding_lg, action_menu_y)
+
+        # Store action menu bottom y for combat log alignment
+        from boneglaive.graphical.ui.action_menu import BUTTON_HEIGHT, BUTTON_SPACING, MENU_PADDING as ACTION_MENU_PADDING
+        num_buttons = len(self.action_menu.buttons)
+        action_panel_height = ACTION_MENU_PADDING * 2 + num_buttons * BUTTON_HEIGHT + (num_buttons - 1) * BUTTON_SPACING
+        self._action_menu_bottom_y = action_menu_y + action_panel_height
+
+    @staticmethod
+    def _create_game_background(width: int, height: int) -> pygame.Surface:
+        """Create the cached game background with gradient, dust texture, and vignette."""
+        import math
+        from boneglaive.graphical.ui.panel_decorations import create_dust_texture
+
+        bg = pygame.Surface((width, height))
+
+        # Vertical gradient: slightly lighter top to darker bottom
+        color_top = (44, 48, 56)
+        color_bottom = (24, 26, 32)
+        for y_pos in range(height):
+            t = y_pos / max(1, height - 1)
+            r = int(color_top[0] + (color_bottom[0] - color_top[0]) * t)
+            g = int(color_top[1] + (color_bottom[1] - color_top[1]) * t)
+            b = int(color_top[2] + (color_bottom[2] - color_top[2]) * t)
+            pygame.draw.line(bg, (r, g, b), (0, y_pos), (width - 1, y_pos))
+
+        # Dust/grain texture overlay
+        dust = create_dust_texture(width, height, intensity=20)
+        bg.blit(dust, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+        # Radial vignette: darken edges, keep center clear
+        vignette = pygame.Surface((width, height), pygame.SRCALPHA)
+        cx, cy = width // 2, height // 2
+        max_dist = math.sqrt(cx * cx + cy * cy)
+        # Draw concentric rings from outside in
+        for radius in range(int(max_dist), 0, -4):
+            t = radius / max_dist
+            # Only darken the outer 40% of the radius
+            if t > 0.6:
+                alpha = int(80 * ((t - 0.6) / 0.4) ** 1.5)
+                alpha = min(alpha, 80)
+                pygame.draw.circle(vignette, (0, 0, 0, alpha), (cx, cy), radius)
+        bg.blit(vignette, (0, 0))
+
+        return bg
 
     def _draw_turn_counter(self, surface: pygame.Surface, x: int, y: int):
         """Draw turn counter (works on either panel)."""
         from .ui.font_utils import render_fitted_text
+        from boneglaive.graphical.ui.scale_utils import scale_manager
 
         game = self.game_adapter.game
         if not game:
             return
 
-        # Panel width is same for both sides
-        panel_width = LEFT_PANEL_WIDTH  # Same as RIGHT_PANEL_WIDTH
+        panel_width = LEFT_PANEL_WIDTH
+        text_margin = scale_manager.scale(20, 'x')
+        text_max_h = scale_manager.scale(25, 'y')
+        text_center_y = scale_manager.scale(15, 'y')
 
-        # Draw "TURN X" centered in panel
         turn_text = render_fitted_text(
             f"TURN {game.turn}",
-            max_width=panel_width - 20,
-            max_height=25,
+            max_width=panel_width - text_margin,
+            max_height=text_max_h,
             color=(255, 255, 255),
             base_font_size=20,
             min_font_size=16,
             max_font_size=24
         )
-        text_rect = turn_text.get_rect(center=(x + panel_width // 2, y + 15))
+        text_rect = turn_text.get_rect(center=(x + panel_width // 2, y + text_center_y))
         surface.blit(turn_text, text_rect)
 
     def _draw_player_indicator(self, surface: pygame.Surface, x: int, y: int):
         """Draw player indicator (works on either panel)."""
         from .ui.font_utils import render_fitted_text
+        from boneglaive.graphical.ui.scale_utils import scale_manager
 
         game = self.game_adapter.game
         if not game:
             return
 
-        # Panel width is same for both sides
-        panel_width = LEFT_PANEL_WIDTH  # Same as RIGHT_PANEL_WIDTH
+        panel_width = LEFT_PANEL_WIDTH
+        text_margin = scale_manager.scale(20, 'x')
+        text_max_h = scale_manager.scale(25, 'y')
+        text_center_y = scale_manager.scale(15, 'y')
 
-        # Get player color
         player_color = (100, 255, 100) if game.current_player == 1 else (100, 150, 255)
         player_name = game.get_player_name(game.current_player)
 
-        # Draw player name centered in panel
         player_text = render_fitted_text(
             player_name.upper(),
-            max_width=panel_width - 20,
-            max_height=25,
+            max_width=panel_width - text_margin,
+            max_height=text_max_h,
             color=player_color,
             base_font_size=20,
             min_font_size=16,
             max_font_size=24
         )
-        text_rect = player_text.get_rect(center=(x + panel_width // 2, y + 12))
+        text_rect = player_text.get_rect(center=(x + panel_width // 2, y + text_center_y))
         surface.blit(player_text, text_rect)
 
     def _apply_player2_first_turn_buff(self):

@@ -662,6 +662,22 @@ class ActionMenu:
             surface: Surface to draw on
             x, y: Position (top-left)
         """
+        from .menu_components import draw_gradient_rect
+
+        # Draw background panel behind all buttons
+        num_buttons = len(self.buttons)
+        panel_width = BUTTON_WIDTH + MENU_PADDING * 2
+        panel_height = MENU_PADDING * 2 + num_buttons * BUTTON_HEIGHT + (num_buttons - 1) * BUTTON_SPACING
+        panel_rect = pygame.Rect(x, y, panel_width, panel_height)
+
+        # Panel background matching motor animation style
+        panel_surface = pygame.Surface((panel_width, panel_height), pygame.SRCALPHA)
+        draw_gradient_rect(panel_surface, pygame.Rect(0, 0, panel_width, panel_height),
+                          (42, 42, 47), (26, 26, 31), alpha=240)
+        pygame.draw.rect(panel_surface, (80, 85, 90),
+                        (0, 0, panel_width, panel_height), 2, border_radius=5)
+        surface.blit(panel_surface, (x, y))
+
         current_y = y + MENU_PADDING
 
         # Draw each button and collect particle data
