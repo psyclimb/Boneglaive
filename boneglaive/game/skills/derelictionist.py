@@ -346,8 +346,10 @@ class VagalRunSkill(ActiveSkill):
                     0.6  # Slower for heavy, deliberate immobilization
                 )
 
-            _place_derelict_building(target, user, game, ui)
-        
+            from boneglaive.game.upgrades import UpgradeManager
+            if UpgradeManager.is_skill_upgraded(user, "Derelict"):
+                _place_derelict_building(target, user, game, ui)
+
         # Show execution animation if UI available
         if ui and hasattr(ui, 'renderer'):
             # Vagal run animation - trauma cracking through the nerve pathway
@@ -846,8 +848,10 @@ class DerelictSkill(ActiveSkill):
                     0.6  # Slower for heavy, deliberate immobilization
                 )
 
-            _place_derelict_building(target, user, game, ui)
-        
+            from boneglaive.game.upgrades import UpgradeManager
+            if UpgradeManager.is_skill_upgraded(user, "Derelict"):
+                _place_derelict_building(target, user, game, ui)
+
         # Clean up stored direction data
         if hasattr(target, 'derelict_push_direction'):
             delattr(target, 'derelict_push_direction')
