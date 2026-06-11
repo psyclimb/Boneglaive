@@ -190,11 +190,6 @@ def main(stdscr):
         # Otherwise use a null handler to prevent stdout logging
         logger.addHandler(logging.NullHandler())
 
-    # Initialize DLC system
-    from boneglaive.game.dlc_manager import initialize_dlc_system
-    dlc_count = initialize_dlc_system()
-    logger.info(f"DLC system initialized: {dlc_count} units loaded")
-    
     logger.info("Starting Boneglaive")
     
     # Run menu or skip to game

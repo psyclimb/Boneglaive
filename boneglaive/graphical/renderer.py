@@ -586,31 +586,12 @@ class GraphicalRenderer:
         Get the sprite path for a unit type.
 
         Args:
-            unit_type: UnitType enum (int for DLC units)
+            unit_type: UnitType enum
 
         Returns:
             Path to sprite file (absolute path)
         """
-        import os
-        from pathlib import Path
-
-        # Check if this is a DLC unit (enum value >= 100)
-        unit_type_value = unit_type if isinstance(unit_type, int) else getattr(unit_type, 'value', unit_type)
-
-        if isinstance(unit_type_value, int) and unit_type_value >= 100:
-            # DLC unit - get unit_id from DLC manager
-            from boneglaive.game.dlc_manager import get_dlc_manager
-            dlc_manager = get_dlc_manager()
-            unit_id = dlc_manager.get_unit_id_from_enum(unit_type_value)
-
-            if unit_id:
-                unit_type_name = unit_id.lower()
-            else:
-                # Fallback if not found
-                unit_type_name = str(unit_type_value)
-        else:
-            # Base game unit - extract name from enum
-            unit_type_name = str(unit_type).split('.')[-1].lower()
+        unit_type_name = str(unit_type).split('.')[-1].lower()
 
         sprite_path = asset_path(f"graphics/units/{unit_type_name}.svg")
         return sprite_path
@@ -2904,11 +2885,6 @@ class GraphicalRenderer:
         # Check if attacker is INTERFERER and trigger Radio Effulgent passive pulse
         if attacker and hasattr(attacker, 'type') and attacker.type:
             from boneglaive.utils.constants import UnitType
-            # Handle DLC units (integer enum values)
-            if hasattr(attacker.type, 'name'):
-                unit_type_name = attacker.type.name
-            else:
-                unit_type_name = str(attacker.type)
             if attacker.type == UnitType.INTERFERER and attack_target:
                 pass
 
@@ -3126,51 +3102,6 @@ class GraphicalRenderer:
                 )
                 if aromatic_attack:
                     self.active_animations.append(aromatic_attack)
-                else:
-                    pass
-
-            # Check if TARGET has Riposte active (PELOTARI counterattack)
-            # Use captured flag from BEFORE attack execution cleared it
-            target_has_riposte = event.kwargs.get("target_has_riposte", False)
-
-            if target_has_riposte and event.target_unit:
-                pass
-
-                from boneglaive.graphical.animations.pelotari import RiposteAnimation
-                from boneglaive.dlc.pelotari.physics import calculate_linear_trajectory
-
-                # Calculate trajectories for 8 directions
-                directions = [(-1, 0), (-1, 1), (0, 1), (1, 1), (1, 0), (1, -1), (0, -1), (-1, -1)]
-                trajectories = []
-
-                for direction in directions:
-                    trajectory = calculate_linear_trajectory(
-                        start_pos=(event.target_unit.y, event.target_unit.x),
-                        direction=direction,
-                        ricochet_mode=True,
-                        max_range=12,  # 4 range * 3 for bounces
-                        game=self.game_adapter.game,
-                        max_bounces=2
-                    )
-                    trajectories.append(trajectory)
-
-                # Get animated unit for target (PELOTARI)
-                target_animated = self._find_animated_unit_by_game_unit(event.target_unit)
-
-                if target_animated:
-                    # Create Riposte animation
-                    riposte_animation = RiposteAnimation(
-                        caster_unit=target_animated,
-                        trajectories=trajectories,
-                        camera=self.camera,
-                        particle_emitter=self.particle_emitter,
-                        game=self.game_adapter.game
-                    )
-
-                    if riposte_animation:
-                        self.active_animations.append(riposte_animation)
-                    else:
-                        pass
                 else:
                     pass
 

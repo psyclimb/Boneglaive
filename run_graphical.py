@@ -75,10 +75,6 @@ def run_game():
     # Get selected map from config
     selected_map = config.get('selected_map', 'edgecase')
 
-    # Initialize DLC system before creating game
-    from boneglaive.game.dlc_manager import initialize_dlc_system
-    dlc_count = initialize_dlc_system()
-
     # Create game state adapter
     adapter = GameStateAdapter()
 

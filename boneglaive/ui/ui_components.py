@@ -1631,15 +1631,6 @@ class UnitHelpComponent(UIComponent):
             }
         }
 
-        # Load DLC unit help data
-        from boneglaive.game.dlc_manager import get_dlc_manager
-        dlc_manager = get_dlc_manager()
-        for unit_id in dlc_manager.get_loaded_units():
-            help_data = dlc_manager.get_unit_help_data(unit_id)
-            if help_data:
-                # Add DLC help data using uppercase unit_id as key (matches unit registration)
-                unit_help_dict[unit_id.upper()] = help_data
-
         return unit_help_dict
 
     def toggle_unit_help(self, unit_type=None):
@@ -4272,7 +4263,6 @@ class GameModeManager(UIComponent):
         if not self.game_ui.game.setup_phase:
             return
 
-        # Get unit types dynamically from the unit selection menu (includes DLC)
         unit_types = self.game_ui.unit_selection_menu.unit_types
 
         try:
@@ -4304,7 +4294,6 @@ class GameModeManager(UIComponent):
         if not self.game_ui.game.setup_phase:
             return
 
-        # Get unit types dynamically from the unit selection menu (includes DLC)
         unit_types = self.game_ui.unit_selection_menu.unit_types
 
         try:
@@ -5459,36 +5448,6 @@ class ActionMenuComponent(UIComponent):
                 'skill': granite_geas_skill
             })
 
-        # PELOTARI skills (DLC unit)
-        elif unit.get_type_name() == "PELOTARI":
-            # Add Poach skill
-            poach_skill = next((skill for skill in available_skills if skill.name == "Poach"), None)
-            self.actions.append({
-                'key': 'p',
-                'label': 'oach',  # Will be displayed as [P]oach
-                'action': 'poach_skill',
-                'enabled': poach_skill is not None,
-                'skill': poach_skill
-            })
-            # Add Backhand skill
-            backhand_skill = next((skill for skill in available_skills if skill.name == "Backhand"), None)
-            self.actions.append({
-                'key': 'b',
-                'label': 'ackhand',  # Will be displayed as [B]ackhand
-                'action': 'backhand_skill',
-                'enabled': backhand_skill is not None,
-                'skill': backhand_skill
-            })
-            # Add Matador skill
-            matador_skill = next((skill for skill in available_skills if skill.name == "Matador"), None)
-            self.actions.append({
-                'key': 'm',
-                'label': 'atador',  # Will be displayed as [M]atador
-                'action': 'matador_skill',
-                'enabled': matador_skill is not None,
-                'skill': matador_skill
-            })
-
         # Reset selected index
         self.selected_index = 0
         
@@ -6368,18 +6327,6 @@ class InputManager(UIComponent):
                 # Default case for unknown vapor types
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.HEINOUS_VAPOR)
                 return
-            else:
-                # Check if this is a DLC unit
-                from boneglaive.game.dlc_manager import get_dlc_manager
-                dlc_manager = get_dlc_manager()
-                if dlc_manager.is_dlc_unit(unit_type):
-                    # Get unit_id from enum value
-                    for unit_id in dlc_manager.get_loaded_units():
-                        unit_data = dlc_manager.get_unit_data(unit_id)
-                        if unit_data and unit_data['enum_value'] == unit_type:
-                            # Show DLC unit help using uppercase unit_id as key
-                            self.game_ui.unit_help_component.toggle_unit_help(unit_id.upper())
-                            return
 
         # Show general help screen
         self.game_ui.help_component.toggle_help_screen()
@@ -6566,34 +6513,16 @@ class UnitSelectionMenuComponent(UIComponent):
             UnitType.POTPOURRIST
         ]
 
-        # Add DLC units dynamically
-        from boneglaive.game.dlc_manager import get_dlc_manager
         from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
 
-        dlc_manager = get_dlc_manager()
         self.unit_types = base_units.copy()
 
-        # Add loaded DLC units
-        for unit_id in dlc_manager.get_loaded_units():
-            unit_data = dlc_manager.get_unit_data(unit_id)
-            if unit_data:
-                enum_value = unit_data['enum_value']
-                self.unit_types.append(enum_value)
-
-        # Build unit names dict from constants (includes both base and DLC)
         self.unit_names = {}
         for unit_type in self.unit_types:
-            # First try to get display name using the unit_type directly (for base units)
             if unit_type in UNIT_DISPLAY_NAMES:
                 self.unit_names[unit_type] = UNIT_DISPLAY_NAMES[unit_type]
             else:
-                # For DLC units, convert to int value and look up
-                unit_val = unit_type.value if hasattr(unit_type, 'value') else unit_type
-                if unit_val in UNIT_DISPLAY_NAMES:
-                    self.unit_names[unit_type] = UNIT_DISPLAY_NAMES[unit_val]
-                else:
-                    # Fallback for missing names
-                    self.unit_names[unit_type] = f"UNIT_{unit_val}"
+                self.unit_names[unit_type] = unit_type.name
         
     def _setup_event_handlers(self):
         """Set up event handlers for the unit selection menu."""

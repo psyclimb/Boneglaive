@@ -123,27 +123,11 @@ class RespawnWindow:
         if unit_type in self.sprite_cache:
             return self.sprite_cache[unit_type]
 
-        # Convert unit type to filename
-        # Handle both base units (UnitType enum) and DLC units (integers >= 100)
-        if isinstance(unit_type, int) and unit_type >= 100:
-            # DLC unit - get name from DLC manager
-            from boneglaive.game.dlc_manager import get_dlc_manager
-            dlc_manager = get_dlc_manager()
-            sprite_name = None
-            for unit_id, unit_data in dlc_manager.loaded_units.items():
-                if unit_data['enum_value'] == unit_type:
-                    sprite_name = unit_id  # unit_id is already lowercase
-                    break
-            if not sprite_name:
-                self.sprite_cache[unit_type] = None
-                return None
-        else:
-            # Base unit - use enum name
-            try:
-                sprite_name = unit_type.name.lower()
-            except AttributeError:
-                self.sprite_cache[unit_type] = None
-                return None
+        try:
+            sprite_name = unit_type.name.lower()
+        except AttributeError:
+            self.sprite_cache[unit_type] = None
+            return None
 
         sprite_path = asset_path(f"graphics/units/{sprite_name}.svg")
 
@@ -357,8 +341,7 @@ class RespawnWindow:
             text_y = item_rect.y + 10
 
             # Unit type
-            # Handle both UnitType enum and int (for DLC units)
-            unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
+            unit_type_name = dead_unit.unit_type.name
             unit_type_name = unit_type_name.replace('_', ' ')
             type_text = self.font.render(f"{unit_type_name}", True, COLOR_TEXT)
             surface.blit(type_text, (text_x, text_y))

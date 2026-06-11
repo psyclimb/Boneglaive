@@ -97,11 +97,6 @@ SKILL_SOUNDS = {
     "DERELICT_BUILDING_FORMATION": "building_formation",
     "DERELICT_BUILDING_TILES": None,  # Persistent tiles (silent)
 
-    # PELOTARI skills (DLC)
-    "MATADOR": "matador",
-    "POACH": "poach",
-    "BACKHAND": "backhand",
-    "BACKHAND_REFLECTION": "backhand_reflection",
 }
 
 # Impact sounds (hit effects, explosions, etc.)

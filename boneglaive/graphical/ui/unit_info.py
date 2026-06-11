@@ -103,13 +103,8 @@ class UnitInfoPanel:
         # Special handling for HEINOUS VAPOR - use vapor-specific name
         elif hasattr(self.game_unit, 'vapor_type') and self.game_unit.vapor_type:
             unit_name = self.game_unit.get_display_name()
-        # Handle both base units (with .name) and DLC units (integers)
-        elif hasattr(self.game_unit.type, 'name'):
-            unit_name = self.game_unit.type.name.replace('_', ' ')
         else:
-            # DLC unit - use display name from unit class
-            from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
-            unit_name = UNIT_DISPLAY_NAMES.get(self.game_unit.type, f"Unit-{self.game_unit.type}")
+            unit_name = self.game_unit.type.name.replace('_', ' ')
         name_text = render_fitted_text(
             unit_name,
             max_width=PANEL_WIDTH - PANEL_PADDING * 2,

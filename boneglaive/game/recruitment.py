@@ -23,7 +23,6 @@ RECRUITMENT_ORDER = [
     UnitType.INTERFERER,
     UnitType.DERELICTIONIST,
     UnitType.POTPOURRIST,
-    UnitType.PELOTARI
 ]
 
 

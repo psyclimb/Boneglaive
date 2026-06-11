@@ -192,10 +192,6 @@ class Unit:
         self.demilune_mirrored_zone_tiles = []  # List of (y, x) tuples for mirrored Demilune zone (upgraded only)
         self.demilune_zone_duration = 0  # Turns remaining for Demilune zone
 
-        # PELOTARI properties
-        self.backhand_active = False  # Whether Backhand counter stance is active
-        self.backhand_duration = 0  # Turns remaining for Backhand stance
-
         # Experience and leveling
         self.level = 1
         self.xp = 0
@@ -208,9 +204,6 @@ class Unit:
         """Initialize skills for this unit based on its type."""
         # Avoid circular imports
         from boneglaive.game.skills.registry import UNIT_SKILLS
-        from boneglaive.game.dlc_manager import get_dlc_manager
-
-        # Get unit type name (handles both enum and DLC types)
         unit_type_name = self.get_type_name()
 
         # Get skills from registry if available
@@ -335,19 +328,8 @@ class Unit:
         return effective_prt
         
     def get_type_name(self) -> str:
-        """
-        Get the unit's type name as a string.
-        Handles both enum types and DLC integer types.
-
-        Returns:
-            str: The unit type name (e.g., "GLAIVEMAN", "PELOTARI")
-        """
-        if hasattr(self.type, 'name'):
-            return self.type.name
-        else:
-            # DLC unit - get name from UNIT_DISPLAY_NAMES
-            from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
-            return UNIT_DISPLAY_NAMES.get(self.type, f"UNIT_{self.type}")
+        """Get the unit's type name as a string."""
+        return self.type.name
 
     def get_display_name(self, shortened=False, include_player=False) -> str:
         """Get the unit's display name.

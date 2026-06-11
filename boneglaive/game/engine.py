@@ -973,13 +973,7 @@ class Game:
             if profile:
                 profile.record_unit_pick(unit_type)
                 profile_manager.save_profile(profile)
-                # Get unit type name (handles both enum and DLC types)
-                from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
-                if hasattr(unit_type, 'name'):
-                    type_name = unit_type.name
-                else:
-                    type_name = UNIT_DISPLAY_NAMES.get(unit_type, f"UNIT_{unit_type}")
-                logger.debug(f"Profile {profile.name}: Recorded pick for {type_name}")
+                logger.debug(f"Profile {profile.name}: Recorded pick for {unit_type.name}")
 
         return True
             
@@ -3760,12 +3754,6 @@ class Game:
                                 if unit.hp <= 0 and attacker_previous_hp > 0:
                                     self.handle_unit_death(unit, target, cause="ossify_reflect", ui=ui)
 
-                        # Check for PELOTARI Riposte trigger (after taking damage)
-                        if (hasattr(target, 'passive_skill') and target.passive_skill and
-                            target.passive_skill.name == "Riposte" and target.hp > 0):
-                            # Trigger diagonal spread shot
-                            target.passive_skill.trigger_on_hit(target, unit, self, ui)
-
                         # Check for taunt response (Granite Geas)
                         if (hasattr(unit, 'taunted_by') and unit.taunted_by and
                             unit.taunted_by == target):
@@ -3992,22 +3980,6 @@ class Game:
                             player=unit.player
                         )
                         continue  # Skip this skill and go to next unit
-
-                # Check for PELOTARI Backhand reflection before executing skill
-                target_unit = self.get_unit_at(target_pos[0], target_pos[1])
-                if target_unit and hasattr(target_unit, 'backhand_active') and target_unit.backhand_active:
-                    # Find Backhand skill instance
-                    backhand_skill = next((s for s in target_unit.active_skills
-                                          if hasattr(s, 'name') and s.name == "Backhand"), None)
-                    if backhand_skill and hasattr(backhand_skill, 'trigger_skill_reflect'):
-                        # Attempt reflection
-                        # Use self.ui if ui parameter is None
-                        ui_to_use = ui if ui is not None else getattr(self, 'ui', None)
-                        if backhand_skill.trigger_skill_reflect(target_unit, unit, skill.name, self, ui_to_use):
-                            # Skill was reflected, skip normal execution
-                            # Mark skill as reflected so animation doesn't play
-                            unit.skill_was_reflected = True
-                            continue
 
                 # Execute the skill if it has an execute method
                 if hasattr(skill, 'execute'):
@@ -4929,8 +4901,7 @@ class Game:
                     dead_unit.respawn_timer -= 1
                     if dead_unit.respawn_timer <= 0:
                         dead_unit.ready_for_respawn = True
-                        # Handle both UnitType enum and int (for DLC units)
-                        unit_type_name = dead_unit.unit_type.name if hasattr(dead_unit.unit_type, 'name') else str(dead_unit.unit_type)
+                        unit_type_name = dead_unit.unit_type.name
                         logger.info(f"RESPAWN: {dead_unit.greek_id} ({unit_type_name}) is ready to respawn")
 
             # Process Infuse upgrade: restore buff durations for POTPOURRIST holding potpourri
@@ -5591,7 +5562,7 @@ class Game:
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         
-        # Case 1: The unit has trapped other units (MANDIBLE_FOREMAN or PELOTARI)
+        # Case 1: The unit has trapped other units (MANDIBLE_FOREMAN)
         # Find any units trapped by this unit
         trapped_units = [u for u in self.units if u.is_alive() and hasattr(u, 'trapped_by') and u.trapped_by == unit]
         if trapped_units:

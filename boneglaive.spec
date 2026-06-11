@@ -97,7 +97,6 @@ a = Analysis(
         'cairocffi.patterns',
         'cairocffi.surfaces',
         'cffi',
-        'boneglaive.game.dlc_manager',
         'boneglaive.utils.paths',
     ],
     hookspath=[],

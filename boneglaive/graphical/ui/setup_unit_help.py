@@ -59,14 +59,6 @@ class SetupUnitHelp:
             UnitType.POTPOURRIST: "POTPOURRIST",
         }
 
-        # Add DLC unit display names dynamically
-        from boneglaive.game.dlc_manager import get_dlc_manager
-        dlc_manager = get_dlc_manager()
-        for unit_id in dlc_manager.get_loaded_units():
-            unit_enum = dlc_manager.loaded_units[unit_id]['enum_value']
-            unit_config = dlc_manager.loaded_units[unit_id]['registration']['config']
-            self.unit_names[unit_enum] = unit_config.get('display_name', unit_config['unit_name'])
-
         # Sprite cache
         self.sprite_cache = {}
 
@@ -87,24 +79,16 @@ class SetupUnitHelp:
         return int(base_pixels * self.spacing_scale)
 
     def _get_unit_name(self, unit_type):
-        """
-        Get display name for a unit type.
-        Handles base units (UnitType enum), DLC units (int >= 100), and strings.
-        """
+        """Get display name for a unit type."""
         if isinstance(unit_type, str):
             return unit_type
-        elif isinstance(unit_type, int):
-            # DLC unit or integer enum value
-            return self.unit_names.get(unit_type, f"Unit-{unit_type}")
-        else:
-            # UnitType enum
-            try:
-                return unit_type.name
-            except AttributeError:
-                return str(unit_type)
+        try:
+            return unit_type.name
+        except AttributeError:
+            return str(unit_type)
 
     def _load_unit_help_data(self):
-        """Load unit help data including DLC units."""
+        """Load unit help data."""
         from boneglaive.game.unit_help_data import get_unit_help_data
         return get_unit_help_data()
 
@@ -402,37 +386,6 @@ class SetupUnitHelp:
             }
         }
 
-        # Add DLC units to simplified info (convert from full help data format)
-        from boneglaive.game.dlc_manager import get_dlc_manager
-        dlc_manager = get_dlc_manager()
-        for unit_id in dlc_manager.get_loaded_units():
-            unit_enum = dlc_manager.loaded_units[unit_id]['enum_value']
-            unit_config = dlc_manager.loaded_units[unit_id]['registration']['config']
-            dlc_help_data = dlc_manager.get_unit_help_data(unit_id)
-
-            if dlc_help_data:
-                # Convert full help data to simplified format
-                # Strip annotations like "(Passive)" and "[Key: X]" from skill names
-                def clean_skill_name(name):
-                    return name.split(' (')[0].split(' [')[0]
-
-                simplified_info[unit_enum] = {
-                    'difficulty': unit_config.get('complexity', 3),
-                    'role': unit_config.get('role', 'Unknown'),
-                    'overview': dlc_help_data.get('overview', ['No description available.'])[0] if dlc_help_data.get('overview') else 'No description available.',
-                    'passive': {
-                        'name': clean_skill_name(dlc_help_data['skills'][0]['name']) if dlc_help_data.get('skills') else 'Unknown',
-                        'desc': dlc_help_data['skills'][0]['description'] if dlc_help_data.get('skills') else 'No description.'
-                    },
-                    'skills': [
-                        {
-                            'name': clean_skill_name(skill['name']),
-                            'desc': skill['description']
-                        }
-                        for skill in dlc_help_data.get('skills', [])[1:]  # Skip first (passive)
-                    ]
-                }
-
         return simplified_info
 
     def update(self, unit_type: Optional[UnitType]):
@@ -529,26 +482,11 @@ class SetupUnitHelp:
             self.sprite_cache[cache_key] = None
             return None
 
-        # Determine sprite name - handle both base units and DLC units
-        if isinstance(unit_type, int) and unit_type >= 100:
-            # DLC unit - get name from DLC manager
-            from boneglaive.game.dlc_manager import get_dlc_manager
-            dlc_manager = get_dlc_manager()
-            sprite_name = None
-            for unit_id, unit_data in dlc_manager.loaded_units.items():
-                if unit_data['enum_value'] == unit_type:
-                    sprite_name = unit_id  # unit_id is already lowercase
-                    break
-            if not sprite_name:
-                self.sprite_cache[cache_key] = None
-                return None
-        else:
-            # Base unit - use enum name
-            try:
-                sprite_name = unit_type.name.lower()
-            except AttributeError:
-                self.sprite_cache[cache_key] = None
-                return None
+        try:
+            sprite_name = unit_type.name.lower()
+        except AttributeError:
+            self.sprite_cache[cache_key] = None
+            return None
 
         sprite_path = asset_path(f"graphics/units/{sprite_name}.svg")
 

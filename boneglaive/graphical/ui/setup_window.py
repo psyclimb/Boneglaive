@@ -66,7 +66,7 @@ class SetupWindow:
         # Cache overlay surface (performance)
         self._overlay_cache = None
 
-        # Build unit types list: base units + DLC units
+        # Build unit types list
         self.unit_types = [
             UnitType.GLAIVEMAN,
             UnitType.MANDIBLE_FOREMAN,
@@ -80,15 +80,7 @@ class SetupWindow:
             UnitType.POTPOURRIST,
         ]
 
-        # Add DLC units dynamically
-        from boneglaive.game.dlc_manager import get_dlc_manager
-        dlc_manager = get_dlc_manager()
-        for unit_id in dlc_manager.get_loaded_units():
-            # Get enum value for DLC unit
-            unit_enum = dlc_manager.loaded_units[unit_id]['enum_value']
-            self.unit_types.append(unit_enum)
-
-        # Unit display names - base units
+        # Unit display names
         self.unit_names = {
             UnitType.GLAIVEMAN: "GLAIVEMAN",
             UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
@@ -101,12 +93,6 @@ class SetupWindow:
             UnitType.DERELICTIONIST: "DERELICTIONIST",
             UnitType.POTPOURRIST: "POTPOURRIST",
         }
-
-        # Add DLC unit display names dynamically
-        for unit_id in dlc_manager.get_loaded_units():
-            unit_enum = dlc_manager.loaded_units[unit_id]['enum_value']
-            unit_config = dlc_manager.loaded_units[unit_id]['registration']['config']
-            self.unit_names[unit_enum] = unit_config.get('display_name', unit_config['unit_name'])
 
         # State
         self.selected_index = 0
@@ -184,7 +170,6 @@ class SetupWindow:
 
     def is_unit_type_maxed(self, unit_type) -> bool:
         """Check if a unit type has reached the max limit (1)."""
-        # All valid unit types (base and DLC) are now integers
         # Check if placed count >= 1
         return self.unit_counts.get(unit_type, 0) >= 1
 
@@ -193,7 +178,7 @@ class SetupWindow:
         Load unit sprite from SVG file.
 
         Args:
-            unit_type: UnitType enum value (including DLC units with value >= 100)
+            unit_type: UnitType enum value
 
         Returns:
             pygame.Surface or None if sprite cannot be loaded
@@ -202,29 +187,11 @@ class SetupWindow:
         if unit_type in self.sprite_cache:
             return self.sprite_cache[unit_type]
 
-        # Determine sprite name
-        # For DLC units (enum value >= 100), get name from DLC manager
-        if isinstance(unit_type, int) and unit_type >= 100:
-            from boneglaive.game.dlc_manager import get_dlc_manager
-            dlc_manager = get_dlc_manager()
-
-            # Find the DLC unit by enum value
-            sprite_name = None
-            for unit_id, unit_data in dlc_manager.loaded_units.items():
-                if unit_data['enum_value'] == unit_type:
-                    sprite_name = unit_id  # unit_id is already lowercase (e.g., "pelotari")
-                    break
-
-            if not sprite_name:
-                self.sprite_cache[unit_type] = None
-                return None
-        else:
-            # Base game unit - use enum name
-            try:
-                sprite_name = unit_type.name.lower()
-            except AttributeError:
-                self.sprite_cache[unit_type] = None
-                return None
+        try:
+            sprite_name = unit_type.name.lower()
+        except AttributeError:
+            self.sprite_cache[unit_type] = None
+            return None
 
         sprite_path = asset_path(f"graphics/units/{sprite_name}.svg")
 
@@ -535,16 +502,7 @@ class SetupWindow:
 
             if is_placeholder:
                 # Draw glaives for placeholder unit
-                # Only PELOTARI flashes, others are static
-                should_flash = unit_type == "PELOTARI"
-
-                if should_flash:
-                    import time
-                    import math
-                    flash_speed = 3.0  # Hz
-                    alpha = int(128 + 127 * math.sin(time.time() * flash_speed * 2 * math.pi))
-                else:
-                    alpha = 255  # Static full brightness
+                alpha = 255
 
                 # Draw 5 small glaives
                 glaive_start_x = item_rect.left + 60

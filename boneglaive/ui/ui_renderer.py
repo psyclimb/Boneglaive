@@ -92,10 +92,6 @@ class UIRenderer:
         if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active:
             effects.append(('partition', ')', curses.A_BOLD))
 
-        # PELOTARI status effects
-        if hasattr(unit, 'backhand_active') and unit.backhand_active:
-            effects.append(('backhand', '<', curses.A_BOLD))
-            
         # Medium priority effects
         if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
             effects.append(('site_inspection', '#', curses.A_BOLD))
