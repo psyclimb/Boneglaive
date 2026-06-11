@@ -221,7 +221,23 @@ class AssetManager:
             'divine_depreciation': ['A', 'v', '9', '6', '3', '0', '_', '.', ' '],
             
             # INTERFERER animations
-            'scalar_node_detonation': ['~', '~', '*', '#', '@', '+', '*', '~', '.']  # Standing wave collapse
+            'scalar_node_detonation': ['~', '~', '*', '#', '@', '+', '*', '~', '.'],  # Standing wave collapse
+
+            # LANDSCAPER animations
+            'landscaper_attack': ['Y', '/', 'Y', '\\', 'Y', '/', 'Y', '\\'],  # Four tuning fork strikes in rapid succession
+            'hornswoggle_wave': ['~', '=', '>', '>', '*'],  # Sonic wave traveling outward
+            'hornswoggle_grab': ['*', '#', '!', '#', '*'],  # Terrain being ripped from ground
+            'hornswoggle_drag': ['=', '#', '=', '#', '='],  # Terrain flying through air leaving slag
+            'hornswoggle_deposit': ['V', '#', 'O', '#', '.'],  # Terrain slamming down at destination
+            'topiary_breath_charge': ['(', '(', ')', ')', '(', ')'],  # Horn array resonating
+            'topiary_breath_blast': ['~', '~', '>', '>', '*', '&'],  # Petrifying wave expanding
+            'topiary_transform': ['@', '%', '&', '&', '&'],  # Unit crystallizing into topiary sculpture
+            'topiary_revert': ['&', '%', '@', '*', '.'],  # Topiary crumbling back to unit
+            'lithophone_windup': ['Y', 'Y', 'Y', 'Y'],  # All four forks raised
+            'lithophone_strike': ['!', '#', 'X', '*', '+'],  # Forks slam into terrain, shattering it
+            'lithophone_shrapnel': ['*', '+', 'x', '.'],  # Debris fragments flying outward
+            'slag_forming': ['~', '=', '#', '#'],  # Molten slag cooling into wall
+            'slag_crumble': ['#', '%', '*', '.', ' ']  # Slag wall decaying and crumbling
         }
     
     def _initialize_graphical_assets(self) -> None:
@@ -358,11 +374,12 @@ class AssetManager:
             UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack',
             UnitType.DELPHIC_APPRAISER: 'delphic_appraiser_attack',
             UnitType.INTERFERER: 'interferer_attack',
-            UnitType.POTPOURRIST: 'potpourrist_attack'
+            UnitType.POTPOURRIST: 'potpourrist_attack',
+            UnitType.LANDSCAPER: 'landscaper_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.get_effect_tile(effect_type)
-        
+
     def get_attack_animation_sequence(self, unit_type: UnitType) -> List[str]:
         """Get the animation sequence for an attack type."""
         effect_map = {
@@ -376,7 +393,8 @@ class AssetManager:
             UnitType.GAS_MACHINIST: 'gas_machinist_attack',
             UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack',
             UnitType.DELPHIC_APPRAISER: 'delphic_appraiser_attack',
-            UnitType.POTPOURRIST: 'potpourrist_attack'
+            UnitType.POTPOURRIST: 'potpourrist_attack',
+            UnitType.LANDSCAPER: 'landscaper_attack'
         }
         effect_type = effect_map.get(unit_type, 'glaiveman_attack')
         return self.animation_sequences.get(effect_type, [])

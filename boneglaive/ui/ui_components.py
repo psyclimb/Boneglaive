@@ -4868,6 +4868,19 @@ class AnimationComponent(UIComponent):
                 self.renderer.refresh()
                 time.sleep(0.08)
         
+        # LANDSCAPER: four rapid tuning fork strikes
+        elif attacker.type == UnitType.LANDSCAPER:
+            landscaper_sequence = self.game_ui.asset_manager.animation_sequences.get('landscaper_attack', [])
+            if not landscaper_sequence:
+                landscaper_sequence = ['Y', '/', 'Y', '\\', 'Y', '/', 'Y', '\\']
+            # Show rapid 4-strike sequence at attacker position
+            self.renderer.animate_attack_sequence(
+                start_pos.y, start_pos.x,
+                landscaper_sequence,
+                7,  # color ID
+                0.3  # fast for rapid strikes
+            )
+
         # For all other melee attacks, show standard animation
         else:
             # Show the attack animation at the attacker's position
@@ -4885,6 +4898,8 @@ class AnimationComponent(UIComponent):
             impact_animation = ['>', '<', '}', '{', '=']  # Mandible crushing impact
         elif attacker.type == UnitType.FOWL_CONTRIVANCE:
             impact_animation = ['*', '#', '@', 'X', '*']  # Rail artillery explosive impact
+        elif attacker.type == UnitType.LANDSCAPER:
+            impact_animation = ['Y', '/', 'Y', '\\']  # Tuning fork strikes landing
         else:
             impact_animation = ['+', 'x', '+']  # Standard melee/arrow impact
             
@@ -6231,21 +6246,20 @@ class ActionMenuComponent(UIComponent):
                                     targets.append((y, x))
             
             elif skill.target_type == TargetType.AREA:
-                # Lithophone: highlight adjacent terrain tiles only
+                # Lithophone: highlight terrain tiles within cast range
                 if skill.name == "Lithophone":
-                    for dy in [-1, 0, 1]:
-                        for dx in [-1, 0, 1]:
-                            if dy == 0 and dx == 0:
+                    effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
+                    for y in range(HEIGHT):
+                        for x in range(WIDTH):
+                            distance = game.chess_distance(from_y, from_x, y, x)
+                            if distance > effective_range or distance == 0:
                                 continue
-                            y = from_y + dy
-                            x = from_x + dx
-                            if game.is_valid_position(y, x):
-                                # Highlight non-passable terrain or furniture
-                                if not game.map.is_passable(y, x) or game.map.is_furniture(y, x):
-                                    targets.append((y, x))
-                                # Also highlight topiary units
-                                elif hasattr(game, 'topiary_units') and (y, x) in game.topiary_units:
-                                    targets.append((y, x))
+                            # Highlight non-passable terrain or furniture
+                            if not game.map.is_passable(y, x) or game.map.is_furniture(y, x):
+                                targets.append((y, x))
+                            # Also highlight topiary units
+                            elif hasattr(game, 'topiary_units') and (y, x) in game.topiary_units:
+                                targets.append((y, x))
                 # Special case for Gaussian Dusk - only highlight cardinal direction lines
                 elif skill.name == "Gaussian Dusk":
                     # Show four cardinal direction lines from unit position

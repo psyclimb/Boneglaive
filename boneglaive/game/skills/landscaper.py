@@ -143,7 +143,7 @@ class HornswoggleSkill(ActiveSkill):
     it hits and drags it 90° CCW, depositing slag walls along the drag path.
     """
 
-    WAVE_RANGE = 4
+    WAVE_RANGE = 3
     DRAG_RANGE = 4
     SLAG_DURATION = 3
 
@@ -151,7 +151,7 @@ class HornswoggleSkill(ActiveSkill):
         super().__init__(
             name="Hornswoggle",
             key="H",
-            description="Fire sonic wave to grab terrain, drag it 90° CCW depositing slag walls. Wave range 4, drag range 4.",
+            description="Fire sonic wave to grab terrain, drag it 90° CCW depositing slag walls. Wave range 3, drag range 4.",
             target_type=TargetType.NONE,
             cooldown=4,
             range_=0
@@ -288,20 +288,25 @@ class HornswoggleSkill(ActiveSkill):
 
         # Show wave animation (text mode)
         if ui and hasattr(ui, 'renderer'):
+            from boneglaive.utils.animation_helpers import sleep_with_animation_speed
             dy, dx = DIRECTION_VECTORS[direction]
+            wave_frames = ['~', '=', '>']
             for dist in range(1, self.WAVE_RANGE + 1):
                 wave_y = source_y + dy * dist
                 wave_x = source_x + dx * dist
                 if not game.is_valid_position(wave_y, wave_x):
                     break
                 if (wave_y, wave_x) == grab_pos:
-                    ui.renderer.draw_damage_text(wave_y, wave_x * 2, "!", 6)
-                    ui.renderer.refresh()
-                    time.sleep(0.1)
+                    # Grab impact
+                    for frame in ['*', '#', '!']:
+                        ui.renderer.draw_damage_text(wave_y, wave_x * 2, frame, 6)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.06)
                     break
-                ui.renderer.draw_damage_text(wave_y, wave_x * 2, "*", 6)
+                frame = wave_frames[dist % len(wave_frames)]
+                ui.renderer.draw_damage_text(wave_y, wave_x * 2, frame, 6)
                 ui.renderer.refresh()
-                time.sleep(0.08)
+                sleep_with_animation_speed(0.08)
 
         # Remove terrain from original position
         game.map.set_terrain_at(grab_y, grab_x, TerrainType.EMPTY)
@@ -322,34 +327,62 @@ class HornswoggleSkill(ActiveSkill):
         drag_dir_name = DRAG_DIRECTION_CCW[direction]
         drag_dy, drag_dx = DIRECTION_VECTORS[drag_dir_name]
 
-        # Drag terrain along path, depositing slag walls
-        cur_y, cur_x = grab_y, grab_x
-        final_y, final_x = grab_y, grab_x
-        slag_positions = []
-
         # Track slag wall data for duration management
         if not hasattr(game, 'slag_wall_tiles'):
             game.slag_wall_tiles = {}
 
+        # Build the full drag path — terrain flies over everything, slag forces into each tile
+        # Slag displaces existing terrain and units along the path
+        slag_positions = []
+        drag_tiles = []
+
+        # First tile is the grab point itself
+        drag_tiles.append((grab_y, grab_x))
+
+        # Then each step along the drag direction
         for dist in range(1, self.DRAG_RANGE + 1):
-            next_y = cur_y + drag_dy
-            next_x = cur_x + drag_dx
-
-            if not game.is_valid_position(next_y, next_x):
+            tile_y = grab_y + drag_dy * dist
+            tile_x = grab_x + drag_dx * dist
+            if not game.is_valid_position(tile_y, tile_x):
                 break
-            if not game.map.is_passable(next_y, next_x):
-                break
-            # Non-topiary units block the drag path
-            blocking_unit = game.get_unit_at(next_y, next_x)
-            if blocking_unit and blocking_unit != grabbed_topiary_unit:
-                break
+            drag_tiles.append((tile_y, tile_x))
 
-            # Deposit slag at current position (where terrain just was)
-            if dist == 1:
-                slag_y, slag_x = grab_y, grab_x
-            else:
-                slag_y, slag_x = cur_y, cur_x
+        # The terrain deposits at the last valid tile in the path
+        # Slag goes on every tile EXCEPT the deposit tile
+        deposit_y, deposit_x = drag_tiles[-1]
 
+        # Process each tile along the path (except the deposit tile) — place slag
+        for slag_y, slag_x in drag_tiles[:-1]:
+            # Displace any unit at this position
+            displaced_unit = game.get_unit_at(slag_y, slag_x)
+            if displaced_unit and displaced_unit != grabbed_topiary_unit:
+                # Find adjacent empty passable tile to push unit to
+                displaced = False
+                for ddy in [-1, 0, 1]:
+                    for ddx in [-1, 0, 1]:
+                        if ddy == 0 and ddx == 0:
+                            continue
+                        push_y = slag_y + ddy
+                        push_x = slag_x + ddx
+                        if (game.is_valid_position(push_y, push_x) and
+                                game.map.is_passable(push_y, push_x) and
+                                game.get_unit_at(push_y, push_x) is None and
+                                (push_y, push_x) not in drag_tiles):
+                            old_dy, old_dx = displaced_unit.y, displaced_unit.x
+                            displaced_unit.y = push_y
+                            displaced_unit.x = push_x
+                            game._update_unit_grid(displaced_unit, old_dy, old_dx)
+                            message_log.add_message(
+                                f"{displaced_unit.get_display_name()} is displaced by molten slag",
+                                MessageType.WARNING,
+                                player=user.player
+                            )
+                            displaced = True
+                            break
+                    if displaced:
+                        break
+
+            # Place slag wall — overwrites whatever terrain was here
             game.map.set_terrain_at(slag_y, slag_x, TerrainType.SLAG_WALL)
             game.slag_wall_tiles[(slag_y, slag_x)] = {
                 'duration': self.SLAG_DURATION,
@@ -357,27 +390,43 @@ class HornswoggleSkill(ActiveSkill):
             }
             slag_positions.append((slag_y, slag_x))
 
-            # Show slag animation
+            # Show slag forming animation
             if ui and hasattr(ui, 'renderer'):
-                ui.renderer.draw_damage_text(slag_y, slag_x * 2, "=", 1)
-                ui.renderer.refresh()
-                time.sleep(0.08)
+                from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                for frame in ['~', '=', '#']:
+                    ui.renderer.draw_damage_text(slag_y, slag_x * 2, frame, 1)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.04)
 
-            final_y, final_x = next_y, next_x
-            cur_y, cur_x = next_y, next_x
+        # Process deposit tile — displace any unit there too
+        deposit_unit = game.get_unit_at(deposit_y, deposit_x)
+        if deposit_unit and deposit_unit != grabbed_topiary_unit:
+            displaced = False
+            for ddy in [-1, 0, 1]:
+                for ddx in [-1, 0, 1]:
+                    if ddy == 0 and ddx == 0:
+                        continue
+                    push_y = deposit_y + ddy
+                    push_x = deposit_x + ddx
+                    if (game.is_valid_position(push_y, push_x) and
+                            game.map.is_passable(push_y, push_x) and
+                            game.get_unit_at(push_y, push_x) is None and
+                            (push_y, push_x) not in drag_tiles):
+                        old_dy, old_dx = deposit_unit.y, deposit_unit.x
+                        deposit_unit.y = push_y
+                        deposit_unit.x = push_x
+                        game._update_unit_grid(deposit_unit, old_dy, old_dx)
+                        message_log.add_message(
+                            f"{deposit_unit.get_display_name()} is displaced by falling terrain",
+                            MessageType.WARNING,
+                            player=user.player
+                        )
+                        displaced = True
+                        break
+                if displaced:
+                    break
 
-        # Determine actual deposit position
-        deposit_y, deposit_x = final_y, final_x
-        if not (game.is_valid_position(final_y, final_x) and game.map.is_passable(final_y, final_x)):
-            if slag_positions:
-                deposit_y, deposit_x = slag_positions[-1]
-                # Replace last slag with the terrain
-                if (deposit_y, deposit_x) in game.slag_wall_tiles:
-                    del game.slag_wall_tiles[(deposit_y, deposit_x)]
-            else:
-                deposit_y, deposit_x = grab_y, grab_x
-
-        # Deposit terrain at final position
+        # Deposit grabbed terrain at final position
         game.map.set_terrain_at(deposit_y, deposit_x, grabbed_terrain)
 
         # If we grabbed a topiary-unit, move the unit to the deposit position
@@ -590,11 +639,13 @@ class TopiaryBreathSkill(ActiveSkill):
                 player=user.player
             )
 
-            # Text mode animation
+            # Text mode transform animation
             if ui and hasattr(ui, 'renderer'):
-                ui.renderer.draw_damage_text(unit.y, unit.x * 2, "&", 2)
-                ui.renderer.refresh()
-                time.sleep(0.1)
+                from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                for frame in ['@', '%', '&', '&']:
+                    ui.renderer.draw_damage_text(unit.y, unit.x * 2, frame, 2)
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.06)
 
         message_log.add_message(
             f"Topiary Breath transforms {units_transformed} unit(s) into garden sculptures",
@@ -617,16 +668,16 @@ class LithophoneSkill(ActiveSkill):
     Shrapnel stops at terrain, passes through units.
     """
 
-    SHRAPNEL_RANGE = 3
+    SHRAPNEL_RANGE = 2
 
     def __init__(self):
         super().__init__(
             name="Lithophone",
             key="L",
-            description="Shatter adjacent terrain. 8-direction shrapnel deals ATKx2 piercing damage. Stops at terrain, passes through units.",
+            description="Shatter adjacent terrain. 6 piercing to primary target, 4 piercing shrapnel in 8 directions. Stops at terrain, passes through units.",
             target_type=TargetType.AREA,
             cooldown=4,
-            range_=1
+            range_=3
         )
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -638,10 +689,10 @@ class LithophoneSkill(ActiveSkill):
         source_y, source_x = _get_effective_position(user)
 
         if target_pos:
-            # Specific target — must be adjacent to effective position and be terrain
+            # Specific target — must be within range and be terrain
             ty, tx = target_pos
             dist = game.chess_distance(source_y, source_x, ty, tx)
-            if dist != 1:
+            if dist > self.range:
                 return False
             # Must be non-passable terrain, furniture, or topiary
             is_terrain = not game.map.is_passable(ty, tx) or game.map.is_furniture(ty, tx)
@@ -650,18 +701,17 @@ class LithophoneSkill(ActiveSkill):
                 return False
             return True
         else:
-            # General check — is there any adjacent terrain?
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    if dy == 0 and dx == 0:
+            # General check — is there any terrain within cast range?
+            for y in range(source_y - self.range, source_y + self.range + 1):
+                for x in range(source_x - self.range, source_x + self.range + 1):
+                    if not game.is_valid_position(y, x):
                         continue
-                    check_y = source_y + dy
-                    check_x = source_x + dx
-                    if game.is_valid_position(check_y, check_x):
-                        if not game.map.is_passable(check_y, check_x) or game.map.is_furniture(check_y, check_x):
-                            return True
-                        if hasattr(game, 'topiary_units') and (check_y, check_x) in game.topiary_units:
-                            return True
+                    if game.chess_distance(source_y, source_x, y, x) > self.range:
+                        continue
+                    if not game.map.is_passable(y, x) or game.map.is_furniture(y, x):
+                        return True
+                    if hasattr(game, 'topiary_units') and (y, x) in game.topiary_units:
+                        return True
             return False
 
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -704,9 +754,9 @@ class LithophoneSkill(ActiveSkill):
                 )
                 return
 
-        # Calculate piercing damage: ATK * 2
-        effective_stats = user.get_effective_stats()
-        piercing_damage = max(1, effective_stats['attack']) * 2
+        # Flat piercing damage values
+        shatter_damage = 6   # Direct target (topiary-unit)
+        shrapnel_damage = 3  # AoE shrapnel
 
         # Check if shattering a topiary-unit
         topiary_unit = None
@@ -721,13 +771,13 @@ class LithophoneSkill(ActiveSkill):
         if hasattr(game, 'slag_wall_tiles') and (ty, tx) in game.slag_wall_tiles:
             del game.slag_wall_tiles[(ty, tx)]
 
-        # Text mode shatter animation
+        # Text mode shatter animation — forks strike then terrain explodes
         if ui and hasattr(ui, 'renderer'):
-            shatter_frames = ['#', '*', '+', '.']
-            for frame in shatter_frames:
+            from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+            for frame in ['Y', 'Y', '!', '#', 'X', '*', '+', '.']:
                 ui.renderer.draw_damage_text(ty, tx * 2, frame, 1)
                 ui.renderer.refresh()
-                time.sleep(0.08)
+                sleep_with_animation_speed(0.05)
 
         shattered_name = terrain_at.name.replace('_', ' ').lower()
         message_log.add_message(
@@ -751,8 +801,8 @@ class LithophoneSkill(ActiveSkill):
                 del game.topiary_units[(ty, tx)]
 
             old_hp = topiary_unit.hp
-            # Piercing damage: bypass DEF, only PRT reduces
-            actual_damage = topiary_unit.deal_damage(piercing_damage, can_kill=True)
+            # Shatter damage: 6 flat piercing to primary target
+            actual_damage = topiary_unit.deal_damage(shatter_damage, can_kill=True)
 
             message_log.add_message(
                 f"{topiary_unit.get_display_name()} is shattered for #DAMAGE_{actual_damage}# piercing damage!",
@@ -781,7 +831,7 @@ class LithophoneSkill(ActiveSkill):
                 hit_unit = game.get_unit_at(shrap_y, shrap_x)
                 if hit_unit and hit_unit.is_alive() and hit_unit != user:
                     old_hp = hit_unit.hp
-                    actual_damage = hit_unit.deal_damage(piercing_damage, can_kill=True)
+                    actual_damage = hit_unit.deal_damage(shrapnel_damage, can_kill=True)
                     total_hits += 1
 
                     message_log.add_message(
@@ -790,11 +840,13 @@ class LithophoneSkill(ActiveSkill):
                         player=hit_unit.player
                     )
 
-                    # Text mode hit animation
+                    # Text mode shrapnel hit animation
                     if ui and hasattr(ui, 'renderer'):
-                        ui.renderer.draw_damage_text(shrap_y, shrap_x * 2, str(actual_damage), 1)
-                        ui.renderer.refresh()
-                        time.sleep(0.06)
+                        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                        for frame in ['*', '+', str(actual_damage)]:
+                            ui.renderer.draw_damage_text(shrap_y, shrap_x * 2, frame, 1)
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.04)
 
                     # Check for death
                     if hit_unit.hp <= 0 and old_hp > 0:
@@ -805,10 +857,10 @@ class LithophoneSkill(ActiveSkill):
 
         if total_hits > 0:
             message_log.add_message(
-                f"Lithophone shrapnel hits {total_hits} unit(s) for {piercing_damage} piercing each",
+                f"Lithophone shrapnel hits {total_hits} unit(s) for {shrapnel_damage} piercing each",
                 MessageType.ABILITY,
                 player=user.player
             )
 
         logger.info(f"LITHOPHONE EXECUTED: {user.get_display_name()} shattered {shattered_name} "
-                     f"at ({ty},{tx}), {total_hits} shrapnel hits for {piercing_damage} each")
+                     f"at ({ty},{tx}), {total_hits} shrapnel hits for {shrapnel_damage} each")
