@@ -101,7 +101,7 @@ full trajectory diagrams.
 
 **Design intent**: The bread-and-butter skill. Reshapes the battlefield every time it's
 used — opening paths, closing them, relocating furniture (denying/granting Delphic
-Appraiser value), building temporary walls, and setting up Lithophone targets. The 90°
+Appraiser value), building temporary walls, and setting up Dissonance targets. The 90°
 CCW drag rule is bizarre at first but completely predictable once learned. High skill
 ceiling, high reward.
 
@@ -128,7 +128,7 @@ ceiling, high reward.
    - They **block movement** (other units cannot walk through them)
    - They **block line of sight** (ranged attacks cannot pass through them)
    - They are **valid targets for Hornswoggle** (can be grabbed and dragged like any terrain)
-   - They are **valid targets for Lithophone** (can be shattered for 8-directional shrapnel;
+   - They are **valid targets for Dissonance** (can be shattered for 8-directional shrapnel;
      the shattered unit takes ATK×2 piercing damage in addition to the shrapnel hitting others)
 5. After 1 turn, surviving topiary-units **revert to normal units** at whatever
    position they currently occupy (which may have changed if Hornswoggled)
@@ -151,7 +151,7 @@ ceiling, high reward.
 **Checker pattern**: Units caught in the cone are rearranged into a grid pattern with
 gaps between them — no two topiary-units are adjacent to each other. This guarantees:
 - There is always a walkable path between topiaries
-- Lithophone shrapnel can travel through the gaps
+- Dissonance shrapnel can travel through the gaps
 - The arrangement is predictable once the player understands the pattern
 
 **Example** (firing North, 3 enemies + 1 ally caught):
@@ -174,7 +174,7 @@ and enemies are affected — careless aim petrifies your own team.
   them across the map. When they revert next turn, they're completely out of position.
   Slag walls are left in their wake. The most powerful displacement combo in the game,
   requiring two skill casts to execute.
-- **Lithophone + Topiary Breath**: Transform enemies into topiaries, then Lithophone one.
+- **Dissonance + Topiary Breath**: Transform enemies into topiaries, then Dissonance one.
   The shattered enemy takes ATK×2 piercing damage AND sends shrapnel into nearby units. The
   enemy literally becomes the bomb. Other topiary-units block the shrapnel, creating
   tactical decisions about which topiary to detonate.
@@ -193,13 +193,13 @@ harmonic frequency that crystallizes organic matter into plant form.
 **Design intent**: The Landscaper's tempo and crowd control skill. It freezes a section
 of the battlefield for 1 turn, buying time and creating setup opportunities. The checker
 pattern displacement means the board state changes dramatically with each cast — units
-end up in new positions, creating fresh Hornswoggle and Lithophone opportunities. The
+end up in new positions, creating fresh Hornswoggle and Dissonance opportunities. The
 ally-affecting nature demands careful positioning and rewards high game sense. Benefits
 from Translative Stroke cycling — each cast catches different units in different positions.
 
 ---
 
-### Active 3: Lithophone
+### Active 3: Dissonance
 
 **Type**: Terrain destruction — area piercing damage
 **Target**: Adjacent terrain/wall tile (range 1)
@@ -218,7 +218,7 @@ from Translative Stroke cycling — each cast catches different units in differe
 7. Shrapnel **stops at terrain** — walls provide cover from the explosion
 8. Shrapnel **passes through units** — multiple units in the same line all take damage
 
-**Shattering topiary-units**: If the Landscaper Lithophones a topiary-unit (created by
+**Shattering topiary-units**: If the Landscaper Dissonances a topiary-unit (created by
 Topiary Breath), the transformed unit takes **ATK×2 piercing damage** from the shatter itself,
 AND shrapnel radiates outward from their position as normal. The unit becomes the bomb.
 If the unit survives, they revert to normal at their current position (now empty ground
@@ -239,8 +239,8 @@ east but behind a limestone pillar — the shrapnel stops at the pillar, that en
 - Any terrain that blocks movement
 
 **Key interactions**:
-- Hornswoggle creates slag walls → Lithophone detonates them for area damage
-- Topiary Breath creates topiary-units → Lithophone shatters them (unit takes damage + shrapnel)
+- Hornswoggle creates slag walls → Dissonance detonates them for area damage
+- Topiary Breath creates topiary-units → Dissonance shatters them (unit takes damage + shrapnel)
 - Destroying permanent terrain permanently changes the map
 - Destroying furniture removes Delphic Appraiser astral value positions
 - Shrapnel stopping at terrain means enemies can hide behind other walls
@@ -249,12 +249,12 @@ east but behind a limestone pillar — the shrapnel stops at the pillar, that en
   center ring, but shrapnel fires FROM the tile, not from her, so she's not hit
 - PRT (Partition shield) blocks 1 per shrapnel hit
 
-**Thematic**: A lithophone is a musical instrument made of resonant stones — struck to
+**Thematic**: A dissonance is a musical instrument made of resonant stones — struck to
 produce tones. The Landscaper strikes terrain like an instrument, but the resonance is
 so violent it shatters the stone entirely, sending fragments everywhere.
 
 **Design intent**: The Landscaper's payoff skill. She spends turns building terrain with
-Hornswoggle and creating topiary-units with Topiary Breath, then cashes in with Lithophone
+Hornswoggle and creating topiary-units with Topiary Breath, then cashes in with Dissonance
 for area piercing damage. Consuming terrain to deal damage creates a constant
 build-destroy rhythm. The range 1 requirement means she has to be in the thick of it,
 which also feeds Translative Stroke via basic attacks. High setup cost, high reward.
@@ -267,38 +267,38 @@ which also feeds Translative Stroke via basic attacks. High setup cost, high rew
 
 1. **Hornswoggle** terrain into position near enemies, creating slag walls along the path
 2. **Basic attack** in melee to deal 4 hits and cycle cooldowns via Translative Stroke
-3. **Lithophone** a slag wall adjacent to clustered enemies for 3 piercing to each
-4. Repeat — Hornswoggle builds more terrain, Lithophone spends it
+3. **Dissonance** a slag wall adjacent to clustered enemies for 3 piercing to each
+4. Repeat — Hornswoggle builds more terrain, Dissonance spends it
 
 **The Landscaper's advanced combos**:
 
-- **Topiary → Lithophone**: Transform enemies into topiaries, walk up to one, shatter it.
+- **Topiary → Dissonance**: Transform enemies into topiaries, walk up to one, shatter it.
   The shattered enemy takes 3 piercing and shrapnel hits everyone around them. Other
   topiary-units in the shrapnel path block it, creating tactical choices about which
   to detonate.
 - **Topiary → Hornswoggle**: Transform an enemy, then Hornswoggle them across the map.
   They revert next turn completely out of position, with slag walls blocking their return.
   The ultimate displacement combo — requires two skills and precise aim.
-- **Hornswoggle → Topiary → Lithophone**: Build slag walls to funnel enemies, transform
+- **Hornswoggle → Topiary → Dissonance**: Build slag walls to funnel enemies, transform
   them into topiaries in a cluster, then shatter one for massive multi-target damage.
   The full three-skill combo when everything lines up.
 
 **Synergy with teammates**:
 - ATK buffers (Site Inspection, Investment maturity) make her cycle faster
-- Displacement skills (Derelict push, Estrange) can shove enemies into Lithophone kill zones
-- Marrow Condenser builds walls → Landscaper can Hornswoggle or Lithophone them
+- Displacement skills (Derelict push, Estrange) can shove enemies into Dissonance kill zones
+- Marrow Condenser builds walls → Landscaper can Hornswoggle or Dissonance them
 - Topiary Breath can freeze enemies in place for allies to set up on
 - Topiary Breath can also freeze allies — communication/coordination is key in
   local multiplayer
 
 **Counterplay**:
 - PRT (Partition) is very effective — blocks 1 per Translative Stroke hit (4 total) and
-  reduces Lithophone piercing
-- Staying away from terrain denies Lithophone setups
+  reduces Dissonance piercing
+- Staying away from terrain denies Dissonance setups
 - Staying behind or beside the Landscaper (not in front) avoids Topiary Breath cone
 - Her ATK 1 means she's weak alone — focus her when separated from her team
-- Destroying her slag walls before she can Lithophone them wastes her setup
-- Spreading out reduces Topiary Breath value and Lithophone multi-hits
+- Destroying her slag walls before she can Dissonance them wastes her setup
+- Spreading out reduces Topiary Breath value and Dissonance multi-hits
 - Effect immunity (Grayman Stasiality) may resist Topiary Breath transformation
 
 ---
@@ -316,7 +316,7 @@ Candidates to explore:
 - **Topiary Breath upgrade**: increased duration (2 turns), or topiary-units explode
   on revert dealing minor damage to adjacent units, or the checker pattern becomes
   denser (units pushed closer together)?
-- **Lithophone upgrade**: increased shrapnel range, or shrapnel leaves behind hazard
+- **Dissonance upgrade**: increased shrapnel range, or shrapnel leaves behind hazard
   tiles, or triggers chain reactions with adjacent slag walls/topiaries?
 
 ---
@@ -330,7 +330,7 @@ even faster.
 **Final values**:
 - Hornswoggle: **4** (1 attack to cycle — fast terrain reshaping)
 - Topiary Breath: **8** (2 attacks to cycle — powerful CC needs longer cooldown)
-- Lithophone: **4** (1 attack to cycle — fast but consumes terrain)
+- Dissonance: **4** (1 attack to cycle — fast but consumes terrain)
 
 ---
 
@@ -353,8 +353,8 @@ When ready to implement:
 - [x] Handle Translative Stroke 4-hit logic in engine.py
 - [x] Handle Hornswoggle wave/grab/drag/slag in engine.py
 - [x] Handle Topiary Breath cone/transform/checker/revert in engine.py
-- [x] Handle topiary-unit interaction with Hornswoggle and Lithophone
-- [x] Handle Lithophone shatter/shrapnel in engine.py
+- [x] Handle topiary-unit interaction with Hornswoggle and Dissonance
+- [x] Handle Dissonance shatter/shrapnel in engine.py
 - [x] Handle slag wall and topiary duration processing in engine.py
 - [x] Topiary status effect across all systems (999 PRT, immunity, action blocking)
 - [x] ASCII animations for all skills and basic attack
@@ -362,7 +362,7 @@ When ready to implement:
 
 ### Remaining
 - [ ] Create graphics/terrain/slag_wall.svg
-- [ ] Create skill icon SVGs (hornswoggle.svg, topiary_breath.svg, lithophone.svg)
+- [ ] Create skill icon SVGs (hornswoggle.svg, topiary_breath.svg, dissonance.svg)
 - [ ] Add AI handling in tactical_evaluator.py
 - [ ] Create boneglaive/graphical/animations/landscaper.py
 - [ ] Add to animation_factory.py

@@ -46,7 +46,7 @@ from boneglaive.game.skills.potpourrist import (
 )
 
 from boneglaive.game.skills.landscaper import (
-    TranslativeStroke, HornswoggleSkill, TopiaryBreathSkill, LithophoneSkill
+    TranslativeStroke, HornswoggleSkill, TopiaryBreathSkill, DissonanceSkill
 )
 
 # Define the skills available for each unit type
@@ -93,6 +93,6 @@ UNIT_SKILLS = {
     },
     "LANDSCAPER": {
         "passive": TranslativeStroke(),
-        "active": [HornswoggleSkill(), TopiaryBreathSkill(), LithophoneSkill()]
+        "active": [HornswoggleSkill(), TopiaryBreathSkill(), DissonanceSkill()]
     }
 }

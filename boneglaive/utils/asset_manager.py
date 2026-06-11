@@ -233,9 +233,9 @@ class AssetManager:
             'topiary_breath_blast': ['~', '~', '>', '>', '*', '&'],  # Petrifying wave expanding
             'topiary_transform': ['@', '%', '&', '&', '&'],  # Unit crystallizing into topiary sculpture
             'topiary_revert': ['&', '%', '@', '*', '.'],  # Topiary crumbling back to unit
-            'lithophone_windup': ['Y', 'Y', 'Y', 'Y'],  # All four forks raised
-            'lithophone_strike': ['!', '#', 'X', '*', '+'],  # Forks slam into terrain, shattering it
-            'lithophone_shrapnel': ['*', '+', 'x', '.'],  # Debris fragments flying outward
+            'dissonance_windup': ['Y', 'Y', 'Y', 'Y'],  # Acoustic gyre forming
+            'dissonance_strike': ['!', '#', 'X', '*', '+'],  # Gyre impacts terrain, shattering it
+            'dissonance_shrapnel': ['*', '+', 'x', '.'],  # Debris fragments flying outward
             'slag_forming': ['~', '=', '#', '#'],  # Molten slag cooling into wall
             'slag_crumble': ['#', '%', '*', '.', ' ']  # Slag wall decaying and crumbling
         }

@@ -3820,6 +3820,19 @@ class GraphicalRenderer:
                                 else:
                                     outline_color = (100, 150, 255)
                                 pygame.draw.rect(surface, outline_color, rect, 2)
+
+                # Add player-colored outline for SLAG_WALL
+                if terrain_type == TerrainType.SLAG_WALL:
+                    if hasattr(self.game_adapter.game, 'slag_wall_tiles'):
+                        pos_tuple = (y, x)
+                        if pos_tuple in self.game_adapter.game.slag_wall_tiles:
+                            wall_info = self.game_adapter.game.slag_wall_tiles[pos_tuple]
+                            if 'owner' in wall_info and wall_info['owner']:
+                                if wall_info['owner'].player == 1:
+                                    outline_color = (0, 255, 100)
+                                else:
+                                    outline_color = (100, 150, 255)
+                                pygame.draw.rect(surface, outline_color, rect, 2)
             else:
                 # Fallback: draw colored rectangle
                 if terrain_type in [TerrainType.LIMESTONE, TerrainType.PILLAR,

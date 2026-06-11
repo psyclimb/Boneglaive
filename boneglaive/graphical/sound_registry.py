@@ -100,7 +100,7 @@ SKILL_SOUNDS = {
     # LANDSCAPER skills
     "HORNSWOGGLE": "hornswoggle",
     "TOPIARY_BREATH": "topiary_breath",
-    "LITHOPHONE": "lithophone",
+    "DISSONANCE": "dissonance",
     "SLAG_WALL_DESPAWN": None,  # Ambient crumble (silent for now)
     "TOPIARY_REVERT": None,  # Ambient shatter (silent for now)
 }
@@ -408,10 +408,10 @@ MULTI_EVENT_SOUNDS = {
     "topiary_breath_blast": "sounds/skills/topiary_breath_blast.wav",      # Petrifying cone erupts — wide resonant roar
     "topiary_breath_petrify": "sounds/skills/topiary_breath_petrify.wav",  # Units crystallize into topiary — crackling solidification
 
-    # LANDSCAPER - Lithophone (3 events)
-    "lithophone_converge": "sounds/skills/lithophone_converge.wav",    # Four forks strike terrain — quad resonant ping convergence
-    "lithophone_shatter": "sounds/skills/lithophone_shatter.wav",      # Terrain shatters explosively — heavy stone detonation
-    "lithophone_shrapnel": "sounds/skills/lithophone_shrapnel.wav",    # Shrapnel radiates outward — sharp fragments whistling through air
+    # LANDSCAPER - Dissonance (3 events)
+    "dissonance_converge": "sounds/skills/dissonance_converge.wav",    # Acoustic gyre impacts terrain — resonant convergence
+    "dissonance_shatter": "sounds/skills/dissonance_shatter.wav",      # Terrain shatters explosively — heavy stone detonation
+    "dissonance_shrapnel": "sounds/skills/dissonance_shrapnel.wav",    # Shrapnel radiates outward — sharp fragments whistling through air
 }
 
 

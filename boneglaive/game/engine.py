@@ -3202,8 +3202,8 @@ class Game:
                     unit.partition_shield_blocked_fatal = False
                     if hasattr(unit, 'partition_dissociation_caster'):
                         unit.partition_dissociation_caster = None
-                    # Reset partition stat (but preserve HEINOUS_VAPOR invulnerability)
-                    if unit.type != UnitType.HEINOUS_VAPOR:
+                    # Reset partition stat (but preserve HEINOUS_VAPOR invulnerability and topiary PRT)
+                    if unit.type != UnitType.HEINOUS_VAPOR and not getattr(unit, 'is_topiary', False):
                         unit.prt = 0
                     
                     # Log the expiration
@@ -5102,9 +5102,9 @@ class Game:
         protected_unit.partition_shield_caster = None
         if hasattr(protected_unit, 'partition_dissociation_caster'):
             protected_unit.partition_dissociation_caster = None
-        if protected_unit.type != UnitType.HEINOUS_VAPOR:
+        if protected_unit.type != UnitType.HEINOUS_VAPOR and not getattr(protected_unit, 'is_topiary', False):
             protected_unit.prt = 0
-        
+
         message_log.add_message(
             f"{protected_unit.get_display_name()}'s partition emergency ends - {caster.get_display_name()} teleports away and abandonment trauma sets in",
             MessageType.ABILITY
@@ -5243,8 +5243,8 @@ class Game:
                 unit._prt_absorbed_this_action = False
 
                 # Reset dissociation PRT boost (from prt=999 back to 0) for all units
-                # BUT preserve HEINOUS_VAPOR invulnerability
-                if unit.prt > 1 and unit.type != UnitType.HEINOUS_VAPOR:  # If boosted from dissociation
+                # BUT preserve HEINOUS_VAPOR invulnerability and topiary PRT
+                if unit.prt > 1 and unit.type != UnitType.HEINOUS_VAPOR and not getattr(unit, 'is_topiary', False):
                     unit.prt = 0
                     from boneglaive.utils.debug import logger
                     logger.info(f"DISSOCIATION RESET: {unit.get_display_name()} prt reset to 0")

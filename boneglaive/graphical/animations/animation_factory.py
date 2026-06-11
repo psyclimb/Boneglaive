@@ -85,7 +85,7 @@ from boneglaive.graphical.animations.core_animations import (
 from boneglaive.graphical.animations.landscaper import (
     HornswoggleAnimation,
     TopiaryBreathAnimation,
-    LithophoneAnimation,
+    DissonanceAnimation,
     SlagWallDespawnAnimation,
     TopiaryRevertAnimation,
 )
@@ -204,7 +204,7 @@ class AnimationFactory:
         # LANDSCAPER skills
         "HORNSWOGGLE": (HornswoggleAnimation, {}),
         "TOPIARY_BREATH": (TopiaryBreathAnimation, {}),
-        "LITHOPHONE": (LithophoneAnimation, {}),
+        "DISSONANCE": (DissonanceAnimation, {}),
         "SLAG_WALL_DESPAWN": (SlagWallDespawnAnimation, {}),
         "TOPIARY_REVERT": (TopiaryRevertAnimation, {}),
 
@@ -1363,7 +1363,7 @@ class AnimationFactory:
                     camera=camera,
                     game=kwargs.get('game')
                 )
-            elif anim_class.__name__ == "LithophoneAnimation":
+            elif anim_class.__name__ == "DissonanceAnimation":
                 # Landscaper terrain shatter - needs target position and game
                 animation = anim_class(
                     caster_unit=caster_unit,

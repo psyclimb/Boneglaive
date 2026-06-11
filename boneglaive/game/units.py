@@ -587,6 +587,10 @@ class Unit:
             )
             return 0
 
+        # Topiary units cannot be healed (transformed into terrain)
+        if hasattr(self, 'is_topiary') and self.is_topiary:
+            return 0
+
         # Apply healing (don't exceed max HP)
         old_hp = self.hp
         self.hp = min(self.max_hp, self.hp + heal_amount)
@@ -831,8 +835,8 @@ class Unit:
                 # Show partition message and animation for each attack (not just once per turn)
                 if prt_absorbed > 0:
                     from boneglaive.utils.debug import logger
-                    # Only show partition damage messages for non-HEINOUS VAPOR units
-                    if self.type != UnitType.HEINOUS_VAPOR:
+                    # Only show partition damage messages for Partition shields (not HEINOUS_VAPOR or topiary)
+                    if self.type != UnitType.HEINOUS_VAPOR and not getattr(self, 'is_topiary', False):
                         from boneglaive.utils.message_log import message_log, MessageType
                         message_log.add_message(
                             f"{self.get_display_name()}'s partition takes #DAMAGE_{prt_absorbed}# damage",

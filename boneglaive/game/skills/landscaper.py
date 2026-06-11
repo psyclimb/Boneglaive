@@ -143,7 +143,7 @@ class HornswoggleSkill(ActiveSkill):
     it hits and drags it 90° CCW, depositing slag walls along the drag path.
     """
 
-    WAVE_RANGE = 3
+    WAVE_RANGE = 4
     DRAG_RANGE = 4
     SLAG_DURATION = 3
 
@@ -680,11 +680,11 @@ class TopiaryBreathSkill(ActiveSkill):
         self.fire_source = None
 
 
-class LithophoneSkill(ActiveSkill):
+class DissonanceSkill(ActiveSkill):
     """
-    Active skill: LITHOPHONE
-    Strike an adjacent terrain tile with all four tuning forks, shattering it.
-    Shrapnel flies in all 8 directions dealing ATK*2 piercing damage.
+    Active skill: DISSONANCE
+    Launch an acoustic gyre into terrain, shattering it from within.
+    Shrapnel flies in all 8 directions dealing piercing damage.
     Shrapnel stops at terrain, passes through units.
     """
 
@@ -692,12 +692,12 @@ class LithophoneSkill(ActiveSkill):
 
     def __init__(self):
         super().__init__(
-            name="Lithophone",
-            key="L",
-            description="Shatter adjacent terrain. 6 piercing to primary target, 4 piercing shrapnel in 8 directions. Stops at terrain, passes through units.",
+            name="Dissonance",
+            key="D",
+            description="Launch acoustic gyre to shatter terrain. 4 piercing shrapnel in 8 directions. Stops at terrain, passes through units. Frees topiary units.",
             target_type=TargetType.AREA,
             cooldown=4,
-            range_=3
+            range_=4
         )
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -753,11 +753,11 @@ class LithophoneSkill(ActiveSkill):
             player=user.player
         )
 
-        logger.info(f"LITHOPHONE QUEUED: {user.get_display_name()} targeting ({target_pos[0]},{target_pos[1]})")
+        logger.info(f"DISSONANCE QUEUED: {user.get_display_name()} targeting ({target_pos[0]},{target_pos[1]})")
         return True
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> None:
-        """Execute Lithophone during combat phase."""
+        """Execute Dissonance during combat phase."""
         from boneglaive.game.map import TerrainType
 
         ty, tx = target_pos
@@ -775,8 +775,7 @@ class LithophoneSkill(ActiveSkill):
                 return
 
         # Flat piercing damage values
-        shatter_damage = 6   # Direct target (topiary-unit)
-        shrapnel_damage = 3  # AoE shrapnel
+        shrapnel_damage = 4  # AoE shrapnel
 
         # Check if shattering a topiary-unit
         topiary_unit = None
@@ -806,13 +805,12 @@ class LithophoneSkill(ActiveSkill):
             player=user.player
         )
 
-        # If topiary-unit: deal piercing damage to the unit
+        # If topiary-unit: revert topiary state (unit is freed, no direct damage)
         if topiary_unit and topiary_unit.is_alive():
-            # Revert topiary state before dealing damage
             topiary_unit.is_topiary = False
             topiary_unit.topiary_duration = 0
 
-            # Restore original PRT before damage calc
+            # Restore original PRT
             if hasattr(topiary_unit, 'topiary_original_prt'):
                 topiary_unit.prt = topiary_unit.topiary_original_prt
                 delattr(topiary_unit, 'topiary_original_prt')
@@ -820,18 +818,11 @@ class LithophoneSkill(ActiveSkill):
             if (ty, tx) in game.topiary_units:
                 del game.topiary_units[(ty, tx)]
 
-            old_hp = topiary_unit.hp
-            # Shatter damage: 6 flat piercing to primary target
-            actual_damage = topiary_unit.deal_damage(shatter_damage, can_kill=True)
-
             message_log.add_message(
-                f"{topiary_unit.get_display_name()} is shattered for #DAMAGE_{actual_damage}# piercing damage!",
-                MessageType.WARNING,
-                player=topiary_unit.player
+                f"{topiary_unit.get_display_name()} is freed from topiary!",
+                MessageType.ABILITY,
+                player=user.player
             )
-
-            if topiary_unit.hp <= 0 and old_hp > 0:
-                game.handle_unit_death(topiary_unit, user, cause="lithophone", ui=ui)
 
         # Fire shrapnel in all 8 directions
         total_hits = 0
@@ -850,6 +841,9 @@ class LithophoneSkill(ActiveSkill):
                 # Hit units (passes through — hits multiple)
                 hit_unit = game.get_unit_at(shrap_y, shrap_x)
                 if hit_unit and hit_unit.is_alive() and hit_unit != user:
+                    # Friendly topiary units are protected from friendly Dissonance shrapnel
+                    if hit_unit.player == user.player and getattr(hit_unit, 'is_topiary', False):
+                        continue
                     old_hp = hit_unit.hp
                     actual_damage = hit_unit.deal_damage(shrapnel_damage, can_kill=True)
                     total_hits += 1
@@ -870,23 +864,23 @@ class LithophoneSkill(ActiveSkill):
 
                     # Check for death
                     if hit_unit.hp <= 0 and old_hp > 0:
-                        game.handle_unit_death(hit_unit, user, cause="lithophone_shrapnel", ui=ui)
+                        game.handle_unit_death(hit_unit, user, cause="dissonance_shrapnel", ui=ui)
 
                     # Check for critical health
                     game.check_critical_health(hit_unit, user, old_hp, ui)
 
         if total_hits > 0:
             message_log.add_message(
-                f"Lithophone shrapnel hits {total_hits} unit(s) for {shrapnel_damage} piercing each",
+                f"Dissonance shrapnel hits {total_hits} unit(s) for {shrapnel_damage} piercing each",
                 MessageType.ABILITY,
                 player=user.player
             )
 
         # Store execution data for graphical animation to read
-        user.last_lithophone_data = {
+        user.last_dissonance_data = {
             'target_pos': (ty, tx),
             'was_topiary': topiary_unit is not None,
         }
 
-        logger.info(f"LITHOPHONE EXECUTED: {user.get_display_name()} shattered {shattered_name} "
+        logger.info(f"DISSONANCE EXECUTED: {user.get_display_name()} shattered {shattered_name} "
                      f"at ({ty},{tx}), {total_hits} shrapnel hits for {shrapnel_damage} each")

@@ -42,11 +42,12 @@ METAL_LIGHT = (138, 138, 142)
 
 
 # ============================================================================
-# TRANSLATIVE STROKE — Basic Attack (4 rapid tuning fork strikes)
+# TRANSLATIVE STROKE — Basic Attack (4 simultaneous tuning fork strikes)
 # ============================================================================
 
 class TranslativeStrokeAnimation:
-    """4 rapid melee strikes with tuning forks, burgundy particles on each impact."""
+    """All 4 tuning forks strike the target simultaneously, then a quartz watch
+    mechanism effect plays on the Landscaper representing cooldown cycling."""
 
     def __init__(self, attacker_unit, target_unit, particle_emitter, screen_shake_callback, **kwargs):
         self.attacker = attacker_unit
@@ -56,59 +57,74 @@ class TranslativeStrokeAnimation:
         self.active = True
         self.elapsed = 0.0
 
-        # Screen positions
-        self.ax = getattr(attacker_unit, 'screen_x', 0)
-        self.ay = getattr(attacker_unit, 'screen_y', 0)
-        self.tx = getattr(target_unit, 'screen_x', 0)
-        self.ty = getattr(target_unit, 'screen_y', 0)
+        # Screen-absolute positions
+        self.ax = attacker_unit.x
+        self.ay = attacker_unit.y
+        self.tx = target_unit.x
+        self.ty = target_unit.y
 
-        # 4 strikes at different angles
-        self.strike_count = 4
-        self.strike_duration = 0.18
-        self.total_duration = self.strike_count * self.strike_duration + 0.28
-        self.strike_angles = [
-            math.radians(-135),  # top-left
-            math.radians(-45),   # top-right
-            math.radians(45),    # bottom-right
-            math.radians(135),   # bottom-left
+        # Direction from attacker to target
+        dx = self.tx - self.ax
+        dy = self.ty - self.ay
+        dist = math.hypot(dx, dy) or 1.0
+        self.dir_x = dx / dist
+        self.dir_y = dy / dist
+        self.dist = dist
+        self.perp_x = -self.dir_y
+        self.perp_y = self.dir_x
+
+        # 4 fork origins — fanned out from attacker position
+        spread = 14
+        self.fork_origins = [
+            (self.ax + self.perp_x * spread * 1.2 - self.dir_x * 8,
+             self.ay + self.perp_y * spread * 1.2 - self.dir_y * 8),
+            (self.ax + self.perp_x * spread * 0.4 + self.dir_x * 4,
+             self.ay + self.perp_y * spread * 0.4 + self.dir_y * 4),
+            (self.ax - self.perp_x * spread * 0.4 + self.dir_x * 4,
+             self.ay - self.perp_y * spread * 0.4 + self.dir_y * 4),
+            (self.ax - self.perp_x * spread * 1.2 - self.dir_x * 8,
+             self.ay - self.perp_y * spread * 1.2 - self.dir_y * 8),
         ]
-        self.current_strike = -1
-        self.strike_flashes = []
+
+        # Phase timing
+        self.strike_end = 0.35    # All forks thrust simultaneously
+        self.impact_end = 0.5     # Impact hold / flash
+        self.watch_end = 1.2      # Quartz watch effect on Landscaper
+        self.total_duration = self.watch_end
+
+        # State
+        self.impact_triggered = False
+        self.watch_hand_angle = 0.0  # Current hand rotation
 
     def update(self, delta_time):
         self.elapsed += delta_time
 
-        # Determine which strike we're on
-        new_strike = min(int(self.elapsed / self.strike_duration), self.strike_count - 1)
-
-        # Trigger new strike
-        if new_strike > self.current_strike and new_strike < self.strike_count:
-            self.current_strike = new_strike
-            # Particles at target
-            self.particle_emitter.emit_burst(self.tx, self.ty, BURGUNDY, count=8)
-            # Flash
-            self.strike_flashes.append({
-                'x': self.tx, 'y': self.ty,
-                'radius': 5, 'max_radius': 15,
-                'alpha': 220, 'lifetime': 0.12
-            })
+        # Phase 2: Impact trigger
+        if self.elapsed >= self.strike_end and not self.impact_triggered:
+            self.impact_triggered = True
+            if self.particle_emitter:
+                self.particle_emitter.emit_burst(self.tx, self.ty, BURGUNDY, count=18)
+                self.particle_emitter.emit_burst(self.tx, self.ty, QUARTZ_PALE, count=8)
             if self.screen_shake:
-                self.screen_shake(3, 0.06)
+                self.screen_shake(6, 0.12)
+            # Shake the target unit
+            if self.target:
+                self.target.shake_intensity = 12
 
-        # Final impact
-        if self.elapsed >= self.strike_count * self.strike_duration and self.current_strike == self.strike_count - 1:
-            self.current_strike = self.strike_count  # prevent re-trigger
-            self.particle_emitter.emit_burst(self.tx, self.ty, BURGUNDY, count=16)
-            self.particle_emitter.emit_burst(self.tx, self.ty, BONE_IVORY, count=6)
-            if self.screen_shake:
-                self.screen_shake(5, 0.15)
+        # Phase 3: Quartz watch — spin the hand (accelerating)
+        if self.elapsed >= self.impact_end:
+            watch_t = (self.elapsed - self.impact_end) / (self.watch_end - self.impact_end)
+            # Accelerating clockwise spin: starts slow, speeds up
+            speed = 4 + 12 * watch_t  # radians/sec, accelerates
+            self.watch_hand_angle += speed * delta_time
 
-        # Update flashes
-        for flash in self.strike_flashes:
-            flash['lifetime'] -= delta_time
-            flash['radius'] = min(flash['radius'] + 80 * delta_time, flash['max_radius'])
-            flash['alpha'] = max(0, flash['alpha'] - 600 * delta_time)
-        self.strike_flashes = [f for f in self.strike_flashes if f['lifetime'] > 0]
+            # Particles drifting inward toward Landscaper
+            if self.particle_emitter and random.random() < 0.4:
+                angle = random.uniform(0, math.tau)
+                dist = random.uniform(20, 35)
+                px = self.ax + math.cos(angle) * dist
+                py = self.ay + math.sin(angle) * dist
+                self.particle_emitter.emit_trail(px, py, BURGUNDY_LIGHT, count=1)
 
         if self.elapsed >= self.total_duration:
             self.active = False
@@ -118,47 +134,119 @@ class TranslativeStrokeAnimation:
         if not self.active:
             return
 
-        # Draw fork lines for current strike
-        strike_idx = min(int(self.elapsed / self.strike_duration), self.strike_count - 1)
-        if strike_idx < self.strike_count:
-            strike_phase = (self.elapsed % self.strike_duration) / self.strike_duration
-            angle = self.strike_angles[strike_idx]
-            offset = 20
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
-            # Fork origin offset from attacker
-            fork_x = self.ax + math.cos(angle) * offset
-            fork_y = self.ay + math.sin(angle) * offset
+        # === Phase 1: Fork thrust (0.0 – strike_end) ===
+        if self.elapsed < self.impact_end:
+            thrust_t = min(1.0, self.elapsed / self.strike_end)
 
-            # Line extends toward target during wind-up, retracts during recoil
-            if strike_phase < 0.35:
-                progress = strike_phase / 0.35
-                end_x = fork_x + (self.tx - fork_x) * progress
-                end_y = fork_y + (self.ty - fork_y) * progress
-            elif strike_phase < 0.55:
-                end_x = self.tx
-                end_y = self.ty
+            for ox, oy in self.fork_origins:
+                # Fork tip position — lerp from origin toward target
+                if thrust_t < 1.0:
+                    tip_x = ox + (self.tx - ox) * thrust_t
+                    tip_y = oy + (self.ty - oy) * thrust_t
+                else:
+                    tip_x, tip_y = self.tx, self.ty
+
+                # Direction from this fork's origin to target
+                fdx = self.tx - ox
+                fdy = self.ty - oy
+                fmag = math.hypot(fdx, fdy) or 1
+                fdx /= fmag
+                fdy /= fmag
+                fperp_x = -fdy
+                fperp_y = fdx
+
+                # Alpha: full during thrust, fade during impact hold
+                if self.elapsed < self.strike_end:
+                    fork_alpha = 230
+                else:
+                    fade = (self.elapsed - self.strike_end) / (self.impact_end - self.strike_end)
+                    fork_alpha = max(0, int(230 * (1 - fade)))
+
+                if fork_alpha > 5:
+                    # Handle (bone ivory line from origin toward tip)
+                    handle_end_x = tip_x - fdx * 8
+                    handle_end_y = tip_y - fdy * 8
+                    pygame.draw.line(overlay, (*BONE_IVORY, fork_alpha),
+                                   (int(ox), int(oy)), (int(handle_end_x), int(handle_end_y)), 3)
+
+                    # Two tines from handle end, spreading toward tip
+                    tine_spread = 4
+                    t1x = tip_x + fperp_x * tine_spread
+                    t1y = tip_y + fperp_y * tine_spread
+                    t2x = tip_x - fperp_x * tine_spread
+                    t2y = tip_y - fperp_y * tine_spread
+                    pygame.draw.line(overlay, (*QUARTZ_PALE, fork_alpha),
+                                   (int(handle_end_x), int(handle_end_y)), (int(t1x), int(t1y)), 2)
+                    pygame.draw.line(overlay, (*QUARTZ_PALE, fork_alpha),
+                                   (int(handle_end_x), int(handle_end_y)), (int(t2x), int(t2y)), 2)
+
+                    # Crystal glow at the tip
+                    pygame.draw.circle(overlay, (*QUARTZ_BRIGHT, int(fork_alpha * 0.5)),
+                                     (int(tip_x), int(tip_y)), 3)
+
+        # === Impact flash at target ===
+        if self.strike_end <= self.elapsed < self.impact_end:
+            flash_t = (self.elapsed - self.strike_end) / (self.impact_end - self.strike_end)
+            flash_r = int(6 + 12 * flash_t)
+            flash_a = max(0, min(255, int(200 * (1 - flash_t))))
+            if flash_a > 0:
+                pygame.draw.circle(overlay, (*BURGUNDY, flash_a),
+                                 (int(self.tx), int(self.ty)), flash_r)
+                pygame.draw.circle(overlay, (*QUARTZ_PALE, int(flash_a * 0.6)),
+                                 (int(self.tx), int(self.ty)), max(1, flash_r // 2))
+
+        # === Phase 3: Quartz watch mechanism on the Landscaper ===
+        if self.elapsed >= self.impact_end:
+            watch_t = min(1.0, (self.elapsed - self.impact_end) / (self.watch_end - self.impact_end))
+            # Fade in then out
+            if watch_t < 0.15:
+                watch_alpha = int(220 * (watch_t / 0.15))
+            elif watch_t > 0.7:
+                watch_alpha = max(0, int(220 * (1 - (watch_t - 0.7) / 0.3)))
             else:
-                retract = (strike_phase - 0.55) / 0.45
-                end_x = self.tx + (fork_x - self.tx) * retract
-                end_y = self.ty + (fork_y - self.ty) * retract
+                watch_alpha = 220
 
-            alpha = int(200 * (1 - max(0, strike_phase - 0.55) / 0.45))
-            if alpha > 0:
-                line_surf = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-                pygame.draw.line(line_surf, (*QUARTZ_PALE, alpha),
-                                (int(fork_x), int(fork_y)),
-                                (int(end_x), int(end_y)), 3)
-                surface.blit(line_surf, (0, 0))
+            cx, cy = int(self.ax), int(self.ay)
+            watch_r = 18
 
-        # Draw flashes
-        for flash in self.strike_flashes:
-            if flash['alpha'] > 10:
-                flash_surf = pygame.Surface((int(flash['radius'] * 2 + 4), int(flash['radius'] * 2 + 4)), pygame.SRCALPHA)
-                pygame.draw.circle(flash_surf, (*QUARTZ_BRIGHT, int(flash['alpha'])),
-                                  (int(flash['radius'] + 2), int(flash['radius'] + 2)),
-                                  int(flash['radius']))
-                surface.blit(flash_surf, (int(flash['x'] - flash['radius'] - 2),
-                                          int(flash['y'] - flash['radius'] - 2)))
+            # Outer bezel — burgundy circle
+            pygame.draw.circle(overlay, (*BURGUNDY, watch_alpha), (cx, cy), watch_r, 2)
+            pygame.draw.circle(overlay, (*BURGUNDY_DARK, int(watch_alpha * 0.3)), (cx, cy), watch_r)
+
+            # Tick marks around the dial (12 marks like a clock)
+            num_ticks = 12
+            for i in range(num_ticks):
+                tick_angle = (math.tau / num_ticks) * i
+                inner_r = watch_r - 4
+                outer_r = watch_r - 1
+                ix = cx + math.cos(tick_angle) * inner_r
+                iy = cy + math.sin(tick_angle) * inner_r
+                ox_t = cx + math.cos(tick_angle) * outer_r
+                oy_t = cy + math.sin(tick_angle) * outer_r
+                tick_a = max(0, min(255, int(watch_alpha * 0.7)))
+                pygame.draw.line(overlay, (*BONE_IVORY, tick_a),
+                               (int(ix), int(iy)), (int(ox_t), int(oy_t)), 1)
+
+            # Sweeping hand — quartz bright, rotates clockwise (accelerating)
+            hand_len = watch_r - 5
+            # Negative angle for clockwise (pygame y-axis is down)
+            hx = cx + math.cos(self.watch_hand_angle) * hand_len
+            hy = cy + math.sin(self.watch_hand_angle) * hand_len
+            hand_a = max(0, min(255, watch_alpha))
+            pygame.draw.line(overlay, (*QUARTZ_BRIGHT, hand_a),
+                           (cx, cy), (int(hx), int(hy)), 2)
+            # Bright tip
+            pygame.draw.circle(overlay, (*QUARTZ_PALE, hand_a), (int(hx), int(hy)), 2)
+
+            # Center crystal — pulsing
+            pulse = 0.5 + 0.5 * math.sin(self.elapsed * 12)
+            crystal_a = max(0, min(255, int(watch_alpha * (0.6 + 0.4 * pulse))))
+            pygame.draw.circle(overlay, (*QUARTZ_PALE, crystal_a), (cx, cy), 4)
+            pygame.draw.circle(overlay, (*BURGUNDY_LIGHT, int(crystal_a * 0.5)), (cx, cy), 2)
+
+        surface.blit(overlay, (0, 0))
 
 
 # ============================================================================
@@ -211,31 +299,42 @@ class HornswoggleAnimation:
             self.slag_grids.append((pos[1], pos[0]))
 
         # Calculate wave path tiles (source to grab)
-        from boneglaive.game.skills.landscaper import DIRECTION_VECTORS
+        from boneglaive.game.skills.landscaper import DIRECTION_VECTORS, HornswoggleSkill
         direction = hornswoggle_data['direction']
         dy, dx = DIRECTION_VECTORS[direction]
         self.wave_screens = []
         sy, sx = src
-        for dist in range(1, 4):
+        for dist in range(1, HornswoggleSkill.WAVE_RANGE + 1):
             wy = sy + dy * dist
             wx = sx + dx * dist
             self.wave_screens.append(camera.grid_to_screen(wx, wy, centered=True))
             if (wy, wx) == grab:
                 break
 
+        # Wave flight angle for drawing directional arcs
+        sx_screen, sy_screen = self.source_screen
+        gx_screen, gy_screen = self.grab_screen
+        self.wave_angle = math.atan2(gy_screen - sy_screen, gx_screen - sx_screen)
+
         # Phase timing
         self.phase = "wave"
         self.phase_timers = {
-            "wave": 0.5,
-            "grab": 0.3,
-            "drag": 0.35 * max(1, len(self.slag_screens)),
-            "deposit": 0.3,
+            "wave": 0.56,
+            "grab": 0.24,
+            "drag": 0.28 * max(1, len(self.slag_screens)),
+            "deposit": 0.24,
         }
 
         # Slag formation tracking
         self.slag_formed = [False] * len(self.slag_screens)
         self.terrain_pos = list(self.grab_screen)  # Current flying terrain position
         self.wave_progress = 0.0
+
+        # Wave projectile state
+        self.wave_x = float(sx_screen)
+        self.wave_y = float(sy_screen)
+        self.wave_rotation = 0.0
+        self.wave_trail = []  # Trail of past positions for fading arcs
 
         # Initially hide ALL slag walls and the deposit terrain —
         # they already exist in the game map but we reveal them progressively
@@ -259,18 +358,36 @@ class HornswoggleAnimation:
 
         if phase == "wave":
             self.wave_progress = phase_t / self.phase_timers["wave"]
-            # Emit trail particles along wave front
-            if self.wave_screens and self.particle_emitter:
-                idx = min(int(self.wave_progress * len(self.wave_screens)), len(self.wave_screens) - 1)
-                wx, wy = self.wave_screens[idx]
-                self.particle_emitter.emit_trail(wx, wy, QUARTZ_PALE, count=3)
+            progress = self.wave_progress
+
+            # Interpolate wave position along straight line from source to grab
+            sx, sy = self.source_screen
+            gx, gy = self.grab_screen
+            self.wave_x = sx + (gx - sx) * progress
+            self.wave_y = sy + (gy - sy) * progress
+
+            self.wave_rotation += 6 * delta_time
+
+            # Append trail
+            self.wave_trail.append({
+                'x': self.wave_x, 'y': self.wave_y,
+                'rot': self.wave_rotation, 'age': 0.0,
+            })
+            for tp in self.wave_trail:
+                tp['age'] += delta_time
+            self.wave_trail = [tp for tp in self.wave_trail if tp['age'] < 0.35]
+
+            # Particles along wave front
+            if self.particle_emitter and random.random() < 0.5:
+                self.particle_emitter.emit_trail(self.wave_x, self.wave_y, BURGUNDY_DARK, count=1)
 
         elif phase == "grab":
             # Grab impact at start of phase
             if phase_t < delta_time * 2 and self.particle_emitter:
                 gx, gy = self.grab_screen
-                self.particle_emitter.emit_burst(gx, gy, STONE_GRAY, count=20)
-                self.particle_emitter.emit_burst(gx, gy, BONE_IVORY, count=8)
+                self.particle_emitter.emit_burst(gx, gy, BURGUNDY, count=15)
+                self.particle_emitter.emit_burst(gx, gy, STONE_GRAY, count=12)
+                self.particle_emitter.emit_burst(gx, gy, BONE_IVORY, count=6)
                 if self.screen_shake:
                     self.screen_shake(6, 0.2)
 
@@ -330,25 +447,62 @@ class HornswoggleAnimation:
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
         if phase == "wave":
-            # Draw wave arcs traveling toward grab point
-            progress = self.wave_progress
-            if self.wave_screens:
-                idx = min(int(progress * len(self.wave_screens)), len(self.wave_screens) - 1)
-                wx, wy = self.wave_screens[idx]
-                # Expanding arc at wave front
-                radius = int(TILE_SIZE * 0.4)
-                alpha = int(180 * (1 - progress * 0.3))
-                pygame.draw.circle(overlay, (*QUARTZ_PALE, alpha), (int(wx), int(wy)), radius, 2)
-                pygame.draw.circle(overlay, (*QUARTZ_BRIGHT, int(alpha * 0.7)), (int(wx), int(wy)), radius - 4, 2)
+            # Draw trail — fading pressure arcs behind the wave front
+            for tp in self.wave_trail:
+                trail_alpha = max(0, min(255, int(100 * (1 - tp['age'] / 0.35))))
+                if trail_alpha > 5:
+                    r = 10
+                    # Concentric pressure arcs perpendicular to travel direction
+                    perp = self.wave_angle + math.pi / 2
+                    for arc_i in range(2):
+                        arc_offset = (arc_i - 0.5) * r * 0.6
+                        ax = tp['x'] + math.cos(perp) * arc_offset
+                        ay = tp['y'] + math.sin(perp) * arc_offset
+                        pygame.draw.circle(overlay, (*BURGUNDY, trail_alpha), (int(ax), int(ay)), int(r * 0.5), 1)
+
+            # Draw main wave projectile — acoustic pressure front
+            wx, wy = int(self.wave_x), int(self.wave_y)
+            wave_r = 14
+
+            # Filled burgundy core
+            pygame.draw.circle(overlay, (*BURGUNDY_DARK, 140), (wx, wy), wave_r)
+
+            # Pressure arcs — bright arcs perpendicular to travel
+            perp = self.wave_angle + math.pi / 2
+            arc_w = max(2, wave_r // 3)
+            for arc_i in range(3):
+                # Three arcs stacked perpendicular to direction of travel
+                offset = (arc_i - 1) * wave_r * 0.55
+                ax = wx + math.cos(perp) * offset
+                ay = wy + math.sin(perp) * offset
+                arc_r = int(wave_r * 0.45)
+                pygame.draw.circle(overlay, (*QUARTZ_PALE, 200), (int(ax), int(ay)), arc_r, arc_w)
+
+            # Bright leading edge — a line perpendicular to travel at the front
+            front_len = wave_r * 1.2
+            fx1 = wx + math.cos(perp) * front_len
+            fy1 = wy + math.sin(perp) * front_len
+            fx2 = wx - math.cos(perp) * front_len
+            fy2 = wy - math.sin(perp) * front_len
+            pygame.draw.line(overlay, (*QUARTZ_BRIGHT, 180),
+                           (int(fx1), int(fy1)), (int(fx2), int(fy2)), 3)
+
+            # Inner burgundy-light ring
+            pygame.draw.circle(overlay, (*BURGUNDY_LIGHT, 160), (wx, wy), int(wave_r * 0.5), 2)
+
+            # Bright core dot
+            pygame.draw.circle(overlay, (*QUARTZ_PALE, 220), (wx, wy), 3)
 
         elif phase == "grab":
-            # Flash at grab point
+            # Burgundy flash at grab point
             gx, gy = self.grab_screen
             flash_progress = phase_t / self.phase_timers["grab"]
-            radius = int(10 + 20 * flash_progress)
-            alpha = int(220 * (1 - flash_progress))
+            radius = int(12 + 18 * flash_progress)
+            alpha = max(0, min(255, int(220 * (1 - flash_progress))))
             if alpha > 0:
-                pygame.draw.circle(overlay, (*QUARTZ_BRIGHT, alpha), (int(gx), int(gy)), radius)
+                pygame.draw.circle(overlay, (*BURGUNDY, alpha), (int(gx), int(gy)), radius)
+                inner_alpha = max(0, min(255, int(180 * (1 - flash_progress))))
+                pygame.draw.circle(overlay, (*QUARTZ_PALE, inner_alpha), (int(gx), int(gy)), int(radius * 0.5))
 
         elif phase == "drag":
             # Draw slag formation effects (glow on newly revealed slag tiles)
@@ -356,15 +510,21 @@ class HornswoggleAnimation:
                 if self.slag_formed[i]:
                     pygame.draw.circle(overlay, (*SLAG_ORANGE, 60), (int(sx), int(sy)), int(TILE_SIZE * 0.4))
 
-            # Draw flying terrain block
+            # Draw flying terrain block with burgundy resonance glow
             tx, ty = self.terrain_pos
             half = TILE_SIZE // 2
-            pygame.draw.rect(overlay, (*STONE_GRAY, 200),
+            # Burgundy glow around terrain
+            pygame.draw.rect(overlay, (*BURGUNDY_DARK, 60),
+                           (int(tx - half * 0.6), int(ty - half * 0.6),
+                            int(TILE_SIZE * 0.6), int(TILE_SIZE * 0.6)))
+            # Terrain body
+            pygame.draw.rect(overlay, (*STONE_GRAY, 210),
                            (int(tx - half * 0.4), int(ty - half * 0.4),
                             int(TILE_SIZE * 0.4), int(TILE_SIZE * 0.4)))
-            pygame.draw.rect(overlay, (*BURGUNDY, 80),
-                           (int(tx - half * 0.5), int(ty - half * 0.5),
-                            int(TILE_SIZE * 0.5), int(TILE_SIZE * 0.5)), 2)
+            # Burgundy resonance border
+            pygame.draw.rect(overlay, (*BURGUNDY_LIGHT, 160),
+                           (int(tx - half * 0.45), int(ty - half * 0.45),
+                            int(TILE_SIZE * 0.45), int(TILE_SIZE * 0.45)), 2)
 
         elif phase == "deposit":
             # Landing flash
@@ -546,10 +706,10 @@ class TopiaryBreathAnimation:
 
 
 # ============================================================================
-# LITHOPHONE — Terrain shatter with 8-directional shrapnel
+# DISSONANCE — Terrain shatter with 8-directional shrapnel
 # ============================================================================
 
-class LithophoneAnimation:
+class DissonanceAnimation:
     """Acoustic gyre projectile launched from horn array into terrain, shattering it
     from within and sending shrapnel flying in all 8 directions."""
 
@@ -580,7 +740,7 @@ class LithophoneAnimation:
         # Check if target was a topiary (more dramatic effects)
         self.is_topiary = False
         if game_unit:
-            litho_data = getattr(game_unit, 'last_lithophone_data', None)
+            litho_data = getattr(game_unit, 'last_dissonance_data', None)
             if litho_data:
                 self.is_topiary = litho_data.get('was_topiary', False)
 

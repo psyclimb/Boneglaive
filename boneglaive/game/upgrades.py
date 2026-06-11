@@ -291,8 +291,8 @@ SKILL_UPGRADES = {
             "type": "buff",
             "cost": 1
         },
-        "Lithophone": {
-            "name": "Lithophone",
+        "Dissonance": {
+            "name": "Dissonance",
             "description": "TBD",
             "type": "buff",
             "cost": 1

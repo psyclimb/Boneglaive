@@ -353,11 +353,11 @@ class SetupUnitHelp:
                     },
                     {
                         'name': 'TOPIARY BREATH',
-                        'desc': 'Breathes petrifying resonance in a wide cone. All units caught are transformed into invulnerable topiary sculptures for 2 turns. Topiaries can be shattered by Lithophone.'
+                        'desc': 'Breathes petrifying resonance in a wide cone. All units caught are transformed into invulnerable topiary sculptures for 2 turns. Topiaries can be shattered by Dissonance.'
                     },
                     {
-                        'name': 'LITHOPHONE',
-                        'desc': 'Strikes terrain at range with all four forks, shattering it completely. Shrapnel flies in all 8 directions dealing piercing damage. Shattering a topiary deals heavy bonus damage.'
+                        'name': 'DISSONANCE',
+                        'desc': 'Launches an acoustic gyre that shatters terrain from within. Shrapnel flies in all 8 directions dealing piercing damage. Shattering a topiary frees the unit inside.'
                     }
                 ]
             },

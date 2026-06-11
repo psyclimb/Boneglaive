@@ -60,6 +60,12 @@ class LOTOChecker:
             blocked.add('skill')
             blocked.add('attack')
 
+        # Topiary units cannot act at all (transformed into terrain)
+        if hasattr(unit, 'is_topiary') and unit.is_topiary:
+            blocked.add('move')
+            blocked.add('skill')
+            blocked.add('attack')
+
         # Check disarm effect (Aerosolize Arms)
         if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
             blocked.add('attack')

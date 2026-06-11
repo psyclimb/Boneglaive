@@ -53,7 +53,7 @@ UNIT_STATS = {
     UnitType.INTERFERER: (18, 4, 0, 4, 1),
     UnitType.DERELICTIONIST: (18, 0, 0, 4, 1),
     UnitType.POTPOURRIST: (24, 5, 0, 3, 1),
-    UnitType.LANDSCAPER: (20, 1, 2, 3, 1)
+    UnitType.LANDSCAPER: (20, 1, 2, 2, 1)
 }
 
 UNIT_SYMBOLS = {

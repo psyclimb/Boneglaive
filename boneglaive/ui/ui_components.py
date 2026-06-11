@@ -1355,7 +1355,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'TOPIARY BREATH (Active)',
-                        'description': 'Blast a cone of petrifying resonance that transforms ALL units caught (allies and enemies) into invulnerable topiary terrain sculptures for 2 turns. Units are rearranged into a checker pattern. Topiaries have 999 PRT, block movement and LOS, are immune to status effects, and cannot act. Topiaries can be Hornswoggled or Lithophoned.',
+                        'description': 'Blast a cone of petrifying resonance that transforms ALL units caught (allies and enemies) into invulnerable topiary terrain sculptures for 2 turns. Units are rearranged into a checker pattern. Topiaries have 999 PRT, block movement and LOS, are immune to status effects, and cannot act. Topiaries can be Hornswoggled or shattered by Dissonance.',
                         'details': [
                             'Cone: 3/5/7/7 tiles wide over 4 rows',
                             'Duration: 2 turns',
@@ -1363,18 +1363,18 @@ class UnitHelpComponent(UIComponent):
                         ]
                     },
                     {
-                        'name': 'LITHOPHONE (Active)',
-                        'description': 'Shatter a terrain tile within range. Shrapnel flies in all 8 directions dealing 3 piercing damage (ignores DEF). Shrapnel stops at terrain but passes through multiple units. Shattering a topiary-unit deals 6 piercing damage to them plus shrapnel radiates outward.',
+                        'name': 'DISSONANCE (Active)',
+                        'description': 'Launch an acoustic gyre that shatters terrain from within. Shrapnel flies in all 8 directions dealing 4 piercing damage (ignores DEF). Shrapnel stops at terrain but passes through multiple units. Shattering a topiary frees the unit inside.',
                         'details': [
                             'Cast range: 3, Shrapnel range: 2',
-                            'Damage: 6 piercing (primary), 3 piercing (shrapnel)',
+                            'Damage: 4 piercing (shrapnel)',
                             'Cooldown: 4 turns'
                         ]
                     }
                 ],
                 'tips': [
-                    '- Hornswoggle to build slag walls, then Lithophone to shatter them near enemies',
-                    '- Topiary Breath + Lithophone: turn an enemy into terrain, then shatter them for 6 + 3 piercing',
+                    '- Hornswoggle to build slag walls, then Dissonance to shatter them near enemies',
+                    '- Topiary Breath + Dissonance: turn enemy into terrain, shatter to free them into shrapnel zone',
                     '- Topiary Breath + Hornswoggle: drag a petrified enemy across the map',
                     '- Get ATK buffs from teammates to increase Translative Stroke cycling speed',
                     '- Careful with Topiary Breath — it affects your allies too!',
@@ -5569,14 +5569,14 @@ class ActionMenuComponent(UIComponent):
                 'enabled': topiary_skill is not None,
                 'skill': topiary_skill
             })
-            # Add Lithophone skill
-            lithophone_skill = next((skill for skill in available_skills if skill.name == "Lithophone"), None)
+            # Add Dissonance skill
+            dissonance_skill = next((skill for skill in available_skills if skill.name == "Dissonance"), None)
             self.actions.append({
-                'key': 'l',
-                'label': 'ithophone',
-                'action': 'lithophone_skill',
-                'enabled': lithophone_skill is not None,
-                'skill': lithophone_skill
+                'key': 'd',
+                'label': 'issonance',
+                'action': 'dissonance_skill',
+                'enabled': dissonance_skill is not None,
+                'skill': dissonance_skill
             })
 
         # Reset selected index
@@ -6247,8 +6247,8 @@ class ActionMenuComponent(UIComponent):
                                     targets.append((y, x))
             
             elif skill.target_type == TargetType.AREA:
-                # Lithophone: highlight terrain tiles within cast range
-                if skill.name == "Lithophone":
+                # Dissonance: highlight terrain tiles within cast range
+                if skill.name == "Dissonance":
                     effective_range = skill.get_range(cursor_manager.selected_unit) if hasattr(skill, 'get_range') else skill.range
                     for y in range(HEIGHT):
                         for x in range(WIDTH):
