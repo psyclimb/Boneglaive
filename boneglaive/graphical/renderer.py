@@ -334,6 +334,10 @@ class GraphicalRenderer:
         self._dirty_tiles = set()  # Set of (x, y) tiles that need redrawing
         self._grid_fully_dirty = True  # Flag to force full redraw
 
+        # Terrain hiding for animations — tiles in this set render as empty
+        # Animations add (grid_x, grid_y) to hide terrain and remove to reveal
+        self.hidden_tiles = set()
+
         # FPS counter (for troubleshooting)
         self.show_fps = False  # Set to True to show FPS counter
         self.fps_values = []  # Rolling window of recent FPS values
@@ -2271,6 +2275,19 @@ class GraphicalRenderer:
                 updated_animations.append(anim)
         self.active_animations = updated_animations
 
+        # Collect hidden tiles from animations (for progressive terrain reveal)
+        prev_hidden = self.hidden_tiles.copy()
+        self.hidden_tiles.clear()
+        for anim in self.active_animations:
+            anim_hidden = getattr(anim, 'hidden_tiles', None)
+            if anim_hidden:
+                self.hidden_tiles.update(anim_hidden)
+        # Mark changed tiles dirty so they get redrawn
+        revealed = prev_hidden - self.hidden_tiles
+        newly_hidden = self.hidden_tiles - prev_hidden
+        for x, y in revealed | newly_hidden:
+            self._dirty_tiles.add((x, y))
+
         # Update background animations (non-blocking persistent effects like zones)
         updated_background = []
         for anim in self.background_animations:
@@ -3468,6 +3485,20 @@ class GraphicalRenderer:
                     # Hide units from the other player during their setup
                     continue
 
+            # Topiary units: draw topiary terrain tile instead of unit sprite
+            game_unit = self._get_game_unit(unit)
+            if game_unit and getattr(game_unit, 'is_topiary', False):
+                tile_x = GRID_OFFSET_X + unit.grid_x * TILE_SIZE
+                tile_y = GRID_OFFSET_Y + unit.grid_y * TILE_SIZE
+                tile_rect = pygame.Rect(tile_x, tile_y, TILE_SIZE, TILE_SIZE)
+                topiary_surface = self._load_terrain_tile(TerrainType.TOPIARY)
+                if topiary_surface:
+                    main_surface.blit(topiary_surface, (tile_x, tile_y))
+                # Player-colored border
+                border_color = (0, 255, 100) if game_unit.player == 1 else (100, 150, 255)
+                pygame.draw.rect(main_surface, border_color, tile_rect, 2)
+                continue
+
             unit.draw(main_surface, self.small_font)
 
         # Draw target indicator pips on all tiles
@@ -3739,6 +3770,16 @@ class GraphicalRenderer:
 
         if terrain_type == TerrainType.RAIL and game_map:
             terrain_type = game_map.get_rail_original_terrain(y, x)
+
+        # Animations can hide tiles to reveal them progressively
+        if (x, y) in self.hidden_tiles:
+            terrain_type = TerrainType.EMPTY
+
+        # TOPIARY tiles with units are drawn in the unit layer instead
+        if terrain_type == TerrainType.TOPIARY and game_map:
+            game = self.game_adapter.game if self.game_adapter else None
+            if game and game.get_unit_at(y, x):
+                terrain_type = TerrainType.EMPTY
 
         # Determine base color (checkerboard pattern)
         base_color = COLOR_GRID_DARK if (x + y) % 2 == 0 else COLOR_GRID_LIGHT

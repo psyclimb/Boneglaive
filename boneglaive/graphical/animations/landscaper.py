@@ -166,7 +166,8 @@ class TranslativeStrokeAnimation:
 # ============================================================================
 
 class HornswoggleAnimation:
-    """Multi-phase: sonic wave → grab → drag with slag → deposit."""
+    """Multi-phase: sonic wave → grab → drag with slag → deposit.
+    Uses hidden_tiles to hide terrain changes until the animation reveals them."""
 
     def __init__(self, caster_unit, target_unit=None, target_pos=None,
                  is_crit=False, is_infused=False,
@@ -184,6 +185,9 @@ class HornswoggleAnimation:
         game_unit = getattr(caster_unit, 'game_unit', None)
         hornswoggle_data = getattr(game_unit, 'last_hornswoggle_data', None) if game_unit else None
 
+        # Tiles hidden from the renderer until animation reveals them
+        self.hidden_tiles = set()
+
         if not hornswoggle_data or not camera:
             self.active = False
             return
@@ -194,13 +198,17 @@ class HornswoggleAnimation:
 
         grab = hornswoggle_data['grab_pos']
         self.grab_screen = camera.grid_to_screen(grab[1], grab[0], centered=True)
+        self.grab_grid = (grab[1], grab[0])  # (grid_x, grid_y) for hidden_tiles
 
         deposit = hornswoggle_data['deposit_pos']
         self.deposit_screen = camera.grid_to_screen(deposit[1], deposit[0], centered=True)
+        self.deposit_grid = (deposit[1], deposit[0])
 
         self.slag_screens = []
+        self.slag_grids = []  # Grid coords for hiding/revealing
         for pos in hornswoggle_data['slag_positions']:
             self.slag_screens.append(camera.grid_to_screen(pos[1], pos[0], centered=True))
+            self.slag_grids.append((pos[1], pos[0]))
 
         # Calculate wave path tiles (source to grab)
         from boneglaive.game.skills.landscaper import DIRECTION_VECTORS
@@ -220,7 +228,7 @@ class HornswoggleAnimation:
         self.phase_timers = {
             "wave": 0.5,
             "grab": 0.3,
-            "drag": 0.3 * max(1, len(self.slag_screens)),
+            "drag": 0.35 * max(1, len(self.slag_screens)),
             "deposit": 0.3,
         }
 
@@ -228,6 +236,12 @@ class HornswoggleAnimation:
         self.slag_formed = [False] * len(self.slag_screens)
         self.terrain_pos = list(self.grab_screen)  # Current flying terrain position
         self.wave_progress = 0.0
+
+        # Initially hide ALL slag walls and the deposit terrain —
+        # they already exist in the game map but we reveal them progressively
+        for gx, gy in self.slag_grids:
+            self.hidden_tiles.add((gx, gy))
+        self.hidden_tiles.add(self.deposit_grid)
 
     def _get_phase_elapsed(self):
         """Get elapsed time within current phase."""
@@ -265,11 +279,14 @@ class HornswoggleAnimation:
             drag_dur = self.phase_timers["drag"]
             progress = min(1.0, phase_t / drag_dur) if drag_dur > 0 else 1.0
 
-            # Form slag walls progressively
-            for i, (sx, sy) in enumerate(self.slag_screens):
+            # Form slag walls progressively — reveal each one as it forms
+            for i in range(len(self.slag_screens)):
                 slag_progress = (i + 1) / max(1, len(self.slag_screens) + 1)
                 if progress >= slag_progress and not self.slag_formed[i]:
                     self.slag_formed[i] = True
+                    sx, sy = self.slag_screens[i]
+                    # Reveal this slag tile on the map
+                    self.hidden_tiles.discard(self.slag_grids[i])
                     if self.particle_emitter:
                         self.particle_emitter.emit_burst(sx, sy, DRAGON_EYE, count=10)
                         self.particle_emitter.emit_burst(sx, sy, SLAG_ORANGE, count=6)
@@ -278,28 +295,29 @@ class HornswoggleAnimation:
 
             # Update flying terrain position (lerp from grab to deposit)
             gx, gy = self.grab_screen
-            dx, dy = self.deposit_screen
-            # Parabolic arc — terrain rises then falls
-            arc_height = -30
-            self.terrain_pos[0] = gx + (dx - gx) * progress
-            self.terrain_pos[1] = gy + (dy - gy) * progress + arc_height * math.sin(progress * math.pi)
+            ddx, ddy = self.deposit_screen
+            self.terrain_pos[0] = gx + (ddx - gx) * progress
+            self.terrain_pos[1] = gy + (ddy - gy) * progress
 
             # Trail behind flying terrain
             if self.particle_emitter:
                 self.particle_emitter.emit_trail(self.terrain_pos[0], self.terrain_pos[1], BURGUNDY_DARK, count=2)
 
         elif phase == "deposit":
-            # Deposit impact at start
+            # Deposit impact at start — reveal deposit tile
             if phase_t < delta_time * 2:
-                dx, dy = self.deposit_screen
+                self.hidden_tiles.discard(self.deposit_grid)
+                ddx, ddy = self.deposit_screen
                 if self.particle_emitter:
-                    self.particle_emitter.emit_burst(dx, dy, STONE_GRAY, count=15)
-                    self.particle_emitter.emit_burst(dx, dy, BONE_IVORY, count=10)
+                    self.particle_emitter.emit_burst(ddx, ddy, STONE_GRAY, count=15)
+                    self.particle_emitter.emit_burst(ddx, ddy, BONE_IVORY, count=10)
                 if self.screen_shake:
                     self.screen_shake(7, 0.2)
                 if self.screen_flash:
                     self.screen_flash(BURGUNDY_DARK, 0.1)
         else:
+            # Animation done — make sure everything is revealed
+            self.hidden_tiles.clear()
             self.active = False
 
         return self.active
@@ -333,31 +351,29 @@ class HornswoggleAnimation:
                 pygame.draw.circle(overlay, (*QUARTZ_BRIGHT, alpha), (int(gx), int(gy)), radius)
 
         elif phase == "drag":
-            # Draw slag formation effects
+            # Draw slag formation effects (glow on newly revealed slag tiles)
             for i, (sx, sy) in enumerate(self.slag_screens):
                 if self.slag_formed[i]:
-                    # Solidified slag glow
                     pygame.draw.circle(overlay, (*SLAG_ORANGE, 60), (int(sx), int(sy)), int(TILE_SIZE * 0.4))
 
-            # Draw flying terrain
+            # Draw flying terrain block
             tx, ty = self.terrain_pos
             half = TILE_SIZE // 2
             pygame.draw.rect(overlay, (*STONE_GRAY, 200),
                            (int(tx - half * 0.4), int(ty - half * 0.4),
                             int(TILE_SIZE * 0.4), int(TILE_SIZE * 0.4)))
-            # Glow around flying terrain
             pygame.draw.rect(overlay, (*BURGUNDY, 80),
                            (int(tx - half * 0.5), int(ty - half * 0.5),
                             int(TILE_SIZE * 0.5), int(TILE_SIZE * 0.5)), 2)
 
         elif phase == "deposit":
             # Landing flash
-            dx, dy = self.deposit_screen
+            ddx, ddy = self.deposit_screen
             flash_progress = phase_t / self.phase_timers["deposit"]
             radius = int(15 + 10 * flash_progress)
             alpha = int(180 * (1 - flash_progress))
             if alpha > 0:
-                pygame.draw.circle(overlay, (*BONE_IVORY, alpha), (int(dx), int(dy)), radius)
+                pygame.draw.circle(overlay, (*BONE_IVORY, alpha), (int(ddx), int(ddy)), radius)
 
         surface.blit(overlay, (0, 0))
 
@@ -367,7 +383,8 @@ class HornswoggleAnimation:
 # ============================================================================
 
 class TopiaryBreathAnimation:
-    """Cone blast petrifying units into topiary sculptures."""
+    """Cone blast petrifying units into topiary sculptures.
+    Uses hidden_tiles to hide topiary terrain until petrification reveals them."""
 
     def __init__(self, caster_unit, target_unit=None, target_pos=None,
                  is_crit=False, is_infused=False,
@@ -381,6 +398,9 @@ class TopiaryBreathAnimation:
         self.screen_flash = screen_flash_callback
         self.camera = camera
 
+        # Tiles hidden from the renderer until animation reveals them
+        self.hidden_tiles = set()
+
         # Get cone data from stored execution results
         game_unit = getattr(caster_unit, 'game_unit', None)
         topiary_data = getattr(game_unit, 'last_topiary_breath_data', None) if game_unit else None
@@ -388,6 +408,7 @@ class TopiaryBreathAnimation:
         self.cone_screens = []
         self.cone_rows = [[], [], [], []]  # 4 rows of cone tiles
         self.petrify_targets = []  # Screen positions of units being petrified
+        self.petrify_grids = []  # Grid coords for hiding/revealing
         self.petrify_started = []
 
         if camera and topiary_data:
@@ -408,7 +429,10 @@ class TopiaryBreathAnimation:
             for ty, tx in transformed_positions:
                 sx, sy = camera.grid_to_screen(tx, ty, centered=True)
                 self.petrify_targets.append((sx, sy))
+                self.petrify_grids.append((tx, ty))
                 self.petrify_started.append(False)
+                # Hide topiary terrain until petrification reveals it
+                self.hidden_tiles.add((tx, ty))
 
         if not self.cone_screens:
             self.active = False
@@ -451,13 +475,15 @@ class TopiaryBreathAnimation:
 
             self.cone_alpha = min(80, int(blast_t * 200))
 
-        # Phase 3: Petrification (1.0-1.8s)
+        # Phase 3: Petrification (1.0-1.8s) — reveal topiary tiles progressively
         elif self.elapsed < 1.8:
             pet_t = self.elapsed - 1.0
             for i, (px, py) in enumerate(self.petrify_targets):
                 trigger_time = i * 0.1
                 if pet_t >= trigger_time and not self.petrify_started[i]:
                     self.petrify_started[i] = True
+                    # Reveal the topiary terrain tile
+                    self.hidden_tiles.discard(self.petrify_grids[i])
                     if self.particle_emitter:
                         self.particle_emitter.emit_burst(px, py, TOPIARY_GRAY, count=12)
                         self.particle_emitter.emit_burst(px, py, BURGUNDY, count=8)
@@ -469,6 +495,7 @@ class TopiaryBreathAnimation:
             settle_t = self.elapsed - 1.8
             self.cone_alpha = max(0, int(80 * (1 - settle_t / 0.5)))
         else:
+            self.hidden_tiles.clear()
             self.active = False
 
         return self.active
@@ -504,13 +531,11 @@ class TopiaryBreathAnimation:
             for i, (px, py) in enumerate(self.petrify_targets):
                 trigger_time = i * 0.1
                 if pet_t >= trigger_time:
-                    # Stone creeping up from bottom
                     progress = min(1.0, (pet_t - trigger_time) / 0.4)
                     stone_height = int(TILE_SIZE * progress)
                     pygame.draw.rect(overlay, (*TOPIARY_GRAY, 200),
                                    (int(px - half * 0.6), int(py + half - stone_height),
                                     int(TILE_SIZE * 0.6), stone_height))
-                    # Burgundy leaf cap
                     if progress > 0.6:
                         leaf_alpha = int(200 * min(1, (progress - 0.6) / 0.4))
                         pygame.draw.circle(overlay, (*BURGUNDY, leaf_alpha),
@@ -558,6 +583,14 @@ class LithophoneAnimation:
             litho_data = getattr(game_unit, 'last_lithophone_data', None)
             if litho_data:
                 self.is_topiary = litho_data.get('was_topiary', False)
+
+        # Target grid position for fake terrain drawing
+        # The engine already shattered the terrain, so we draw a placeholder
+        # during the flight phase to make it look like it's still there
+        self.target_grid = None
+        if target_pos:
+            self.target_grid = (target_pos[1], target_pos[0])  # (grid_x, grid_y)
+        self.terrain_visible = True  # False after shatter
 
         # Gyre projectile state
         self.gyre_x = float(self.caster_x)
@@ -634,6 +667,7 @@ class LithophoneAnimation:
         elif self.elapsed < self.shatter_end:
             if not self.shatter_triggered:
                 self.shatter_triggered = True
+                self.terrain_visible = False  # Terrain is now gone
                 intensity = 10 if self.is_topiary else 8
                 if self.screen_shake:
                     self.screen_shake(intensity, 0.3)
@@ -745,6 +779,17 @@ class LithophoneAnimation:
             return
 
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+
+        # Draw fake terrain block at target until shatter
+        # (the engine already removed it, but we want it to look intact)
+        if self.terrain_visible:
+            tx, ty = int(self.target_x), int(self.target_y)
+            half = TILE_SIZE // 2
+            color = TOPIARY_GRAY if self.is_topiary else STONE_GRAY
+            pygame.draw.rect(overlay, (*color, 200),
+                           (tx - half, ty - half, TILE_SIZE, TILE_SIZE))
+            pygame.draw.rect(overlay, (*DARK_METAL, 140),
+                           (tx - half, ty - half, TILE_SIZE, TILE_SIZE), 2)
 
         # Phase 1: Flight — gyre projectile with trail
         if self.elapsed < self.flight_end:
