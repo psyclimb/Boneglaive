@@ -107,6 +107,14 @@ STATUS_EFFECTS = {
         "duration_key": "derelicted_duration",
         "check": lambda u: u.derelicted
     },
+    "topiary": {
+        "name": "Topiary",
+        "type": "debuff",
+        "icon": "T",
+        "description": "Transformed into terrain, cannot act",
+        "duration_key": "topiary_duration",
+        "check": lambda u: getattr(u, 'is_topiary', False)
+    },
     "demilune_debuffed": {
         "name": "Lunacy",
         "type": "debuff",

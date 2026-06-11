@@ -118,6 +118,8 @@ class VisualUnit:
             effects['parallax'] = True  # Trauma Processing uses parallax icon
         if hasattr(game_unit, 'derelicted') and game_unit.derelicted:
             effects['derelicted'] = True
+        if hasattr(game_unit, 'is_topiary') and game_unit.is_topiary:
+            effects['topiary'] = True
         if hasattr(game_unit, 'partition_shield_active') and game_unit.partition_shield_active:
             effects['partition'] = True
         if hasattr(game_unit, 'severance_active') and game_unit.severance_active:

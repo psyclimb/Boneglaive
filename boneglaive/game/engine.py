@@ -3151,7 +3151,36 @@ class Game:
                         if tiles_to_remove:
                             logger.debug(f"Cleaned up {len(tiles_to_remove)} derelict building tiles for {unit.get_display_name()}")
 
-            
+            # Process Topiary status effect (LANDSCAPER Topiary Breath)
+            if hasattr(unit, 'is_topiary') and unit.is_topiary and hasattr(unit, 'topiary_duration'):
+                unit.topiary_duration -= 1
+                logger.debug(f"{unit.get_display_name()}'s Topiary duration: {unit.topiary_duration}")
+
+                if unit.topiary_duration <= 0:
+                    unit.is_topiary = False
+                    unit.topiary_duration = 0
+
+                    # Restore original PRT
+                    if hasattr(unit, 'topiary_original_prt'):
+                        unit.prt = unit.topiary_original_prt
+                        delattr(unit, 'topiary_original_prt')
+
+                    # Clear topiary terrain at unit's position
+                    from boneglaive.game.map import TerrainType
+                    if self.map.get_terrain_at(unit.y, unit.x) == TerrainType.TOPIARY:
+                        self.map.set_terrain_at(unit.y, unit.x, TerrainType.EMPTY)
+
+                    # Remove from topiary tracking
+                    if hasattr(self, 'topiary_units') and (unit.y, unit.x) in self.topiary_units:
+                        del self.topiary_units[(unit.y, unit.x)]
+
+                    message_log.add_message(
+                        f"{unit.get_display_name()} reverts from topiary",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+                    logger.debug(f"{unit.get_display_name()} reverted from topiary at ({unit.y},{unit.x})")
+
             # Process Partition Shield duration
             if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active and hasattr(unit, 'partition_shield_duration'):
                 # Decrement the duration
@@ -3305,37 +3334,6 @@ class Game:
                     MessageType.SYSTEM
                 )
                 logger.debug(f"Removed {len(slag_to_remove)} expired slag walls")
-
-        # Process topiary durations (LANDSCAPER Topiary Breath)
-        if hasattr(self, 'topiary_units') and self.topiary_units:
-            from boneglaive.game.map import TerrainType
-            topiary_to_revert = []
-            for pos_tuple, topiary_info in self.topiary_units.items():
-                topiary_info['duration'] -= 1
-                if topiary_info['duration'] <= 0:
-                    topiary_to_revert.append(pos_tuple)
-
-            for pos_tuple in topiary_to_revert:
-                pos_y, pos_x = pos_tuple
-                unit = self.topiary_units[pos_tuple]['unit']
-
-                # Clear topiary terrain
-                self.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
-
-                # Revert unit state
-                if unit.is_alive():
-                    unit.is_topiary = False
-                    unit.topiary_duration = 0
-                    message_log.add_message(
-                        f"{unit.get_display_name()} reverts from topiary at ({pos_y},{pos_x})",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
-
-                del self.topiary_units[pos_tuple]
-
-            if topiary_to_revert:
-                logger.debug(f"Reverted {len(topiary_to_revert)} topiary units")
 
     @measure_perf
     def execute_turn(self, ui=None):

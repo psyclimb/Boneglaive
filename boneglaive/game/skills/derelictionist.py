@@ -588,6 +588,17 @@ class VagalRunSkill(ActiveSkill):
                 target.potpourri_duration = 0
             cleared_effects.append("Infused")
 
+        # Clear LANDSCAPER topiary status
+        if hasattr(target, 'is_topiary') and target.is_topiary:
+            target.is_topiary = False
+            if hasattr(target, 'topiary_duration'):
+                target.topiary_duration = 0
+            # Restore original PRT
+            if hasattr(target, 'topiary_original_prt'):
+                target.prt = target.topiary_original_prt
+                delattr(target, 'topiary_original_prt')
+            cleared_effects.append("Topiary")
+
         # Don't clear severance_active as it's related to DERELICTIONIST's own passive
 
         # Note: We don't do a blanket reset of stat bonuses to 0 anymore

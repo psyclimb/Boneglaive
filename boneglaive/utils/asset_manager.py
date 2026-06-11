@@ -77,7 +77,9 @@ class AssetManager:
             'mini_pumpkin': 'o',   # Lowercase o for small round pumpkin
             'potpourri_bowl': 'u', # Lowercase u for bowl shape
             'melange_fume': '~',   # Tilde for aromatic fumes
-            'derelict_building': '&'  # Ampersand for old decrepit building walls
+            'derelict_building': '&',  # Ampersand for old decrepit building walls
+            'slag_wall': '#',  # Hash for slag walls (same as other walls)
+            'topiary': '&'  # Ampersand for topiary sculptures
         }
         
         # UI symbols

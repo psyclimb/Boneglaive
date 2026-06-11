@@ -431,13 +431,16 @@ class Unit:
         """Check if this unit has immunity to status effects and debuffs.
         Currently only GRAYMAN with Stasiality passive has this immunity.
         HEINOUS_VAPOR units are also immune to all status effects.
-        Units protected by upgraded Partition are also immune to NEW status effects.
+        Topiary units are immune while transformed (terrain form).
         Note: This includes immunity to physical traps like Viseroy."""
         # HEINOUS_VAPOR units are always immune to status effects
         if self.type == UnitType.HEINOUS_VAPOR:
             return True
         # GRAYMAN with Stasiality passive is immune
         if self.passive_skill and self.passive_skill.name == "Stasiality":
+            return True
+        # Topiary units are immune while transformed
+        if hasattr(self, 'is_topiary') and self.is_topiary:
             return True
         return False
 

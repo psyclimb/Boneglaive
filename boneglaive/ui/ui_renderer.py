@@ -92,6 +92,9 @@ class UIRenderer:
         if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active:
             effects.append(('partition', ')', curses.A_BOLD))
 
+        if hasattr(unit, 'is_topiary') and unit.is_topiary:
+            effects.append(('topiary', 'T', curses.A_BOLD))
+
         # Medium priority effects
         if hasattr(unit, 'status_site_inspection') and unit.status_site_inspection:
             effects.append(('site_inspection', '#', curses.A_BOLD))
@@ -662,6 +665,38 @@ class UIRenderer:
                             color_id = 8  # Default gray if not in tracked tiles
                     else:
                         color_id = 8  # Default gray if no tracking dictionary
+
+                elif terrain == TerrainType.SLAG_WALL:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("slag_wall")
+                    # Slag walls use owner's player color
+                    if hasattr(self.game_ui.game, 'slag_wall_tiles'):
+                        pos_tuple = (y, x)
+                        if pos_tuple in self.game_ui.game.slag_wall_tiles:
+                            slag_info = self.game_ui.game.slag_wall_tiles[pos_tuple]
+                            if 'owner' in slag_info and slag_info['owner']:
+                                color_id = 3 if slag_info['owner'].player == 1 else 4
+                            else:
+                                color_id = 1  # Default yellow for slag
+                        else:
+                            color_id = 1
+                    else:
+                        color_id = 1
+
+                elif terrain == TerrainType.TOPIARY:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("topiary")
+                    # Topiary uses the transformed unit's player color
+                    if hasattr(self.game_ui.game, 'topiary_units'):
+                        pos_tuple = (y, x)
+                        if pos_tuple in self.game_ui.game.topiary_units:
+                            topiary_info = self.game_ui.game.topiary_units[pos_tuple]
+                            if 'unit' in topiary_info and topiary_info['unit']:
+                                color_id = 3 if topiary_info['unit'].player == 1 else 4
+                            else:
+                                color_id = 2  # Default green for topiary
+                        else:
+                            color_id = 2
+                    else:
+                        color_id = 2
 
                 else:
                     # Fallback for any new terrain types
@@ -1603,6 +1638,11 @@ class UIRenderer:
                     negative_effects.append(f"Derelicted({unit.derelicted_duration})")
                 else:
                     negative_effects.append("Derelicted")
+            if hasattr(unit, 'is_topiary') and unit.is_topiary:
+                if hasattr(unit, 'topiary_duration') and unit.topiary_duration > 0:
+                    negative_effects.append(f"Topiary({unit.topiary_duration})")
+                else:
+                    negative_effects.append("Topiary")
             if hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected:
                 # Check if it has duration, otherwise just show boolean
                 if hasattr(unit, 'neural_shunt_duration') and unit.neural_shunt_duration > 0:

@@ -162,4 +162,5 @@ STATUS_EFFECT_SYMBOLS = {
     'DERELICTED': '&',        # Immobilization from psychological abandonment
     'SEVERANCE': 's',         # Enhanced movement from skill usage
     'DEMILUNE_DEBUFF': '(',   # Damage reduction debuff from POTPOURRIST
+    'TOPIARY': 'T',           # Transformed into terrain sculpture by LANDSCAPER
 }

@@ -3351,6 +3351,10 @@ class GameModeManager(UIComponent):
                     return
                 
                 
+                # Check if unit is a topiary (cannot act at all)
+                if hasattr(cursor_manager.selected_unit, 'is_topiary') and cursor_manager.selected_unit.is_topiary:
+                    return
+
                 # Check if unit is trapped
                 if cursor_manager.selected_unit.trapped_by is not None:
                     # Use event system for message
@@ -3362,7 +3366,7 @@ class GameModeManager(UIComponent):
                         )
                     )
                     return
-                
+
                 # Check if unit is affected by Jawline
                 if hasattr(cursor_manager.selected_unit, 'jawline_affected') and cursor_manager.selected_unit.jawline_affected:
                     # Use event system for message
@@ -3449,6 +3453,10 @@ class GameModeManager(UIComponent):
                     )
                     return
                 
+                # Check if unit is a topiary (cannot act at all)
+                if hasattr(cursor_manager.selected_unit, 'is_topiary') and cursor_manager.selected_unit.is_topiary:
+                    return
+
                 # Check if unit is trapped
                 if cursor_manager.selected_unit.trapped_by is not None:
                     # Use event system for message
@@ -3582,6 +3590,18 @@ class GameModeManager(UIComponent):
                         MessageDisplayEventData(
                             message="Unit has already planned a skill use and cannot attack",
                             message_type=MessageType.WARNING
+                        )
+                    )
+                    return
+
+                # Check if unit is a topiary (cannot act at all)
+                if hasattr(cursor_manager.selected_unit, 'is_topiary') and cursor_manager.selected_unit.is_topiary:
+                    self.publish_event(
+                        EventType.MESSAGE_DISPLAY_REQUESTED,
+                        MessageDisplayEventData(
+                            message="Unit is a topiary and cannot act",
+                            message_type=MessageType.WARNING,
+                            log_message=False
                         )
                     )
                     return
@@ -5060,8 +5080,11 @@ class ActionMenuComponent(UIComponent):
                                        unit.skill_target is not None and
                                        unit.selected_skill is not None)
 
+        unit_is_topiary = hasattr(unit, 'is_topiary') and unit.is_topiary
+
         unit_can_move = (unit is not None and
                         not unit_is_recharging and  # Recharging blocks ALL actions
+                        not unit_is_topiary and  # Topiary blocks ALL actions
                         unit.trapped_by is None and
                         not unit.is_doppelganger and
                         not unit.move_target and  # Can't move if already planned a move
@@ -5081,6 +5104,7 @@ class ActionMenuComponent(UIComponent):
                            hasattr(unit, 'vapor_type') and
                            unit.vapor_type == "LIVING_AEROSOL")
         unit_can_attack = (not unit_is_recharging and  # Recharging blocks ALL actions
+                          not unit_is_topiary and  # Topiary blocks ALL actions
                           not unit_has_action and
                           not (hasattr(unit, 'neural_shunt_affected') and unit.neural_shunt_affected) and
                           not (hasattr(unit, 'status_disarmed') and unit.status_disarmed) and  # Disarmed by Viseroy upgrade
@@ -5113,6 +5137,7 @@ class ActionMenuComponent(UIComponent):
         # EXCEPTION: Doppelgangers can use skills if Græ Exchange is upgraded
         unit_can_use_skills = (unit_has_skills and
                               not unit_is_recharging and  # Recharging blocks ALL actions
+                              not unit_is_topiary and  # Topiary blocks ALL actions
                               unit.trapped_by is None and
                               (not unit.is_doppelganger or doppelganger_can_use_skills) and  # Allow doppelgangers if upgrade active
                               not unit_has_action and
@@ -5892,6 +5917,26 @@ class ActionMenuComponent(UIComponent):
                 )
                 return
 
+            elif skill.name in ["Hornswoggle", "Topiary Breath"]:
+                # Directional skills: highlight 8 adjacent tiles for direction selection
+                area_targets = []
+                for dy in [-1, 0, 1]:
+                    for dx in [-1, 0, 1]:
+                        if dy == 0 and dx == 0:
+                            continue
+                        y = from_y + dy
+                        x = from_x + dx
+                        if game.is_valid_position(y, x):
+                            area_targets.append((y, x))
+
+                cursor_manager.highlighted_positions = [Position(y, x) for y, x in area_targets]
+                mode_manager.set_mode("skill")
+                self.publish_event(
+                    EventType.UI_REDRAW_REQUESTED,
+                    UIRedrawEventData()
+                )
+                return
+
             elif skill.target_type == TargetType.SELF:
                 # Special case for Diverge skill which can target both self and vapors
                 if skill.name == "Diverge":
@@ -6186,8 +6231,23 @@ class ActionMenuComponent(UIComponent):
                                     targets.append((y, x))
             
             elif skill.target_type == TargetType.AREA:
+                # Lithophone: highlight adjacent terrain tiles only
+                if skill.name == "Lithophone":
+                    for dy in [-1, 0, 1]:
+                        for dx in [-1, 0, 1]:
+                            if dy == 0 and dx == 0:
+                                continue
+                            y = from_y + dy
+                            x = from_x + dx
+                            if game.is_valid_position(y, x):
+                                # Highlight non-passable terrain or furniture
+                                if not game.map.is_passable(y, x) or game.map.is_furniture(y, x):
+                                    targets.append((y, x))
+                                # Also highlight topiary units
+                                elif hasattr(game, 'topiary_units') and (y, x) in game.topiary_units:
+                                    targets.append((y, x))
                 # Special case for Gaussian Dusk - only highlight cardinal direction lines
-                if skill.name == "Gaussian Dusk":
+                elif skill.name == "Gaussian Dusk":
                     # Show four cardinal direction lines from unit position
                     directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]  # East, West, South, North
                     for dy, dx in directions:
