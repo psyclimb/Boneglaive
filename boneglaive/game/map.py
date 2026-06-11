@@ -47,6 +47,8 @@ class TerrainType(Enum):
     MELANGE_FUME = 29   # Aromatic fumes from potpourri bowl, passable, provides healing aura
     BLOOD_PLASMA = 30   # Blood plasma from upgraded Marrow Dike, passable, slows enemies
     DERELICT_BUILDING = 31  # Old decrepit building walls from Derelict upgrade, blocks movement and line of sight
+    SLAG_WALL = 32  # Superheated molten slag from Hornswoggle, temporary, blocks movement and line of sight
+    TOPIARY = 33  # Unit transformed into topiary sculpture by Topiary Breath, blocks movement and line of sight
 
 
 class GameMap:
@@ -115,7 +117,7 @@ class GameMap:
         """Check if a position blocks line of sight for ranged attacks."""
         terrain = self.get_terrain_at(y, x)
         # Limestone, pillars, stained stone, hydraulic presses, marrow walls, and derelict buildings block line of sight
-        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS, TerrainType.MARROW_WALL, TerrainType.DERELICT_BUILDING]
+        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS, TerrainType.MARROW_WALL, TerrainType.DERELICT_BUILDING, TerrainType.SLAG_WALL, TerrainType.TOPIARY]
 
     def get_cosmic_value(self, y: int, x: int, player=None, game=None) -> Optional[int]:
         """

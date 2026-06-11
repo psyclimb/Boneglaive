@@ -192,6 +192,10 @@ class Unit:
         self.demilune_mirrored_zone_tiles = []  # List of (y, x) tuples for mirrored Demilune zone (upgraded only)
         self.demilune_zone_duration = 0  # Turns remaining for Demilune zone
 
+        # Topiary state (LANDSCAPER Topiary Breath)
+        self.is_topiary = False
+        self.topiary_duration = 0
+
         # Experience and leveling
         self.level = 1
         self.xp = 0

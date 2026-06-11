@@ -1705,6 +1705,10 @@ class Game:
             logger.debug(f"{unit.get_display_name()} cannot move because it is a doppelganger")
             return False
 
+        # Topiary units cannot act at all
+        if hasattr(unit, 'is_topiary') and unit.is_topiary:
+            return False
+
         # If unit is trapped by a MANDIBLE_FOREMAN, it cannot move
         if unit.trapped_by is not None:
             from boneglaive.utils.debug import logger
@@ -1850,6 +1854,10 @@ class Game:
         return True
     
     def can_attack(self, unit, y, x, from_pos=None):
+        # Topiary units cannot act
+        if hasattr(unit, 'is_topiary') and unit.is_topiary:
+            return False
+
         # Check if unit is disarmed (cannot basic attack)
         if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
             return False
@@ -3276,7 +3284,59 @@ class Game:
             # Update anchor status effects after removal
             if anchors_to_remove:
                 self.update_anchor_status_effects()
-    
+
+        # Process slag wall durations (LANDSCAPER Hornswoggle)
+        if hasattr(self, 'slag_wall_tiles') and self.slag_wall_tiles:
+            from boneglaive.game.map import TerrainType
+            slag_to_remove = []
+            for pos_tuple, slag_info in self.slag_wall_tiles.items():
+                slag_info['duration'] -= 1
+                if slag_info['duration'] <= 0:
+                    slag_to_remove.append(pos_tuple)
+
+            for pos_tuple in slag_to_remove:
+                pos_y, pos_x = pos_tuple
+                self.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
+                del self.slag_wall_tiles[pos_tuple]
+
+            if slag_to_remove:
+                message_log.add_message(
+                    f"{len(slag_to_remove)} slag wall(s) crumble to dust",
+                    MessageType.SYSTEM
+                )
+                logger.debug(f"Removed {len(slag_to_remove)} expired slag walls")
+
+        # Process topiary durations (LANDSCAPER Topiary Breath)
+        if hasattr(self, 'topiary_units') and self.topiary_units:
+            from boneglaive.game.map import TerrainType
+            topiary_to_revert = []
+            for pos_tuple, topiary_info in self.topiary_units.items():
+                topiary_info['duration'] -= 1
+                if topiary_info['duration'] <= 0:
+                    topiary_to_revert.append(pos_tuple)
+
+            for pos_tuple in topiary_to_revert:
+                pos_y, pos_x = pos_tuple
+                unit = self.topiary_units[pos_tuple]['unit']
+
+                # Clear topiary terrain
+                self.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
+
+                # Revert unit state
+                if unit.is_alive():
+                    unit.is_topiary = False
+                    unit.topiary_duration = 0
+                    message_log.add_message(
+                        f"{unit.get_display_name()} reverts from topiary at ({pos_y},{pos_x})",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
+
+                del self.topiary_units[pos_tuple]
+
+            if topiary_to_revert:
+                logger.debug(f"Reverted {len(topiary_to_revert)} topiary units")
+
     @measure_perf
     def execute_turn(self, ui=None):
         """Execute all unit actions for the current turn with animated sequence."""
@@ -3716,18 +3776,47 @@ class Game:
                         # Store previous HP to check for status changes
                         previous_hp = target.hp
                         critical_threshold = int(target.max_hp * CRITICAL_HEALTH_PERCENT)
-                        
-                        # Apply final damage to HP (PRT reduction happens automatically in hp setter)
-                        old_hp = target.hp
-                        # Set current attacker for Demilune damage halving in hp setter
-                        self.current_attacker = unit
-                        target.hp = max(0, target.hp - damage)
-                        self.current_attacker = None
-                        actual_damage = old_hp - target.hp
 
-                        # Show attack animation with actual damage
-                        if ui:
-                            ui.show_attack_animation(unit, target, actual_damage)
+                        # LANDSCAPER: Translative Stroke — 4 hits instead of 1
+                        if unit.type == UnitType.LANDSCAPER:
+                            total_damage = 0
+                            for hit_num in range(4):
+                                if target.hp <= 0:
+                                    break
+                                old_hp = target.hp
+                                self.current_attacker = unit
+                                target.hp = max(0, target.hp - damage)
+                                self.current_attacker = None
+                                hit_damage = old_hp - target.hp
+                                total_damage += hit_damage
+
+                                if ui:
+                                    ui.show_attack_animation(unit, target, hit_damage)
+                            actual_damage = total_damage
+
+                            # Reduce all skill cooldowns by total damage dealt
+                            for skill in unit.active_skills:
+                                if skill.current_cooldown > 0:
+                                    skill.current_cooldown = max(0, skill.current_cooldown - total_damage)
+
+                            if total_damage > 0:
+                                message_log.add_message(
+                                    f"Translative Stroke: cooldowns reduced by {total_damage}",
+                                    MessageType.ABILITY,
+                                    player=unit.player
+                                )
+                        else:
+                            # Standard single-hit attack
+                            old_hp = target.hp
+                            # Set current attacker for Demilune damage halving in hp setter
+                            self.current_attacker = unit
+                            target.hp = max(0, target.hp - damage)
+                            self.current_attacker = None
+                            actual_damage = old_hp - target.hp
+
+                            # Show attack animation with actual damage
+                            if ui:
+                                ui.show_attack_animation(unit, target, actual_damage)
 
                         # Check for upgraded Ossify reflect damage (MARROW_CONDENSER)
                         if (target.type == UnitType.MARROW_CONDENSER and

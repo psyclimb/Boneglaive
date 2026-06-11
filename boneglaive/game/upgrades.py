@@ -272,6 +272,32 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
+    "LANDSCAPER": {
+        "Translative Stroke": {
+            "name": "Translative Stroke",
+            "description": "TBD",
+            "type": "buff",
+            "cost": 1
+        },
+        "Hornswoggle": {
+            "name": "Hornswoggle",
+            "description": "TBD",
+            "type": "buff",
+            "cost": 1
+        },
+        "Topiary Breath": {
+            "name": "Topiary Breath",
+            "description": "TBD",
+            "type": "buff",
+            "cost": 1
+        },
+        "Lithophone": {
+            "name": "Lithophone",
+            "description": "TBD",
+            "type": "buff",
+            "cost": 1
+        }
+    },
 }
 
 # ============================================================================

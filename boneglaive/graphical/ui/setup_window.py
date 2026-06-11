@@ -78,6 +78,7 @@ class SetupWindow:
             UnitType.INTERFERER,
             UnitType.DERELICTIONIST,
             UnitType.POTPOURRIST,
+            UnitType.LANDSCAPER,
         ]
 
         # Unit display names
@@ -92,6 +93,7 @@ class SetupWindow:
             UnitType.INTERFERER: "INTERFERER",
             UnitType.DERELICTIONIST: "DERELICTIONIST",
             UnitType.POTPOURRIST: "POTPOURRIST",
+            UnitType.LANDSCAPER: "LANDSCAPER",
         }
 
         # State

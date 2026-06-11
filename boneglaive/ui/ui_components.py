@@ -1324,6 +1324,67 @@ class UnitHelpComponent(UIComponent):
                     '- Best positioning: Front line, absorbing attacks and protecting allies'
                 ]
             },
+            UnitType.LANDSCAPER: {
+                'title': 'LANDSCAPER',
+                'overview': [
+                    'The LANDSCAPER is a four-armed terrain manipulator who reshapes the battlefield through acoustic resonance. She wields quartz crystal tuning forks and a Tibetan horn array to grab terrain, build slag walls, turn units into topiary sculptures, and shatter terrain for piercing shrapnel.',
+                    '',
+                    'Role: Terrain Controller / Support'
+                ],
+                'stats': [
+                    'HP: 20',
+                    'Attack: 1',
+                    'Defense: 2',
+                    'Movement: 3',
+                    'Range: 1'
+                ],
+                'skills': [
+                    {
+                        'name': 'TRANSLATIVE STROKE (Passive)',
+                        'description': 'Basic attacks hit 4 times simultaneously (one per tuning fork). All skill cooldowns are reduced by the total damage dealt across all four hits. ATK buffs from teammates dramatically increase both damage and cooldown cycling.',
+                        'details': []
+                    },
+                    {
+                        'name': 'HORNSWOGGLE (Active)',
+                        'description': 'Fire a sonic wave in one of 8 directions. The wave grabs the first terrain it hits and drags it 90 degrees counter-clockwise, depositing temporary slag walls along the drag path. Can grab any terrain including dynamic terrain.',
+                        'details': [
+                            'Beam range: 3, Drag range: 3',
+                            'Slag wall duration: 3 turns',
+                            'Cooldown: 8 turns'
+                        ]
+                    },
+                    {
+                        'name': 'TOPIARY BREATH (Active)',
+                        'description': 'Blast a cone of petrifying resonance that transforms ALL units caught (allies and enemies) into topiary terrain sculptures for 1 turn. Units are rearranged into a checker pattern. Topiaries block movement and LOS, and can be Hornswoggled or Lithophoned.',
+                        'details': [
+                            'Cone: 3/5/7/7 tiles wide over 4 rows',
+                            'Duration: 1 turn',
+                            'Cooldown: 10 turns'
+                        ]
+                    },
+                    {
+                        'name': 'LITHOPHONE (Active)',
+                        'description': 'Strike adjacent terrain with all four tuning forks, shattering it. Shrapnel flies in all 8 directions dealing ATKx2 piercing damage (ignores DEF). Shrapnel stops at terrain but passes through multiple units. Can shatter topiary-units for bonus damage.',
+                        'details': [
+                            'Shrapnel range: 3',
+                            'Damage: ATKx2 piercing',
+                            'Cooldown: 4 turns'
+                        ]
+                    }
+                ],
+                'tips': [
+                    '- Hornswoggle to build slag walls, then Lithophone to shatter them near enemies',
+                    '- Topiary Breath + Lithophone: turn an enemy into terrain, then shatter them',
+                    '- Topiary Breath + Hornswoggle: drag a petrified enemy across the map',
+                    '- Get ATK buffs from teammates to increase Translative Stroke cycling and Lithophone damage',
+                    '- Careful with Topiary Breath — it affects your allies too!'
+                ],
+                'tactical': [
+                    '- Strong against: Static defensive units, clustered formations',
+                    '- Vulnerable to: Ranged focus fire, PRT (blocks each Translative Stroke hit)',
+                    '- Best positioning: Mid-line near terrain, adjacent to enemies for Translative Stroke'
+                ]
+            },
             'HEINOUS_VAPOR_BROACHING': {
                 'title': 'BROACHING GAS (1)',
                 'overview': [
@@ -5448,9 +5509,38 @@ class ActionMenuComponent(UIComponent):
                 'skill': granite_geas_skill
             })
 
+        elif unit.type == self.UnitType.LANDSCAPER:
+            # Add Hornswoggle skill
+            hornswoggle_skill = next((skill for skill in available_skills if skill.name == "Hornswoggle"), None)
+            self.actions.append({
+                'key': 'h',
+                'label': 'ornswoggle',
+                'action': 'hornswoggle_skill',
+                'enabled': hornswoggle_skill is not None,
+                'skill': hornswoggle_skill
+            })
+            # Add Topiary Breath skill
+            topiary_skill = next((skill for skill in available_skills if skill.name == "Topiary Breath"), None)
+            self.actions.append({
+                'key': 't',
+                'label': 'opiary Breath',
+                'action': 'topiary_breath_skill',
+                'enabled': topiary_skill is not None,
+                'skill': topiary_skill
+            })
+            # Add Lithophone skill
+            lithophone_skill = next((skill for skill in available_skills if skill.name == "Lithophone"), None)
+            self.actions.append({
+                'key': 'l',
+                'label': 'ithophone',
+                'action': 'lithophone_skill',
+                'enabled': lithophone_skill is not None,
+                'skill': lithophone_skill
+            })
+
         # Reset selected index
         self.selected_index = 0
-        
+
     def draw(self):
         """Draw the action menu."""
         if not self.visible or not self.actions:
@@ -6302,8 +6392,10 @@ class InputManager(UIComponent):
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.DERELICTIONIST)
                 return
             elif unit_type == UnitType.POTPOURRIST:
-                # Show POTPOURRIST unit help
                 self.game_ui.unit_help_component.toggle_unit_help(UnitType.POTPOURRIST)
+                return
+            elif unit_type == UnitType.LANDSCAPER:
+                self.game_ui.unit_help_component.toggle_unit_help(UnitType.LANDSCAPER)
                 return
             elif unit_type == UnitType.HEINOUS_VAPOR:
                 # Check what type of vapor this is by symbol
@@ -6510,7 +6602,8 @@ class UnitSelectionMenuComponent(UIComponent):
             UnitType.DELPHIC_APPRAISER,
             UnitType.INTERFERER,
             UnitType.DERELICTIONIST,
-            UnitType.POTPOURRIST
+            UnitType.POTPOURRIST,
+            UnitType.LANDSCAPER
         ]
 
         from boneglaive.utils.constants import UNIT_DISPLAY_NAMES
