@@ -178,6 +178,10 @@ class SmartAI:
             analysis: Battlefield analysis
             plan: Strategic plan
         """
+        # Topiary units cannot act
+        if getattr(unit, 'is_topiary', False):
+            return
+
         # Reset unit targets
         unit.move_target = None
         unit.attack_target = None

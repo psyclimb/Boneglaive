@@ -1329,12 +1329,12 @@ class UnitHelpComponent(UIComponent):
                 'overview': [
                     'The LANDSCAPER is a four-armed terrain manipulator who reshapes the battlefield through acoustic resonance. She wields quartz crystal tuning forks and a Tibetan horn array to grab terrain, build slag walls, turn units into topiary sculptures, and shatter terrain for piercing shrapnel.',
                     '',
-                    'Role: Disabler / Displacer / Utility / Frontline Fighter'
+                    'Role: Disabler / Displacer / Utility / Burst Damage'
                 ],
                 'stats': [
                     'HP: 20',
                     'Attack: 1',
-                    'Defense: 2',
+                    'Defense: 1',
                     'Movement: 3',
                     'Range: 1'
                 ],
@@ -1350,7 +1350,7 @@ class UnitHelpComponent(UIComponent):
                         'details': [
                             'Wave range: 3, Drag range: 4',
                             'Slag wall duration: 3 turns',
-                            'Cooldown: 4 turns'
+                            'Cooldown: 5 turns'
                         ]
                     },
                     {
@@ -1359,7 +1359,7 @@ class UnitHelpComponent(UIComponent):
                         'details': [
                             'Cone: 3/5/7/7 tiles wide over 4 rows',
                             'Duration: 2 turns',
-                            'Cooldown: 8 turns'
+                            'Cooldown: 13 turns'
                         ]
                     },
                     {
@@ -1368,7 +1368,7 @@ class UnitHelpComponent(UIComponent):
                         'details': [
                             'Cast range: 3, Shrapnel range: 2',
                             'Damage: 4 piercing (shrapnel)',
-                            'Cooldown: 4 turns'
+                            'Cooldown: 5 turns'
                         ]
                     }
                 ],

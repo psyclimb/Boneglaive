@@ -14,12 +14,12 @@ devastating when buffed by teammates and given time to sculpt the field.
 |------|-------|-------|
 | HP | 20 | Mid-range durability |
 | ATK | 1 | Lowest in the game (Derelictionist has 0). Four-hit passive compensates. |
-| DEF | 2 | Tied with Marrow Condenser. Sturdy in melee. |
+| DEF | 1 | Standard melee defense. |
 | Move | 3 | Average mobility |
 | Range | 1 | Melee — must be in the thick of it to proc Translative Stroke |
 
-**Unique stat line**: (20, 1, 2, 3, 1) — no other unit shares this combination.
-Only unit with ATK 1. The DEF 2 + melee + low ATK profile is entirely unique.
+**Unique stat line**: (20, 1, 1, 3, 1) — no other unit shares this combination.
+Only unit with ATK 1. The low ATK + melee profile is entirely unique.
 
 ## Skills
 
@@ -328,9 +328,9 @@ basic attack, she reduces cooldowns by 4 every turn she attacks. If buffed, she 
 even faster.
 
 **Final values**:
-- Hornswoggle: **4** (1 attack to cycle — fast terrain reshaping)
-- Topiary Breath: **8** (2 attacks to cycle — powerful CC needs longer cooldown)
-- Dissonance: **4** (1 attack to cycle — fast but consumes terrain)
+- Hornswoggle: **5** (fast terrain reshaping)
+- Topiary Breath: **13** (powerful CC needs longer cooldown)
+- Dissonance: **5** (fast but consumes terrain)
 
 ---
 
@@ -340,7 +340,7 @@ When ready to implement:
 
 ### Done (text mode)
 - [x] Add LANDSCAPER to UnitType enum in constants.py
-- [x] Add stat tuple (20, 1, 2, 3, 1) to UNIT_STATS
+- [x] Add stat tuple (20, 1, 1, 3, 1) to UNIT_STATS
 - [x] Add display name, symbol, attack effect to constants.py
 - [x] Add to GP_ELIGIBLE_UNITS
 - [x] Create boneglaive/game/skills/landscaper.py

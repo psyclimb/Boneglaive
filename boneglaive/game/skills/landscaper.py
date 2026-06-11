@@ -153,7 +153,7 @@ class HornswoggleSkill(ActiveSkill):
             key="H",
             description="Fire sonic wave to grab terrain, drag it 90° CCW depositing slag walls. Wave range 3, drag range 4.",
             target_type=TargetType.NONE,
-            cooldown=4,
+            cooldown=5,
             range_=0
         )
         # Stored during use() for execute()
@@ -490,7 +490,7 @@ class TopiaryBreathSkill(ActiveSkill):
             key="B",
             description="Cone blast transforms all units into terrain topiaries for 1 turn. Rearranges into checker pattern. Affects allies too!",
             target_type=TargetType.NONE,
-            cooldown=8,
+            cooldown=13,
             range_=0
         )
         self.fire_direction = None
@@ -696,7 +696,7 @@ class DissonanceSkill(ActiveSkill):
             key="D",
             description="Launch acoustic gyre to shatter terrain. 4 piercing shrapnel in 8 directions. Stops at terrain, passes through units. Frees topiary units.",
             target_type=TargetType.AREA,
-            cooldown=4,
+            cooldown=5,
             range_=4
         )
 
