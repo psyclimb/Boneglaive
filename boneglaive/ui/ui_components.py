@@ -810,7 +810,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'GRÆ EXCHANGE (Active)',
-                        'description': 'The GRAYMAN banishes a target enemy unit for 1 turn and creates a psychic doppelganger in their place with 12 HP and 4 attack. The doppelganger cannot move or use skills. When the doppelganger is destroyed or expires, it explodes for 6 damage to all adjacent enemies, and the banished unit returns. Requires line of sight.',
+                        'description': 'The GRAYMAN banishes a target enemy unit for 2 turns and creates a psychic doppelganger in their place with 12 HP and 4 attack. The doppelganger cannot move or use skills. When the doppelganger is destroyed or expires, it explodes for 6 damage to all adjacent enemies, and the banished unit returns. Requires line of sight.',
                         'details': [
                             'Range: 5',
                             'Cooldown: 3 turns'
@@ -903,7 +903,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'MARROW DIKE (Active)',
-                        'description': 'The MARROW CONDENSER creates bone marrow walls in a 5x5 perimeter around itself. Enemy units on the perimeter tiles are pulled one tile inward. The walls last 3 turns and block movement and line of sight. When upgraded, walls take an additional hit to destroy, and enemies starting their turn inside suffer -1 attack with Mired.',
+                        'description': 'The MARROW CONDENSER creates bone marrow walls in a 5x5 perimeter around itself. Enemy units on the perimeter tiles are pulled one tile inward. The walls last 3 turns and block movement and line of sight. When upgraded, walls take an additional hit to destroy, and enemies starting their turn inside suffer -2 attack with Mired.',
                         'details': [
                             'Range: 5x5 perimeter',
                             'Cooldown: 4 turns'
@@ -911,9 +911,9 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'BONE TITHE (Active)',
-                        'description': 'The MARROW CONDENSER drains all adjacent enemies, dealing 1 damage to each and increasing both max HP and current HP by +1 for each enemy hit. When upgraded, the damage scales with total Dominion kills and HP gain per enemy increases to +2.',
+                        'description': 'The MARROW CONDENSER drains all enemies in a 5x5 area, dealing 1 damage to each and increasing both max HP and current HP by +1 for each enemy hit. When upgraded, the damage scales with total Dominion kills and HP gain per enemy increases to +2.',
                         'details': [
-                            'Range: All adjacent tiles',
+                            'Range: 5x5 area',
                             'Damage: 1',
                             'Cooldown: 1 turn'
                         ]
@@ -1118,7 +1118,7 @@ class UnitHelpComponent(UIComponent):
                         'details': [
                             'Range: 3',
                             'Area: 7x7',
-                            'Cooldown: 5 turns'
+                            'Cooldown: 4 turns'
                         ]
                     },
                     {
@@ -1238,7 +1238,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'DERELICT (Active)',
-                        'description': 'The DERELICTIONIST pushes an ally away in a straight line up to 4 tiles. The ally heals for an amount equal to the final distance between them and the DERELICTIONIST after the push resolves. Obstacles and map boundaries can interrupt the push, affecting final distance and healing.',
+                        'description': 'The DERELICTIONIST pushes an ally away in a straight line up to 4 tiles. The ally heals for an amount based on the final distance between them and the DERELICTIONIST after the push resolves, scaling at 1.7x distance. Obstacles and map boundaries can interrupt the push, affecting final distance and healing.',
                         'details': [
                             'Range: 3',
                             'Cooldown: 4 turns'

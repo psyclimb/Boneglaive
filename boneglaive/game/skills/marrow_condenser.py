@@ -768,7 +768,7 @@ class BoneTitheSkill(ActiveSkill):
         super().__init__(
             name="Bone Tithe",
             key="B",
-            description="Extracts marrow from enemies in range 2 beam pattern for 1 damage and gains +1 HP for each enemy hit.",
+            description="Extracts marrow from enemies in a 5x5 area for 1 damage and gains +1 HP for each enemy hit.",
             target_type=TargetType.SELF,  # Self-targeted area effect
             cooldown=1,
             range_=0,

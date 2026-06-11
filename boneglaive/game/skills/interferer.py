@@ -416,7 +416,7 @@ class KarrierRaveSkill(ActiveSkill):
         super().__init__(
             name="Karrier Rave",
             key="K",
-            description="Phase out of reality for 1 turn. Become untargetable, but cannot attack. Next attack after phasing strikes 3 times.",
+            description="Phase out of reality for 2 turns. Become untargetable, but cannot attack. Next attack after phasing strikes 3 times.",
             target_type=TargetType.SELF,
             cooldown=6,
             range_=0
