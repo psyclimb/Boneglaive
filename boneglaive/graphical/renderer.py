@@ -3692,9 +3692,12 @@ class GraphicalRenderer:
 
             # Center both panels horizontally on screen
             setup_window_x = (SCREEN_WIDTH - total_width) // 2
+
+            # Match help panel y and height to setup window
+            setup_window_height = scale_manager.scale(700, 'y')
             help_panel_x = setup_window_x + setup_window_width + spacing
-            help_panel_y = scale_manager.scale(50, 'y')
-            help_panel_height = SCREEN_HEIGHT - scale_manager.scale(100, 'y')
+            help_panel_y = (SCREEN_HEIGHT - setup_window_height) // 2
+            help_panel_height = setup_window_height
 
             # Draw both panels with calculated positions
             self.setup_window.draw(self.screen, SCREEN_WIDTH, SCREEN_HEIGHT, setup_window_x)
@@ -4387,7 +4390,7 @@ class GraphicalRenderer:
     def _create_game_background(width: int, height: int) -> pygame.Surface:
         """Create the cached game background with gradient, dust texture, and vignette."""
         import math
-        from boneglaive.graphical.ui.panel_decorations import create_dust_texture
+        import random as _rng
 
         bg = pygame.Surface((width, height))
 
@@ -4401,18 +4404,33 @@ class GraphicalRenderer:
             b = int(color_top[2] + (color_bottom[2] - color_top[2]) * t)
             pygame.draw.line(bg, (r, g, b), (0, y_pos), (width - 1, y_pos))
 
-        # Dust/grain texture overlay
-        dust = create_dust_texture(width, height, intensity=20)
-        bg.blit(dust, (0, 0), special_flags=pygame.BLEND_RGBA_ADD)
+        # Dark film grain: per-pixel noise that darkens rather than brightens
+        grain = pygame.Surface((width, height), pygame.SRCALPHA)
+        for _ in range((width * height) // 10):
+            gx = _rng.randint(0, width - 1)
+            gy = _rng.randint(0, height - 1)
+            alpha = _rng.randint(25, 80)
+            grain.set_at((gx, gy), (0, 0, 0, alpha))
+        bg.blit(grain, (0, 0))
+
+        # Mottled dark patches: irregular cloudy stains like tarnished metal
+        for _ in range(25):
+            sx = _rng.randint(0, width)
+            sy = _rng.randint(0, height)
+            radius = _rng.randint(120, 320)
+            patch = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            for ring in range(radius, 0, -3):
+                t = ring / radius
+                alpha = int(70 * (1.0 - t) ** 2)
+                pygame.draw.circle(patch, (0, 0, 0, alpha), (radius, radius), ring)
+            bg.blit(patch, (sx - radius, sy - radius))
 
         # Radial vignette: darken edges, keep center clear
         vignette = pygame.Surface((width, height), pygame.SRCALPHA)
         cx, cy = width // 2, height // 2
         max_dist = math.sqrt(cx * cx + cy * cy)
-        # Draw concentric rings from outside in
         for radius in range(int(max_dist), 0, -4):
             t = radius / max_dist
-            # Only darken the outer 40% of the radius
             if t > 0.6:
                 alpha = int(80 * ((t - 0.6) / 0.4) ** 1.5)
                 alpha = min(alpha, 80)
