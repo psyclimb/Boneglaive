@@ -26,6 +26,33 @@ COLOR_BONE = (224, 213, 197)  # Bone decorations
 COLOR_BONE_DARK = (139, 115, 85)  # Bone shadow
 COLOR_METAL = (74, 74, 79)  # Metal elements
 COLOR_METAL_LIGHT = (138, 138, 138)  # Metal highlights
+COLOR_TITLE = (180, 160, 165)  # Muted bone pink — canonical submenu title color
+
+# Background dimming constants for submenus
+BACKGROUND_DIM_ALPHA = 0.15  # Fraction of background visible through overlay
+BACKGROUND_DIM_COLOR = (10, 10, 15)  # Overlay tint color
+
+
+# --- Menu layout scaling functions ---
+# All take screen dimensions and return pixel values that scale with resolution.
+
+def menu_button_width(screen_width):
+    return max(200, int(screen_width * 0.23))
+
+def menu_button_height(screen_height):
+    return max(40, int(screen_height * 0.07))
+
+def menu_button_spacing(screen_height):
+    return max(10, int(screen_height * 0.015))
+
+def menu_start_y(screen_height):
+    return int(screen_height * 0.35)
+
+def map_button_width(screen_width):
+    return max(350, int(screen_width * 0.39))
+
+def map_button_height(screen_height):
+    return max(60, int(screen_height * 0.11))
 
 
 def draw_gradient_rect(surface: pygame.Surface, rect: pygame.Rect, color_top: Tuple[int, int, int],
@@ -186,13 +213,11 @@ class MenuPanel:
                            border_top_right_radius=self.corner_radius)
             surface.blit(title_surf, title_rect.topleft)
 
-            # Title text with glow (using muted bone color to match main menu)
-            title_color = (180, 160, 165)  # Muted pinkish bone color
-            title_surface = font.render(self.title, True, title_color)
+            title_surface = font.render(self.title, True, COLOR_TITLE)
             title_text_rect = title_surface.get_rect(center=(title_rect.centerx, title_rect.centery))
 
             # Glow effect
-            glow_surface = font.render(self.title, True, (180, 160, 165, 100))
+            glow_surface = font.render(self.title, True, COLOR_TITLE)
             for offset in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
                 glow_rect = title_text_rect.copy()
                 glow_rect.x += offset[0]
@@ -610,11 +635,24 @@ class MenuScreen:
         """Update screen state."""
         for button in self.buttons:
             button.update(mouse_pos, mouse_pressed)
+        if hasattr(self, 'background') and self.background is not None:
+            self.background.update(delta_time)
+
+    def _draw_dimmed_background(self, surface: pygame.Surface):
+        """Draw shared kaleidoscope background with dimmed overlay, or flat fill as fallback."""
+        if hasattr(self, 'background') and self.background is not None:
+            self.background.draw(surface)
+            overlay = pygame.Surface(
+                (surface.get_width(), surface.get_height()), pygame.SRCALPHA
+            )
+            overlay.fill((*BACKGROUND_DIM_COLOR, int(255 * (1.0 - BACKGROUND_DIM_ALPHA))))
+            surface.blit(overlay, (0, 0))
+        else:
+            surface.fill(COLOR_BG)
 
     def draw(self, surface: pygame.Surface):
         """Draw the screen with enhanced styling."""
-        # Clear with background color
-        surface.fill(COLOR_BG)
+        self._draw_dimmed_background(surface)
 
         # Draw decorative background elements (subtle)
         self._draw_background_decorations(surface)
@@ -677,13 +715,11 @@ class MenuScreen:
 
     def _draw_title(self, surface: pygame.Surface):
         """Draw screen title (used when not using panel)."""
-        # Using muted bone color to match main menu aesthetic
-        title_color = (180, 160, 165)  # Muted pinkish bone color
-        title_surface = self.large_font.render(self.title, True, title_color)
+        title_surface = self.large_font.render(self.title, True, COLOR_TITLE)
         title_rect = title_surface.get_rect(centerx=surface.get_width() // 2, top=40)
 
         # Title glow
-        glow_surface = self.large_font.render(self.title, True, (180, 160, 165, 150))
+        glow_surface = self.large_font.render(self.title, True, COLOR_TITLE)
         for offset in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
             glow_rect = title_rect.copy()
             glow_rect.x += offset[0]

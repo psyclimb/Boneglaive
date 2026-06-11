@@ -157,7 +157,7 @@ class MenuManager:
             self._push_screen(profile_submenu)
 
         elif action == "select_profile":
-            profile_list = ProfileListScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            profile_list = ProfileListScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(profile_list)
 
         elif action == "create_profile":
@@ -172,7 +172,7 @@ class MenuManager:
 
         elif action == "delete_profile":
             # Show delete profile screen
-            delete_screen = ProfileDeleteScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            delete_screen = ProfileDeleteScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(delete_screen)
 
         elif action == "view_stats":
@@ -182,7 +182,7 @@ class MenuManager:
                 # Could show a message, for now just do nothing
                 pass
             else:
-                stats_screen = ProfileStatsScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+                stats_screen = ProfileStatsScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
                 self._push_screen(stats_screen)
 
         elif action == "settings":
@@ -190,7 +190,7 @@ class MenuManager:
             self._push_screen(settings_submenu)
 
         elif action == "display_settings":
-            display_settings = DisplaySettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            display_settings = DisplaySettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(display_settings)
 
         elif action == "apply_display":
@@ -201,15 +201,15 @@ class MenuManager:
             self._push_screen(sound_settings)
 
         elif action == "interface_settings":
-            interface_settings = InterfaceSettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            interface_settings = InterfaceSettingsScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(interface_settings)
 
         elif action == "how_to_play":
-            how_to_play_screen = HowToPlayScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            how_to_play_screen = HowToPlayScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(how_to_play_screen)
 
         elif action == "about":
-            about_screen = AboutScreen(self.font, self.large_font, self.screen_width, self.screen_height)
+            about_screen = AboutScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
             self._push_screen(about_screen)
 
         elif action == "quit":

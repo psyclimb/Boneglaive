@@ -5,7 +5,10 @@ Screens for profile management: selection, creation, and viewing stats.
 """
 import pygame
 from typing import Optional
-from .menu_components import MenuScreen, Button, TextInputDialog, COLOR_TEXT, COLOR_BG
+from .menu_components import (
+    MenuScreen, MenuPanel, Button, TextInputDialog, COLOR_TEXT, COLOR_BG, COLOR_TITLE,
+    menu_button_width, menu_button_height, menu_button_spacing, menu_start_y
+)
 from boneglaive.game.player_profile import profile_manager
 from boneglaive.utils.config import ConfigManager
 
@@ -17,156 +20,80 @@ class ProfileSubmenu(MenuScreen):
         super().__init__("Profile", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
-
-        # Use shared kaleidoscope background
         self.background = shared_background
-        self.background_alpha = 0.15  # Very dim
 
-        # Button dimensions
-        button_width = 300
-        button_height = 60
-        button_spacing = 20
+        button_w = menu_button_width(screen_width)
+        button_h = menu_button_height(screen_height)
+        spacing = menu_button_spacing(screen_height)
+        start_x = (screen_width - button_w) // 2
+        start_y = menu_start_y(screen_height)
 
-        # Calculate center position
-        start_x = (screen_width - button_width) // 2
-        start_y = 250
-
-        # Create buttons
         self.buttons = [
-            Button(
-                start_x, start_y,
-                button_width, button_height,
-                "Select Profile",
-                font,
-                lambda: self._set_action("select_profile")
-            ),
-            Button(
-                start_x, start_y + (button_height + button_spacing),
-                button_width, button_height,
-                "Create Profile",
-                font,
-                lambda: self._set_action("create_profile")
-            ),
-            Button(
-                start_x, start_y + (button_height + button_spacing) * 2,
-                button_width, button_height,
-                "Delete Profile",
-                font,
-                lambda: self._set_action("delete_profile")
-            ),
-            Button(
-                start_x, start_y + (button_height + button_spacing) * 3,
-                button_width, button_height,
-                "View Stats",
-                font,
-                lambda: self._set_action("view_stats")
-            ),
-            Button(
-                start_x, start_y + (button_height + button_spacing) * 4,
-                button_width, button_height,
-                "Back",
-                font,
-                lambda: self._set_action("back"),
-                glaive_direction="left"
-            )
+            Button(start_x, start_y, button_w, button_h, "Select Profile", font,
+                   lambda: self._set_action("select_profile")),
+            Button(start_x, start_y + (button_h + spacing), button_w, button_h, "Create Profile", font,
+                   lambda: self._set_action("create_profile")),
+            Button(start_x, start_y + (button_h + spacing) * 2, button_w, button_h, "Delete Profile", font,
+                   lambda: self._set_action("delete_profile")),
+            Button(start_x, start_y + (button_h + spacing) * 3, button_w, button_h, "View Stats", font,
+                   lambda: self._set_action("view_stats")),
+            Button(start_x, start_y + (button_h + spacing) * 4, button_w, button_h, "Back", font,
+                   lambda: self._set_action("back"), glaive_direction="left"),
         ]
-
         self._action_result = None
 
     def _set_action(self, action: str):
-        """Set the action result."""
         self._action_result = action
 
-    def update(self, delta_time: float, mouse_pos, mouse_pressed):
-        """Update screen state."""
-        super().update(delta_time, mouse_pos, mouse_pressed)
-        self.background.update(delta_time)
-
-    def draw(self, surface: pygame.Surface):
-        """Draw the menu with dimmed background."""
-        # Draw dimmed kaleidoscope
-        self.background.draw(surface)
-
-        # Draw dark overlay to dim it
-        overlay = pygame.Surface((self.screen_width, self.screen_height), pygame.SRCALPHA)
-        overlay.fill((10, 10, 15, int(255 * (1.0 - self.background_alpha))))
-        surface.blit(overlay, (0, 0))
-
-        # Draw menu elements
-        super().draw(surface)
-
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
-        """Handle events and return action if triggered."""
         super().handle_event(event)
-
-        # Check if action was set by button
         if self._action_result:
             action = self._action_result
             self._action_result = None
             return action
-
         return None
 
 
 class ProfileListScreen(MenuScreen):
     """Screen for selecting from existing profiles."""
 
-    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int, shared_background):
         super().__init__("Select Profile", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.background = shared_background
         self.config = ConfigManager()
 
-        # Get available profiles
         self.profiles = profile_manager.list_profiles()
 
-        # Button dimensions
-        button_width = 300
-        button_height = 50
-        button_spacing = 15
+        button_w = menu_button_width(screen_width)
+        button_h = menu_button_height(screen_height)
+        spacing = menu_button_spacing(screen_height)
+        start_x = (screen_width - button_w) // 2
+        start_y = menu_start_y(screen_height)
 
-        # Calculate center position
-        start_x = (screen_width - button_width) // 2
-        start_y = 250
-
-        # Create buttons for each profile
         self.buttons = []
-
         if not self.profiles:
-            # Show message if no profiles
             self.no_profiles_message = True
         else:
             self.no_profiles_message = False
             for i, profile_name in enumerate(self.profiles):
-                y_pos = start_y + i * (button_height + button_spacing)
+                y_pos = start_y + i * (button_h + spacing)
                 self.buttons.append(
-                    Button(
-                        start_x, y_pos,
-                        button_width, button_height,
-                        profile_name,
-                        font,
-                        lambda pn=profile_name: self._select_profile(pn)
-                    )
+                    Button(start_x, y_pos, button_w, button_h, profile_name, font,
+                           lambda pn=profile_name: self._select_profile(pn))
                 )
 
-        # Add Back button
-        back_y = start_y + len(self.profiles) * (button_height + button_spacing) + 30 if self.profiles else start_y
+        back_y = start_y + len(self.profiles) * (button_h + spacing) + spacing * 2 if self.profiles else start_y
         self.buttons.append(
-            Button(
-                start_x, back_y,
-                button_width, button_height,
-                "Back",
-                font,
-                lambda: self._set_action("back"),
-                glaive_direction="left"
-            )
+            Button(start_x, back_y, button_w, button_h, "Back", font,
+                   lambda: self._set_action("back"), glaive_direction="left")
         )
 
         self._action_result = None
         self._message = None
 
     def _select_profile(self, profile_name: str):
-        """Load a profile."""
         profile = profile_manager.load_profile(profile_name)
         if profile:
             profile_manager.set_current_profile(profile)
@@ -178,81 +105,66 @@ class ProfileListScreen(MenuScreen):
             self._message = f"Error loading profile '{profile_name}'"
 
     def _set_action(self, action: str):
-        """Set the action result."""
         self._action_result = action
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
-        """Handle events and return action if triggered."""
         super().handle_event(event)
-
-        # Check if action was set by button
         if self._action_result:
             action = self._action_result
             self._action_result = None
             return action
-
         return None
 
     def draw(self, surface: pygame.Surface):
-        """Draw the profile list screen."""
         super().draw(surface)
 
-        # Draw no profiles message if needed
         if self.no_profiles_message:
             message = "No profiles found. Create one first!"
             message_surface = self.font.render(message, True, COLOR_TEXT)
-            message_rect = message_surface.get_rect(centerx=self.screen_width // 2, top=200)
+            message_rect = message_surface.get_rect(centerx=self.screen_width // 2, top=int(self.screen_height * 0.28))
             surface.blit(message_surface, message_rect)
 
-        # Draw message if any
         if self._message:
             msg_surface = self.font.render(self._message, True, (100, 255, 100))
-            msg_rect = msg_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - 60)
+            msg_rect = msg_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - int(self.screen_height * 0.08))
             surface.blit(msg_surface, msg_rect)
 
 
 class ProfileStatsScreen(MenuScreen):
     """Screen for viewing profile statistics."""
 
-    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int, shared_background):
         super().__init__("Profile Stats", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.background = shared_background
         self.profile = profile_manager.get_current_profile()
         self.activation_timer = 0.0
-
-        # No buttons, just display stats
+        self.use_panel = False
         self.buttons = []
 
     def on_enter(self):
-        """Called when screen becomes active."""
         super().on_enter()
-        self.activation_timer = 0.0  # Reset timer when entering screen
+        self.activation_timer = 0.0
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
-        """Handle events - any key/click returns to menu."""
-        # Only accept input after 200ms to prevent click-through
         if self.activation_timer < 0.2:
             return None
-
         if event.type == pygame.KEYUP and event.key != pygame.K_ESCAPE:
-            # Any key except ESC (prevents immediate exit from ESC press on previous screen)
             return "back"
         elif event.type == pygame.MOUSEBUTTONUP:
             return "back"
         return None
 
     def update(self, delta_time: float, mouse_pos, mouse_pressed):
-        """Update screen state."""
         super().update(delta_time, mouse_pos, mouse_pressed)
         self.activation_timer += delta_time
 
     def draw(self, surface: pygame.Surface):
-        """Draw the profile stats screen."""
-        surface.fill(COLOR_BG)
+        self._draw_dimmed_background(surface)
+        self._draw_background_decorations(surface)
 
         if not self.profile:
-            # No profile selected
             message = "No profile selected."
             message_surface = self.large_font.render(message, True, COLOR_TEXT)
             message_rect = message_surface.get_rect(center=(self.screen_width // 2, self.screen_height // 2))
@@ -260,134 +172,102 @@ class ProfileStatsScreen(MenuScreen):
 
             hint = "Press any key to return..."
             hint_surface = self.font.render(hint, True, (150, 150, 150))
-            hint_rect = hint_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - 40)
+            hint_rect = hint_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - int(self.screen_height * 0.06))
             surface.blit(hint_surface, hint_rect)
             return
 
-        # Draw profile name as title
+        # Draw stats inside a panel
+        panel_w = menu_button_width(self.screen_width) + 80
+        panel_h = int(self.screen_height * 0.7)
+        panel_x = (self.screen_width - panel_w) // 2
+        panel_y = int(self.screen_height * 0.18)
         title_text = f"PROFILE: {self.profile.name}"
-        title_surface = self.large_font.render(title_text, True, COLOR_TEXT)
-        title_rect = title_surface.get_rect(centerx=self.screen_width // 2, top=60)
-        surface.blit(title_surface, title_rect)
+        panel = MenuPanel(panel_x, panel_y, panel_w, panel_h, title_text)
+        panel.draw(surface, self.large_font)
 
-        # Calculate stats
+        # Stats content
         win_rate = self.profile.get_win_rate()
         most_picked = self.profile.get_most_picked_unit() or "None"
 
-        # Draw stats
         lines = [
-            "",
-            "=== GAME STATS ===",
-            f"Games Played: {self.profile.games_played}",
-            f"Wins: {self.profile.wins}",
-            f"Losses: {self.profile.losses}",
-            f"Win Rate: {win_rate:.1f}%",
-            "",
-            "=== UNIT STATS ===",
-            f"Most Picked Unit: {most_picked}",
-            "",
-            "Unit Pick Counts:",
+            ("", None),
+            ("=== GAME STATS ===", (100, 200, 255)),
+            (f"Games Played: {self.profile.games_played}", COLOR_TEXT),
+            (f"Wins: {self.profile.wins}", COLOR_TEXT),
+            (f"Losses: {self.profile.losses}", COLOR_TEXT),
+            (f"Win Rate: {win_rate:.1f}%", (100, 255, 100)),
+            ("", None),
+            ("=== UNIT STATS ===", (100, 200, 255)),
+            (f"Most Picked Unit: {most_picked}", (100, 255, 100)),
+            ("", None),
+            ("Unit Pick Counts:", COLOR_TEXT),
         ]
 
-        # Add unit picks (only show units with picks > 0)
         for unit_name, picks in sorted(self.profile.unit_picks.items(), key=lambda x: x[1], reverse=True):
             if picks > 0:
-                lines.append(f"  {unit_name}: {picks}")
+                lines.append((f"  {unit_name}: {picks}", COLOR_TEXT))
 
-        # Draw all lines
-        y_pos = 150
-        line_height = 30
-
-        for line in lines:
-            if line:  # Non-empty line
-                if "===" in line:
-                    # Section headers
-                    text_surface = self.font.render(line, True, (100, 200, 255))
-                elif "Win Rate:" in line or "Most Picked" in line:
-                    # Highlight key stats
-                    text_surface = self.font.render(line, True, (100, 255, 100))
-                else:
-                    # Regular text
-                    text_surface = self.font.render(line, True, COLOR_TEXT)
-
-                text_rect = text_surface.get_rect(centerx=self.screen_width // 2, top=y_pos)
+        line_height = max(20, int(self.screen_height * 0.04))
+        content_y = panel_y + 90
+        for text, color in lines:
+            if text and color:
+                text_surface = self.font.render(text, True, color)
+                text_rect = text_surface.get_rect(centerx=self.screen_width // 2, top=content_y)
                 surface.blit(text_surface, text_rect)
+            content_y += line_height
 
-            y_pos += line_height
-
-        # Draw hint
         hint = "Press any key to return..."
         hint_surface = self.font.render(hint, True, (150, 150, 150))
-        hint_rect = hint_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - 40)
+        hint_rect = hint_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - int(self.screen_height * 0.06))
         surface.blit(hint_surface, hint_rect)
 
 
 class ProfileDeleteScreen(MenuScreen):
     """Screen for deleting profiles."""
 
-    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int):
+    def __init__(self, font: pygame.font.Font, large_font: pygame.font.Font, screen_width: int, screen_height: int, shared_background):
         super().__init__("Delete Profile", font, large_font)
         self.screen_width = screen_width
         self.screen_height = screen_height
+        self.background = shared_background
         self.config = ConfigManager()
 
-        # Get available profiles
         self.profiles = profile_manager.list_profiles()
+        self._build_buttons()
+        self._action_result = None
+        self._message = None
 
-        # Button dimensions
-        button_width = 300
-        button_height = 50
-        button_spacing = 15
+    def _build_buttons(self):
+        button_w = menu_button_width(self.screen_width)
+        button_h = menu_button_height(self.screen_height)
+        spacing = menu_button_spacing(self.screen_height)
+        start_x = (self.screen_width - button_w) // 2
+        start_y = menu_start_y(self.screen_height)
 
-        # Calculate center position
-        start_x = (screen_width - button_width) // 2
-        start_y = 250
-
-        # Create buttons for each profile
         self.buttons = []
-
         if not self.profiles:
-            # Show message if no profiles
             self.no_profiles_message = True
         else:
             self.no_profiles_message = False
             for i, profile_name in enumerate(self.profiles):
-                y_pos = start_y + i * (button_height + button_spacing)
+                y_pos = start_y + i * (button_h + spacing)
                 self.buttons.append(
-                    Button(
-                        start_x, y_pos,
-                        button_width, button_height,
-                        f"Delete: {profile_name}",
-                        font,
-                        lambda pn=profile_name: self._delete_profile(pn)
-                    )
+                    Button(start_x, y_pos, button_w, button_h,
+                           f"Delete: {profile_name}", self.font,
+                           lambda pn=profile_name: self._delete_profile(pn))
                 )
 
-        # Add Back button
-        back_y = start_y + len(self.profiles) * (button_height + button_spacing) + 30 if self.profiles else start_y
+        back_y = start_y + len(self.profiles) * (button_h + spacing) + spacing * 2 if self.profiles else start_y
         self.buttons.append(
-            Button(
-                start_x, back_y,
-                button_width, button_height,
-                "Back",
-                font,
-                lambda: self._set_action("back"),
-                glaive_direction="left"
-            )
+            Button(start_x, back_y, button_w, button_h, "Back", self.font,
+                   lambda: self._set_action("back"), glaive_direction="left")
         )
 
-        self._action_result = None
-        self._message = None
-
     def _delete_profile(self, profile_name: str):
-        """Delete a profile."""
-        # Check if deleting current profile
         current_profile = profile_manager.get_current_profile()
         is_active = current_profile and current_profile.name == profile_name
 
-        # Delete the profile
         if profile_manager.delete_profile(profile_name):
-            # If we deleted the active profile, clear it
             if is_active:
                 profile_manager.set_current_profile(None)
                 self.config.set('current_profile', '')
@@ -395,85 +275,36 @@ class ProfileDeleteScreen(MenuScreen):
                 self._message = f"Active profile '{profile_name}' deleted!"
             else:
                 self._message = f"Profile '{profile_name}' deleted!"
-
-            # Refresh profile list
             self.profiles = profile_manager.list_profiles()
-            self._rebuild_buttons()
+            self._build_buttons()
         else:
             self._message = f"Error deleting profile '{profile_name}'"
 
-    def _rebuild_buttons(self):
-        """Rebuild button list after deletion."""
-        button_width = 300
-        button_height = 50
-        button_spacing = 15
-        start_x = (self.screen_width - button_width) // 2
-        start_y = 250
-
-        self.buttons = []
-
-        if not self.profiles:
-            self.no_profiles_message = True
-        else:
-            self.no_profiles_message = False
-            for i, profile_name in enumerate(self.profiles):
-                y_pos = start_y + i * (button_height + button_spacing)
-                self.buttons.append(
-                    Button(
-                        start_x, y_pos,
-                        button_width, button_height,
-                        f"Delete: {profile_name}",
-                        self.font,
-                        lambda pn=profile_name: self._delete_profile(pn)
-                    )
-                )
-
-        # Add Back button
-        back_y = start_y + len(self.profiles) * (button_height + button_spacing) + 30 if self.profiles else start_y
-        self.buttons.append(
-            Button(
-                start_x, back_y,
-                button_width, button_height,
-                "Back",
-                self.font,
-                lambda: self._set_action("back"),
-                glaive_direction="left"
-            )
-        )
-
     def _set_action(self, action: str):
-        """Set the action result."""
         self._action_result = action
 
     def handle_event(self, event: pygame.event.Event) -> Optional[str]:
-        """Handle events and return action if triggered."""
         super().handle_event(event)
-
-        # Check if action was set by button
         if self._action_result:
             action = self._action_result
             self._action_result = None
             return action
-
         return None
 
     def draw(self, surface: pygame.Surface):
-        """Draw the profile delete screen."""
         super().draw(surface)
 
-        # Draw no profiles message if needed
         if self.no_profiles_message:
             message = "No profiles to delete."
             message_surface = self.font.render(message, True, COLOR_TEXT)
-            message_rect = message_surface.get_rect(centerx=self.screen_width // 2, top=200)
+            message_rect = message_surface.get_rect(centerx=self.screen_width // 2, top=int(self.screen_height * 0.28))
             surface.blit(message_surface, message_rect)
 
-        # Draw message if any
         if self._message:
             if "Cannot delete" in self._message or "Error" in self._message:
                 color = (255, 100, 100)
             else:
                 color = (100, 255, 100)
             msg_surface = self.font.render(self._message, True, color)
-            msg_rect = msg_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - 60)
+            msg_rect = msg_surface.get_rect(centerx=self.screen_width // 2, bottom=self.screen_height - int(self.screen_height * 0.08))
             surface.blit(msg_surface, msg_rect)
