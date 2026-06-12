@@ -280,6 +280,59 @@ class HornswoggleAnimation:
         # Convert grid positions to screen positions
         src = hornswoggle_data['source']
         self.source_screen = camera.grid_to_screen(src[1], src[0], centered=True)
+        self.is_whiff = hornswoggle_data.get('whiff', False)
+
+        from boneglaive.game.skills.landscaper import DIRECTION_VECTORS, HornswoggleSkill
+        direction = hornswoggle_data['direction']
+        dy, dx = DIRECTION_VECTORS[direction]
+
+        if self.is_whiff:
+            # Whiff mode: wave travels full range and dissipates
+            self.wave_screens = []
+            sy, sx = src
+            for dist in range(1, HornswoggleSkill.WAVE_RANGE + 1):
+                wy = sy + dy * dist
+                wx = sx + dx * dist
+                if not (0 <= wy < 10 and 0 <= wx < 20):  # Map bounds
+                    break
+                self.wave_screens.append(camera.grid_to_screen(wx, wy, centered=True))
+
+            # Compute wave angle from source toward last wave tile
+            sx_screen, sy_screen = self.source_screen
+            if self.wave_screens:
+                end_x, end_y = self.wave_screens[-1]
+            else:
+                end_x = sx_screen + dx * 100
+                end_y = sy_screen + dy * 100
+            self.wave_angle = math.atan2(end_y - sy_screen, end_x - sx_screen)
+
+            # No grab/drag/deposit/sympathetic
+            self.grab_screen = self.wave_screens[-1] if self.wave_screens else self.source_screen
+            self.grab_grid = (0, 0)
+            self.deposit_screen = self.grab_screen
+            self.deposit_grid = (0, 0)
+            self.slag_screens = []
+            self.slag_grids = []
+            self.sympathetic_screens = []
+            self.sympathetic_grids = []
+            self.sympathetic_formed = []
+
+            # Phase timing: wave only
+            self.phase = "wave"
+            self.phase_order = ["wave"]
+            self.phase_timers = {"wave": 0.56}
+
+            self.slag_formed = []
+            self.terrain_pos = list(self.grab_screen)
+            self.wave_progress = 0.0
+            self.wave_sound_played = False
+            self.deposit_sound_played = False
+
+            self.wave_x = float(sx_screen)
+            self.wave_y = float(sy_screen)
+            self.wave_rotation = 0.0
+            self.wave_trail = []
+            return
 
         grab = hornswoggle_data['grab_pos']
         self.grab_screen = camera.grid_to_screen(grab[1], grab[0], centered=True)
@@ -296,9 +349,6 @@ class HornswoggleAnimation:
             self.slag_grids.append((pos[1], pos[0]))
 
         # Calculate wave path tiles (source to grab)
-        from boneglaive.game.skills.landscaper import DIRECTION_VECTORS, HornswoggleSkill
-        direction = hornswoggle_data['direction']
-        dy, dx = DIRECTION_VECTORS[direction]
         self.wave_screens = []
         sy, sx = src
         for dist in range(1, HornswoggleSkill.WAVE_RANGE + 1):
@@ -378,6 +428,8 @@ class HornswoggleAnimation:
         return "done", 0
 
     def update(self, delta_time):
+        if not self.active:
+            return False
         self.elapsed += delta_time
         phase, phase_t = self._get_phase_elapsed()
 

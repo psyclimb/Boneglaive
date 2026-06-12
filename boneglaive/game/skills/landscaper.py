@@ -221,26 +221,7 @@ class HornswoggleSkill(ActiveSkill):
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         if not super().can_use(user, target_pos, game):
             return False
-        if not game:
-            return False
-        source_y, source_x = _get_effective_position(user)
-        # Check if there's any terrain within wave range in any direction
-        for dir_name, (dy, dx) in DIRECTION_VECTORS.items():
-            for dist in range(1, self.WAVE_RANGE + 1):
-                check_y = source_y + dy * dist
-                check_x = source_x + dx * dist
-                if not game.is_valid_position(check_y, check_x):
-                    break
-                # Units block the wave UNLESS they are topiaries (topiaries are terrain)
-                unit_at = game.get_unit_at(check_y, check_x)
-                if unit_at:
-                    if hasattr(unit_at, 'is_topiary') and unit_at.is_topiary:
-                        return True  # Topiary is valid terrain to grab
-                    else:
-                        break  # Normal unit blocks wave
-                if not game.map.is_passable(check_y, check_x) or game.map.is_furniture(check_y, check_x):
-                    return True
-        return False
+        return True
 
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue Hornswoggle. target_pos encodes direction as adjacent tile from effective position."""
@@ -264,11 +245,6 @@ class HornswoggleSkill(ActiveSkill):
 
         direction = _direction_from_delta(dy, dx)
         if not direction:
-            return False
-
-        # Validate: there must be terrain in this direction within wave range
-        grab_pos = self._find_terrain_in_direction(source_y, source_x, direction, game)
-        if not grab_pos:
             return False
 
         # Store direction and source position for execute phase
@@ -336,6 +312,14 @@ class HornswoggleSkill(ActiveSkill):
                 MessageType.ABILITY,
                 player=user.player
             )
+            # Store data so graphical animation still plays the wave
+            user.last_hornswoggle_data = {
+                'source': (source_y, source_x),
+                'direction': direction,
+                'whiff': True,
+            }
+            self.fire_direction = None
+            self.fire_source = None
             return
 
         grab_y, grab_x = grab_pos
@@ -630,22 +614,7 @@ class TopiaryBreathSkill(ActiveSkill):
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         if not super().can_use(user, target_pos, game):
             return False
-        if not game:
-            return False
-        from boneglaive.game.upgrades import UpgradeManager
-        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Topiary Breath")
-        # Check if there are any units in any possible cone direction
-        source_y, source_x = _get_effective_position(user)
-        for dir_name in DIRECTION_VECTORS:
-            cone_tiles = _get_cone_tiles(source_y, source_x, dir_name, game)
-            for ty, tx in cone_tiles:
-                unit_at = game.get_unit_at(ty, tx)
-                if unit_at and unit_at != user and unit_at.is_alive():
-                    return True
-                # Upgraded: terrain/furniture in cone is also a valid reason to cast
-                if is_upgraded and (not game.map.is_passable(ty, tx) or game.map.is_furniture(ty, tx)):
-                    return True
-        return False
+        return True
 
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         if not self.can_use(user, target_pos, game):
@@ -724,6 +693,15 @@ class TopiaryBreathSkill(ActiveSkill):
                 MessageType.ABILITY,
                 player=user.player
             )
+            # Store data so graphical animation still plays the cone
+            user.last_topiary_breath_data = {
+                'source': (source_y, source_x),
+                'direction': direction,
+                'cone_tiles': list(cone_tiles),
+                'transformed_units': [],
+                'terrain_topiaries': [],
+                'generated_topiaries': [],
+            }
             self.fire_direction = None
             return
 

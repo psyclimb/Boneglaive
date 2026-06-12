@@ -1411,36 +1411,16 @@ class GameStateAdapter:
                     # Convert to renderer coords and add
                     skill_range_positions.append((x, y))
 
-        # Hornswoggle: show 8 adjacent tiles as direction selectors (only valid directions)
-        elif skill.name == "Hornswoggle":
-            from boneglaive.game.skills.landscaper import DIRECTION_VECTORS
-            for dir_name, (dy, dx) in DIRECTION_VECTORS.items():
-                adj_y = from_y + dy
-                adj_x = from_x + dx
-                if not self.game.is_valid_position(adj_y, adj_x):
-                    continue
-                # Check if there's terrain in this direction
-                if skill._find_terrain_in_direction(from_y, from_x, dir_name, self.game):
-                    skill_range_positions.append((adj_x, adj_y))
-
-        # Topiary Breath: show 8 adjacent tiles as direction selectors (only where cone has units)
-        elif skill.name == "Topiary Breath":
-            from boneglaive.game.skills.landscaper import DIRECTION_VECTORS, _get_cone_tiles
-            for dir_name, (dy, dx) in DIRECTION_VECTORS.items():
-                adj_y = from_y + dy
-                adj_x = from_x + dx
-                if not self.game.is_valid_position(adj_y, adj_x):
-                    continue
-                # Check if any units exist in this cone direction
-                cone_tiles = _get_cone_tiles(from_y, from_x, dir_name, self.game)
-                has_target = False
-                for ty, tx in cone_tiles:
-                    unit_at = self.game.get_unit_at(ty, tx)
-                    if unit_at and unit_at != game_unit and unit_at.is_alive():
-                        has_target = True
-                        break
-                if has_target:
-                    skill_range_positions.append((adj_x, adj_y))
+        # Hornswoggle / Topiary Breath: show all 8 adjacent tiles as direction selectors
+        elif skill.name in ("Hornswoggle", "Topiary Breath"):
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    if dy == 0 and dx == 0:
+                        continue
+                    adj_y = from_y + dy
+                    adj_x = from_x + dx
+                    if self.game.is_valid_position(adj_y, adj_x):
+                        skill_range_positions.append((adj_x, adj_y))
         else:
             # Special handling for Vault - check for upgrade before calculating range
             if skill.name == "Vault":

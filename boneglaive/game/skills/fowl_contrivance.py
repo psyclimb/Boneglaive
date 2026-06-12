@@ -256,38 +256,7 @@ class GaussianDuskSkill(ActiveSkill):
         # Track units hit and damage dealt
         units_hit = 0
         total_damage = 0
-        terrain_destroyed = 0
         damaged_units = []  # Store units and damage for display after animation
-
-        # Calculate midpoint for terrain destruction
-        beam_length = len(positions_in_line)
-        midpoint_index = beam_length // 2
-        midpoint_pos = positions_in_line[midpoint_index] if beam_length > 0 else None
-
-        # Destroy terrain only at midpoint
-        if midpoint_pos:
-            mid_y, mid_x = midpoint_pos
-            terrain = game.map.get_terrain_at(mid_y, mid_x)
-            destructible_terrain = [
-                TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.MARROW_WALL,
-                TerrainType.LECTERN, TerrainType.COAT_RACK, TerrainType.OTTOMAN,
-                TerrainType.CONSOLE, TerrainType.CURIOSITY_SHELF, TerrainType.TIFFANY_LAMP,
-                TerrainType.STAINED_STONE, TerrainType.EASEL, TerrainType.SCULPTURE,
-                TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
-                TerrainType.HYDRAULIC_PRESS, TerrainType.WORKBENCH, TerrainType.COUCH,
-                TerrainType.TOOLBOX, TerrainType.COT, TerrainType.CONVEYOR,
-                TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
-            ]
-
-            if terrain in destructible_terrain:
-                terrain_name = terrain.name.lower().replace('_', ' ')
-                message_log.add_message(
-                    f"The rail beam's center obliterates the {terrain_name} at ({mid_y},{mid_x})",
-                    MessageType.ABILITY,
-                    player=user.player
-                )
-                game.map.set_terrain_at(mid_y, mid_x, TerrainType.EMPTY)
-                terrain_destroyed += 1
 
         # Apply damage to all positions in the line
         for pos_y, pos_x in positions_in_line:
@@ -364,7 +333,7 @@ class GaussianDuskSkill(ActiveSkill):
                     game.check_critical_health(unit, user, previous_hp, ui)
 
         # Log results
-        if units_hit == 0 and terrain_destroyed == 0:
+        if units_hit == 0:
             message_log.add_message(
                 "The rail cannon's beam finds no targets",
                 MessageType.ABILITY,
@@ -720,12 +689,46 @@ class BigArcSkill(ActiveSkill):
                     TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                     TerrainType.HYDRAULIC_PRESS, TerrainType.WORKBENCH, TerrainType.COUCH,
                     TerrainType.TOOLBOX, TerrainType.COT, TerrainType.CONVEYOR,
-                    TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+                    TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL,
+                    TerrainType.SLAG_WALL, TerrainType.TOPIARY,
+                    TerrainType.DERELICT_BUILDING
                 ]
+                displaceable_terrain = destructible_terrain
+
+                def _revert_topiary_at(pos_y, pos_x):
+                    """Revert a topiary-unit at the given position, restoring its PRT."""
+                    if not hasattr(game, 'topiary_units') or (pos_y, pos_x) not in game.topiary_units:
+                        return
+                    topiary_data = game.topiary_units[(pos_y, pos_x)]
+                    unit = topiary_data['unit']
+                    unit.is_topiary = False
+                    unit.topiary_duration = 0
+                    if hasattr(unit, 'topiary_original_prt'):
+                        unit.prt = unit.topiary_original_prt
+                        delattr(unit, 'topiary_original_prt')
+                    del game.topiary_units[(pos_y, pos_x)]
+                    message_log.add_message(
+                        f"{unit.get_display_name()} is freed from topiary by the explosion!",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
+
+                def _cleanup_terrain_tracking(pos_y, pos_x):
+                    """Clean up all dynamic terrain tracking at a position."""
+                    if hasattr(game, 'slag_wall_tiles') and (pos_y, pos_x) in game.slag_wall_tiles:
+                        del game.slag_wall_tiles[(pos_y, pos_x)]
+                    if hasattr(game, 'topiary_terrain') and (pos_y, pos_x) in game.topiary_terrain:
+                        del game.topiary_terrain[(pos_y, pos_x)]
+                    if hasattr(game, 'marrow_dike_tiles') and (pos_y, pos_x) in game.marrow_dike_tiles:
+                        del game.marrow_dike_tiles[(pos_y, pos_x)]
+                    if hasattr(game, 'derelict_building_tiles') and (pos_y, pos_x) in game.derelict_building_tiles:
+                        del game.derelict_building_tiles[(pos_y, pos_x)]
 
                 # Step 1: Destroy terrain/furniture at primary (center) impact
                 terrain = game.map.get_terrain_at(second_center_y, second_center_x)
                 if terrain in destructible_terrain:
+                    _revert_topiary_at(second_center_y, second_center_x)
+                    _cleanup_terrain_tracking(second_center_y, second_center_x)
                     terrain_name = terrain.name.lower().replace('_', ' ')
                     message_log.add_message(
                         f"The underground explosion obliterates the {terrain_name} at ({second_center_y},{second_center_x})",
@@ -734,17 +737,37 @@ class BigArcSkill(ActiveSkill):
                     )
                     game.map.set_terrain_at(second_center_y, second_center_x, TerrainType.EMPTY)
 
-                # Step 2: Collect all destructible terrain at second explosion site (excluding destroyed center)
+                # Step 2: Collect all displaceable terrain at second explosion site (excluding destroyed center)
                 second_site_terrain = []
                 for pos_y, pos_x, is_primary in second_affected_positions:
                     if is_primary:
                         continue  # Skip center, already destroyed
                     terrain = game.map.get_terrain_at(pos_y, pos_x)
-                    if terrain in destructible_terrain and terrain != TerrainType.EMPTY:
+                    if terrain in displaceable_terrain and terrain != TerrainType.EMPTY:
+                        # Skip topiary-units — they get freed, not relocated as terrain
+                        if hasattr(game, 'topiary_units') and (pos_y, pos_x) in game.topiary_units:
+                            _revert_topiary_at(pos_y, pos_x)
+                            game.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
+                            continue
                         second_site_terrain.append((pos_y, pos_x, terrain))
 
                 # Step 3: Move terrain/furniture to match enemy image from first explosion
+                # Save dynamic terrain tracking data before clearing source positions
+                saved_tracking = {}
                 for terrain_y, terrain_x, terrain_type in second_site_terrain:
+                    key = (terrain_y, terrain_x)
+                    tracking = {}
+                    if hasattr(game, 'topiary_terrain') and key in game.topiary_terrain:
+                        tracking['topiary_terrain'] = game.topiary_terrain[key]
+                    if hasattr(game, 'slag_wall_tiles') and key in game.slag_wall_tiles:
+                        tracking['slag_wall'] = game.slag_wall_tiles[key]
+                    if hasattr(game, 'marrow_dike_tiles') and key in game.marrow_dike_tiles:
+                        tracking['marrow_dike'] = game.marrow_dike_tiles[key]
+                    if hasattr(game, 'derelict_building_tiles') and key in game.derelict_building_tiles:
+                        tracking['derelict_building'] = game.derelict_building_tiles[key]
+                    if tracking:
+                        saved_tracking[key] = tracking
+                    _cleanup_terrain_tracking(terrain_y, terrain_x)
                     # Clear terrain from its current position
                     game.map.set_terrain_at(terrain_y, terrain_x, TerrainType.EMPTY)
 
@@ -789,6 +812,20 @@ class BigArcSkill(ActiveSkill):
 
                     # Place terrain/furniture at target position
                     game.map.set_terrain_at(target_y, target_x, terrain_type)
+
+                    # Migrate dynamic terrain tracking to new position
+                    source_key = (terrain_y, terrain_x)
+                    if source_key in saved_tracking:
+                        tracking = saved_tracking[source_key]
+                        if 'topiary_terrain' in tracking:
+                            game.topiary_terrain[(target_y, target_x)] = tracking['topiary_terrain']
+                        if 'slag_wall' in tracking:
+                            game.slag_wall_tiles[(target_y, target_x)] = tracking['slag_wall']
+                        if 'marrow_dike' in tracking:
+                            game.marrow_dike_tiles[(target_y, target_x)] = tracking['marrow_dike']
+                        if 'derelict_building' in tracking:
+                            game.derelict_building_tiles[(target_y, target_x)] = tracking['derelict_building']
+
                     terrain_name = terrain_type.name.lower().replace('_', ' ')
                     message_log.add_message(
                         f"A {terrain_name} shifts to ({target_y},{target_x}), matching the enemy formation imprint",
