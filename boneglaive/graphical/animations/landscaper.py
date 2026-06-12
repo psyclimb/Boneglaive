@@ -749,10 +749,27 @@ class DissonanceAnimation:
 
         # Check if target was a topiary (more dramatic effects)
         self.is_topiary = False
+        self.is_upgraded = False
+        self.whirl_tiles = []
+        self.whirl_dest_grids = set()
+        self.hidden_tiles = set()
+        self.whirl_started = False
+        self.whirl_shrapnel_created = False
         if game_unit:
             litho_data = getattr(game_unit, 'last_dissonance_data', None)
             if litho_data:
                 self.is_topiary = litho_data.get('was_topiary', False)
+                self.is_upgraded = litho_data.get('is_upgraded', False)
+
+                if self.is_upgraded and camera:
+                    for tile_info in litho_data.get('rotated_tiles', []):
+                        fy, fx = tile_info['from']
+                        ry, rx = tile_info['to']
+                        self.whirl_tiles.append({
+                            'from_screen': camera.grid_to_screen(fx, fy, centered=True),
+                            'to_screen': camera.grid_to_screen(rx, ry, centered=True),
+                        })
+                        self.whirl_dest_grids.add((rx, ry))
 
         # Target grid position for fake terrain drawing
         # The engine already shattered the terrain, so we draw a placeholder
@@ -776,12 +793,18 @@ class DissonanceAnimation:
         # Crack lines for internal shatter effect
         self.cracks = []
 
-        # Phase timing — no charge, projectile fires immediately
+        # Phase timing — adjusted for upgrade whirl phase
         self.flight_end = 0.9
         self.impact_end = 1.15
         self.shatter_end = 1.45
-        self.shrapnel_end = 2.1
-        self.total_duration = 2.2
+        if self.is_upgraded and self.whirl_tiles:
+            self.whirl_end = 2.15
+            self.shrapnel_end = 2.8
+            self.total_duration = 2.9
+        else:
+            self.whirl_end = self.shatter_end  # No whirl phase
+            self.shrapnel_end = 2.1
+            self.total_duration = 2.2
 
     def update(self, delta_time):
         self.elapsed += delta_time
@@ -850,25 +873,59 @@ class DissonanceAnimation:
                     if self.is_topiary:
                         self.particle_emitter.emit_burst(self.target_x, self.target_y, BURGUNDY_LIGHT, count=20)
 
-                # Create 8-directional shrapnel
-                speed = TILE_SIZE * 4.5
-                directions = [(-1, 0), (-1, 1), (0, 1), (1, 1),
-                              (1, 0), (1, -1), (0, -1), (-1, -1)]
-                for sdy, sdx in directions:
-                    # Normalize diagonal speed
-                    mag = math.hypot(sdx, sdy)
-                    self.shrapnel.append({
-                        'x': float(self.target_x),
-                        'y': float(self.target_y),
-                        'vx': (sdx / mag) * speed,
-                        'vy': (sdy / mag) * speed,
-                        'lifetime': 0.55,
-                        'max_lifetime': 0.55,
-                        'size': random.uniform(3, 6),
-                        'color': random.choice([STONE_GRAY, BONE_IVORY, BURGUNDY_DARK]),
-                        'rotation': random.uniform(0, math.tau),
-                        'spin': random.uniform(-15, 15),
-                    })
+                # Create 8-directional shrapnel (delayed if upgraded — fires after whirl)
+                if not self.is_upgraded:
+                    self._create_shrapnel()
+
+                # Upgraded: hide destination tiles during whirl
+                if self.is_upgraded and self.whirl_tiles:
+                    self.hidden_tiles.update(self.whirl_dest_grids)
+
+        # Phase 3.5 (upgraded): Electromagnetic hurricane — terrain rotates CCW
+        elif self.is_upgraded and self.elapsed < self.whirl_end:
+            whirl_t = (self.elapsed - self.shatter_end) / (self.whirl_end - self.shatter_end)
+
+            if not self.whirl_started:
+                self.whirl_started = True
+                # Sustained rumbling shake for the hurricane
+                if self.screen_shake:
+                    self.screen_shake(6, 0.6)
+                if self.screen_flash:
+                    self.screen_flash(BURGUNDY_DARK, 0.15)
+
+            # Spray particles along the hurricane perimeter
+            hurricane_r = TILE_SIZE * 1.5
+            if self.particle_emitter:
+                # Outer wall spray — frequent, multiple angles
+                if random.random() < 0.7:
+                    spray_angle = random.uniform(0, math.tau)
+                    wobble = 1.0 + random.uniform(-0.1, 0.1)
+                    px = self.target_x + math.cos(spray_angle) * hurricane_r * wobble
+                    py = self.target_y + math.sin(spray_angle) * hurricane_r * wobble
+                    self.particle_emitter.emit_burst(px, py,
+                        random.choice([BURGUNDY_LIGHT, QUARTZ_PALE, DRAGON_EYE]), count=1)
+                # Spiral arm debris — particles orbiting inward
+                if random.random() < 0.5:
+                    orbit_r = hurricane_r * random.uniform(0.3, 0.9)
+                    orbit_a = -(whirl_t * math.tau * 2.5) + random.uniform(0, math.tau)
+                    px = self.target_x + math.cos(orbit_a) * orbit_r
+                    py = self.target_y + math.sin(orbit_a) * orbit_r
+                    self.particle_emitter.emit_trail(px, py,
+                        random.choice([BURGUNDY, STONE_GRAY, BONE_IVORY]), count=2)
+
+            # Create shrapnel at end of whirl
+            if not self.whirl_shrapnel_created and whirl_t > 0.9:
+                self.whirl_shrapnel_created = True
+                self._create_shrapnel()
+                if self.screen_shake:
+                    self.screen_shake(8, 0.2)
+                if self.screen_flash:
+                    self.screen_flash(QUARTZ_BRIGHT, 0.08)
+
+            # Reveal destination tiles near end
+            if whirl_t >= 0.95 and self.whirl_dest_grids:
+                self.hidden_tiles.difference_update(self.whirl_dest_grids)
+                self.whirl_dest_grids.clear()
 
         # Phase 4: Shrapnel flies outward
         elif self.elapsed < self.shrapnel_end:
@@ -943,6 +1000,26 @@ class DissonanceAnimation:
         core_r = max(3, int(radius * 0.3))
         pygame.draw.circle(surface, (*QUARTZ_PALE, min(255, int(alpha * 1.1))), (icx, icy), core_r)
         pygame.draw.circle(surface, (*BONE_IVORY, alpha), (icx, icy), max(1, core_r - 2))
+
+    def _create_shrapnel(self):
+        """Create 8-directional shrapnel pieces from impact point."""
+        speed = TILE_SIZE * 4.5
+        directions = [(-1, 0), (-1, 1), (0, 1), (1, 1),
+                      (1, 0), (1, -1), (0, -1), (-1, -1)]
+        for sdy, sdx in directions:
+            mag = math.hypot(sdx, sdy)
+            self.shrapnel.append({
+                'x': float(self.target_x),
+                'y': float(self.target_y),
+                'vx': (sdx / mag) * speed,
+                'vy': (sdy / mag) * speed,
+                'lifetime': 0.55,
+                'max_lifetime': 0.55,
+                'size': random.uniform(3, 6),
+                'color': random.choice([STONE_GRAY, BONE_IVORY, BURGUNDY_DARK]),
+                'rotation': random.uniform(0, math.tau),
+                'spin': random.uniform(-15, 15),
+            })
 
     def draw(self, surface):
         if not self.active:
@@ -1037,6 +1114,142 @@ class DissonanceAnimation:
                 if alpha > 0:
                     pygame.draw.line(overlay, (*QUARTZ_BRIGHT, alpha),
                                    (tx, ty), (int(ex), int(ey)), crack['width'] + 1)
+
+        # Phase 3.5 (upgraded): Massive gyretic vortex spanning the 3x3 AOE
+        # Visual language matches the gyre projectile — concentric rings of spinning
+        # arc blades and counter-rotating inner arcs, blown up to hurricane scale
+        if self.is_upgraded and self.whirl_tiles and self.shatter_end <= self.elapsed < self.whirl_end:
+            whirl_t = (self.elapsed - self.shatter_end) / (self.whirl_end - self.shatter_end)
+            # Ramp up fast, sustain, then collapse
+            if whirl_t < 0.15:
+                intensity = whirl_t / 0.15
+            elif whirl_t > 0.85:
+                intensity = (1 - whirl_t) / 0.15
+            else:
+                intensity = 1.0
+
+            tx, ty = int(self.target_x), int(self.target_y)
+            hurricane_r = TILE_SIZE * 1.5  # 3x3 grid coverage
+            base_angle = -(whirl_t * math.tau * 2.5)  # CCW, ~2.5 full rotations
+
+            # --- Backdrop: filled burgundy-dark disc (same as gyre projectile) ---
+            fill_alpha = int(50 * intensity)
+            if fill_alpha > 0:
+                pygame.draw.circle(overlay, (*BURGUNDY_DARK, fill_alpha),
+                                 (tx, ty), int(hurricane_r))
+
+            # --- Outer ring: burgundy-light outline (same as gyre) ---
+            outer_ring_alpha = int(140 * intensity)
+            ring_width = max(3, int(hurricane_r * 0.06))
+            if outer_ring_alpha > 0:
+                pygame.draw.circle(overlay, (*BURGUNDY_LIGHT, outer_ring_alpha),
+                                 (tx, ty), int(hurricane_r), ring_width)
+
+            # --- Outer blade arcs: 6 spinning quartz-pale arcs on the outer ring ---
+            # Same visual as gyre's 4 spinning blades, but 6 at hurricane scale
+            num_outer_blades = 6
+            blade_span = math.radians(40)
+            blade_w = max(4, int(hurricane_r * 0.07))
+            for i in range(num_outer_blades):
+                blade_angle = base_angle + (math.tau / num_outer_blades) * i
+                a1 = blade_angle - blade_span / 2
+                a2 = blade_angle + blade_span / 2
+                pts = []
+                for step in range(14):
+                    t = a1 + (a2 - a1) * step / 13
+                    pts.append((int(tx + math.cos(t) * hurricane_r),
+                               int(ty + math.sin(t) * hurricane_r)))
+                if len(pts) >= 2:
+                    blade_alpha = int(200 * intensity)
+                    pygame.draw.lines(overlay, (*QUARTZ_PALE, blade_alpha),
+                                     False, pts, blade_w)
+
+            # --- Mid ring: burgundy-light outline at 0.65 radius ---
+            mid_r = hurricane_r * 0.65
+            mid_ring_alpha = int(100 * intensity)
+            mid_ring_w = max(2, int(mid_r * 0.05))
+            if mid_ring_alpha > 0:
+                pygame.draw.circle(overlay, (*BURGUNDY_LIGHT, mid_ring_alpha),
+                                 (tx, ty), int(mid_r), mid_ring_w)
+
+            # --- Mid counter-rotating arcs: 5 quartz-bright arcs at 0.65 radius ---
+            # Matches gyre's 3 inner counter-rotating arcs, but 5 and larger
+            num_mid_arcs = 5
+            mid_span = math.radians(50)
+            mid_w = max(3, int(mid_r * 0.06))
+            for i in range(num_mid_arcs):
+                arc_angle = -base_angle * 1.4 + (math.tau / num_mid_arcs) * i
+                a1 = arc_angle - mid_span / 2
+                a2 = arc_angle + mid_span / 2
+                pts = []
+                for step in range(12):
+                    t = a1 + (a2 - a1) * step / 11
+                    pts.append((int(tx + math.cos(t) * mid_r),
+                               int(ty + math.sin(t) * mid_r)))
+                if len(pts) >= 2:
+                    arc_alpha = int(170 * intensity)
+                    pygame.draw.lines(overlay, (*QUARTZ_BRIGHT, arc_alpha),
+                                     False, pts, mid_w)
+
+            # --- Inner ring: burgundy outline at 0.35 radius ---
+            inner_r = hurricane_r * 0.35
+            inner_ring_alpha = int(80 * intensity)
+            inner_ring_w = max(2, int(inner_r * 0.08))
+            if inner_ring_alpha > 0:
+                pygame.draw.circle(overlay, (*BURGUNDY, inner_ring_alpha),
+                                 (tx, ty), int(inner_r), inner_ring_w)
+
+            # --- Inner blade arcs: 4 dragon-eye arcs at 0.35 radius ---
+            # Hottest layer — dragon-eye orange replaces quartz, fast spin
+            num_inner_blades = 4
+            inner_span = math.radians(55)
+            inner_w = max(2, int(inner_r * 0.08))
+            for i in range(num_inner_blades):
+                blade_angle = base_angle * 1.8 + (math.tau / num_inner_blades) * i
+                a1 = blade_angle - inner_span / 2
+                a2 = blade_angle + inner_span / 2
+                pts = []
+                for step in range(10):
+                    t = a1 + (a2 - a1) * step / 9
+                    pts.append((int(tx + math.cos(t) * inner_r),
+                               int(ty + math.sin(t) * inner_r)))
+                if len(pts) >= 2:
+                    blade_alpha = int(190 * intensity)
+                    pygame.draw.lines(overlay, (*DRAGON_EYE, blade_alpha),
+                                     False, pts, inner_w)
+
+            # --- Radial spokes: faint connecting lines between rings ---
+            # Gives depth — like looking into a turbine
+            num_spokes = 8
+            spoke_alpha = int(40 * intensity)
+            if spoke_alpha > 0:
+                for i in range(num_spokes):
+                    spoke_a = base_angle * 0.7 + (math.tau / num_spokes) * i
+                    sx1 = tx + math.cos(spoke_a) * inner_r
+                    sy1 = ty + math.sin(spoke_a) * inner_r
+                    sx2 = tx + math.cos(spoke_a) * hurricane_r * 0.95
+                    sy2 = ty + math.sin(spoke_a) * hurricane_r * 0.95
+                    pygame.draw.line(overlay, (*BURGUNDY_DARK, spoke_alpha),
+                                   (int(sx1), int(sy1)), (int(sx2), int(sy2)), 1)
+
+            # --- Eye: bright core (same as gyre's center) ---
+            eye_r = max(5, int(TILE_SIZE * 0.3))
+            eye_pulse = 0.8 + 0.2 * math.sin(whirl_t * math.pi * 6)
+            eye_alpha = int(200 * intensity * eye_pulse)
+            if eye_alpha > 0:
+                pygame.draw.circle(overlay, (*BURGUNDY_DARK, int(eye_alpha * 0.5)),
+                                 (tx, ty), eye_r + 3)
+                pygame.draw.circle(overlay, (*QUARTZ_PALE, min(255, eye_alpha)),
+                                 (tx, ty), eye_r)
+                pygame.draw.circle(overlay, (*BONE_IVORY, min(255, int(eye_alpha * 0.9))),
+                                 (tx, ty), max(2, eye_r - 3))
+
+            # --- Outer halo: soft bleed beyond the ring ---
+            halo_r = int(hurricane_r * 1.12)
+            halo_alpha = int(30 * intensity)
+            if halo_alpha > 0:
+                pygame.draw.circle(overlay, (*BURGUNDY, halo_alpha),
+                                 (tx, ty), halo_r)
 
         # Phase 5: Shrapnel pieces flying
         for shr in self.shrapnel:

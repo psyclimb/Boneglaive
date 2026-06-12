@@ -49,6 +49,19 @@ DRAG_DIRECTION_CCW = {
     'NW': 'SW',
 }
 
+# CCW rotation for the 3x3 ring around Dissonance impact (upgrade)
+# Each (dy, dx) offset maps to its CCW neighbor
+RING_CCW = {
+    (-1,  0): (-1, -1),   # N  → NW
+    (-1, -1): ( 0, -1),   # NW → W
+    ( 0, -1): ( 1, -1),   # W  → SW
+    ( 1, -1): ( 1,  0),   # SW → S
+    ( 1,  0): ( 1,  1),   # S  → SE
+    ( 1,  1): ( 0,  1),   # SE → E
+    ( 0,  1): (-1,  1),   # E  → NE
+    (-1,  1): (-1,  0),   # NE → N
+}
+
 
 def _direction_from_delta(dy, dx):
     """Convert a (dy, dx) delta to a direction name string."""
@@ -990,11 +1003,155 @@ class DissonanceSkill(ActiveSkill):
                 player=user.player
             )
 
+        # Upgraded: CCW terrain rotation in 3x3 ring around impact
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Dissonance")
+        rotated_tiles = []
+
+        if is_upgraded:
+            # Snapshot all 8 ring positions before any changes
+            ring_snapshot = {}
+            for (dy, dx) in RING_CCW:
+                ry, rx = ty + dy, tx + dx
+                if not game.is_valid_position(ry, rx):
+                    ring_snapshot[(dy, dx)] = None
+                    continue
+
+                terrain = game.map.get_terrain_at(ry, rx)
+
+                # Only rotate non-passable terrain and furniture (not floor textures)
+                is_terrain = not game.map.is_passable(ry, rx)
+                is_furn = game.map.is_furniture(ry, rx)
+                if terrain == TerrainType.EMPTY or (not is_terrain and not is_furn):
+                    ring_snapshot[(dy, dx)] = None
+                    continue
+
+                slag_data = None
+                topiary_terrain_data = None
+                topiary_unit_data = None
+
+                if hasattr(game, 'slag_wall_tiles') and (ry, rx) in game.slag_wall_tiles:
+                    slag_data = game.slag_wall_tiles[(ry, rx)].copy()
+                if hasattr(game, 'topiary_terrain') and (ry, rx) in game.topiary_terrain:
+                    topiary_terrain_data = game.topiary_terrain[(ry, rx)].copy()
+                if hasattr(game, 'topiary_units') and (ry, rx) in game.topiary_units:
+                    topiary_unit_data = game.topiary_units[(ry, rx)].copy()
+
+                ring_snapshot[(dy, dx)] = {
+                    'pos': (ry, rx),
+                    'terrain': terrain,
+                    'slag': slag_data,
+                    'topiary_terrain': topiary_terrain_data,
+                    'topiary_unit': topiary_unit_data,
+                }
+
+            # Clear all source positions
+            for (dy, dx), snap in ring_snapshot.items():
+                if snap is None:
+                    continue
+                ry, rx = snap['pos']
+                game.map.set_terrain_at(ry, rx, TerrainType.EMPTY)
+                if hasattr(game, 'slag_wall_tiles') and (ry, rx) in game.slag_wall_tiles:
+                    del game.slag_wall_tiles[(ry, rx)]
+                if hasattr(game, 'topiary_terrain') and (ry, rx) in game.topiary_terrain:
+                    del game.topiary_terrain[(ry, rx)]
+                if hasattr(game, 'topiary_units') and (ry, rx) in game.topiary_units:
+                    del game.topiary_units[(ry, rx)]
+
+            # Place terrain at CCW destinations
+            units_to_displace = []
+            for (src_dy, src_dx), (dest_dy, dest_dx) in RING_CCW.items():
+                snap = ring_snapshot[(src_dy, src_dx)]
+                if snap is None:
+                    continue
+
+                dest_y = ty + dest_dy
+                dest_x = tx + dest_dx
+                if not game.is_valid_position(dest_y, dest_x):
+                    continue
+
+                terrain = snap['terrain']
+                game.map.set_terrain_at(dest_y, dest_x, terrain)
+
+                # Restore tracking dicts at new position
+                if snap['slag']:
+                    game.slag_wall_tiles[(dest_y, dest_x)] = snap['slag']
+                if snap['topiary_terrain']:
+                    game.topiary_terrain[(dest_y, dest_x)] = snap['topiary_terrain']
+
+                # Move topiary-unit with its terrain
+                if snap['topiary_unit']:
+                    tu_data = snap['topiary_unit']
+                    topiary_u = tu_data['unit']
+                    old_uy, old_ux = topiary_u.y, topiary_u.x
+                    topiary_u.y = dest_y
+                    topiary_u.x = dest_x
+                    game._update_unit_grid(topiary_u, old_uy, old_ux)
+                    game.topiary_units[(dest_y, dest_x)] = tu_data
+
+                src_y, src_x = snap['pos']
+                rotated_tiles.append({
+                    'from': (src_y, src_x),
+                    'to': (dest_y, dest_x),
+                })
+
+                # Check for non-topiary unit at destination needing displacement
+                dest_unit = game.get_unit_at(dest_y, dest_x)
+                if dest_unit and dest_unit.is_alive():
+                    if not (snap['topiary_unit'] and dest_unit == snap['topiary_unit']['unit']):
+                        units_to_displace.append((dest_unit, dest_y, dest_x))
+
+            # Displace units pushed by rotating terrain
+            for displaced_unit, at_y, at_x in units_to_displace:
+                displaced = False
+                for ddy in [-1, 0, 1]:
+                    for ddx in [-1, 0, 1]:
+                        if ddy == 0 and ddx == 0:
+                            continue
+                        push_y = at_y + ddy
+                        push_x = at_x + ddx
+                        if (game.is_valid_position(push_y, push_x) and
+                                game.map.is_passable(push_y, push_x) and
+                                game.get_unit_at(push_y, push_x) is None):
+                            old_dy, old_dx = displaced_unit.y, displaced_unit.x
+                            displaced_unit.y = push_y
+                            displaced_unit.x = push_x
+                            game._update_unit_grid(displaced_unit, old_dy, old_dx)
+                            message_log.add_message(
+                                f"{displaced_unit.get_display_name()} is displaced by shifting terrain",
+                                MessageType.WARNING,
+                                player=displaced_unit.player
+                            )
+                            displaced = True
+                            break
+                    if displaced:
+                        break
+
+            if rotated_tiles:
+                message_log.add_message(
+                    f"The shockwave whirls surrounding terrain counter-clockwise",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+
+                # Text mode whirl animation
+                if ui and hasattr(ui, 'renderer'):
+                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                    for tile_info in rotated_tiles:
+                        ry, rx = tile_info['to']
+                        for frame in ['~', '>', '=']:
+                            ui.renderer.draw_damage_text(ry, rx * 2, frame, 2)
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.03)
+
         # Store execution data for graphical animation to read
         user.last_dissonance_data = {
             'target_pos': (ty, tx),
             'was_topiary': topiary_unit is not None,
+            'is_upgraded': is_upgraded,
+            'rotated_tiles': rotated_tiles,
         }
 
         logger.info(f"DISSONANCE EXECUTED: {user.get_display_name()} shattered {shattered_name} "
-                     f"at ({ty},{tx}), {total_hits} shrapnel hits for {shrapnel_damage} each")
+                     f"at ({ty},{tx}), {total_hits} shrapnel hits for {shrapnel_damage} each"
+                     f"{f', {len(rotated_tiles)} tiles rotated' if rotated_tiles else ''}")
