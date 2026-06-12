@@ -328,9 +328,9 @@ basic attack, she reduces cooldowns by 4 every turn she attacks. If buffed, she 
 even faster.
 
 **Final values**:
-- Hornswoggle: **5** (fast terrain reshaping)
+- Hornswoggle: **9** (terrain reshaping)
 - Topiary Breath: **13** (powerful CC needs longer cooldown)
-- Dissonance: **5** (fast but consumes terrain)
+- Dissonance: **9** (consumes terrain)
 
 ---
 

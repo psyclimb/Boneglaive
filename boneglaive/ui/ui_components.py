@@ -1350,7 +1350,7 @@ class UnitHelpComponent(UIComponent):
                         'details': [
                             'Wave range: 3, Drag range: 4',
                             'Slag wall duration: 3 turns',
-                            'Cooldown: 5 turns'
+                            'Cooldown: 9 turns'
                         ]
                     },
                     {
@@ -1368,7 +1368,7 @@ class UnitHelpComponent(UIComponent):
                         'details': [
                             'Cast range: 3, Shrapnel range: 2',
                             'Damage: 4 piercing (shrapnel)',
-                            'Cooldown: 5 turns'
+                            'Cooldown: 9 turns'
                         ]
                     }
                 ],

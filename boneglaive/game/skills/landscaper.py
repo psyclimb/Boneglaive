@@ -153,7 +153,7 @@ class HornswoggleSkill(ActiveSkill):
             key="H",
             description="Fire sonic wave to grab terrain, drag it 90° CCW depositing slag walls. Wave range 3, drag range 4.",
             target_type=TargetType.NONE,
-            cooldown=5,
+            cooldown=9,
             range_=0
         )
         # Stored during use() for execute()
@@ -226,7 +226,7 @@ class HornswoggleSkill(ActiveSkill):
         self.current_cooldown = self.cooldown
 
         message_log.add_message(
-            f"{user.get_display_name()} aims the horn array {direction}",
+            f"{user.get_display_name()} prepares to fire a sonic wave {direction}",
             MessageType.ABILITY,
             player=user.player
         )
@@ -271,7 +271,7 @@ class HornswoggleSkill(ActiveSkill):
         grab_pos = self._find_terrain_in_direction(source_y, source_x, direction, game)
         if not grab_pos:
             message_log.add_message(
-                f"{user.get_display_name()}'s sonic wave finds nothing to grab",
+                f"{user.get_display_name()}'s sonic wave dissipates without finding terrain",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -318,7 +318,7 @@ class HornswoggleSkill(ActiveSkill):
 
         grab_name = grabbed_topiary_unit.get_display_name() if grabbed_topiary_unit else grabbed_terrain.name.replace('_', ' ').lower()
         message_log.add_message(
-            f"Sonic wave rips {grab_name} from ({grab_y},{grab_x})",
+            f"{user.get_display_name()}'s sonic wave latches onto {grab_name}",
             MessageType.ABILITY,
             player=user.player
         )
@@ -444,13 +444,13 @@ class HornswoggleSkill(ActiveSkill):
             }
 
             message_log.add_message(
-                f"{grabbed_topiary_unit.get_display_name()} dragged to ({deposit_y},{deposit_x})",
+                f"{grabbed_topiary_unit.get_display_name()} is dragged to ({deposit_y},{deposit_x})",
                 MessageType.WARNING,
                 player=user.player
             )
 
         message_log.add_message(
-            f"Terrain deposited at ({deposit_y},{deposit_x}), {len(slag_positions)} slag walls created",
+            f"Terrain deposited at ({deposit_y},{deposit_x}), slag hardens along the drag path",
             MessageType.ABILITY,
             player=user.player
         )
@@ -544,7 +544,7 @@ class TopiaryBreathSkill(ActiveSkill):
         self.current_cooldown = self.cooldown
 
         message_log.add_message(
-            f"{user.get_display_name()} breathes petrifying resonance {direction}",
+            f"{user.get_display_name()} prepares to unleash petrifying resonance {direction}",
             MessageType.ABILITY,
             player=user.player
         )
@@ -581,7 +581,7 @@ class TopiaryBreathSkill(ActiveSkill):
 
         if not caught_units:
             message_log.add_message(
-                f"{user.get_display_name()}'s Topiary Breath catches no one",
+                f"{user.get_display_name()}'s petrifying resonance finds no targets",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -660,7 +660,7 @@ class TopiaryBreathSkill(ActiveSkill):
                     sleep_with_animation_speed(0.06)
 
         message_log.add_message(
-            f"Topiary Breath transforms {units_transformed} unit(s) into garden sculptures",
+            f"Petrifying resonance transforms {units_transformed} units into garden sculptures",
             MessageType.ABILITY,
             player=user.player
         )
@@ -696,7 +696,7 @@ class DissonanceSkill(ActiveSkill):
             key="D",
             description="Launch acoustic gyre to shatter terrain. 4 piercing shrapnel in 8 directions. Stops at terrain, passes through units. Frees topiary units.",
             target_type=TargetType.AREA,
-            cooldown=5,
+            cooldown=9,
             range_=4
         )
 
@@ -748,7 +748,7 @@ class DissonanceSkill(ActiveSkill):
         self.current_cooldown = self.cooldown
 
         message_log.add_message(
-            f"{user.get_display_name()} prepares to shatter terrain at ({target_pos[0]},{target_pos[1]})",
+            f"{user.get_display_name()} prepares to shatter terrain",
             MessageType.ABILITY,
             player=user.player
         )
@@ -768,7 +768,7 @@ class DissonanceSkill(ActiveSkill):
             # Check if it's a topiary
             if not (hasattr(game, 'topiary_units') and (ty, tx) in game.topiary_units):
                 message_log.add_message(
-                    f"Target terrain at ({ty},{tx}) is gone",
+                    f"The target terrain has already been destroyed",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -800,7 +800,7 @@ class DissonanceSkill(ActiveSkill):
 
         shattered_name = terrain_at.name.replace('_', ' ').lower()
         message_log.add_message(
-            f"{user.get_display_name()} shatters {shattered_name} at ({ty},{tx})!",
+            f"{user.get_display_name()} shatters the {shattered_name}!",
             MessageType.ABILITY,
             player=user.player
         )
@@ -841,15 +841,15 @@ class DissonanceSkill(ActiveSkill):
                 # Hit units (passes through — hits multiple)
                 hit_unit = game.get_unit_at(shrap_y, shrap_x)
                 if hit_unit and hit_unit.is_alive() and hit_unit != user:
-                    # Friendly topiary units are protected from friendly Dissonance shrapnel
-                    if hit_unit.player == user.player and getattr(hit_unit, 'is_topiary', False):
+                    # Shrapnel doesn't hit allies
+                    if hit_unit.player == user.player:
                         continue
                     old_hp = hit_unit.hp
                     actual_damage = hit_unit.deal_damage(shrapnel_damage, can_kill=True)
                     total_hits += 1
 
                     message_log.add_message(
-                        f"Shrapnel hits {hit_unit.get_display_name()} for #DAMAGE_{actual_damage}# piercing!",
+                        f"Shrapnel pierces {hit_unit.get_display_name()} for #DAMAGE_{actual_damage}# damage!",
                         MessageType.WARNING,
                         player=hit_unit.player
                     )
@@ -871,7 +871,7 @@ class DissonanceSkill(ActiveSkill):
 
         if total_hits > 0:
             message_log.add_message(
-                f"Dissonance shrapnel hits {total_hits} unit(s) for {shrapnel_damage} piercing each",
+                f"Shrapnel tears through {total_hits} units",
                 MessageType.ABILITY,
                 player=user.player
             )

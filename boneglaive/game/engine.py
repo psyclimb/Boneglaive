@@ -3796,6 +3796,14 @@ class Game:
                                 hit_damage = old_hp - target.hp
                                 total_damage += hit_damage
 
+                                message_log.add_combat_message(
+                                    attacker_name=unit.get_display_name(),
+                                    target_name=target.get_display_name(),
+                                    damage=hit_damage,
+                                    attacker_player=unit.player,
+                                    target_player=target.player
+                                )
+
                                 if ui:
                                     ui.show_attack_animation(unit, target, hit_damage)
                             actual_damage = total_damage
@@ -3942,14 +3950,16 @@ class Game:
                     # Only log combat messages and handle unit death for unit targets (not walls)
                     if target:
                         # Log combat message with actual damage dealt
-                        message_log.add_combat_message(
-                            attacker_name=unit.get_display_name(),
-                            target_name=target.get_display_name(),
-                            damage=actual_damage,
-                            attacker_player=unit.player,
-                            target_player=target.player
-                        )
-                        
+                        # LANDSCAPER logs per-hit messages above, skip the combined message
+                        if unit.type != UnitType.LANDSCAPER:
+                            message_log.add_combat_message(
+                                attacker_name=unit.get_display_name(),
+                                target_name=target.get_display_name(),
+                                damage=actual_damage,
+                                attacker_player=unit.player,
+                                target_player=target.player
+                            )
+
                         # Handle INTERFERER attack mechanics
                         if unit.type == UnitType.INTERFERER:
                             # Check for Karrier Rave triple strike (active during phasing)
