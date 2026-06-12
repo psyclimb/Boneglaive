@@ -326,6 +326,11 @@ class HornswoggleSkill(ActiveSkill):
             if hasattr(game, 'topiary_units') and (grab_y, grab_x) in game.topiary_units:
                 del game.topiary_units[(grab_y, grab_x)]
 
+        # If terrain-topiary (upgraded Topiary Breath), remove from tracking
+        # Once grabbed, it becomes untracked TOPIARY terrain at deposit
+        if hasattr(game, 'topiary_terrain') and (grab_y, grab_x) in game.topiary_terrain:
+            del game.topiary_terrain[(grab_y, grab_x)]
+
         grab_name = grabbed_topiary_unit.get_display_name() if grabbed_topiary_unit else grabbed_terrain.name.replace('_', ' ').lower()
         message_log.add_message(
             f"{user.get_display_name()}'s sonic wave latches onto {grab_name}",
@@ -393,6 +398,9 @@ class HornswoggleSkill(ActiveSkill):
                         break
 
             # Place slag wall — overwrites whatever terrain was here
+            # Clean up terrain-topiary tracking if overwriting one
+            if hasattr(game, 'topiary_terrain') and (slag_y, slag_x) in game.topiary_terrain:
+                del game.topiary_terrain[(slag_y, slag_x)]
             game.map.set_terrain_at(slag_y, slag_x, TerrainType.SLAG_WALL)
             game.slag_wall_tiles[(slag_y, slag_x)] = {
                 'duration': self.SLAG_DURATION,
@@ -510,6 +518,8 @@ class TopiaryBreathSkill(ActiveSkill):
             return False
         if not game:
             return False
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Topiary Breath")
         # Check if there are any units in any possible cone direction
         source_y, source_x = _get_effective_position(user)
         for dir_name in DIRECTION_VECTORS:
@@ -517,6 +527,9 @@ class TopiaryBreathSkill(ActiveSkill):
             for ty, tx in cone_tiles:
                 unit_at = game.get_unit_at(ty, tx)
                 if unit_at and unit_at != user and unit_at.is_alive():
+                    return True
+                # Upgraded: terrain/furniture in cone is also a valid reason to cast
+                if is_upgraded and (not game.map.is_passable(ty, tx) or game.map.is_furniture(ty, tx)):
                     return True
         return False
 
@@ -565,6 +578,8 @@ class TopiaryBreathSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> None:
         """Execute Topiary Breath during combat phase."""
         from boneglaive.game.map import TerrainType
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Topiary Breath")
 
         direction = self.fire_direction
         if not direction:
@@ -589,7 +604,7 @@ class TopiaryBreathSkill(ActiveSkill):
                     continue
                 caught_units.append(unit_at)
 
-        if not caught_units:
+        if not caught_units and not is_upgraded:
             message_log.add_message(
                 f"{user.get_display_name()}'s petrifying resonance finds no targets",
                 MessageType.ABILITY,
@@ -622,6 +637,8 @@ class TopiaryBreathSkill(ActiveSkill):
         # Initialize topiary tracking on game
         if not hasattr(game, 'topiary_units'):
             game.topiary_units = {}
+        if not hasattr(game, 'topiary_terrain'):
+            game.topiary_terrain = {}
 
         # Transform each caught unit
         units_transformed = 0
@@ -669,14 +686,95 @@ class TopiaryBreathSkill(ActiveSkill):
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.06)
 
-        message_log.add_message(
-            f"Petrifying resonance transforms {units_transformed} units into garden sculptures",
-            MessageType.ABILITY,
-            player=user.player
-        )
+        if units_transformed > 0:
+            message_log.add_message(
+                f"Petrifying resonance transforms {units_transformed} units into garden sculptures",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+        # Upgraded: relocate terrain/furniture to checker spots, then fill remaining with generated
+        terrain_topiary_positions = []
+        generated_topiary_positions = []
+        checker_idx = units_transformed  # Next available checker position
+
+        if is_upgraded:
+            # Phase 1: Collect terrain/furniture tiles in cone, relocate to checker positions
+            terrain_tiles = []
+            for ty, tx in cone_tiles:
+                # Skip positions now occupied by unit-topiaries
+                if (ty, tx) in game.topiary_units:
+                    continue
+                if game.map.get_terrain_at(ty, tx) == TerrainType.TOPIARY:
+                    continue
+                if not game.map.is_passable(ty, tx) or game.map.is_furniture(ty, tx):
+                    terrain_tiles.append((ty, tx))
+
+            for ty, tx in terrain_tiles:
+                if checker_idx >= len(checker_positions):
+                    break  # No more checker spots — stop transforming
+                dest_y, dest_x = checker_positions[checker_idx]
+                checker_idx += 1
+
+                original_terrain = game.map.get_terrain_at(ty, tx)
+                # Clear original position
+                game.map.set_terrain_at(ty, tx, TerrainType.EMPTY)
+                # Also clean up any other tracking at the source
+                if hasattr(game, 'slag_wall_tiles') and (ty, tx) in game.slag_wall_tiles:
+                    del game.slag_wall_tiles[(ty, tx)]
+
+                # Place topiary at destination
+                game.map.set_terrain_at(dest_y, dest_x, TerrainType.TOPIARY)
+                game.topiary_terrain[(dest_y, dest_x)] = {
+                    'duration': 2,
+                    'original_terrain': original_terrain,
+                    'owner': user
+                }
+                terrain_topiary_positions.append((dest_y, dest_x))
+
+                message_log.add_message(
+                    f"{original_terrain.name.replace('_', ' ').lower()} is sculpted into a topiary",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+
+            # Phase 2: Fill remaining checker positions with generated topiaries
+            while checker_idx < len(checker_positions):
+                dest_y, dest_x = checker_positions[checker_idx]
+                checker_idx += 1
+                # Verify still empty (could have changed during terrain relocation)
+                if (game.map.is_passable(dest_y, dest_x) and
+                        game.get_unit_at(dest_y, dest_x) is None and
+                        (dest_y, dest_x) not in game.topiary_units and
+                        (dest_y, dest_x) not in game.topiary_terrain):
+                    game.map.set_terrain_at(dest_y, dest_x, TerrainType.TOPIARY)
+                    game.topiary_terrain[(dest_y, dest_x)] = {
+                        'duration': 2,
+                        'original_terrain': None,
+                        'owner': user
+                    }
+                    generated_topiary_positions.append((dest_y, dest_x))
+
+            total_new = len(terrain_topiary_positions) + len(generated_topiary_positions)
+            if total_new > 0:
+                message_log.add_message(
+                    f"The cone erupts with {total_new} additional topiary sculptures",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+
+            # Text mode animation for new topiaries
+            if ui and hasattr(ui, 'renderer'):
+                from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                for ny, nx in terrain_topiary_positions + generated_topiary_positions:
+                    for frame in ['~', '%', '&']:
+                        ui.renderer.draw_damage_text(ny, nx * 2, frame, 2)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.03)
 
         logger.info(f"TOPIARY BREATH EXECUTED: {user.get_display_name()} transformed "
-                     f"{units_transformed} units in {direction} cone")
+                     f"{units_transformed} units, {len(terrain_topiary_positions)} terrain, "
+                     f"{len(generated_topiary_positions)} generated in {direction} cone")
 
         # Store execution data for graphical animation to read
         user.last_topiary_breath_data = {
@@ -684,6 +782,8 @@ class TopiaryBreathSkill(ActiveSkill):
             'direction': direction,
             'cone_tiles': list(cone_tiles),
             'transformed_units': [(u.y, u.x) for u in caught_units[:units_transformed]],
+            'terrain_topiaries': terrain_topiary_positions,
+            'generated_topiaries': generated_topiary_positions,
         }
 
         self.fire_direction = None
@@ -704,7 +804,7 @@ class DissonanceSkill(ActiveSkill):
         super().__init__(
             name="Dissonance",
             key="D",
-            description="Launch acoustic gyre to shatter terrain. 4 piercing shrapnel in 8 directions. Stops at terrain, passes through units. Frees topiary units.",
+            description="Launch acoustic gyre to shatter terrain. 5 piercing shrapnel in 8 directions. Stops at terrain, passes through units. Frees topiary units.",
             target_type=TargetType.AREA,
             cooldown=9,
             range_=4
@@ -785,7 +885,7 @@ class DissonanceSkill(ActiveSkill):
                 return
 
         # Flat piercing damage values
-        shrapnel_damage = 4  # AoE shrapnel
+        shrapnel_damage = 5  # AoE shrapnel
 
         # Check if shattering a topiary-unit
         topiary_unit = None
@@ -799,6 +899,10 @@ class DissonanceSkill(ActiveSkill):
         # Clean up slag wall tracking if applicable
         if hasattr(game, 'slag_wall_tiles') and (ty, tx) in game.slag_wall_tiles:
             del game.slag_wall_tiles[(ty, tx)]
+
+        # Clean up terrain-topiary tracking if applicable (upgraded Topiary Breath)
+        if hasattr(game, 'topiary_terrain') and (ty, tx) in game.topiary_terrain:
+            del game.topiary_terrain[(ty, tx)]
 
         # Text mode shatter animation — forks strike then terrain explodes
         if ui and hasattr(ui, 'renderer'):

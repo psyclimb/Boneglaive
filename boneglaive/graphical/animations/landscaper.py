@@ -575,6 +575,8 @@ class TopiaryBreathAnimation:
             fire_src = topiary_data['source']
             cone_tiles = topiary_data['cone_tiles']
             transformed_positions = topiary_data.get('transformed_units', [])
+            terrain_topiary_positions = topiary_data.get('terrain_topiaries', [])
+            generated_topiary_positions = topiary_data.get('generated_topiaries', [])
 
             for ty, tx in cone_tiles:
                 screen_pos = camera.grid_to_screen(tx, ty, centered=True)
@@ -592,6 +594,14 @@ class TopiaryBreathAnimation:
                 self.petrify_grids.append((tx, ty))
                 self.petrify_started.append(False)
                 # Hide topiary terrain until petrification reveals it
+                self.hidden_tiles.add((tx, ty))
+
+            # Terrain and generated topiaries (upgraded) get same reveal treatment
+            for ty, tx in terrain_topiary_positions + generated_topiary_positions:
+                sx, sy = camera.grid_to_screen(tx, ty, centered=True)
+                self.petrify_targets.append((sx, sy))
+                self.petrify_grids.append((tx, ty))
+                self.petrify_started.append(False)
                 self.hidden_tiles.add((tx, ty))
 
         if not self.cone_screens:

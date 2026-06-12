@@ -275,7 +275,7 @@ SKILL_UPGRADES = {
     "LANDSCAPER": {
         "Translative Stroke": {
             "name": "Translative Stroke",
-            "description": "TBD",
+            "description": "Basic attack damage ignores defense.",
             "type": "buff",
             "cost": 1
         },
@@ -287,7 +287,7 @@ SKILL_UPGRADES = {
         },
         "Topiary Breath": {
             "name": "Topiary Breath",
-            "description": "TBD",
+            "description": "Terrain and furniture in the cone become topiaries. Remaining checker positions sprout new topiary sculptures.",
             "type": "buff",
             "cost": 1
         },

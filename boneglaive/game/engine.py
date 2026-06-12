@@ -3343,6 +3343,36 @@ class Game:
                 )
                 logger.debug(f"Removed {len(slag_to_remove)} expired slag walls")
 
+        # Process terrain-topiary durations (upgraded Topiary Breath)
+        if hasattr(self, 'topiary_terrain') and self.topiary_terrain:
+            from boneglaive.game.map import TerrainType
+            terrain_topiaries_to_remove = []
+            for pos_tuple, topiary_info in self.topiary_terrain.items():
+                topiary_info['duration'] -= 1
+                if topiary_info['duration'] <= 0:
+                    terrain_topiaries_to_remove.append(pos_tuple)
+
+            for pos_tuple in terrain_topiaries_to_remove:
+                pos_y, pos_x = pos_tuple
+                original = self.topiary_terrain[pos_tuple].get('original_terrain')
+                if original is not None:
+                    self.map.set_terrain_at(pos_y, pos_x, original)
+                else:
+                    self.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
+                del self.topiary_terrain[pos_tuple]
+
+            # Signal graphical system — reuse existing topiary revert animation
+            if not hasattr(self, 'last_reverted_topiaries'):
+                self.last_reverted_topiaries = []
+            self.last_reverted_topiaries.extend(terrain_topiaries_to_remove)
+
+            if terrain_topiaries_to_remove:
+                message_log.add_message(
+                    f"{len(terrain_topiaries_to_remove)} topiary sculpture(s) revert",
+                    MessageType.SYSTEM
+                )
+                logger.debug(f"Removed {len(terrain_topiaries_to_remove)} expired terrain topiaries")
+
     @measure_perf
     def execute_turn(self, ui=None):
         """Execute all unit actions for the current turn with animated sequence."""
@@ -3774,7 +3804,12 @@ class Game:
                         
                         # Apply defense to damage
                         # DERELICTIONIST's attacks bypass defense
+                        # LANDSCAPER with upgraded Translative Stroke bypasses defense
+                        from boneglaive.game.upgrades import UpgradeManager
                         if unit.type == UnitType.DERELICTIONIST:
+                            damage = raw_damage
+                        elif (unit.type == UnitType.LANDSCAPER and
+                              UpgradeManager.is_skill_upgraded(unit, "Translative Stroke")):
                             damage = raw_damage
                         else:
                             damage = max(1, raw_damage - effective_defense)
