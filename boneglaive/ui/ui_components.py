@@ -1350,7 +1350,8 @@ class UnitHelpComponent(UIComponent):
                         'details': [
                             'Wave range: 3, Drag range: 4',
                             'Slag wall duration: 3 turns',
-                            'Cooldown: 9 turns'
+                            'Cooldown: 9 turns',
+                            'Upgrade: matching terrain near the grab point also shifts, leaving more slag'
                         ]
                     },
                     {

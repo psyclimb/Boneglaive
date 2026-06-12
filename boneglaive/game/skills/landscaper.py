@@ -78,6 +78,35 @@ def _get_effective_position(user):
     return user.y, user.x
 
 
+def _displace_unit_at(game, y, x, user, reason, exclude_tiles=None, skip_unit=None):
+    """Displace a unit at (y, x) to an adjacent empty passable tile.
+    Returns True if a unit was displaced, False otherwise."""
+    unit = game.get_unit_at(y, x)
+    if not unit or unit == skip_unit:
+        return False
+    for ddy in [-1, 0, 1]:
+        for ddx in [-1, 0, 1]:
+            if ddy == 0 and ddx == 0:
+                continue
+            push_y = y + ddy
+            push_x = x + ddx
+            if (game.is_valid_position(push_y, push_x) and
+                    game.map.is_passable(push_y, push_x) and
+                    game.get_unit_at(push_y, push_x) is None and
+                    (exclude_tiles is None or (push_y, push_x) not in exclude_tiles)):
+                old_y, old_x = unit.y, unit.x
+                unit.y = push_y
+                unit.x = push_x
+                game._update_unit_grid(unit, old_y, old_x)
+                message_log.add_message(
+                    f"{unit.get_display_name()} is displaced by {reason}",
+                    MessageType.WARNING,
+                    player=user.player
+                )
+                return True
+    return False
+
+
 def _get_cone_tiles(origin_y, origin_x, direction, game):
     """
     Calculate tiles in the Topiary Breath cone.
@@ -281,6 +310,8 @@ class HornswoggleSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> None:
         """Execute Hornswoggle during combat phase."""
         from boneglaive.game.map import TerrainType
+        from boneglaive.game.upgrades import UpgradeManager
+        is_upgraded = UpgradeManager.is_skill_upgraded(user, "Hornswoggle")
 
         direction = self.fire_direction
         if not direction:
@@ -380,35 +411,10 @@ class HornswoggleSkill(ActiveSkill):
         deposit_y, deposit_x = drag_tiles[-1]
 
         # Process each tile along the path (except the deposit tile) — place slag
+        drag_tile_set = set(drag_tiles)
         for slag_y, slag_x in drag_tiles[:-1]:
-            # Displace any unit at this position
-            displaced_unit = game.get_unit_at(slag_y, slag_x)
-            if displaced_unit and displaced_unit != grabbed_topiary_unit:
-                # Find adjacent empty passable tile to push unit to
-                displaced = False
-                for ddy in [-1, 0, 1]:
-                    for ddx in [-1, 0, 1]:
-                        if ddy == 0 and ddx == 0:
-                            continue
-                        push_y = slag_y + ddy
-                        push_x = slag_x + ddx
-                        if (game.is_valid_position(push_y, push_x) and
-                                game.map.is_passable(push_y, push_x) and
-                                game.get_unit_at(push_y, push_x) is None and
-                                (push_y, push_x) not in drag_tiles):
-                            old_dy, old_dx = displaced_unit.y, displaced_unit.x
-                            displaced_unit.y = push_y
-                            displaced_unit.x = push_x
-                            game._update_unit_grid(displaced_unit, old_dy, old_dx)
-                            message_log.add_message(
-                                f"{displaced_unit.get_display_name()} is displaced by molten slag",
-                                MessageType.WARNING,
-                                player=user.player
-                            )
-                            displaced = True
-                            break
-                    if displaced:
-                        break
+            _displace_unit_at(game, slag_y, slag_x, user, "molten slag",
+                              exclude_tiles=drag_tile_set, skip_unit=grabbed_topiary_unit)
 
             # Place slag wall — overwrites whatever terrain was here
             # Clean up terrain-topiary tracking if overwriting one
@@ -430,32 +436,8 @@ class HornswoggleSkill(ActiveSkill):
                     sleep_with_animation_speed(0.04)
 
         # Process deposit tile — displace any unit there too
-        deposit_unit = game.get_unit_at(deposit_y, deposit_x)
-        if deposit_unit and deposit_unit != grabbed_topiary_unit:
-            displaced = False
-            for ddy in [-1, 0, 1]:
-                for ddx in [-1, 0, 1]:
-                    if ddy == 0 and ddx == 0:
-                        continue
-                    push_y = deposit_y + ddy
-                    push_x = deposit_x + ddx
-                    if (game.is_valid_position(push_y, push_x) and
-                            game.map.is_passable(push_y, push_x) and
-                            game.get_unit_at(push_y, push_x) is None and
-                            (push_y, push_x) not in drag_tiles):
-                        old_dy, old_dx = deposit_unit.y, deposit_unit.x
-                        deposit_unit.y = push_y
-                        deposit_unit.x = push_x
-                        game._update_unit_grid(deposit_unit, old_dy, old_dx)
-                        message_log.add_message(
-                            f"{deposit_unit.get_display_name()} is displaced by falling terrain",
-                            MessageType.WARNING,
-                            player=user.player
-                        )
-                        displaced = True
-                        break
-                if displaced:
-                    break
+        _displace_unit_at(game, deposit_y, deposit_x, user, "falling terrain",
+                          exclude_tiles=drag_tile_set, skip_unit=grabbed_topiary_unit)
 
         # Deposit grabbed terrain at final position
         game.map.set_terrain_at(deposit_y, deposit_x, grabbed_terrain)
@@ -491,6 +473,111 @@ class HornswoggleSkill(ActiveSkill):
                      f"from ({grab_y},{grab_x}), dragged {drag_dir_name}, "
                      f"{len(slag_positions)} slag walls, deposited at ({deposit_y},{deposit_x})")
 
+        # Upgraded: Sympathetic Resonance — matching terrain in 3x3 around grab
+        # point also shifts 1 tile in the drag direction, leaving slag behind
+        sympathetic_drags = []
+        if is_upgraded:
+            # Tiles that are already part of the main drag — don't process again
+            main_tiles = drag_tile_set | {(deposit_y, deposit_x)}
+
+            for ody in [-1, 0, 1]:
+                for odx in [-1, 0, 1]:
+                    if ody == 0 and odx == 0:
+                        continue
+                    sy, sx = grab_y + ody, grab_x + odx
+                    if not game.is_valid_position(sy, sx):
+                        continue
+                    if (sy, sx) in main_tiles:
+                        continue
+
+                    # Check if terrain matches the grabbed type
+                    terrain_here = game.map.get_terrain_at(sy, sx)
+                    if terrain_here != grabbed_terrain:
+                        continue
+
+                    # Calculate destination (1 tile in drag direction)
+                    dest_sy = sy + drag_dy
+                    dest_sx = sx + drag_dx
+                    if not game.is_valid_position(dest_sy, dest_sx):
+                        continue
+                    # Don't overwrite the main deposit or other main slag
+                    if (dest_sy, dest_sx) in main_tiles:
+                        continue
+
+                    # Check if this is a topiary-unit being dragged sympathetically
+                    sympathetic_topiary = None
+                    unit_at_sym = game.get_unit_at(sy, sx)
+                    if unit_at_sym and hasattr(unit_at_sym, 'is_topiary') and unit_at_sym.is_topiary:
+                        sympathetic_topiary = unit_at_sym
+
+                    # Displace unit at destination
+                    _displace_unit_at(game, dest_sy, dest_sx, user,
+                                      "resonating terrain", skip_unit=sympathetic_topiary)
+
+                    # Remove terrain from source
+                    game.map.set_terrain_at(sy, sx, TerrainType.EMPTY)
+
+                    # Clean up tracking at source
+                    if hasattr(game, 'topiary_terrain') and (sy, sx) in game.topiary_terrain:
+                        del game.topiary_terrain[(sy, sx)]
+                    sym_topiary_data = None
+                    if hasattr(game, 'topiary_units') and (sy, sx) in game.topiary_units:
+                        sym_topiary_data = game.topiary_units.pop((sy, sx))
+
+                    # Place slag at source
+                    if hasattr(game, 'slag_wall_tiles') and (sy, sx) in game.slag_wall_tiles:
+                        del game.slag_wall_tiles[(sy, sx)]
+                    game.map.set_terrain_at(sy, sx, TerrainType.SLAG_WALL)
+                    game.slag_wall_tiles[(sy, sx)] = {
+                        'duration': self.SLAG_DURATION,
+                        'owner': user
+                    }
+
+                    # Place matched terrain at destination (overwrites whatever is there)
+                    if hasattr(game, 'topiary_terrain') and (dest_sy, dest_sx) in game.topiary_terrain:
+                        del game.topiary_terrain[(dest_sy, dest_sx)]
+                    if hasattr(game, 'slag_wall_tiles') and (dest_sy, dest_sx) in game.slag_wall_tiles:
+                        del game.slag_wall_tiles[(dest_sy, dest_sx)]
+                    game.map.set_terrain_at(dest_sy, dest_sx, terrain_here)
+
+                    # Move topiary-unit with its terrain
+                    if sympathetic_topiary and sym_topiary_data:
+                        old_y, old_x = sympathetic_topiary.y, sympathetic_topiary.x
+                        sympathetic_topiary.y = dest_sy
+                        sympathetic_topiary.x = dest_sx
+                        game._update_unit_grid(sympathetic_topiary, old_y, old_x)
+                        game.topiary_units[(dest_sy, dest_sx)] = sym_topiary_data
+
+                        message_log.add_message(
+                            f"{sympathetic_topiary.get_display_name()} resonates and shifts with the terrain",
+                            MessageType.WARNING,
+                            player=user.player
+                        )
+
+                    sympathetic_drags.append({
+                        'from': (sy, sx),
+                        'to': (dest_sy, dest_sx),
+                    })
+
+            if sympathetic_drags:
+                message_log.add_message(
+                    f"Sympathetic resonance shifts {len(sympathetic_drags)} nearby terrain",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+
+                # Text mode animation for sympathetic drags
+                if ui and hasattr(ui, 'renderer'):
+                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                    for drag_info in sympathetic_drags:
+                        dy, dx = drag_info['to']
+                        for frame in ['~', '>', '#']:
+                            ui.renderer.draw_damage_text(dy, dx * 2, frame, 6)
+                            ui.renderer.refresh()
+                            sleep_with_animation_speed(0.03)
+
+                logger.info(f"SYMPATHETIC RESONANCE: {len(sympathetic_drags)} tiles shifted")
+
         # Store execution data for graphical animation to read
         user.last_hornswoggle_data = {
             'source': (source_y, source_x),
@@ -501,6 +588,7 @@ class HornswoggleSkill(ActiveSkill):
             'deposit_pos': (deposit_y, deposit_x),
             'grabbed_terrain': grabbed_terrain,
             'grabbed_topiary': grabbed_topiary_unit is not None,
+            'sympathetic_drags': sympathetic_drags,
         }
 
         self.fire_direction = None
@@ -1103,29 +1191,7 @@ class DissonanceSkill(ActiveSkill):
 
             # Displace units pushed by rotating terrain
             for displaced_unit, at_y, at_x in units_to_displace:
-                displaced = False
-                for ddy in [-1, 0, 1]:
-                    for ddx in [-1, 0, 1]:
-                        if ddy == 0 and ddx == 0:
-                            continue
-                        push_y = at_y + ddy
-                        push_x = at_x + ddx
-                        if (game.is_valid_position(push_y, push_x) and
-                                game.map.is_passable(push_y, push_x) and
-                                game.get_unit_at(push_y, push_x) is None):
-                            old_dy, old_dx = displaced_unit.y, displaced_unit.x
-                            displaced_unit.y = push_y
-                            displaced_unit.x = push_x
-                            game._update_unit_grid(displaced_unit, old_dy, old_dx)
-                            message_log.add_message(
-                                f"{displaced_unit.get_display_name()} is displaced by shifting terrain",
-                                MessageType.WARNING,
-                                player=displaced_unit.player
-                            )
-                            displaced = True
-                            break
-                    if displaced:
-                        break
+                _displace_unit_at(game, at_y, at_x, user, "shifting terrain")
 
             if rotated_tiles:
                 message_log.add_message(

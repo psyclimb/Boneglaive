@@ -281,7 +281,7 @@ SKILL_UPGRADES = {
         },
         "Hornswoggle": {
             "name": "Hornswoggle",
-            "description": "TBD",
+            "description": "Nearby matching terrain resonates and shifts in the same direction, leaving additional slag walls.",
             "type": "buff",
             "cost": 1
         },

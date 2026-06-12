@@ -316,14 +316,36 @@ class HornswoggleAnimation:
         gx_screen, gy_screen = self.grab_screen
         self.wave_angle = math.atan2(gy_screen - sy_screen, gx_screen - sx_screen)
 
+        # Sympathetic Resonance upgrade data
+        self.sympathetic_screens = []
+        self.sympathetic_grids = []  # (from_grid, to_grid) pairs
+        self.sympathetic_formed = []
+        sym_drags = hornswoggle_data.get('sympathetic_drags', [])
+        for sd in sym_drags:
+            from_pos = sd['from']
+            to_pos = sd['to']
+            self.sympathetic_screens.append({
+                'from': camera.grid_to_screen(from_pos[1], from_pos[0], centered=True),
+                'to': camera.grid_to_screen(to_pos[1], to_pos[0], centered=True),
+            })
+            self.sympathetic_grids.append({
+                'from': (from_pos[1], from_pos[0]),
+                'to': (to_pos[1], to_pos[0]),
+            })
+            self.sympathetic_formed.append(False)
+
         # Phase timing
         self.phase = "wave"
+        self.phase_order = ["wave", "grab", "drag", "deposit"]
         self.phase_timers = {
             "wave": 0.56,
             "grab": 0.24,
             "drag": 0.28 * max(1, len(self.slag_screens)),
             "deposit": 0.24,
         }
+        if self.sympathetic_screens:
+            self.phase_order.append("sympathetic")
+            self.phase_timers["sympathetic"] = 0.12 * max(1, len(self.sympathetic_screens))
 
         # Slag formation tracking
         self.slag_formed = [False] * len(self.slag_screens)
@@ -341,11 +363,15 @@ class HornswoggleAnimation:
         for gx, gy in self.slag_grids:
             self.hidden_tiles.add((gx, gy))
         self.hidden_tiles.add(self.deposit_grid)
+        # Hide sympathetic destinations and slag (source becomes slag, dest becomes terrain)
+        for sg in self.sympathetic_grids:
+            self.hidden_tiles.add(sg['from'])
+            self.hidden_tiles.add(sg['to'])
 
     def _get_phase_elapsed(self):
         """Get elapsed time within current phase."""
         t = self.elapsed
-        for phase_name in ["wave", "grab", "drag", "deposit"]:
+        for phase_name in self.phase_order:
             dur = self.phase_timers[phase_name]
             if t <= dur:
                 return phase_name, t
@@ -432,6 +458,33 @@ class HornswoggleAnimation:
                     self.screen_shake(7, 0.2)
                 if self.screen_flash:
                     self.screen_flash(BURGUNDY_DARK, 0.1)
+
+        elif phase == "sympathetic":
+            # Sympathetic Resonance — reveal tiles progressively
+            sym_dur = self.phase_timers["sympathetic"]
+            progress = min(1.0, phase_t / sym_dur) if sym_dur > 0 else 1.0
+            n = len(self.sympathetic_screens)
+
+            for i in range(n):
+                threshold = (i + 1) / max(1, n + 1)
+                if progress >= threshold and not self.sympathetic_formed[i]:
+                    self.sympathetic_formed[i] = True
+                    sg = self.sympathetic_grids[i]
+                    ss = self.sympathetic_screens[i]
+                    # Reveal slag at source and terrain at destination
+                    self.hidden_tiles.discard(sg['from'])
+                    self.hidden_tiles.discard(sg['to'])
+                    # Particles at destination
+                    dx, dy = ss['to']
+                    if self.particle_emitter:
+                        self.particle_emitter.emit_burst(dx, dy, STONE_GRAY, count=8)
+                        self.particle_emitter.emit_burst(dx, dy, BURGUNDY, count=4)
+                    # Slag glow at source
+                    sx, sy = ss['from']
+                    if self.particle_emitter:
+                        self.particle_emitter.emit_burst(sx, sy, SLAG_ORANGE, count=6)
+                    if self.screen_shake:
+                        self.screen_shake(3, 0.08)
         else:
             # Animation done — make sure everything is revealed
             self.hidden_tiles.clear()
@@ -534,6 +587,50 @@ class HornswoggleAnimation:
             alpha = int(180 * (1 - flash_progress))
             if alpha > 0:
                 pygame.draw.circle(overlay, (*BONE_IVORY, alpha), (int(ddx), int(ddy)), radius)
+
+        elif phase == "sympathetic":
+            # Sympathetic Resonance — tiles sliding from source to destination
+            sym_dur = self.phase_timers["sympathetic"]
+            progress = min(1.0, phase_t / sym_dur) if sym_dur > 0 else 1.0
+            n = len(self.sympathetic_screens)
+            half = TILE_SIZE // 2
+
+            for i in range(n):
+                threshold = (i + 1) / max(1, n + 1)
+                ss = self.sympathetic_screens[i]
+                fx, fy = ss['from']
+                tx, ty = ss['to']
+
+                if self.sympathetic_formed[i]:
+                    # Already landed — draw fading glow at destination
+                    fade = max(0, 1.0 - (progress - threshold) * 4)
+                    if fade > 0:
+                        glow_alpha = int(100 * fade)
+                        pygame.draw.circle(overlay, (*BURGUNDY, glow_alpha),
+                                         (int(tx), int(ty)), int(TILE_SIZE * 0.35))
+                        # Slag glow at source
+                        slag_alpha = int(80 * fade)
+                        pygame.draw.circle(overlay, (*SLAG_ORANGE, slag_alpha),
+                                         (int(fx), int(fy)), int(TILE_SIZE * 0.3))
+                else:
+                    # Sliding — interpolate position from source to dest
+                    local_t = progress / threshold if threshold > 0 else 1.0
+                    local_t = min(1.0, local_t)
+                    # Ease out
+                    eased = 1 - (1 - local_t) * (1 - local_t)
+                    cx = fx + (tx - fx) * eased
+                    cy = fy + (ty - fy) * eased
+
+                    # Burgundy resonance glow
+                    pygame.draw.circle(overlay, (*BURGUNDY_DARK, 50),
+                                     (int(cx), int(cy)), int(TILE_SIZE * 0.4))
+                    # Terrain block
+                    block_s = int(TILE_SIZE * 0.35)
+                    bhs = block_s // 2
+                    pygame.draw.rect(overlay, (*STONE_GRAY, 200),
+                                   (int(cx - bhs), int(cy - bhs), block_s, block_s))
+                    pygame.draw.rect(overlay, (*BURGUNDY_LIGHT, 150),
+                                   (int(cx - bhs), int(cy - bhs), block_s, block_s), 2)
 
         surface.blit(overlay, (0, 0))
 
