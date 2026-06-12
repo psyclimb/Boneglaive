@@ -5,6 +5,7 @@ The primary menu screen for Boneglaive graphical version.
 """
 import pygame
 from typing import Optional
+from boneglaive import __version__
 from .menu_components import MenuScreen, Button, COLOR_BG, COLOR_TEXT
 from boneglaive.game.player_profile import profile_manager
 from .animated_background import AnimatedBackground
@@ -115,7 +116,7 @@ class MainMenuScreen(MenuScreen):
         self._draw_title_art(surface)
 
         # Draw version subtitle
-        version_text = "v1.2"
+        version_text = f"v{__version__}"
         version_surface = self.font.render(version_text, True, COLOR_TEXT)
         version_rect = version_surface.get_rect(centerx=self.screen_width // 2, top=self._version_top)
         surface.blit(version_surface, version_rect)

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Debug configuration, logging setup, and performance measurement."""
 import logging
 import os
 import sys

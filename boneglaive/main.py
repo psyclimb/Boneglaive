@@ -52,7 +52,7 @@ def configure_settings(args):
     # Create or load configuration
     config = ConfigManager()
     
-    # Network mode
+    # Game mode
     if args.mode:
         game_mode_map = {
             'single': GameMode.SINGLE_PLAYER.value,

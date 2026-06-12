@@ -62,7 +62,7 @@ class MultiplayerManager:
             return result
 
         else:
-            logger.error(f"Unknown network mode: {game_mode}")
+            logger.error(f"Unknown game mode: {game_mode}")
             self.initialized = False
             return False
 

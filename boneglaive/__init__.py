@@ -1,2 +1,2 @@
-# Boneglaive package
-__version__ = "1.2"
+"""Boneglaive — tactical turn-based combat game."""
+__version__ = "1.3"

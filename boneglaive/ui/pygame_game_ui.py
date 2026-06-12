@@ -222,7 +222,6 @@ class PygameMenuUI:
                 if self.selected_option == 0:  # VS AI
                     return ("vs_ai", None)
                 elif self.selected_option == 1:  # Settings
-                    # TODO: Implement settings menu
                     continue
                 elif self.selected_option == 2:  # Quit
                     return None

@@ -43,15 +43,6 @@ def setup_terminal_optimizations():
     os.environ.setdefault('TERM', 'xterm-256color')
     os.environ.setdefault('ESCDELAY', '25')  # Faster ESC key response
 
-def get_config_directory():
-    """Get the configuration directory following XDG standards."""
-    # Use XDG_CONFIG_HOME or ~/.config (Unix standard)
-    xdg_config = os.environ.get('XDG_CONFIG_HOME')
-    if xdg_config:
-        return os.path.join(xdg_config, 'boneglaive')
-    else:
-        return os.path.expanduser('~/.config/boneglaive')
-
 def is_color_terminal():
     """Check if the terminal supports colors."""
     # Check COLORTERM environment variable

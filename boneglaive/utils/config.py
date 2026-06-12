@@ -17,7 +17,7 @@ class DisplayMode(Enum):
     GRAPHICAL = "graphical"
 
 class GameMode(Enum):
-    """Network mode options."""
+    """Game mode options."""
     SINGLE_PLAYER = "single"
     LOCAL_MULTIPLAYER = "local"
     VS_AI = "vs_ai"
@@ -36,7 +36,7 @@ class GameConfig:
     show_grid: bool = True
     selected_map: str = "lime_foyer"
     
-    # Network settings
+    # Game mode settings
     game_mode: str = GameMode.VS_AI.value
     player_name: str = "Player"
 

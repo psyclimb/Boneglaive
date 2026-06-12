@@ -1257,7 +1257,6 @@ class GraphicalRenderer:
 
         # If awaiting target selection (for skills)
         if self.game_adapter.awaiting_target:
-            # TODO: Execute skill on target
             self.game_adapter.handle_player_action(
                 "target_skill",
                 target_id=self._get_unit_id(unit) if unit else None
@@ -1656,7 +1655,7 @@ class GraphicalRenderer:
         """Helper to get unit ID."""
         if not unit:
             return None
-        return unit.name  # TODO: Use proper unit ID
+        return unit.name
 
     def _handle_action_menu_click(self, action: str):
         """
@@ -5278,7 +5277,7 @@ class GraphicalRenderer:
         loser_gp = game.player2_gp if winner == 1 else game.player1_gp
 
         # Determine if local player won (in single player, player 1 is local)
-        # In multiplayer, this would need adjustment based on network mode
+        # In multiplayer, this would need adjustment based on game mode
         is_victory = (winner == 1)
 
         self.game_over_window.show(is_victory, winner_name, winner_gp, loser_name, loser_gp, winner_player=winner)

@@ -40,7 +40,6 @@ SKILL_SOUNDS = {
     # GRAYMAN skills
     "DELTA_CONFIG": "delta_config",
     "ESTRANGE": "estrange",
-    "GRAE_EXCHANGE": "grae_exchange",
     "GRÆ_EXCHANGE": "grae_exchange",
     "GRAYMAN_DOPPELGANGER_DEATH": "grayman_doppelganger_death",
 
@@ -77,9 +76,7 @@ SKILL_SOUNDS = {
     "AUCTION_CURSE": "auction_curse",
     "AUCTION_CURSE_TICK": "auction_curse_tick",
     "DIVINE_DEPRECIATION": "divine_depreciation",
-    "DEFT(?) REROLL": "deft_reroll",
     "DEFT(?)_REROLL": "deft_reroll",
-    "DEFT_REROLL": "deft_reroll",
     "PARALLAX": "parallax",
 
     # INTERFERER skills

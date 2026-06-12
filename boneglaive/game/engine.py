@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Core game engine — state machine, combat resolution, and turn flow."""
 import logging
 try:
     import curses
@@ -2320,7 +2321,6 @@ class Game:
 
                         # ASCII animation for death healing effect
                         if ui and hasattr(ui, 'renderer'):
-                            import time
                             from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
                             # Phase 1: Explosion at death location
@@ -3066,11 +3066,10 @@ class Game:
                                         import curses
                                     except ImportError:
                                         curses = None
-                                    import time
                                     from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                                    
+
                                     healing_text = f"+{actual_heal}"
-                                    
+
                                     # Make healing text prominent with flashing effect (green color)
                                     for i in range(3):
                                         # First clear the area
@@ -3151,45 +3150,7 @@ class Game:
                         if tiles_to_remove:
                             logger.debug(f"Cleaned up {len(tiles_to_remove)} derelict building tiles for {unit.get_display_name()}")
 
-            # Process Topiary status effect (LANDSCAPER Topiary Breath)
-            if hasattr(unit, 'is_topiary') and unit.is_topiary and hasattr(unit, 'topiary_duration'):
-                unit.topiary_duration -= 1
-                logger.debug(f"{unit.get_display_name()}'s Topiary duration: {unit.topiary_duration}")
-
-                if unit.topiary_duration <= 0:
-                    unit.is_topiary = False
-                    unit.topiary_duration = 0
-
-                    # Restore original PRT
-                    if hasattr(unit, 'topiary_original_prt'):
-                        unit.prt = unit.topiary_original_prt
-                        delattr(unit, 'topiary_original_prt')
-
-                    # Clear topiary terrain at unit's position
-                    from boneglaive.game.map import TerrainType
-                    if self.map.get_terrain_at(unit.y, unit.x) == TerrainType.TOPIARY:
-                        self.map.set_terrain_at(unit.y, unit.x, TerrainType.EMPTY)
-
-                    # Clean up astral values at this position (no longer furniture)
-                    for player_id in list(self.map.cosmic_values.keys()):
-                        if (unit.y, unit.x) in self.map.cosmic_values[player_id]:
-                            del self.map.cosmic_values[player_id][(unit.y, unit.x)]
-
-                    # Remove from topiary tracking
-                    if hasattr(self, 'topiary_units') and (unit.y, unit.x) in self.topiary_units:
-                        del self.topiary_units[(unit.y, unit.x)]
-
-                    # Store for graphical animation detection
-                    if not hasattr(self, 'last_reverted_topiaries'):
-                        self.last_reverted_topiaries = []
-                    self.last_reverted_topiaries.append((unit.y, unit.x))
-
-                    message_log.add_message(
-                        f"{unit.get_display_name()} reverts from topiary",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
-                    logger.debug(f"{unit.get_display_name()} reverted from topiary at ({unit.y},{unit.x})")
+            # (Topiary duration processing moved to global topiary block below)
 
             # Process Partition Shield duration
             if hasattr(unit, 'partition_shield_active') and unit.partition_shield_active and hasattr(unit, 'partition_shield_duration'):
@@ -3348,11 +3309,64 @@ class Game:
                 )
                 logger.debug(f"Removed {len(slag_to_remove)} expired slag walls")
 
-        # Process terrain-topiary durations (upgraded Topiary Breath)
+        # Process all topiary durations — both unit-topiaries and terrain-topiaries
+        # All topiaries from a single Topiary Breath cast tick on the caster's turn
+        from boneglaive.game.map import TerrainType
+
+        if not hasattr(self, 'last_reverted_topiaries'):
+            self.last_reverted_topiaries = []
+
+        # Unit-topiaries (Topiary Breath base + upgraded)
+        if hasattr(self, 'topiary_units') and self.topiary_units:
+            unit_topiaries_to_remove = []
+            for pos_tuple, topiary_info in self.topiary_units.items():
+                owner = topiary_info.get('owner')
+                if owner and owner.player != self.current_player:
+                    continue
+                topiary_info['duration'] -= 1
+                unit = topiary_info['unit']
+                unit.topiary_duration = topiary_info['duration']
+                logger.debug(f"{unit.get_display_name()}'s Topiary duration: {unit.topiary_duration}")
+                if topiary_info['duration'] <= 0:
+                    unit_topiaries_to_remove.append(pos_tuple)
+
+            for pos_tuple in unit_topiaries_to_remove:
+                topiary_info = self.topiary_units[pos_tuple]
+                unit = topiary_info['unit']
+                unit.is_topiary = False
+                unit.topiary_duration = 0
+
+                # Restore original PRT
+                if hasattr(unit, 'topiary_original_prt'):
+                    unit.prt = unit.topiary_original_prt
+                    delattr(unit, 'topiary_original_prt')
+
+                # Clear topiary terrain at unit's position
+                if self.map.get_terrain_at(unit.y, unit.x) == TerrainType.TOPIARY:
+                    self.map.set_terrain_at(unit.y, unit.x, TerrainType.EMPTY)
+
+                # Clean up astral values at this position (no longer furniture)
+                for player_id in list(self.map.cosmic_values.keys()):
+                    if (unit.y, unit.x) in self.map.cosmic_values[player_id]:
+                        del self.map.cosmic_values[player_id][(unit.y, unit.x)]
+
+                del self.topiary_units[pos_tuple]
+                self.last_reverted_topiaries.append(pos_tuple)
+
+                message_log.add_message(
+                    f"{unit.get_display_name()} reverts from topiary",
+                    MessageType.ABILITY,
+                    player=unit.player
+                )
+                logger.debug(f"{unit.get_display_name()} reverted from topiary at ({unit.y},{unit.x})")
+
+        # Terrain-topiaries (upgraded Topiary Breath)
         if hasattr(self, 'topiary_terrain') and self.topiary_terrain:
-            from boneglaive.game.map import TerrainType
             terrain_topiaries_to_remove = []
             for pos_tuple, topiary_info in self.topiary_terrain.items():
+                owner = topiary_info.get('owner')
+                if owner and owner.player != self.current_player:
+                    continue
                 topiary_info['duration'] -= 1
                 if topiary_info['duration'] <= 0:
                     terrain_topiaries_to_remove.append(pos_tuple)
@@ -3372,11 +3386,7 @@ class Game:
                             del self.map.cosmic_values[player_id][(pos_y, pos_x)]
 
                 del self.topiary_terrain[pos_tuple]
-
-            # Signal graphical system — reuse existing topiary revert animation
-            if not hasattr(self, 'last_reverted_topiaries'):
-                self.last_reverted_topiaries = []
-            self.last_reverted_topiaries.extend(terrain_topiaries_to_remove)
+                self.last_reverted_topiaries.append(pos_tuple)
 
             if terrain_topiaries_to_remove:
                 message_log.add_message(
@@ -3388,7 +3398,6 @@ class Game:
     @measure_perf
     def execute_turn(self, ui=None):
         """Execute all unit actions for the current turn with animated sequence."""
-        import time
         try:
             import curses
         except ImportError:
@@ -3976,24 +3985,7 @@ class Game:
                                             durations = [0.1] * 6
 
                                             ui.renderer.flash_tile(target_pos[0], target_pos[1], tile_ids, color_ids, durations)
-                    
-                    # Award XP to the attacker based on damage dealt
-                    from boneglaive.utils.constants import XP_DAMAGE_FACTOR, XP_KILL_REWARD
-                    xp_gained = int(actual_damage * XP_DAMAGE_FACTOR)
-                    
-                    # Additional XP for killing the target (only applicable when target is a unit, not a wall)
-                    if target and target.hp <= 0:
-                        xp_gained += XP_KILL_REWARD
-                    
-                    # Add XP and check if unit leveled up
-                    if unit.add_xp(xp_gained):
-                        # Unit leveled up - add a message
-                        message_log.add_message(
-                            f"{unit.get_display_name()} gained experience and reached level {unit.level}",
-                            MessageType.SYSTEM,
-                            player=unit.player
-                        )
-                    
+
                     # Only log combat messages and handle unit death for unit targets (not walls)
                     if target:
                         # Log combat message with actual damage dealt
@@ -4643,15 +4635,6 @@ class Game:
         if self.pre_status_clear_callback:
             self.pre_status_clear_callback()
 
-        # Continue with status clearing for current player's units
-        # NOTE: Pry status clearing is now handled by duration-based system in units.py
-        # (was_pried flag is cleared when pry_duration reaches 0)
-        for unit in self.units:
-            if unit.is_alive():
-                # Passive skills are now applied at the start of each player's turn
-                # instead of at the end of the previous player's turn
-                pass
-        
         # Process MarrowDike wall durations
         if hasattr(self, 'marrow_dike_tiles'):
             tiles_to_remove = []
@@ -4722,9 +4705,7 @@ class Game:
                     # Remove from marrow_dike_interior
                     if tile in self.marrow_dike_interior:
                         del self.marrow_dike_interior[tile]
-            
-            # Removed healing effect for upgraded Marrow Dikes
-        
+
         # Check if game is over
         self.check_game_over()
 
@@ -4875,7 +4856,6 @@ class Game:
                                 # Show geas breaking animation on taunted unit (ASCII mode only)
                                 if not (hasattr(self, 'ui') and hasattr(self.ui, '__class__') and self.ui.__class__.__name__ == 'GraphicalUIAdapter'):
                                     if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer') and hasattr(self.ui, 'asset_manager'):
-                                        import time
                                         try:
                                             import curses
                                         except ImportError:
@@ -5556,7 +5536,6 @@ class Game:
         """Apply damage to units trapped by MANDIBLE_FOREMENs."""
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
-        import time
         try:
             import curses
         except ImportError:
@@ -5764,8 +5743,7 @@ class Game:
         """
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
-        import time
-        
+
         # Find all MANDIBLE_FOREMENs that took actions
         for foreman in self.units:
             if not foreman.is_alive() or foreman.type != UnitType.MANDIBLE_FOREMAN or not foreman.took_action:
@@ -5827,7 +5805,6 @@ class Game:
         """
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
-        import time
 
         # Find all LIVING_AEROSOL units leashed to this unit
         for aerosol in self.units:
@@ -5888,7 +5865,6 @@ class Game:
         Triggers when enemy units end their turn on a scalar node.
         """
         from boneglaive.utils.message_log import message_log, MessageType
-        import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
         try:
             import curses
@@ -6057,7 +6033,6 @@ class Game:
         Only armed traps can trigger.
         """
         from boneglaive.utils.message_log import message_log, MessageType
-        import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
         try:
             import curses
@@ -6445,7 +6420,6 @@ class Game:
             ui: Optional UI reference for animations
             processed_doppelgangers: Set of doppelganger units already processed (prevents infinite loops)
         """
-        import time
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
 
@@ -6552,15 +6526,9 @@ class Game:
             MessageType.ABILITY,  # Use ABILITY type to ensure player color is used
             player=doppelganger_unit.player
         )
-        
-        # Follow up with the affected units information
-        if affected_units:
-            pass  # Remove the summary message
-        
+
         # Animation for doppelganger explosion
         if ui and hasattr(ui, 'renderer'):
-            import time
-
             # Center explosion animation at doppelganger position
             center_animation = ['P', '*', 'O', '0', '~', 'O', '#', ',', '.']
             ui.renderer.animate_attack_sequence(
@@ -6787,7 +6755,6 @@ class Game:
             wall_position: Tuple of (y, x) for the wall being attacked
             damage: The amount of damage being dealt to the wall
         """
-        import time
         try:
             import curses
         except ImportError:
@@ -7568,7 +7535,6 @@ class Game:
                         import curses
                     except ImportError:
                         curses = None
-                    import time
                     from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
                     healing_text = f"+{actual_heal}"

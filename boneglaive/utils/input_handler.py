@@ -81,10 +81,7 @@ class InputHandler:
             self.action_map[curses.KEY_LEFT] = GameAction.MOVE_LEFT
             self.action_map[curses.KEY_RIGHT] = GameAction.MOVE_RIGHT
             
-            # Create an empty movement context (removed Vim-style keys)
             movement_context = {}
-            
-            # Store context (keeping the structure in place for potential future additions)
             self.context_sensitive_maps["movement"] = movement_context
             
             # Action keys (always available)
@@ -103,13 +100,10 @@ class InputHandler:
             action_context[ord('s')] = GameAction.SKILL_MODE  # Key for skills
             action_context[ord('p')] = GameAction.TELEPORT_MODE  # Key for teleportation (p for portal)
             action_context[ord('t')] = GameAction.END_TURN
-            # Removed test mode key ('e')
-            
+
             # Store action context
             self.context_sensitive_maps["action"] = action_context
-            
-            # Removed debug context and keys
-            
+
             # UI context for help, chat, etc.
             ui_context = {}
             # Help key
@@ -173,7 +167,7 @@ class InputHandler:
         """
         contexts = ["default"]
         
-        # If we're in the default context, add all available contexts (removed debug)
+        # If we're in the default context, add all available contexts
         if self.current_context == "default":
             contexts.extend(["movement", "action", "ui"])
         # If we're in menu context, allow movement but not action keys

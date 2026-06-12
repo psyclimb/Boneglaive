@@ -3,7 +3,7 @@
 Unit classes and related functionality for Boneglaive.
 """
 from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
-from boneglaive.utils.constants import UNIT_STATS, UnitType, MAX_LEVEL, XP_PER_LEVEL
+from boneglaive.utils.constants import UNIT_STATS, UnitType
 from boneglaive.utils.debug import logger
 
 if TYPE_CHECKING:
@@ -196,10 +196,6 @@ class Unit:
         self.is_topiary = False
         self.topiary_duration = 0
 
-        # Experience and leveling
-        self.level = 1
-        self.xp = 0
-        
         # Skills (will be initialized after import to avoid circular imports)
         self.passive_skill = None
         self.active_skills = []
@@ -617,44 +613,6 @@ class Unit:
         
         return actual_damage
     
-    def add_xp(self, amount: int) -> bool:
-        """
-        Add XP to the unit and level up if threshold reached.
-        Returns True if unit leveled up.
-        
-        Note: Currently disabled - no XP gain will occur.
-        """
-        # XP gain is temporarily disabled
-        return False
-    
-    def level_up(self) -> None:
-        """Increase unit level and improve stats."""
-        if self.level >= MAX_LEVEL:
-            return
-            
-        self.level += 1
-        
-        # Improve stats based on unit type (can be customized per unit type)
-        if self.type == UnitType.GLAIVEMAN:
-            self.max_hp += 5
-            self.attack += 2
-            self.defense += 2
-        elif self.type == UnitType.ARCHER:
-            self.max_hp += 3
-            self.attack += 3
-            self.defense += 1
-        elif self.type == UnitType.MAGE:
-            self.max_hp += 2
-            self.attack += 4
-            self.defense += 1
-        elif self.type == UnitType.MANDIBLE_FOREMAN:
-            self.max_hp += 6  # Focus on increasing durability
-            self.attack += 2
-            self.defense += 3
-        
-        # Heal unit when leveling up
-        self.hp = self.max_hp
-        
     def reset_action_targets(self) -> None:
         """Reset all action targets."""
         # Check if the unit took any action this turn that should release trapped units

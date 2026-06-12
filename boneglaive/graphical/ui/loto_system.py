@@ -84,11 +84,6 @@ class LOTOChecker:
         if hasattr(unit, 'gaussian_charging') and unit.gaussian_charging:
             blocked.add('all')  # Blocks everything while charging
 
-        # TODO: Add Viseroy skill blocking when implemented
-        # if hasattr(unit, 'viseroyblocked') and unit.viseroy_blocked:
-        #     blocked.add('skill')
-        #     blocked.add('move')
-
         return blocked
 
     @staticmethod

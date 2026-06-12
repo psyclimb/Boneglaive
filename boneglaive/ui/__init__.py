@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Curses-based text mode UI components."""
 
 from boneglaive.ui.game_ui import GameUI
 from boneglaive.ui.menu_ui import MenuUI

@@ -182,9 +182,7 @@ class MessageLogComponent(UIComponent):
             EventType.UI_REDRAW_REQUESTED,
             UIRedrawEventData()
         )
-        
-    # Removed colored text handling methods as they're no longer needed
-    
+
     def _wrap_text(self, text: str, max_width: int, indent: str = "") -> list:
         """Wrap text to fit within max_width, preserving word boundaries."""
         if not text or max_width <= 0:

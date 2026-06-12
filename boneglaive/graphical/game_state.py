@@ -528,7 +528,7 @@ class GameStateAdapter:
                         # Regular damage (not from scalar trap or Viseroy tick)
                         events.append(AnimationEvent(
                             "damage",
-                            source_unit=None,  # TODO: Track damage source
+                            source_unit=None,
                             target_unit=game_unit,
                             damage_amount=abs(hp_delta)
                         ))
@@ -812,9 +812,7 @@ class GameStateAdapter:
                     # Note: move_to_grid doesn't account for GRID_OFFSET, so we need to adjust
                     animated_unit.move_to_grid(game_unit.x, game_unit.y)
 
-                    # FIXME: move_to_grid calculates target position without offset
-                    # We need to add GRID_OFFSET manually
-                    # Import at function level to avoid circular dependency
+                    # move_to_grid doesn't account for GRID_OFFSET, so adjust manually
                     from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
                     animated_unit.target_x += GRID_OFFSET_X
                     animated_unit.target_y += GRID_OFFSET_Y
@@ -1516,14 +1514,6 @@ class GameStateAdapter:
 
             target_id = kwargs.get("target_id")
 
-            # TODO: Execute skill through game logic
-            # caster = self.game.get_unit(self.selected_unit_id)
-            # target = self.game.get_unit(target_id)
-            # result = self.game.use_skill(caster, self.selected_skill, target)
-
-            # Queue animation
-            # self.queue_skill_animation(self.selected_skill, caster, target)
-
             # Reset state
             self.selected_skill = None
             self.awaiting_target = False
@@ -1536,15 +1526,9 @@ class GameStateAdapter:
             target_x = kwargs.get("grid_x")
             target_y = kwargs.get("grid_y")
 
-            # TODO: Execute move through game logic
-            # unit = self.game.get_unit(self.selected_unit_id)
-            # result = self.game.move_unit(unit, target_x, target_y)
-
             return True
 
         elif action_type == "end_turn":
-            # TODO: End turn in game logic
-            # self.game.end_turn()
             return True
 
         return False
@@ -1566,7 +1550,6 @@ class GameStateAdapter:
             "selected_unit": self.selected_unit_id,
             "selected_skill": self.selected_skill,
             "awaiting_target": self.awaiting_target,
-            # TODO: Add more state as needed
         }
 
     def get_valid_targets(self, skill_name: str, caster) -> List[Any]:
@@ -1580,19 +1563,13 @@ class GameStateAdapter:
         Returns:
             List of valid target units
         """
-        # TODO: Query game logic for valid targets
-        # return self.game.get_valid_targets(skill_name, caster)
         return []
 
 
     def is_game_over(self) -> bool:
         """Check if game is over."""
-        # TODO: Query game logic
-        # return self.game.is_game_over()
         return False
 
     def get_winner(self) -> Optional[str]:
         """Get winner if game is over."""
-        # TODO: Query game logic
-        # return self.game.get_winner()
         return None

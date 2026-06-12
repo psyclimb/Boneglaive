@@ -7,7 +7,7 @@ Profiles are stored as JSON files in the profiles/ directory.
 import json
 import os
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field, asdict
 from boneglaive.utils.constants import UnitType
 from boneglaive.utils.debug import logger
@@ -35,7 +35,7 @@ class PlayerProfile:
 
     # Expandable sections for future features
     achievements: Dict[str, bool] = field(default_factory=dict)
-    preferences: Dict[str, any] = field(default_factory=dict)
+    preferences: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         """Initialize unit picks for all unit types if not present."""
@@ -175,7 +175,7 @@ class ProfileManager:
         except Exception as e:
             logger.error(f"Error saving profile {profile.name}: {e}")
 
-    def list_profiles(self) -> list[str]:
+    def list_profiles(self) -> List[str]:
         """List all available profile names."""
         profiles = []
         for profile_file in self.profiles_dir.glob("*.json"):

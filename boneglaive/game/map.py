@@ -1025,7 +1025,6 @@ class MapFactory:
         if map_name.lower() == "lime_foyer":
             logger.info("Creating NewLimeFoyerMap (arena version)")
             return NewLimeFoyerMap()
-        # Removed lime_foyer_arena map reference
         elif map_name.lower() == "stained_stones":
             logger.info("Creating StainedStonesMap")
             return StainedStonesMap()

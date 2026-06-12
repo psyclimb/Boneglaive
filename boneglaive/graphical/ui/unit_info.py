@@ -323,36 +323,6 @@ class UnitInfoPanel:
 
             y += LINE_HEIGHT
 
-        # Add Level/XP if enabled
-        if hasattr(self.game_unit, 'level') and self.game_unit.level > 1:
-            y += 5
-            level_text = render_fitted_text(
-                f"Level {self.game_unit.level}",
-                max_width=95,
-                max_height=16,
-                color=COLOR_TEXT_DIM,
-                base_font_size=16,
-                min_font_size=12,
-                max_font_size=18
-            )
-            surface.blit(level_text, (x, y))
-
-            if hasattr(self.game_unit, 'xp'):
-                from boneglaive.utils.constants import XP_PER_LEVEL
-                next_level_xp = self.game_unit.level * XP_PER_LEVEL
-                xp_text = render_fitted_text(
-                    f"XP: {self.game_unit.xp}/{next_level_xp}",
-                    max_width=130,
-                    max_height=16,
-                    color=COLOR_TEXT_DIM,
-                    base_font_size=16,
-                    min_font_size=12,
-                    max_font_size=18
-                )
-                surface.blit(xp_text, (x + 100, y))
-
-            y += LINE_HEIGHT
-
         return y
 
     def _draw_enemy_astral_value(self, surface: pygame.Surface, x: int, y: int) -> int:

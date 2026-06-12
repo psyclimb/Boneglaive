@@ -3022,9 +3022,6 @@ class AutoclaveAnimationV2:
         # **DAMAGE TRIGGER: This is when damage happens (delayed execution like Parabol)**
         self.damage_triggered = True
 
-        # Removed: Impact sound (no autoclave_impact.wav)
-        # Removed: Impact flashes at each tile (no longer creating fireball explosions)
-
         # Healing effect will be created when heal_amount is set by game
         # (This happens after damage is calculated)
 
@@ -3056,8 +3053,6 @@ class AutoclaveAnimationV2:
 
         for glaive in self.glaives:
             glaive.update(delta_time)
-
-        # Removed: Impact flash updates (no longer used)
 
         if self.healing_effect:
             self.healing_effect.update(delta_time)
@@ -3099,8 +3094,6 @@ class AutoclaveAnimationV2:
             # Draw glaives (still spinning)
             for glaive in self.glaives:
                 glaive.draw(surface, self.glaive_rotation)
-
-            # Removed: Impact flashes drawing (no longer used)
 
             # Draw healing effect
             if self.healing_effect:

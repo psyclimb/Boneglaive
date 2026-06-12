@@ -201,9 +201,6 @@ class SkillSimulator:
         if target_unit:
             affected.append(target_unit)
 
-        # TODO: Handle AOE skills by checking nearby units
-        # For now, just single target
-
         return affected
 
     def _evaluate_repositioning(self, unit: 'Unit', skill: 'ActiveSkill',

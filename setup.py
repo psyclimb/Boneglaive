@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Boneglaive2 Setup Script
+Boneglaive Setup Script
 Alternative setup using setuptools for easier distribution
 """
 
 from setuptools import setup, find_packages
+from boneglaive import __version__
 import sys
 
 # Read requirements
@@ -25,7 +26,7 @@ for req in requirements:
 
 setup(
     name="boneglaive",
-    version="1.2",
+    version=__version__,
     description="Linux & BSD terminal tactical combat game",
     packages=find_packages(),
     install_requires=install_requires,

@@ -244,9 +244,7 @@ class MarrowDikeSkill(ActiveSkill):
             return False
         if not game:
             return False
-            
-# Removed prevention check - existing dikes will auto-expire when creating new ones
-        
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:

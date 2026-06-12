@@ -798,7 +798,8 @@ class TopiaryBreathSkill(ActiveSkill):
                 game.topiary_units[(unit.y, unit.x)] = {
                     'unit': unit,
                     'duration': 2,
-                    'original_terrain': TerrainType.EMPTY
+                    'original_terrain': TerrainType.EMPTY,
+                    'owner': user
                 }
                 units_transformed += 1
 
@@ -958,7 +959,8 @@ class TopiaryBreathSkill(ActiveSkill):
                 game.topiary_units[(unit.y, unit.x)] = {
                     'unit': unit,
                     'duration': 2,
-                    'original_terrain': TerrainType.EMPTY
+                    'original_terrain': TerrainType.EMPTY,
+                    'owner': user
                 }
                 units_transformed += 1
 

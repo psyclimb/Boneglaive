@@ -176,8 +176,6 @@ class GraphicalUIAdapter:
         self.renderer.flash_alpha = 100
         self.renderer.flash_duration = 0.2
 
-        # self._render_and_wait(0.4)  # Removed for smooth gameplay
-
     def draw_board(self, show_cursor=True, show_selection=True, show_attack_targets=True):
         """
         Redraw the board.

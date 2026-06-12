@@ -5,6 +5,7 @@ Information about the game, copyright, and license.
 """
 import pygame
 from typing import Optional
+from boneglaive import __version__
 from .menu_components import (
     MenuScreen, MenuPanel, COLOR_TEXT,
     menu_button_width
@@ -55,7 +56,7 @@ class AboutScreen(MenuScreen):
 
         # Content lines: (text, color)
         lines = [
-            ("Boneglaive v1.2", COLOR_TEXT),
+            (f"Boneglaive v{__version__}", COLOR_TEXT),
             ("Tactical Turn-Based Combat Game", COLOR_TEXT),
             ("", None),
             ("Copyright (C) 2026 Psyclimb", (100, 200, 255)),

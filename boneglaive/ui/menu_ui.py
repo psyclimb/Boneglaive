@@ -16,6 +16,7 @@ from boneglaive.utils.config import ConfigManager, GameMode, DisplayMode
 from boneglaive.utils.debug import debug_config, logger
 from boneglaive.renderers.curses_renderer import CursesRenderer
 from boneglaive.utils.render_interface import RenderInterface
+from boneglaive import __version__
 from boneglaive.game.player_profile import profile_manager
 
 class MenuItem:
@@ -245,7 +246,7 @@ class MenuUI:
         
         # About screen content
         lines = [
-            "Boneglaive v1.2",
+            f"Boneglaive v{__version__}",
             "Tactical Turn-Based Combat Game",
             "Beta Release",
             "",
@@ -282,7 +283,7 @@ class MenuUI:
             if line:  # Non-empty line
                 # Center the text horizontally
                 col = max(2, (width - len(line)) // 2)
-                if "v1.2" in line:
+                if f"v{__version__}" in line:
                     # Title in bold
                     self.renderer.draw_text(start_row + i, col, line, 1, curses.A_BOLD)
                 elif "Copyright" in line or "GPL-3.0" in line:
@@ -558,7 +559,7 @@ class MenuUI:
             self.renderer.draw_text(start_row + i, col, line, 1, 0)
         
         # Add subtitle
-        subtitle = "v1.2"
+        subtitle = f"v{__version__}"
         subtitle_col = max(0, (width - len(subtitle)) // 2)
         self.renderer.draw_text(start_row + len(title_art) + 1, subtitle_col, subtitle, 1, 0)
         

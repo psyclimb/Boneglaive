@@ -257,8 +257,6 @@ class AnimationFactory:
 
         # Check for special variants
         if skill_key == "DEMILUNE":
-            # Check if caster has infusion buff (TODO: implement check)
-            # For now, use regular demilune
             pass
 
         # Gaussian Dusk animations are now differentiated by skill name at event creation
@@ -404,7 +402,7 @@ class AnimationFactory:
                 animation = anim_class(
                     center_x=caster_screen_x,
                     center_y=caster_screen_y,
-                    direction=0  # TODO: determine direction based on caster facing
+                    direction=0
                 )
             elif anim_class.__name__ == "AutoclaveAnimation":
                 # AutoclaveAnimation creates all 4 beams at caster position (legacy)

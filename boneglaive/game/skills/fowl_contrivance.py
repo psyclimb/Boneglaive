@@ -1226,10 +1226,7 @@ class FragcrestSkill(ActiveSkill):
                 MessageType.ABILITY,
                 player=user.player
             )
-        else:
-            # Removed extraneous fragmentation message per notes
-            pass
-        
+
         # Play fragmentation animation if UI is available
         if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
             # Get fragmentation animation
