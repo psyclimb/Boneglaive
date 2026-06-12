@@ -68,50 +68,60 @@ def _get_effective_position(user):
 def _get_cone_tiles(origin_y, origin_x, direction, game):
     """
     Calculate tiles in the Topiary Breath cone.
-    Cone shape: distance 1 = 3 wide, distance 2 = 5 wide,
-    distance 3 = 7 wide, distance 4 = 7 wide.
+
+    Cardinal directions: rows of 3/5/7/7 tiles wide using a single perpendicular axis.
+    Diagonal directions: diamond-shaped rows using both adjacent cardinal axes,
+    with spreads of 1/1/2/2 (Manhattan distance from center).
 
     Returns list of (y, x) tuples within map bounds.
     """
     dy, dx = DIRECTION_VECTORS[direction]
+    seen = set()
     tiles = []
 
-    # Width at each distance: 3, 5, 7, 7
-    widths = [3, 5, 7, 7]
+    is_diagonal = dy != 0 and dx != 0
 
-    # Calculate perpendicular direction for cone spread
-    # Perpendicular to (dy, dx) is (-dx, dy) and (dx, -dy)
-    if dy == 0:
-        # Horizontal: E or W. Perpendicular is N/S
-        perp_dy, perp_dx = 1, 0
-    elif dx == 0:
-        # Vertical: N or S. Perpendicular is E/W
-        perp_dy, perp_dx = 0, 1
+    if is_diagonal:
+        # Diagonal: spread as 2D diamonds along both adjacent cardinal axes
+        # NE(-1,1): vertical=(-1,0), horizontal=(0,1)
+        # NW(-1,-1): vertical=(-1,0), horizontal=(0,-1)
+        # SE(1,1): vertical=(1,0), horizontal=(0,1)
+        # SW(1,-1): vertical=(1,0), horizontal=(0,-1)
+        perp1_dy, perp1_dx = dy, 0   # vertical cardinal component
+        perp2_dy, perp2_dx = 0, dx   # horizontal cardinal component
+        spreads = [1, 1, 2, 2]
+
+        for dist_idx, spread in enumerate(spreads):
+            dist = dist_idx + 1
+            center_y = origin_y + dy * dist
+            center_x = origin_x + dx * dist
+            for a in range(-spread, spread + 1):
+                for b in range(-spread, spread + 1):
+                    if abs(a) + abs(b) <= spread:
+                        tile_y = center_y + perp1_dy * a + perp2_dy * b
+                        tile_x = center_x + perp1_dx * a + perp2_dx * b
+                        if game.is_valid_position(tile_y, tile_x) and (tile_y, tile_x) not in seen:
+                            seen.add((tile_y, tile_x))
+                            tiles.append((tile_y, tile_x))
     else:
-        # Diagonal: perpendicular directions depend on the diagonal
-        # For NE (dy=-1, dx=1): perp is NW-SE axis → (dy=-1,dx=-1) and (dy=1,dx=1)
-        # But for cone spread we need the cross-axis
-        # For diagonal movement, spread along both perpendicular axes
-        # NE/SW axis → spread along NW/SE: perp = (-1,-1) normalized per step
-        # Actually for diagonals, we spread along the two adjacent cardinal directions
-        # NE: spread along N and E → actually we need to fan out
-        # Simplest: for diagonal, perpendicular vectors are the two cardinals
-        # NE (dy=-1,dx=1): perp1 = (-1,-1) norm? No.
-        # Let's use: for diagonal (dy,dx), perp = (-dx, dy) gives us the 90° CCW rotation
-        perp_dy, perp_dx = -dx, dy
+        # Cardinal: single perpendicular axis, rows of 3/5/7/7
+        if dy == 0:
+            perp_dy, perp_dx = 1, 0
+        else:
+            perp_dy, perp_dx = 0, 1
+        widths = [3, 5, 7, 7]
 
-    for dist_idx, width in enumerate(widths):
-        dist = dist_idx + 1
-        # Center of this row
-        center_y = origin_y + dy * dist
-        center_x = origin_x + dx * dist
-        half_width = width // 2
+        for dist_idx, width in enumerate(widths):
+            dist = dist_idx + 1
+            center_y = origin_y + dy * dist
+            center_x = origin_x + dx * dist
+            half_width = width // 2
 
-        for offset in range(-half_width, half_width + 1):
-            tile_y = center_y + perp_dy * offset
-            tile_x = center_x + perp_dx * offset
-            if game.is_valid_position(tile_y, tile_x):
-                tiles.append((tile_y, tile_x))
+            for offset in range(-half_width, half_width + 1):
+                tile_y = center_y + perp_dy * offset
+                tile_x = center_x + perp_dx * offset
+                if game.is_valid_position(tile_y, tile_x):
+                    tiles.append((tile_y, tile_x))
 
     return tiles
 
