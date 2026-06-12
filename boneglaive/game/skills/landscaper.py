@@ -727,115 +727,141 @@ class TopiaryBreathSkill(ActiveSkill):
             self.fire_direction = None
             return
 
-        # Generate checker pattern positions within the cone
-        checker_positions = []
-        for i, (ty, tx) in enumerate(cone_tiles):
-            # Checker: only use positions where (ty + tx) is even
-            if (ty + tx) % 2 == 0:
-                # Must be empty and passable, and no unit already placed there
-                if (game.map.is_passable(ty, tx) and
-                        game.get_unit_at(ty, tx) is None and
-                        (ty, tx) not in [(u.y, u.x) for u in caught_units]):
-                    checker_positions.append((ty, tx))
-
-        # If not enough checker positions, also use odd positions
-        if len(checker_positions) < len(caught_units):
-            for ty, tx in cone_tiles:
-                if (ty + tx) % 2 != 0:
-                    if (game.map.is_passable(ty, tx) and
-                            game.get_unit_at(ty, tx) is None):
-                        checker_positions.append((ty, tx))
-                if len(checker_positions) >= len(caught_units):
-                    break
-
         # Initialize topiary tracking on game
         if not hasattr(game, 'topiary_units'):
             game.topiary_units = {}
         if not hasattr(game, 'topiary_terrain'):
             game.topiary_terrain = {}
 
-        # Transform each caught unit
-        units_transformed = 0
-        for i, unit in enumerate(caught_units):
-            # Move to checker position if available
-            if i < len(checker_positions):
-                new_y, new_x = checker_positions[i]
-                old_y, old_x = unit.y, unit.x
-                unit.y = new_y
-                unit.x = new_x
-                game._update_unit_grid(unit, old_y, old_x)
-            # else unit stays in place
-
-            # Mark unit as topiary
-            unit.is_topiary = True
-            unit.topiary_duration = 2
-
-            # Grant 999 PRT (invulnerable while terrain) and store original
-            unit.topiary_original_prt = unit.prt
-            unit.prt = 999
-
-            # Place TOPIARY terrain at unit's position
-            game.map.set_terrain_at(unit.y, unit.x, TerrainType.TOPIARY)
-
-            # Track for revert
-            game.topiary_units[(unit.y, unit.x)] = {
-                'unit': unit,
-                'duration': 2,
-                'original_terrain': TerrainType.EMPTY
-            }
-
-            units_transformed += 1
-
-            message_log.add_message(
-                f"{unit.get_display_name()} is sculpted into a topiary at ({unit.y},{unit.x})",
-                MessageType.WARNING,
-                player=user.player
-            )
-
-            # Text mode transform animation
-            if ui and hasattr(ui, 'renderer'):
-                from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                for frame in ['@', '%', '&', '&']:
-                    ui.renderer.draw_damage_text(unit.y, unit.x * 2, frame, 2)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.06)
-
-        if units_transformed > 0:
-            message_log.add_message(
-                f"Petrifying resonance transforms {units_transformed} units into garden sculptures",
-                MessageType.ABILITY,
-                player=user.player
-            )
-
-        # Upgraded: relocate terrain/furniture to checker spots, then fill remaining with generated
-        terrain_topiary_positions = []
-        generated_topiary_positions = []
-        checker_idx = units_transformed  # Next available checker position
+        # All checker-parity tiles in the cone: (ty + tx) % 2 == 0
+        all_checker_tiles = [(ty, tx) for ty, tx in cone_tiles if (ty + tx) % 2 == 0]
 
         if is_upgraded:
-            # Phase 1: Collect terrain/furniture tiles in cone, relocate to checker positions
-            terrain_tiles = []
+            # UPGRADED: fill entire cone checker pattern with topiaries
+            # Units already on checker tiles can stay; others need a free checker spot
+            checker_set = set(all_checker_tiles)
+            units_on_checker = []
+            units_off_checker = []
+            for unit in caught_units:
+                if (unit.y, unit.x) in checker_set:
+                    units_on_checker.append(unit)
+                else:
+                    units_off_checker.append(unit)
+
+            # Terrain/furniture in cone — separate by checker parity
+            terrain_on_checker = []  # Already on a checker tile — transform in place
+            terrain_off_checker = []  # Needs relocation to a checker spot
             for ty, tx in cone_tiles:
-                # Skip positions now occupied by unit-topiaries
-                if (ty, tx) in game.topiary_units:
-                    continue
-                if game.map.get_terrain_at(ty, tx) == TerrainType.TOPIARY:
-                    continue
+                if game.get_unit_at(ty, tx) is not None:
+                    continue  # Handled as unit (may be topiary-unit or caught unit)
                 if not game.map.is_passable(ty, tx) or game.map.is_furniture(ty, tx):
-                    terrain_tiles.append((ty, tx))
+                    if (ty, tx) in checker_set:
+                        terrain_on_checker.append((ty, tx))
+                    else:
+                        terrain_off_checker.append((ty, tx))
 
-            for ty, tx in terrain_tiles:
-                if checker_idx >= len(checker_positions):
-                    break  # No more checker spots — stop transforming
-                dest_y, dest_x = checker_positions[checker_idx]
-                checker_idx += 1
+            # Determine free checker tiles (not occupied by units staying, terrain
+            # staying, or non-caught units like the caster or immune units)
+            occupied_checker = set()
+            for unit in units_on_checker:
+                occupied_checker.add((unit.y, unit.x))
+            for ty, tx in terrain_on_checker:
+                occupied_checker.add((ty, tx))
+            for ty, tx in all_checker_tiles:
+                unit_at = game.get_unit_at(ty, tx)
+                if unit_at and unit_at not in caught_units:
+                    occupied_checker.add((ty, tx))
+            free_checker = [(ty, tx) for ty, tx in all_checker_tiles if (ty, tx) not in occupied_checker]
 
+            # Assign free checker spots: units first, then terrain, then generated
+            free_idx = 0
+
+            # Move off-checker units to free checker spots
+            for unit in units_off_checker:
+                if free_idx < len(free_checker):
+                    new_y, new_x = free_checker[free_idx]
+                    free_idx += 1
+                    old_y, old_x = unit.y, unit.x
+                    unit.y = new_y
+                    unit.x = new_x
+                    game._update_unit_grid(unit, old_y, old_x)
+                # else: no free spot — unit stays in place (transformed where it is)
+
+            # Transform ALL caught units into topiaries
+            units_transformed = 0
+            for unit in caught_units:
+                unit.is_topiary = True
+                unit.topiary_duration = 2
+                unit.topiary_original_prt = unit.prt
+                unit.prt = 999
+                game.map.set_terrain_at(unit.y, unit.x, TerrainType.TOPIARY)
+                game.topiary_units[(unit.y, unit.x)] = {
+                    'unit': unit,
+                    'duration': 2,
+                    'original_terrain': TerrainType.EMPTY
+                }
+                units_transformed += 1
+
+                message_log.add_message(
+                    f"{unit.get_display_name()} is sculpted into a topiary at ({unit.y},{unit.x})",
+                    MessageType.WARNING,
+                    player=user.player
+                )
+
+                if ui and hasattr(ui, 'renderer'):
+                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                    for frame in ['@', '%', '&', '&']:
+                        ui.renderer.draw_damage_text(unit.y, unit.x * 2, frame, 2)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.06)
+
+            if units_transformed > 0:
+                message_log.add_message(
+                    f"Petrifying resonance transforms {units_transformed} units into garden sculptures",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+
+            # Transform terrain/furniture on checker tiles in place
+            terrain_topiary_positions = []
+            for ty, tx in terrain_on_checker:
                 original_terrain = game.map.get_terrain_at(ty, tx)
-                # Clear original position
-                game.map.set_terrain_at(ty, tx, TerrainType.EMPTY)
-                # Also clean up any other tracking at the source
                 if hasattr(game, 'slag_wall_tiles') and (ty, tx) in game.slag_wall_tiles:
                     del game.slag_wall_tiles[(ty, tx)]
+                game.map.set_terrain_at(ty, tx, TerrainType.TOPIARY)
+                game.topiary_terrain[(ty, tx)] = {
+                    'duration': 2,
+                    'original_terrain': original_terrain,
+                    'owner': user
+                }
+                terrain_topiary_positions.append((ty, tx))
+
+                message_log.add_message(
+                    f"{original_terrain.name.replace('_', ' ').lower()} is sculpted into a topiary",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+
+            # Relocate off-checker terrain/furniture to free checker spots
+            for ty, tx in terrain_off_checker:
+                if free_idx < len(free_checker):
+                    dest_y, dest_x = free_checker[free_idx]
+                    free_idx += 1
+                else:
+                    # No free checker spot — just clear the terrain
+                    game.map.set_terrain_at(ty, tx, TerrainType.EMPTY)
+                    if hasattr(game, 'slag_wall_tiles') and (ty, tx) in game.slag_wall_tiles:
+                        del game.slag_wall_tiles[(ty, tx)]
+                    continue
+
+                original_terrain = game.map.get_terrain_at(ty, tx)
+                # Clear source
+                game.map.set_terrain_at(ty, tx, TerrainType.EMPTY)
+                if hasattr(game, 'slag_wall_tiles') and (ty, tx) in game.slag_wall_tiles:
+                    del game.slag_wall_tiles[(ty, tx)]
+
+                # Displace any unit at destination
+                _displace_unit_at(game, dest_y, dest_x, user, "petrifying resonance")
 
                 # Place topiary at destination
                 game.map.set_terrain_at(dest_y, dest_x, TerrainType.TOPIARY)
@@ -846,7 +872,6 @@ class TopiaryBreathSkill(ActiveSkill):
                 }
                 terrain_topiary_positions.append((dest_y, dest_x))
 
-                # Migrate astral values if the original terrain was furniture
                 _migrate_cosmic_values(game, ty, tx, dest_y, dest_x)
 
                 message_log.add_message(
@@ -855,22 +880,27 @@ class TopiaryBreathSkill(ActiveSkill):
                     player=user.player
                 )
 
-            # Phase 2: Fill remaining checker positions with generated topiaries
-            while checker_idx < len(checker_positions):
-                dest_y, dest_x = checker_positions[checker_idx]
-                checker_idx += 1
-                # Verify still empty (could have changed during terrain relocation)
-                if (game.map.is_passable(dest_y, dest_x) and
-                        game.get_unit_at(dest_y, dest_x) is None and
-                        (dest_y, dest_x) not in game.topiary_units and
-                        (dest_y, dest_x) not in game.topiary_terrain):
-                    game.map.set_terrain_at(dest_y, dest_x, TerrainType.TOPIARY)
-                    game.topiary_terrain[(dest_y, dest_x)] = {
-                        'duration': 2,
-                        'original_terrain': None,
-                        'owner': user
-                    }
-                    generated_topiary_positions.append((dest_y, dest_x))
+            # Fill all remaining free checker spots with generated topiaries
+            generated_topiary_positions = []
+            while free_idx < len(free_checker):
+                dest_y, dest_x = free_checker[free_idx]
+                free_idx += 1
+                # Skip if already claimed by earlier phases
+                if ((dest_y, dest_x) in game.topiary_units or
+                        (dest_y, dest_x) in game.topiary_terrain):
+                    continue
+                # Skip if terrain appeared here (e.g. from displacement cascades)
+                if not game.map.is_passable(dest_y, dest_x):
+                    continue
+                # Displace any unit that landed here from earlier displacement
+                _displace_unit_at(game, dest_y, dest_x, user, "petrifying resonance")
+                game.map.set_terrain_at(dest_y, dest_x, TerrainType.TOPIARY)
+                game.topiary_terrain[(dest_y, dest_x)] = {
+                    'duration': 2,
+                    'original_terrain': None,
+                    'owner': user
+                }
+                generated_topiary_positions.append((dest_y, dest_x))
 
             total_new = len(terrain_topiary_positions) + len(generated_topiary_positions)
             if total_new > 0:
@@ -888,6 +918,72 @@ class TopiaryBreathSkill(ActiveSkill):
                         ui.renderer.draw_damage_text(ny, nx * 2, frame, 2)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.03)
+
+        else:
+            # NON-UPGRADED: only transform caught units, no terrain fill
+            # Exclude furniture/terrain — units should not be placed on top of them
+            checker_positions = []
+            for ty, tx in all_checker_tiles:
+                if (game.map.is_passable(ty, tx) and
+                        not game.map.is_furniture(ty, tx) and
+                        game.get_unit_at(ty, tx) is None and
+                        (ty, tx) not in [(u.y, u.x) for u in caught_units]):
+                    checker_positions.append((ty, tx))
+
+            # If not enough checker positions, also use odd positions
+            if len(checker_positions) < len(caught_units):
+                for ty, tx in cone_tiles:
+                    if (ty + tx) % 2 != 0:
+                        if (game.map.is_passable(ty, tx) and
+                                not game.map.is_furniture(ty, tx) and
+                                game.get_unit_at(ty, tx) is None):
+                            checker_positions.append((ty, tx))
+                    if len(checker_positions) >= len(caught_units):
+                        break
+
+            units_transformed = 0
+            for i, unit in enumerate(caught_units):
+                if i < len(checker_positions):
+                    new_y, new_x = checker_positions[i]
+                    old_y, old_x = unit.y, unit.x
+                    unit.y = new_y
+                    unit.x = new_x
+                    game._update_unit_grid(unit, old_y, old_x)
+
+                unit.is_topiary = True
+                unit.topiary_duration = 2
+                unit.topiary_original_prt = unit.prt
+                unit.prt = 999
+                game.map.set_terrain_at(unit.y, unit.x, TerrainType.TOPIARY)
+                game.topiary_units[(unit.y, unit.x)] = {
+                    'unit': unit,
+                    'duration': 2,
+                    'original_terrain': TerrainType.EMPTY
+                }
+                units_transformed += 1
+
+                message_log.add_message(
+                    f"{unit.get_display_name()} is sculpted into a topiary at ({unit.y},{unit.x})",
+                    MessageType.WARNING,
+                    player=user.player
+                )
+
+                if ui and hasattr(ui, 'renderer'):
+                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
+                    for frame in ['@', '%', '&', '&']:
+                        ui.renderer.draw_damage_text(unit.y, unit.x * 2, frame, 2)
+                        ui.renderer.refresh()
+                        sleep_with_animation_speed(0.06)
+
+            if units_transformed > 0:
+                message_log.add_message(
+                    f"Petrifying resonance transforms {units_transformed} units into garden sculptures",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+
+            terrain_topiary_positions = []
+            generated_topiary_positions = []
 
         logger.info(f"TOPIARY BREATH EXECUTED: {user.get_display_name()} transformed "
                      f"{units_transformed} units, {len(terrain_topiary_positions)} terrain, "
