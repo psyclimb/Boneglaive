@@ -78,6 +78,13 @@ def _get_effective_position(user):
     return user.y, user.x
 
 
+def _migrate_cosmic_values(game, from_y, from_x, to_y, to_x):
+    """Copy astral values from one position to another for all players."""
+    for player_id in list(game.map.cosmic_values.keys()):
+        if (from_y, from_x) in game.map.cosmic_values[player_id]:
+            game.map.cosmic_values[player_id][(to_y, to_x)] = game.map.cosmic_values[player_id][(from_y, from_x)]
+
+
 def _displace_unit_at(game, y, x, user, reason, exclude_tiles=None, skip_unit=None):
     """Displace a unit at (y, x) to an adjacent empty passable tile.
     Returns True if a unit was displaced, False otherwise."""
@@ -442,6 +449,9 @@ class HornswoggleSkill(ActiveSkill):
         # Deposit grabbed terrain at final position
         game.map.set_terrain_at(deposit_y, deposit_x, grabbed_terrain)
 
+        # Migrate astral values from grab position to deposit position
+        _migrate_cosmic_values(game, grab_y, grab_x, deposit_y, deposit_x)
+
         # If we grabbed a topiary-unit, move the unit to the deposit position
         if grabbed_topiary_unit:
             old_y, old_x = grabbed_topiary_unit.y, grabbed_topiary_unit.x
@@ -539,6 +549,9 @@ class HornswoggleSkill(ActiveSkill):
                     if hasattr(game, 'slag_wall_tiles') and (dest_sy, dest_sx) in game.slag_wall_tiles:
                         del game.slag_wall_tiles[(dest_sy, dest_sx)]
                     game.map.set_terrain_at(dest_sy, dest_sx, terrain_here)
+
+                    # Migrate astral values from source to destination
+                    _migrate_cosmic_values(game, sy, sx, dest_sy, dest_sx)
 
                     # Move topiary-unit with its terrain
                     if sympathetic_topiary and sym_topiary_data:
@@ -832,6 +845,9 @@ class TopiaryBreathSkill(ActiveSkill):
                     'owner': user
                 }
                 terrain_topiary_positions.append((dest_y, dest_x))
+
+                # Migrate astral values if the original terrain was furniture
+                _migrate_cosmic_values(game, ty, tx, dest_y, dest_x)
 
                 message_log.add_message(
                     f"{original_terrain.name.replace('_', ' ').lower()} is sculpted into a topiary",

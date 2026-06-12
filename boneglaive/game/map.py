@@ -135,7 +135,7 @@ class GameMap:
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                           TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                          TerrainType.POTPOURRI_BOWL]:
+                          TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]:
             return None
 
         # Check if player has DELPHIC_APPRAISER
@@ -180,7 +180,7 @@ class GameMap:
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                           TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                          TerrainType.POTPOURRI_BOWL]:
+                          TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]:
             return False
 
         # Initialize player's cosmic values dict if it doesn't exist
@@ -200,7 +200,7 @@ class GameMap:
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                           TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                          TerrainType.POTPOURRI_BOWL]
+                          TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]
 
     def set_lighting_effect(self, y: int, x: int, light_type: str, color: str = "white", radius: int = 1) -> None:
         """

@@ -1779,6 +1779,7 @@ class GraphicalRenderer:
             TerrainType.CONVEYOR: "Conveyor Belt",
             TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
             TerrainType.POTPOURRI_BOWL: "Potpourri Bowl",
+            TerrainType.TOPIARY: "Topiary",
         }
         return furniture_names.get(terrain_type, "Unknown Furniture")
 

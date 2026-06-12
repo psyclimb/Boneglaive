@@ -249,7 +249,7 @@ class MarketFuturesSkill(ActiveSkill):
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                          TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                         TerrainType.POTPOURRI_BOWL]
+                         TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]
 
         # If not furniture, check if it's an enemy (with Valuation Oracle upgrade)
         is_valid_enemy = False
@@ -280,7 +280,7 @@ class MarketFuturesSkill(ActiveSkill):
             return False
 
         return True
-        
+
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue up the Market Futures skill for execution."""
         if not self.can_use(user, target_pos, game):
@@ -595,7 +595,8 @@ class MarketFuturesSkill(ActiveSkill):
             TerrainType.COT: "Cot",
             TerrainType.CONVEYOR: "Conveyor Belt",
             TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
-            TerrainType.POTPOURRI_BOWL: "Potpourri Bowl"
+            TerrainType.POTPOURRI_BOWL: "Potpourri Bowl",
+            TerrainType.TOPIARY: "Topiary"
         }
         return terrain_names.get(terrain_type, "Radio Console")
 
@@ -702,7 +703,7 @@ class AuctionCurseSkill(ActiveSkill):
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                              TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                         TerrainType.POTPOURRI_BOWL]:
+                             TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]:
                     nearby_furniture.append((y, x))
 
                     # Get astral value (will be generated if it doesn't exist yet)
@@ -893,7 +894,8 @@ class DivineDrepreciationSkill(ActiveSkill):
             TerrainType.COT: "Cot",
             TerrainType.CONVEYOR: "Conveyor Belt",
             TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
-            TerrainType.POTPOURRI_BOWL: "Potpourri Bowl"
+            TerrainType.POTPOURRI_BOWL: "Potpourri Bowl",
+            TerrainType.TOPIARY: "Topiary"
         }
         return terrain_names.get(terrain_type, "Radio Console")
 
@@ -917,7 +919,7 @@ class DivineDrepreciationSkill(ActiveSkill):
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                          TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                         TerrainType.POTPOURRI_BOWL]
+                         TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]
 
         # If not furniture, check if it's an enemy (with Valuation Oracle upgrade)
         is_valid_enemy = False
@@ -1035,7 +1037,7 @@ class DivineDrepreciationSkill(ActiveSkill):
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                              TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                         TerrainType.POTPOURRI_BOWL]:
+                             TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]:
                     other_furniture.append(pos)
                     # Ensure astral value exists for all furniture
                     game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
@@ -1669,7 +1671,7 @@ class DeftRerollSkill(ActiveSkill):
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                              TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                             TerrainType.POTPOURRI_BOWL]:
+                             TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]:
                     furniture_to_reroll.append(pos)
 
                 # With Valuation Oracle upgrade: Check for appraised enemies

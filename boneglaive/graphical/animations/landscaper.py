@@ -15,11 +15,7 @@ from boneglaive.graphical.animations.core import (
     TILE_SIZE, Particle, ParticleEmitter
 )
 
-try:
-    from boneglaive.graphical.sound_helper import play_sound
-except ImportError:
-    def play_sound(key):
-        pass
+from boneglaive.graphical.sound_helper import play_sound
 
 # ============================================================================
 # LANDSCAPER COLOR PALETTE
@@ -102,6 +98,7 @@ class TranslativeStrokeAnimation:
         # Phase 2: Impact trigger
         if self.elapsed >= self.strike_end and not self.impact_triggered:
             self.impact_triggered = True
+            play_sound("translative_stroke_impact")
             if self.particle_emitter:
                 self.particle_emitter.emit_burst(self.tx, self.ty, BURGUNDY, count=18)
                 self.particle_emitter.emit_burst(self.tx, self.ty, QUARTZ_PALE, count=8)
@@ -351,6 +348,8 @@ class HornswoggleAnimation:
         self.slag_formed = [False] * len(self.slag_screens)
         self.terrain_pos = list(self.grab_screen)  # Current flying terrain position
         self.wave_progress = 0.0
+        self.wave_sound_played = False
+        self.deposit_sound_played = False
 
         # Wave projectile state
         self.wave_x = float(sx_screen)
@@ -383,6 +382,9 @@ class HornswoggleAnimation:
         phase, phase_t = self._get_phase_elapsed()
 
         if phase == "wave":
+            if not self.wave_sound_played:
+                self.wave_sound_played = True
+                play_sound("hornswoggle_wave")
             self.wave_progress = phase_t / self.phase_timers["wave"]
             progress = self.wave_progress
 
@@ -448,6 +450,9 @@ class HornswoggleAnimation:
 
         elif phase == "deposit":
             # Deposit impact at start — reveal deposit tile
+            if not self.deposit_sound_played:
+                self.deposit_sound_played = True
+                play_sound("hornswoggle_deposit")
             if phase_t < delta_time * 2:
                 self.hidden_tiles.discard(self.deposit_grid)
                 ddx, ddy = self.deposit_screen
@@ -717,6 +722,8 @@ class TopiaryBreathAnimation:
         self.total_duration = 2.3
         self.cone_alpha = 0
         self.rows_revealed = 0
+        self.blast_sound_played = False
+        self.petrify_sound_played = False
 
     def update(self, delta_time):
         self.elapsed += delta_time
@@ -728,6 +735,9 @@ class TopiaryBreathAnimation:
 
         # Phase 2: Cone blast (0.4-1.0s)
         elif self.elapsed < 1.0:
+            if not self.blast_sound_played:
+                self.blast_sound_played = True
+                play_sound("topiary_breath_blast")
             blast_t = self.elapsed - 0.4
             new_rows = min(4, int(blast_t / 0.15) + 1)
             if new_rows > self.rows_revealed:
@@ -744,6 +754,9 @@ class TopiaryBreathAnimation:
 
         # Phase 3: Petrification (1.0-1.8s) — reveal topiary tiles progressively
         elif self.elapsed < 1.8:
+            if not self.petrify_sound_played:
+                self.petrify_sound_played = True
+                play_sound("topiary_breath_petrify")
             pet_t = self.elapsed - 1.0
             for i, (px, py) in enumerate(self.petrify_targets):
                 trigger_time = i * 0.1
@@ -987,6 +1000,7 @@ class DissonanceAnimation:
         elif self.elapsed < self.shatter_end:
             if not self.shatter_triggered:
                 self.shatter_triggered = True
+                play_sound("dissonance_shatter")
                 self.terrain_visible = False  # Terrain is now gone
                 intensity = 10 if self.is_topiary else 8
                 if self.screen_shake:
@@ -1002,6 +1016,7 @@ class DissonanceAnimation:
 
                 # Create 8-directional shrapnel (delayed if upgraded — fires after whirl)
                 if not self.is_upgraded:
+                    play_sound("dissonance_shrapnel")
                     self._create_shrapnel()
 
                 # Upgraded: hide destination tiles during whirl
@@ -1038,6 +1053,7 @@ class DissonanceAnimation:
                 # Flash + shake at end of suction to announce the whirl
                 if suction_t > 0.95 and not self.whirl_suction_done:
                     self.whirl_suction_done = True
+                    play_sound("dissonance_whirl")
                     if self.screen_shake:
                         self.screen_shake(7, 0.5)
                     if self.screen_flash:
@@ -1094,6 +1110,7 @@ class DissonanceAnimation:
                 # Create shrapnel near end of landing
                 if not self.whirl_shrapnel_created and whirl_t > 0.9:
                     self.whirl_shrapnel_created = True
+                    play_sound("dissonance_shrapnel")
                     self._create_shrapnel()
 
         # Phase 4: Shrapnel flies outward

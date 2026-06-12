@@ -3170,6 +3170,11 @@ class Game:
                     if self.map.get_terrain_at(unit.y, unit.x) == TerrainType.TOPIARY:
                         self.map.set_terrain_at(unit.y, unit.x, TerrainType.EMPTY)
 
+                    # Clean up astral values at this position (no longer furniture)
+                    for player_id in list(self.map.cosmic_values.keys()):
+                        if (unit.y, unit.x) in self.map.cosmic_values[player_id]:
+                            del self.map.cosmic_values[player_id][(unit.y, unit.x)]
+
                     # Remove from topiary tracking
                     if hasattr(self, 'topiary_units') and (unit.y, unit.x) in self.topiary_units:
                         del self.topiary_units[(unit.y, unit.x)]
@@ -3359,6 +3364,13 @@ class Game:
                     self.map.set_terrain_at(pos_y, pos_x, original)
                 else:
                     self.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
+
+                # Clean up astral values if reverting to non-furniture
+                if not self.map.is_furniture(pos_y, pos_x):
+                    for player_id in list(self.map.cosmic_values.keys()):
+                        if (pos_y, pos_x) in self.map.cosmic_values[player_id]:
+                            del self.map.cosmic_values[player_id][(pos_y, pos_x)]
+
                 del self.topiary_terrain[pos_tuple]
 
             # Signal graphical system — reuse existing topiary revert animation

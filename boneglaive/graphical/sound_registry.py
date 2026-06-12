@@ -392,25 +392,20 @@ MULTI_EVENT_SOUNDS = {
     "aerosolize_extract": "sounds/skills/aerosolize_extract.wav",  # Weapon extracted and aerosolized — metallic dissolve
     "aerosolize_disarm": "sounds/skills/aerosolize_disarm.wav",    # Disarm applied — hollow clank of weapon gone
 
-    # LANDSCAPER - Basic Attack / Translative Stroke (3 events)
-    "translative_stroke_fork": "sounds/skills/translative_stroke_fork.wav",      # Individual tuning fork strike — crystalline metallic ping
+    # LANDSCAPER - Basic Attack / Translative Stroke (1 event)
     "translative_stroke_impact": "sounds/skills/translative_stroke_impact.wav",  # Fork connecting with target — resonant thud
-    "translative_stroke_final": "sounds/skills/translative_stroke_final.wav",    # Fourth fork culmination — harmonic convergence burst
 
-    # LANDSCAPER - Hornswoggle (4 events)
+    # LANDSCAPER - Hornswoggle (2 events)
     "hornswoggle_wave": "sounds/skills/hornswoggle_wave.wav",        # Sonic wave fires from horn array — deep brass blast
-    "hornswoggle_grab": "sounds/skills/hornswoggle_grab.wav",        # Terrain grabbed by resonance — heavy stone crunch
-    "hornswoggle_drag": "sounds/skills/hornswoggle_drag.wav",        # Terrain dragged through air — grinding rumble with slag crackle
     "hornswoggle_deposit": "sounds/skills/hornswoggle_deposit.wav",  # Terrain deposited at destination — heavy impact slam
 
-    # LANDSCAPER - Topiary Breath (3 events)
-    "topiary_breath_charge": "sounds/skills/topiary_breath_charge.wav",    # Horn array charging — ascending harmonic tone
+    # LANDSCAPER - Topiary Breath (2 events)
     "topiary_breath_blast": "sounds/skills/topiary_breath_blast.wav",      # Petrifying cone erupts — wide resonant roar
     "topiary_breath_petrify": "sounds/skills/topiary_breath_petrify.wav",  # Units crystallize into topiary — crackling solidification
 
     # LANDSCAPER - Dissonance (3 events)
-    "dissonance_converge": "sounds/skills/dissonance_converge.wav",    # Acoustic gyre impacts terrain — resonant convergence
     "dissonance_shatter": "sounds/skills/dissonance_shatter.wav",      # Terrain shatters explosively — heavy stone detonation
+    "dissonance_whirl": "sounds/skills/dissonance_whirl.wav",          # Upgraded: terrain tiles ripped into CCW arc — grinding vortex roar
     "dissonance_shrapnel": "sounds/skills/dissonance_shrapnel.wav",    # Shrapnel radiates outward — sharp fragments whistling through air
 }
 
