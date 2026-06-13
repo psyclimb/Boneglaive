@@ -133,10 +133,24 @@ class TacticalEvaluator:
                     severance_pos = self._derelictionist_best_retreat(unit, enemy)
                     effective_damage = self.game.chess_distance(
                         severance_pos[0], severance_pos[1], enemy.y, enemy.x)
+                elif unit.type == UnitType.LANDSCAPER:
+                    # Translative Stroke: 4 hits x max(1, ATK - target DEF)
+                    target_def = enemy.get_effective_stats().get('defense', 0)
+                    from boneglaive.game.upgrades import UpgradeManager
+                    if UpgradeManager.is_skill_upgraded(unit, "Translative Stroke"):
+                        per_hit = max(1, stats['attack'])
+                    else:
+                        per_hit = max(1, stats['attack'] - target_def)
+                    effective_damage = 4 * per_hit
                 else:
                     effective_damage = damage
 
                 score = self._score_attack(unit, enemy, analysis, plan, effective_damage)
+
+                # LANDSCAPER: cooldown cycling bonus — attacks reduce skill cooldowns
+                if unit.type == UnitType.LANDSCAPER:
+                    score += self._landscaper_cooldown_cycling_bonus(unit, effective_damage)
+
                 action = Action("attack", target=enemy, priority=score)
                 action.data['can_kill'] = enemy.hp <= effective_damage
                 if unit.type == UnitType.DERELICTIONIST:
@@ -442,6 +456,16 @@ class TacticalEvaluator:
             # Return early - DELPHIC_APPRAISER skills are handled by special evaluator
             return actions
 
+        # Check for LANDSCAPER special handling
+        if unit.type == UnitType.LANDSCAPER:
+            try:
+                landscaper_actions = self._evaluate_landscaper_skills(unit, analysis, plan)
+                actions.extend(landscaper_actions)
+                logger.debug(f"        LANDSCAPER: Found {len(landscaper_actions)} skill actions")
+            except Exception as e:
+                logger.error(f"        Error evaluating LANDSCAPER skills: {e}")
+            return actions
+
         # Evaluate each available skill
         for skill in available_skills:
             # Check for skills requiring special AI handling
@@ -686,12 +710,24 @@ class TacticalEvaluator:
                     # DERELICTIONIST: damage = chess distance from the move position
                     if unit.type == UnitType.DERELICTIONIST:
                         effective_damage = distance_from_new_pos
+                    elif unit.type == UnitType.LANDSCAPER:
+                        target_def = enemy.get_effective_stats().get('defense', 0)
+                        from boneglaive.game.upgrades import UpgradeManager
+                        if UpgradeManager.is_skill_upgraded(unit, "Translative Stroke"):
+                            per_hit = max(1, stats['attack'])
+                        else:
+                            per_hit = max(1, stats['attack'] - target_def)
+                        effective_damage = 4 * per_hit
                     else:
                         effective_damage = damage
 
                     # Score the combo: position value + attack value
                     move_score = self._score_move_position(unit, pos, analysis, plan)
                     attack_score = self._score_attack(unit, enemy, analysis, plan, effective_damage)
+
+                    # LANDSCAPER: cooldown cycling bonus
+                    if unit.type == UnitType.LANDSCAPER:
+                        attack_score += self._landscaper_cooldown_cycling_bonus(unit, effective_damage)
 
                     # Combo score is sum with a bonus
                     combo_score = move_score + attack_score + 10
@@ -2548,3 +2584,340 @@ class TacticalEvaluator:
                     best_pos = (ny, nx)
 
         return best_pos
+
+    # ========================================================================
+    # LANDSCAPER skill evaluation
+    # ========================================================================
+
+    def _landscaper_cooldown_cycling_bonus(self, unit: 'Unit', expected_damage: int) -> float:
+        """Score bonus for LANDSCAPER attacks based on cooldown cycling value.
+        Translative Stroke reduces all skill cooldowns by damage dealt."""
+        skills_on_cd = 0
+        total_cd_remaining = 0
+        for skill in unit.active_skills:
+            if skill.current_cooldown > 0:
+                skills_on_cd += 1
+                total_cd_remaining += skill.current_cooldown
+
+        if skills_on_cd == 0:
+            return 0.0
+
+        bonus = skills_on_cd * 5.0
+        cd_reduced = min(expected_damage, total_cd_remaining)
+        bonus += cd_reduced * 2.0
+        return min(bonus, 40.0)
+
+    def _evaluate_landscaper_skills(self, unit: 'Unit', analysis: 'BattlefieldAnalysis',
+                                     plan: 'StrategicPlan') -> List[Action]:
+        """Evaluate all LANDSCAPER skills: Hornswoggle, Topiary Breath, Dissonance."""
+        actions = []
+        available_skills = unit.get_available_skills()
+
+        hornswoggle = None
+        topiary_breath = None
+        dissonance = None
+
+        for skill in available_skills:
+            if skill.name == "Hornswoggle":
+                hornswoggle = skill
+            elif skill.name == "Topiary Breath":
+                topiary_breath = skill
+            elif skill.name == "Dissonance":
+                dissonance = skill
+
+        if hornswoggle:
+            try:
+                actions.extend(self._evaluate_hornswoggle(unit, hornswoggle, analysis, plan))
+            except Exception as e:
+                logger.error(f"        Error evaluating Hornswoggle: {e}")
+
+        if topiary_breath:
+            try:
+                actions.extend(self._evaluate_topiary_breath(unit, topiary_breath, analysis, plan))
+            except Exception as e:
+                logger.error(f"        Error evaluating Topiary Breath: {e}")
+
+        if dissonance:
+            try:
+                actions.extend(self._evaluate_dissonance(unit, dissonance, analysis, plan))
+            except Exception as e:
+                logger.error(f"        Error evaluating Dissonance: {e}")
+
+        return actions
+
+    def _evaluate_hornswoggle(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                               plan: 'StrategicPlan') -> List[Action]:
+        """Evaluate Hornswoggle in all 8 directions."""
+        from boneglaive.game.skills.landscaper import DIRECTION_VECTORS, DRAG_DIRECTION_CCW
+
+        actions = []
+
+        for dir_name, (dy, dx) in DIRECTION_VECTORS.items():
+            # Find terrain in this direction using the skill's own method
+            grab_pos = skill._find_terrain_in_direction(unit.y, unit.x, dir_name, self.game)
+            if not grab_pos:
+                continue  # No terrain or unit blocks wave
+
+            grab_y, grab_x = grab_pos
+
+            # Simulate drag path (90° CCW from fire direction)
+            drag_dir = DRAG_DIRECTION_CCW[dir_name]
+            drag_dy, drag_dx = DIRECTION_VECTORS[drag_dir]
+
+            drag_tiles = []  # (y, x) for slag + deposit
+            deposit_pos = (grab_y, grab_x)  # Fallback: stays in place
+            for dist in range(1, 5):  # DRAG_RANGE = 4
+                tile_y = grab_y + drag_dy * dist
+                tile_x = grab_x + drag_dx * dist
+                if not self.game.is_valid_position(tile_y, tile_x):
+                    break
+                drag_tiles.append((tile_y, tile_x))
+                deposit_pos = (tile_y, tile_x)
+
+            # Separate slag tiles (all except last) and deposit tile (last)
+            slag_tiles = drag_tiles[:-1] if len(drag_tiles) > 1 else []
+            all_affected_tiles = drag_tiles  # Slag + deposit
+
+            # Score this direction
+            score = 30.0
+
+            # Enemy displacement at slag/deposit tiles
+            for ty, tx in all_affected_tiles:
+                displaced_unit = self.game.get_unit_at(ty, tx)
+                if displaced_unit and displaced_unit.is_alive() and displaced_unit.player != unit.player:
+                    score += 25.0
+                    if displaced_unit in plan.focus_targets:
+                        score += 15.0
+
+            # Slag wall creation value
+            score += len(slag_tiles) * 10.0
+
+            # Combo setup: deposit position near enemies (future Dissonance target)
+            dep_y, dep_x = deposit_pos
+            for enemy in analysis.enemy_units:
+                if enemy.type == UnitType.HEINOUS_VAPOR:
+                    continue
+                dist = self.game.chess_distance(dep_y, dep_x, enemy.y, enemy.x)
+                if dist <= 2:
+                    score += 20.0
+                elif dist <= 4:
+                    score += 10.0
+
+            # Grabbing an enemy topiary (dragging immobilized enemy)
+            if hasattr(self.game, 'topiary_units') and (grab_y, grab_x) in self.game.topiary_units:
+                topiary_data = self.game.topiary_units[(grab_y, grab_x)]
+                if topiary_data['unit'].player != unit.player:
+                    score += 35.0
+
+            # Strategy bonus
+            if plan.strategy.value in ["aggressive_push", "desperate_rush"]:
+                score += 15.0
+
+            # Penalty: removing terrain that shields allies
+            for ally in analysis.ai_units:
+                if ally == unit:
+                    continue
+                # If grabbed terrain is between this ally and an enemy, penalty
+                for enemy in analysis.enemy_units:
+                    if enemy.type == UnitType.HEINOUS_VAPOR:
+                        continue
+                    ally_dist_to_grab = self.game.chess_distance(ally.y, ally.x, grab_y, grab_x)
+                    enemy_dist_to_grab = self.game.chess_distance(enemy.y, enemy.x, grab_y, grab_x)
+                    if ally_dist_to_grab <= 2 and enemy_dist_to_grab <= 3:
+                        score -= 15.0
+                        break  # Only penalize once per ally
+
+            if score < 25:
+                continue
+
+            target_pos = (unit.y + dy, unit.x + dx)
+            action = Action("skill", target=(skill, target_pos), priority=score)
+            action.data['direction'] = dir_name
+            action.data['grab_pos'] = grab_pos
+            actions.append(action)
+            logger.debug(f"          Hornswoggle {dir_name}: score={score:.1f}, grab=({grab_y},{grab_x})")
+
+        return actions
+
+    def _evaluate_topiary_breath(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                                  plan: 'StrategicPlan') -> List[Action]:
+        """Evaluate Topiary Breath in all 8 directions."""
+        from boneglaive.game.skills.landscaper import DIRECTION_VECTORS, _get_cone_tiles
+
+        actions = []
+
+        for dir_name, (dy, dx) in DIRECTION_VECTORS.items():
+            cone_tiles = _get_cone_tiles(unit.y, unit.x, dir_name, self.game)
+            if not cone_tiles:
+                continue
+
+            enemies_caught = []
+            allies_caught = []
+
+            for ty, tx in cone_tiles:
+                target = self.game.get_unit_at(ty, tx)
+                if not target or target == unit or not target.is_alive():
+                    continue
+                # Skip units immune to effects (Stasiality)
+                if hasattr(target, 'is_immune_to_effects') and target.is_immune_to_effects():
+                    continue
+                # Skip already-topiary units
+                if getattr(target, 'is_topiary', False):
+                    continue
+                if target.player != unit.player:
+                    enemies_caught.append(target)
+                else:
+                    allies_caught.append(target)
+
+            if not enemies_caught:
+                continue
+
+            score = 0.0
+
+            # Enemy value
+            for enemy in enemies_caught:
+                score += 50.0
+                # Priority target bonus
+                for pt, ps in analysis.priority_targets[:3]:
+                    if pt == enemy:
+                        score += 30.0
+                        break
+                # Focus target bonus
+                if enemy in plan.focus_targets:
+                    score += 20.0
+                # Threat neutralization value
+                enemy_pos = (enemy.y, enemy.x)
+                if enemy_pos in analysis.threat_map:
+                    threat = analysis.threat_map[enemy_pos]
+                    score += min(threat.threat_level * 2, 30.0)
+
+            # Multi-enemy bonus
+            if len(enemies_caught) >= 2:
+                score += 30.0
+            if len(enemies_caught) >= 3:
+                score += 25.0
+
+            # Ally penalty — catastrophic
+            for ally in allies_caught:
+                score -= 80.0
+                if ally.hp > ally.max_hp * 0.5:
+                    score -= 20.0
+
+            # Strategy bonus
+            if plan.strategy.value in ["aggressive_push", "desperate_rush"]:
+                score += 20.0
+
+            # Combo setup: Dissonance available soon
+            for s in unit.active_skills:
+                if s.name == "Dissonance" and s.current_cooldown <= 2:
+                    score += len(enemies_caught) * 15.0
+                    break
+
+            if score < 40:
+                continue
+
+            target_pos = (unit.y + dy, unit.x + dx)
+            action = Action("skill", target=(skill, target_pos), priority=score)
+            action.data['direction'] = dir_name
+            action.data['enemies_caught'] = len(enemies_caught)
+            action.data['allies_caught'] = len(allies_caught)
+            actions.append(action)
+            logger.debug(f"          Topiary Breath {dir_name}: score={score:.1f}, "
+                        f"enemies={len(enemies_caught)}, allies={len(allies_caught)}")
+
+        return actions
+
+    def _evaluate_dissonance(self, unit: 'Unit', skill, analysis: 'BattlefieldAnalysis',
+                              plan: 'StrategicPlan') -> List[Action]:
+        """Evaluate Dissonance on all valid terrain targets within range 4."""
+        from boneglaive.game.skills.landscaper import DIRECTION_VECTORS
+
+        actions = []
+        source_y, source_x = unit.y, unit.x
+        shrapnel_damage = 5
+        shrapnel_range = 2
+
+        # Find all terrain targets within range 4
+        for y in range(max(0, source_y - 4), min(self.game.map.height, source_y + 5)):
+            for x in range(max(0, source_x - 4), min(self.game.map.width, source_x + 5)):
+                if self.game.chess_distance(source_y, source_x, y, x) > 4:
+                    continue
+
+                is_terrain = not self.game.map.is_passable(y, x) or self.game.map.is_furniture(y, x)
+                is_topiary = hasattr(self.game, 'topiary_units') and (y, x) in self.game.topiary_units
+                if not is_terrain and not is_topiary:
+                    continue
+
+                # Simulate shrapnel: 8 directions, range 2, stops at terrain, passes through units
+                enemies_hit = set()
+                for dir_name, (sdy, sdx) in DIRECTION_VECTORS.items():
+                    for dist in range(1, shrapnel_range + 1):
+                        shrap_y = y + sdy * dist
+                        shrap_x = x + sdx * dist
+                        if not self.game.is_valid_position(shrap_y, shrap_x):
+                            break
+                        # Stop at terrain (shrapnel blocked)
+                        if not self.game.map.is_passable(shrap_y, shrap_x):
+                            break
+                        # Check for enemy units (no friendly fire)
+                        hit_unit = self.game.get_unit_at(shrap_y, shrap_x)
+                        if (hit_unit and hit_unit.is_alive() and
+                                hit_unit.player != unit.player and
+                                hit_unit.type != UnitType.HEINOUS_VAPOR):
+                            enemies_hit.add(hit_unit)
+
+                score = 0.0
+
+                # Topiary handling
+                if is_topiary:
+                    topiary_data = self.game.topiary_units.get((y, x))
+                    if topiary_data:
+                        topiary_unit = topiary_data['unit']
+                        if topiary_unit.player == unit.player:
+                            score += 70.0  # Freeing an ally!
+                        elif not enemies_hit:
+                            score -= 30.0  # Freeing enemy with no shrapnel value
+
+                # Shrapnel damage value
+                for enemy in enemies_hit:
+                    score += shrapnel_damage * 3  # 15 per hit
+                    if enemy.hp <= shrapnel_damage:
+                        score += 40.0
+                    for pt, ps in analysis.priority_targets[:3]:
+                        if pt == enemy:
+                            score += 25.0
+                            break
+                    if enemy in plan.focus_targets:
+                        score += 20.0
+
+                # Multi-hit bonus
+                if len(enemies_hit) >= 2:
+                    score += 25.0
+                if len(enemies_hit) >= 3:
+                    score += 20.0
+
+                # Strategy bonus
+                if plan.strategy.value in ["aggressive_push", "desperate_rush"]:
+                    score += 15.0
+
+                # Slight reluctance to destroy own slag walls
+                if hasattr(self.game, 'slag_wall_tiles') and (y, x) in self.game.slag_wall_tiles:
+                    score -= 5.0
+
+                if score < 30:
+                    continue
+
+                target_pos = (y, x)
+                action = Action("skill", target=(skill, target_pos), priority=score)
+                action.data['target_pos'] = target_pos
+                action.data['enemies_hit'] = len(enemies_hit)
+                action.data['is_topiary'] = is_topiary
+                actions.append(action)
+
+        if actions:
+            # Log only the best one to avoid spam
+            best = max(actions, key=lambda a: a.priority)
+            logger.debug(f"          Dissonance: {len(actions)} targets, best score={best.priority:.1f} "
+                        f"at {best.data['target_pos']}, hits={best.data['enemies_hit']}")
+
+        return actions

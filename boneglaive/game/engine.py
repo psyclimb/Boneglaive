@@ -329,7 +329,8 @@ class Game:
                     UnitType.FOWL_CONTRIVANCE,
                     UnitType.DELPHIC_APPRAISER,
                     UnitType.GAS_MACHINIST,
-                    UnitType.DERELICTIONIST
+                    UnitType.DERELICTIONIST,
+                    UnitType.LANDSCAPER
                 ]
 
                 # Track unit counts to enforce max 1 of each type (no duplicates)
@@ -678,7 +679,8 @@ class Game:
                     UnitType.FOWL_CONTRIVANCE,
                     UnitType.DELPHIC_APPRAISER,
                     UnitType.GAS_MACHINIST,
-                    UnitType.DERELICTIONIST
+                    UnitType.DERELICTIONIST,
+                    UnitType.LANDSCAPER
                 ]
                 
                 # Track unit counts to enforce max 1 of each type (no duplicates)
@@ -813,7 +815,8 @@ class Game:
                     UnitType.FOWL_CONTRIVANCE,
                     UnitType.DELPHIC_APPRAISER,
                     UnitType.GAS_MACHINIST,
-                    UnitType.DERELICTIONIST
+                    UnitType.DERELICTIONIST,
+                    UnitType.LANDSCAPER
                 ]
                 
                 # Count existing units for player 2

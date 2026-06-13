@@ -1062,12 +1062,12 @@ class DissonanceAnimation:
                 if self.particle_emitter:
                     self.particle_emitter.emit_burst(self.target_x, self.target_y, BURGUNDY, count=15)
                     self.particle_emitter.emit_burst(self.target_x, self.target_y, QUARTZ_PALE, count=8)
-                # Generate crack lines radiating from center
-                half = TILE_SIZE // 2
+                # Generate crack lines radiating from center (scaled to AoE)
+                aoe_r = 2 * TILE_SIZE + TILE_SIZE // 2
                 num_cracks = 6 if not self.is_topiary else 8
                 for i in range(num_cracks):
                     angle = (math.tau / num_cracks) * i + random.uniform(-0.2, 0.2)
-                    length = random.uniform(half * 0.5, half * 0.95)
+                    length = random.uniform(aoe_r * 0.5, aoe_r * 0.95)
                     self.cracks.append({
                         'angle': angle, 'length': length,
                         'width': random.randint(1, 3),
@@ -1358,8 +1358,9 @@ class DissonanceAnimation:
             shatter_t = (self.elapsed - self.impact_end) / (self.shatter_end - self.impact_end)
             tx, ty = int(self.target_x), int(self.target_y)
 
-            # Expanding shatter burst — burgundy core with dragon_eye ring
-            burst_r = int(8 + 35 * shatter_t)
+            # Expanding shatter burst — sized to match shrapnel AoE diameter
+            aoe_r = 2 * TILE_SIZE + TILE_SIZE // 2  # shrapnel range 2 + half center tile
+            burst_r = int(8 + (aoe_r - 8) * shatter_t)
             burst_alpha = int(240 * (1 - shatter_t))
             if burst_alpha > 0:
                 pygame.draw.circle(overlay, (*BURGUNDY, burst_alpha), (tx, ty), burst_r)
