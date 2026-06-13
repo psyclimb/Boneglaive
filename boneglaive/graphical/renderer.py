@@ -4159,18 +4159,6 @@ class GraphicalRenderer:
                     (GRID_OFFSET_X + grid_x * TILE_SIZE, GRID_OFFSET_Y + grid_y * TILE_SIZE)
                 )
 
-        # Draw respawn valid tiles (cyan/green)
-        if self.respawn_selecting_location and self.respawn_valid_tiles:
-            respawn_color = (100, 255, 150)  # Green for respawn
-            for y, x in self.respawn_valid_tiles:
-                indicator_surf.fill((0, 0, 0, 0))
-                pygame.draw.rect(indicator_surf, (*respawn_color, 80), indicator_rect)
-                pygame.draw.rect(indicator_surf, (*respawn_color, 180), indicator_rect, 3)
-                surface.blit(
-                    indicator_surf,
-                    (GRID_OFFSET_X + x * TILE_SIZE, GRID_OFFSET_Y + y * TILE_SIZE)
-                )
-
         # Draw respawn ghost preview
         if self.respawn_selecting_location and self.respawn_ghost_pos and self.selected_dead_unit:
             ghost_x, ghost_y = self.respawn_ghost_pos
