@@ -1121,7 +1121,7 @@ class DissonanceAnimation:
                 if self.particle_emitter:
                     if random.random() < 0.6 + 0.3 * suction_t:
                         angle = random.uniform(0, math.tau)
-                        dist = TILE_SIZE * (2.0 - 0.8 * suction_t)
+                        dist = TILE_SIZE * (3.0 - 1.0 * suction_t)
                         px = self.target_x + math.cos(angle) * dist
                         py = self.target_y + math.sin(angle) * dist
                         self.particle_emitter.emit_trail(px, py,
@@ -1396,7 +1396,7 @@ class DissonanceAnimation:
             else:
                 vortex_intensity = max(0, (1 - whirl_t) / (1 - ARC_END))
 
-            hurricane_r = TILE_SIZE * 1.5
+            hurricane_r = TILE_SIZE * 2.5
             if whirl_t < SUCTION_END:
                 base_angle = -(whirl_t * math.tau * 0.5)
             else:

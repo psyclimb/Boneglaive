@@ -49,17 +49,29 @@ DRAG_DIRECTION_CCW = {
     'NW': 'SW',
 }
 
-# CCW rotation for the 3x3 ring around Dissonance impact (upgrade)
-# Each (dy, dx) offset maps to its CCW neighbor
+# CCW rotation for the 5x5 ring around Dissonance impact (upgrade)
+# Each (dy, dx) offset maps to its CCW neighbor on the perimeter
 RING_CCW = {
-    (-1,  0): (-1, -1),   # N  → NW
-    (-1, -1): ( 0, -1),   # NW → W
-    ( 0, -1): ( 1, -1),   # W  → SW
-    ( 1, -1): ( 1,  0),   # SW → S
-    ( 1,  0): ( 1,  1),   # S  → SE
-    ( 1,  1): ( 0,  1),   # SE → E
-    ( 0,  1): (-1,  1),   # E  → NE
-    (-1,  1): (-1,  0),   # NE → N
+    # Top row (left to right)
+    (-2, -2): (-2, -1),
+    (-2, -1): (-2,  0),
+    (-2,  0): (-2,  1),
+    (-2,  1): (-2,  2),
+    # Right column (top to bottom)
+    (-2,  2): (-1,  2),
+    (-1,  2): ( 0,  2),
+    ( 0,  2): ( 1,  2),
+    ( 1,  2): ( 2,  2),
+    # Bottom row (right to left)
+    ( 2,  2): ( 2,  1),
+    ( 2,  1): ( 2,  0),
+    ( 2,  0): ( 2, -1),
+    ( 2, -1): ( 2, -2),
+    # Left column (bottom to top)
+    ( 2, -2): ( 1, -2),
+    ( 1, -2): ( 0, -2),
+    ( 0, -2): (-1, -2),
+    (-1, -2): (-2, -2),
 }
 
 
@@ -1183,13 +1195,13 @@ class DissonanceSkill(ActiveSkill):
                 player=user.player
             )
 
-        # Upgraded: CCW terrain rotation in 3x3 ring around impact
+        # Upgraded: CCW terrain rotation in 5x5 ring around impact
         from boneglaive.game.upgrades import UpgradeManager
         is_upgraded = UpgradeManager.is_skill_upgraded(user, "Dissonance")
         rotated_tiles = []
 
         if is_upgraded:
-            # Snapshot all 8 ring positions before any changes
+            # Snapshot all 16 ring positions before any changes
             ring_snapshot = {}
             for (dy, dx) in RING_CCW:
                 ry, rx = ty + dy, tx + dx
@@ -1209,6 +1221,8 @@ class DissonanceSkill(ActiveSkill):
                 slag_data = None
                 topiary_terrain_data = None
                 topiary_unit_data = None
+                marrow_dike_data = None
+                derelict_data = None
 
                 if hasattr(game, 'slag_wall_tiles') and (ry, rx) in game.slag_wall_tiles:
                     slag_data = game.slag_wall_tiles[(ry, rx)].copy()
@@ -1216,6 +1230,10 @@ class DissonanceSkill(ActiveSkill):
                     topiary_terrain_data = game.topiary_terrain[(ry, rx)].copy()
                 if hasattr(game, 'topiary_units') and (ry, rx) in game.topiary_units:
                     topiary_unit_data = game.topiary_units[(ry, rx)].copy()
+                if hasattr(game, 'marrow_dike_tiles') and (ry, rx) in game.marrow_dike_tiles:
+                    marrow_dike_data = game.marrow_dike_tiles[(ry, rx)].copy()
+                if hasattr(game, 'derelict_building_tiles') and (ry, rx) in game.derelict_building_tiles:
+                    derelict_data = game.derelict_building_tiles[(ry, rx)].copy()
 
                 ring_snapshot[(dy, dx)] = {
                     'pos': (ry, rx),
@@ -1223,6 +1241,8 @@ class DissonanceSkill(ActiveSkill):
                     'slag': slag_data,
                     'topiary_terrain': topiary_terrain_data,
                     'topiary_unit': topiary_unit_data,
+                    'marrow_dike': marrow_dike_data,
+                    'derelict': derelict_data,
                 }
 
             # Clear all source positions
@@ -1237,6 +1257,10 @@ class DissonanceSkill(ActiveSkill):
                     del game.topiary_terrain[(ry, rx)]
                 if hasattr(game, 'topiary_units') and (ry, rx) in game.topiary_units:
                     del game.topiary_units[(ry, rx)]
+                if hasattr(game, 'marrow_dike_tiles') and (ry, rx) in game.marrow_dike_tiles:
+                    del game.marrow_dike_tiles[(ry, rx)]
+                if hasattr(game, 'derelict_building_tiles') and (ry, rx) in game.derelict_building_tiles:
+                    del game.derelict_building_tiles[(ry, rx)]
 
             # Place terrain at CCW destinations
             units_to_displace = []
@@ -1258,6 +1282,10 @@ class DissonanceSkill(ActiveSkill):
                     game.slag_wall_tiles[(dest_y, dest_x)] = snap['slag']
                 if snap['topiary_terrain']:
                     game.topiary_terrain[(dest_y, dest_x)] = snap['topiary_terrain']
+                if snap['marrow_dike']:
+                    game.marrow_dike_tiles[(dest_y, dest_x)] = snap['marrow_dike']
+                if snap['derelict']:
+                    game.derelict_building_tiles[(dest_y, dest_x)] = snap['derelict']
 
                 # Move topiary-unit with its terrain
                 if snap['topiary_unit']:
