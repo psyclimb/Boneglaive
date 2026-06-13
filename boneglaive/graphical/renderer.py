@@ -417,6 +417,7 @@ class GraphicalRenderer:
 
             # Verdant Terrace map terrain and furniture
             TerrainType.UNDERGROWTH: asset_path("graphics/terrain/undergrowth.svg"),
+            TerrainType.FLAGSTONE: asset_path("graphics/terrain/flagstone.svg"),
             TerrainType.PYLON: asset_path("graphics/terrain/pylon.svg"),
             TerrainType.SUNDIAL: asset_path("graphics/furniture/sundial.svg"),
             TerrainType.FIRE_PIT: asset_path("graphics/furniture/fire_pit.svg"),

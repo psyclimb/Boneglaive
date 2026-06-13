@@ -653,6 +653,9 @@ class UIRenderer:
                     tile = self.game_ui.asset_manager.get_terrain_tile("undergrowth")
                     color_id = 3  # Green on black for jungle floor
                     tile_attr = curses.A_DIM
+                elif terrain == TerrainType.FLAGSTONE:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("flagstone")
+                    color_id = 11  # Normal white for stone paving
                 elif terrain == TerrainType.PYLON:
                     tile = self.game_ui.asset_manager.get_terrain_tile("pylon")
                     color_id = 12  # White for blocking terrain

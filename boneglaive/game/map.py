@@ -58,6 +58,7 @@ class TerrainType(Enum):
     TERRACOTTA = 39  # Glazed terracotta planter with lush ferns, blocks movement but not line of sight
     LITHOPHONE = 40  # Resonant stone slab on a frame, blocks movement but not line of sight
     RATTAN_CHAIR = 41  # Woven rattan armchair, blocks movement but not line of sight
+    FLAGSTONE = 42  # Cut stone paving, visual only (passable) - Verdant Terrace floor
 
 
 class GameMap:
@@ -114,13 +115,13 @@ class GameMap:
         terrain = self.get_terrain_at(y, x)
         # All furniture types, pillars, limestone, stained stone, and marrow walls are impassable
         # Rails, canyon floor, concrete floor, leaf pits, melange fumes, blood plasma, and mini pumpkins are passable by all units
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN, TerrainType.UNDERGROWTH]
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN, TerrainType.UNDERGROWTH, TerrainType.FLAGSTONE]
 
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
         terrain = self.get_terrain_at(y, x)
         # Units can be placed on empty, dusty, canyon floor, concrete floor, rail tiles, leaf pits, melange fumes, blood plasma, mini pumpkins, or undergrowth
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN, TerrainType.UNDERGROWTH]
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN, TerrainType.UNDERGROWTH, TerrainType.FLAGSTONE]
         
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""
@@ -1106,11 +1107,15 @@ class VerdantTerraceMap(GameMap):
         for y, x in rattan_chair_positions:
             self.set_terrain_at(y, x, TerrainType.RATTAN_CHAIR)
 
-        # Undergrowth floor (fill all remaining EMPTY tiles)
+        # Floor: flagstone terrace in the center, undergrowth at the jungle edges
+        # Terrace area: cols 3-16, rows 1-8 (inner rectangle)
         for y in range(self.height):
             for x in range(self.width):
                 if self.get_terrain_at(y, x) == TerrainType.EMPTY:
-                    self.set_terrain_at(y, x, TerrainType.UNDERGROWTH)
+                    if 1 <= y <= 8 and 3 <= x <= 16:
+                        self.set_terrain_at(y, x, TerrainType.FLAGSTONE)
+                    else:
+                        self.set_terrain_at(y, x, TerrainType.UNDERGROWTH)
 
 
 class MapFactory:

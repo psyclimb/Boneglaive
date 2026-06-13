@@ -88,7 +88,8 @@ class AssetManager:
             'granite_sphere': 'O', # Capital O for large round sphere
             'terracotta': 'U',     # Capital U for planter shape
             'lithophone': '=',     # Equals sign for flat stone slab
-            'rattan_chair': 'h'    # Lowercase h for chair silhouette
+            'rattan_chair': 'h',   # Lowercase h for chair silhouette
+            'flagstone': '.'       # Period for paved terrace floor (like other floors)
         }
         
         # UI symbols
