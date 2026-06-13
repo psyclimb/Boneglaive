@@ -46,17 +46,17 @@ class Position:
         return (self.y, self.x)
     
     def distance_to(self, other: Union['Position', Tuple[int, int]]) -> int:
-        """Calculate Manhattan distance to another position."""
+        """Calculate Chebyshev (chess) distance to another position."""
         if isinstance(other, Position):
-            return abs(self.y - other.y) + abs(self.x - other.x)
+            return max(abs(self.y - other.y), abs(self.x - other.x))
         elif isinstance(other, tuple) and len(other) == 2:
-            return abs(self.y - other[0]) + abs(self.x - other[1])
+            return max(abs(self.y - other[0]), abs(self.x - other[1]))
         else:
             raise TypeError("Can only calculate distance to Position or tuple of length 2")
-    
+
     def is_adjacent(self, other: Union['Position', Tuple[int, int]]) -> bool:
         """Check if position is adjacent (including diagonals)."""
-        return self.distance_to(other) <= 2
+        return self.distance_to(other) <= 1
     
     def is_in_bounds(self, height: int, width: int) -> bool:
         """Check if position is within bounds."""

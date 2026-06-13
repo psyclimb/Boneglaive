@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Game UI — curses-based interactive game interface."""
 try:
     import curses
 except ImportError:

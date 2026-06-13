@@ -6,7 +6,8 @@ try:
 except ImportError:
     curses = None
 import time
-from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT, UNIT_SYMBOLS
+from boneglaive.utils.constants import (UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT, UNIT_SYMBOLS,
+                                        MAX_UNITS, RESPAWN_TIMER, UPGRADE_POINT_THRESHOLDS, SETUP_MIN_DISTANCE)
 from boneglaive.game.units import Unit
 from boneglaive.game.map import GameMap, MapFactory, TerrainType
 from boneglaive.utils.coordinates import Position
@@ -24,12 +25,12 @@ class DeadUnit:
         self.unit_type = unit_type
         self.player = player
         self.death_turn = death_turn
-        self.respawn_timer = 3  # Turns until respawn available
+        self.respawn_timer = RESPAWN_TIMER
         self.greek_id = greek_id  # Preserve original identifier
         self.ready_for_respawn = False
         self.respawn_preview = None  # Tuple (y, x) showing where unit will respawn
         self.upgraded_skills = upgraded_skills or set()  # Preserve skill upgrades for respawn
-        self.dominion_permanent_attack = dominion_permanent_attack  # Preserve Dominion manual upgrade attack bonuses (old system - deprecated)
+        self.dominion_permanent_attack = dominion_permanent_attack  # Retained for save compatibility
         self.dominion_kills = dominion_kills  # Preserve Dominion kill count (new manual upgrade system)
         self.dominion_skill_states = dominion_skill_states or {}  # Preserve Dominion skill upgrade states
 
@@ -67,7 +68,7 @@ class Game:
         # Upgrade System
         self.player1_upgrade_points = 0
         self.player2_upgrade_points = 0
-        self.upgrade_point_thresholds = [2, 4, 6]  # GP thresholds for earning upgrade points
+        self.upgrade_point_thresholds = UPGRADE_POINT_THRESHOLDS
         self.upgrade_points_awarded = set()  # Track which thresholds have been triggered globally
 
         # Graphical mode callbacks
@@ -84,9 +85,8 @@ class Game:
         self.setup_phase = not skip_setup  # Whether we're in setup phase
         self.setup_player = 1    # Which player is placing units
         self.setup_confirmed = {1: False, 2: False}  # Whether players have confirmed setup
-        self.setup_units_remaining = {1: 3, 2: 3}    # How many units each player can still place (3 total)
-        # During setup, players are limited to a maximum of 1 unit of the same type (no duplicates)
-        
+        self.setup_units_remaining = {1: MAX_UNITS, 2: MAX_UNITS}
+
         # If skipping setup, add default units
         if skip_setup:
             self.setup_initial_units()
@@ -157,8 +157,8 @@ class Game:
             self.setup_phase = True
             self.setup_player = 1
             self.setup_confirmed = {1: False, 2: False}
-            self.setup_units_remaining = {1: 3, 2: 3}
-            
+            self.setup_units_remaining = {1: MAX_UNITS, 2: MAX_UNITS}
+
             return True
         except Exception as e:
             logger.error(f"Failed to change map: {e}")
@@ -220,18 +220,17 @@ class Game:
                         if (self.map.can_place_unit(y, x) and 
                             self.get_unit_at(y, x) is None):
                             
-                            # Check minimum distance from player 1 units (at least 3 tiles away)
                             min_distance_ok = True
                             for p1_y, p1_x in player1_positions:
-                                if self.chess_distance(y, x, p1_y, p1_x) < 3:
+                                if self.chess_distance(y, x, p1_y, p1_x) < SETUP_MIN_DISTANCE:
                                     min_distance_ok = False
                                     break
-                            
+
                             if min_distance_ok:
                                 zone_positions.append((y, x))
-                
+
                 # If this zone has enough positions, use it
-                if len(zone_positions) >= 3:
+                if len(zone_positions) >= MAX_UNITS:
                     logger.info(f"Using spawn zone: {zone['name']} with {len(zone_positions)} valid positions")
                     
                     # Shuffle for randomness
@@ -5286,8 +5285,7 @@ class Game:
                 # Reset partition message flag for new turn (all units)
                 unit._prt_absorbed_this_action = False
 
-                # Reset dissociation PRT boost (from prt=999 back to 0) for all units
-                # BUT preserve HEINOUS_VAPOR invulnerability and topiary PRT
+                # Reset dissociation PRT boost, preserving HEINOUS_VAPOR and topiary PRT
                 if unit.prt > 1 and unit.type != UnitType.HEINOUS_VAPOR and not getattr(unit, 'is_topiary', False):
                     unit.prt = 0
                     from boneglaive.utils.debug import logger

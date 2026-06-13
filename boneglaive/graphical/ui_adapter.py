@@ -75,9 +75,6 @@ class GraphicalUIAdapter:
             )
             self.renderer.floating_texts.append(damage_text)
 
-        # Brief pause to show effect - removed for smooth gameplay
-        # self._render_and_wait(0.3)
-
     def show_skill_animation(self, user: 'Unit', skill_name: str, target_pos: tuple = None):
         """
         Show skill animation.

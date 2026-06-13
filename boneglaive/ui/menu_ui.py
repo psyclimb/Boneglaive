@@ -248,9 +248,8 @@ class MenuUI:
         lines = [
             f"Boneglaive v{__version__}",
             "Tactical Turn-Based Combat Game",
-            "Beta Release",
             "",
-            "Copyright (C) 2025 Psyclimb",
+            "Copyright (C) 2026 Psyclimb",
             "",
             "This program is free software licensed under GPL-3.0",
             "This program comes with ABSOLUTELY NO WARRANTY.",

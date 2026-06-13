@@ -2156,6 +2156,13 @@ class GraphicalRenderer:
             else:
                 pass
 
+        elif event.event_type == "partition_hit":
+            target_visual = self._get_visual_unit(event.target_unit)
+            if target_visual:
+                from boneglaive.graphical.animations import PartitionHitAnimation
+                hit_anim = PartitionHitAnimation(target_visual.animated_unit, self.camera)
+                self.active_animations.append(hit_anim)
+
         elif event.event_type == "partition_dissociation":
             # Play partition dissociation animation (emergency trigger)
             protected_unit = event.target_unit  # Unit that was protected
@@ -2658,6 +2665,9 @@ class GraphicalRenderer:
             # via _detect_status_effects_callback() and shown via _show_active_status_effects().
             # This ensures each effect flashes exactly ONCE after damage numbers complete.
             pass
+
+        elif event.event_type == "partition_hit":
+            self._show_event_immediately(event)
 
         elif event.event_type == "partition_dissociation":
             # Partition dissociation is a dramatic emergency animation - show immediately

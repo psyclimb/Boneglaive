@@ -18,7 +18,7 @@ from typing import Optional, List, Tuple, TYPE_CHECKING
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
-from boneglaive.utils.constants import UnitType
+from boneglaive.utils.constants import UnitType, INVULNERABLE_PRT
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
@@ -816,7 +816,7 @@ class TopiaryBreathSkill(ActiveSkill):
                 unit.is_topiary = True
                 unit.topiary_duration = 2
                 unit.topiary_original_prt = unit.prt
-                unit.prt = 999
+                unit.prt = INVULNERABLE_PRT
                 game.map.set_terrain_at(unit.y, unit.x, TerrainType.TOPIARY)
                 game.topiary_units[(unit.y, unit.x)] = {
                     'unit': unit,
@@ -977,7 +977,7 @@ class TopiaryBreathSkill(ActiveSkill):
                 unit.is_topiary = True
                 unit.topiary_duration = 2
                 unit.topiary_original_prt = unit.prt
-                unit.prt = 999
+                unit.prt = INVULNERABLE_PRT
                 game.map.set_terrain_at(unit.y, unit.x, TerrainType.TOPIARY)
                 game.topiary_units[(unit.y, unit.x)] = {
                     'unit': unit,

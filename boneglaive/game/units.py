@@ -3,7 +3,7 @@
 Unit classes and related functionality for Boneglaive.
 """
 from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
-from boneglaive.utils.constants import UNIT_STATS, UnitType
+from boneglaive.utils.constants import UNIT_STATS, UnitType, INVULNERABLE_PRT
 from boneglaive.utils.debug import logger
 
 if TYPE_CHECKING:
@@ -48,9 +48,8 @@ class Unit:
         self.move_range_bonus = 0
         self.attack_range_bonus = 0
         self.prt_bonus = 0
-        # Set PRT (Partition) stat - reduces damage before defense
         if unit_type == UnitType.HEINOUS_VAPOR:
-            self.prt = 999  # HEINOUS VAPOR units have massive damage reduction
+            self.prt = INVULNERABLE_PRT
         else:
             self.prt = 0
         
@@ -84,115 +83,113 @@ class Unit:
         self.upgraded_skills = set()  # Set of skill names that have been upgraded
 
         # Status effects
-        self.was_pried = False  # Track if this unit was affected by Pry skill (base version, -1 move)
-        self.was_pried_upgraded = False  # Track if this unit was affected by upgraded Pry skill (-2 move)
-        self.trapped_by = None  # Reference to MANDIBLE_FOREMAN that trapped this unit, None if not trapped
-        self.trap_duration = 0  # Number of turns this unit has been trapped, for incremental damage
-        self.took_action = False  # Track if this unit took an action this turn (used by MANDIBLE_FOREMAN)
-        self.took_no_actions = True  # Track if unit took no actions for health regeneration
-        self.jawline_affected = False  # Track if unit is affected by Jawline skill
-        self.jawline_duration = 0  # Duration remaining for Jawline effect
-        self.status_disarmed = False  # Track if unit is disarmed (cannot basic attack) - from Viseroy upgrade
-        self.status_disarmed_duration = 0  # Duration remaining for disarm effect
-        self.viseroy_disarm_cooldown = 0  # Cooldown for Viseroy disarm effect (MANDIBLE_FOREMAN only)
-        self.status_tactical_momentum = False  # Track if unit has Expedite defense buff (MANDIBLE_FOREMAN only)
-        self.status_tactical_momentum_duration = 0  # Duration remaining for Expedite defense buff
-        self.status_imbued = False  # Track if enemy is imbued with Market Futures (acts as furniture anchor)
-        self.status_imbued_duration = 0  # Duration remaining for imbued effect
-        self.status_imbued_player = None  # Which player imbued this unit
-        self.status_imbued_cosmic_value = None  # The cosmic value assigned to this imbued unit
-        self.estranged = False  # Track if unit is affected by Estrange skill
-        self.estranged_duration = 0  # Duration remaining for estranged effect
-        self.mired = False  # Track if unit is affected by upgraded Marrow Dike
-        self.mired_duration = 0  # Duration remaining for mired effect
-        self.shredded = False  # Track if unit is affected by Gaussian Dusk upgrade
-        self.shredded_duration = 0  # Duration remaining for shredded effect
-        self.shredded_original_defense = 0  # Store original defense to restore later
+        self.was_pried = False
+        self.was_pried_upgraded = False
+        self.trapped_by = None
+        self.trap_duration = 0
+        self.took_action = False
+        self.took_no_actions = True
+        self.jawline_affected = False
+        self.jawline_duration = 0
+        self.status_disarmed = False
+        self.status_disarmed_duration = 0
+        self.viseroy_disarm_cooldown = 0
+        self.status_tactical_momentum = False
+        self.status_tactical_momentum_duration = 0
+        self.status_imbued = False
+        self.status_imbued_duration = 0
+        self.status_imbued_player = None
+        self.status_imbued_cosmic_value = None
+        self.estranged = False
+        self.estranged_duration = 0
+        self.mired = False
+        self.mired_duration = 0
+        self.shredded = False
+        self.shredded_duration = 0
+        self.shredded_original_defense = 0
 
-        # First turn move bonus (player 2 gets +1 move on first turn)
+        # Player 2 gets +1 move on first turn to offset going second
         self.first_turn_move_bonus = False
         self.first_turn_move_bonus_duration = 0
 
         # Græ Exchange echo properties
-        self.is_doppelganger = False  # Whether this unit is a doppelganger created by Græ Exchange
-        self.doppelganger_duration = 0  # Number of OWNER'S turns the doppelganger remains (decremented only on owner's turn)
-        self.original_unit = None  # Reference to the original unit that created this echo
-        
+        self.is_doppelganger = False
+        self.doppelganger_duration = 0  # Decremented only on owner's turn
+        self.original_unit = None
+
         # FOWL_CONTRIVANCE properties
-        self.gaussian_dusk_recharge = 0  # Number of turns remaining for Gaussian Dusk recharge
-        self.parabol_indicator = None  # Visual indicator for Parabol area
-        self.fragcrest_indicator = None  # Visual indicator for Fragcrest cone
-        self.shrapnel_duration = 0  # Number of turns remaining for shrapnel damage
-        
+        self.gaussian_dusk_recharge = 0
+        self.parabol_indicator = None
+        self.fragcrest_indicator = None
+        self.shrapnel_duration = 0
+
         # HEINOUS VAPOR properties (for GAS_MACHINIST)
-        self.vapor_type = None  # Type of vapor ("ENBROACHMENT", "SAFETY", "COOLANT", or "CUTTING")
-        self.vapor_symbol = None  # Symbol to display for this vapor (1, 0, 2, 3)
-        self.vapor_duration = 0  # Number of turns the vapor remains
-        self.vapor_creator = None  # Reference to the GAS_MACHINIST that created this vapor
-        self.vapor_skill = None  # Reference to the skill that created this vapor
-        self.diverged_user = None  # Reference to the GAS_MACHINIST if this vapor is from a diverged user
-        # Note: HEINOUS VAPOR units use PRT for effective invulnerability
-        
+        self.vapor_type = None
+        self.vapor_symbol = None
+        self.vapor_duration = 0
+        self.vapor_creator = None
+        self.vapor_skill = None
+        self.diverged_user = None
+
         # GAS_MACHINIST properties
-        self.diverge_return_position = False  # Whether this unit is returning from a diverge
-        
+        self.diverge_return_position = False
+
         # INTERFERER properties
-        self.radiation_stacks = []  # List of radiation durations (each stack lasts 2 turns)
-        self.neural_shunt_affected = False  # Whether affected by Neural Shunt
-        self.neural_shunt_duration = 0  # Duration of Neural Shunt effect
-        self.carrier_rave_active = False  # Whether in Karrier Rave phased state
-        self.carrier_rave_duration = 0  # Duration of Karrier Rave effect
-        self.carrier_rave_strikes_ready = False  # Whether next attack will strike 3 times
-        
+        self.radiation_stacks = []
+        self.neural_shunt_affected = False
+        self.neural_shunt_duration = 0
+        self.carrier_rave_active = False
+        self.carrier_rave_duration = 0
+        self.carrier_rave_strikes_ready = False
+
         # DELPHIC APPRAISER properties
-        self.can_use_anchor = False  # Whether this unit can use Market Futures teleport anchors
+        self.can_use_anchor = False
 
         # Market Futures investment tracking
-        self.market_futures_bonus_applied = False  # Whether unit has investment buff
-        self.market_futures_duration = 0  # Turns remaining for investment
-        self.market_futures_maturity = 1  # Current maturity level (1-3)
-        self.has_investment_effect = False  # Status icon indicator
-        
+        self.market_futures_bonus_applied = False
+        self.market_futures_duration = 0
+        self.market_futures_maturity = 1
+        self.has_investment_effect = False
+
         # DERELICTIONIST properties
-        self.trauma_processing_active = False  # Whether affected by Trauma Processing
-        self.trauma_processing_caster = None  # Reference to DERELICTIONIST who cast Trauma Processing
-        self.trauma_debt = 0  # Stored damage amount for abreaction
-        self.derelicted = False  # Whether affected by Derelicted status (immobilization)
-        self.derelicted_duration = 0  # Duration of Derelicted effect
-        self.partition_shield_active = False  # Whether protected by Partition shield
-        self.partition_shield_caster = None  # Reference to DERELICTIONIST who cast Partition
-        self.partition_shield_strength = 0  # Current shield strength
-        self.partition_shield_duration = 0  # Duration of Partition shield
-        
-        # DERELICTIONIST movement tracking (for skill-then-move mechanics)
-        self.has_moved_first = False  # Whether DERELICTIONIST has moved before using a skill
-        self.used_skill_this_turn = False  # Whether DERELICTIONIST has used a skill this turn
-        self.can_move_post_skill = False  # Whether DERELICTIONIST can move after using a skill
-        
-        # DERELICTIONIST Severance status effect
-        self.severance_active = False  # Whether DERELICTIONIST has Severance status (+1 movement)
-        self.severance_duration = 0  # Duration of Severance status (until movement is issued)
-        
-        # Pumped Up status effect (from mini pumpkins)
-        self.pumped_up_active = False  # Whether unit has Pumped Up status (+1 all stats)
-        self.pumped_up_duration = 0  # Duration of Pumped Up effect (3 turns)
+        self.trauma_processing_active = False
+        self.trauma_processing_caster = None
+        self.trauma_debt = 0
+        self.derelicted = False
+        self.derelicted_duration = 0
+        self.partition_shield_active = False
+        self.partition_shield_caster = None
+        self.partition_shield_strength = 0
+        self.partition_shield_duration = 0
+
+        # DERELICTIONIST skill-then-move mechanics
+        self.has_moved_first = False
+        self.used_skill_this_turn = False
+        self.can_move_post_skill = False
+
+        # Severance: +1 movement until movement is issued
+        self.severance_active = False
+        self.severance_duration = 0
+
+        self.pumped_up_active = False
+        self.pumped_up_duration = 0
 
         # POTPOURRIST-related status effects
-        self.demilune_debuffed = False  # Whether affected by Demilune debuff
-        self.demilune_debuffed_by = None  # Reference to POTPOURRIST that applied Demilune debuff
-        self.demilune_debuff_duration = 0  # Turns remaining for Demilune debuff
-        self.taunted_by = None  # Reference to POTPOURRIST that applied taunt
-        self.taunt_duration = 0  # Turns remaining for taunt
-        self.taunt_responded_this_turn = False  # Track if unit attacked/skilled POTPOURRIST this turn
-        self.geas_affected = False  # Whether unit is affected by Granite Geas (for status icon)
-        self.geas_attack_reduction = False  # Whether attack is reduced to 2 vs POTPOURRIST (upgraded Granite Geas)
-        self.potpourri_held = False  # Whether POTPOURRIST is holding potpourri (POTPOURRIST only)
-        self.potpourri_duration = 0  # Turns remaining for potpourri (POTPOURRIST only)
-        self.demilune_zone_tiles = []  # List of (y, x) tuples for active Demilune zone (POTPOURRIST only)
-        self.demilune_mirrored_zone_tiles = []  # List of (y, x) tuples for mirrored Demilune zone (upgraded only)
-        self.demilune_zone_duration = 0  # Turns remaining for Demilune zone
+        self.demilune_debuffed = False
+        self.demilune_debuffed_by = None
+        self.demilune_debuff_duration = 0
+        self.taunted_by = None
+        self.taunt_duration = 0
+        self.taunt_responded_this_turn = False
+        self.geas_affected = False
+        self.geas_attack_reduction = False
+        self.potpourri_held = False
+        self.potpourri_duration = 0
+        self.demilune_zone_tiles = []
+        self.demilune_mirrored_zone_tiles = []
+        self.demilune_zone_duration = 0
 
-        # Topiary state (LANDSCAPER Topiary Breath)
+        # LANDSCAPER Topiary Breath
         self.is_topiary = False
         self.topiary_duration = 0
 
@@ -689,8 +686,7 @@ class Unit:
                 self.prt > 0 and (self._hp - raw_damage) <= 0 and
                 not getattr(self, 'partition_shield_blocked_fatal', False)):
 
-                # DISSOCIATION TRIGGERED: Boost PRT to 999 for this turn
-                self.prt = 999  # All damage this turn absorbed by partition
+                self.prt = INVULNERABLE_PRT
                 self.partition_shield_blocked_fatal = True  # Mark for cleanup
 
                 # Save caster reference for animation (before clearing it)
@@ -718,7 +714,7 @@ class Unit:
                         from boneglaive.game.skills.derelictionist import _place_derelict_building
                         _place_derelict_building(self, self.partition_dissociation_caster, self._game, ui=None)
                 
-                # Remove partition shield status (but keep prt=999 until end of turn)
+                # Remove partition shield status (keep INVULNERABLE_PRT until end of turn)
                 self.partition_shield_active = False
                 self.partition_shield_duration = 0
 
@@ -764,7 +760,7 @@ class Unit:
                 # Track PRT absorbed for message log correction (all damage absorbed by dissociation)
                 self.last_prt_absorbed = raw_damage
                 
-                # Block this damage and all subsequent damage will be absorbed by prt=999
+                # Block this damage — all subsequent damage absorbed by INVULNERABLE_PRT
                 self._applying_damage = True
                 self._hp = self._hp  # No damage applied
                 self._applying_damage = False
@@ -805,38 +801,15 @@ class Unit:
                         )
                         logger.info(f"PRT AUTO: {self.get_display_name()}'s partition absorbed {prt_absorbed} damage")
 
-                        # Show partition shield reverberation animation
+                        # Signal for renderers to show partition hit animation
+                        # Graphical mode: detected by game_state.py and dispatched as AnimationEvent
+                        # Text mode: rendered inline via curses animate_attack_sequence
+                        self.partition_hit_for_animation = True
                         if self._game and hasattr(self._game, 'ui') and self._game.ui and hasattr(self._game.ui, 'renderer'):
                             renderer = self._game.ui.renderer
-
-                            # Check if using graphical renderer (has camera and active_animations)
-                            if hasattr(renderer, 'camera') and hasattr(renderer, 'active_animations') and renderer.camera:
-                                # Graphical mode - spawn PartitionHitAnimation
-                                try:
-                                    from boneglaive.graphical.animations import PartitionHitAnimation
-
-                                    # Find the AnimatedUnit for this unit
-                                    animated_unit = renderer._find_animated_unit_by_game_unit(self)
-
-                                    if animated_unit:
-                                        hit_anim = PartitionHitAnimation(animated_unit, renderer.camera)
-                                        renderer.active_animations.append(hit_anim)
-                                        logger.debug(f"PARTITION HIT: Spawned graphical animation for {self.get_display_name()}")
-                                    else:
-                                        logger.debug(f"PARTITION HIT: Could not find AnimatedUnit for {self.get_display_name()}")
-                                except ImportError as e:
-                                    logger.debug(f"Could not import PartitionHitAnimation: {e}")
-                                except Exception as e:
-                                    logger.error(f"PARTITION HIT: Error spawning animation: {e}")
-                            else:
-                                # ASCII mode - use old animation
-                                partition_reverberation = [')', ']', '|', '#', '|', ']', ')', '(', '[', '|']  # Shield flickering/reverberating
-                                renderer.animate_attack_sequence(
-                                    self.y, self.x,
-                                    partition_reverberation,
-                                    4,  # Blue color matching partition application
-                                    0.6  # Slower animation to show deliberate reverberation
-                                )
+                            if not hasattr(renderer, 'camera'):
+                                partition_reverberation = [')', ']', '|', '#', '|', ']', ')', '(', '[', '|']
+                                renderer.animate_attack_sequence(self.y, self.x, partition_reverberation, 4, 0.6)
                     else:
                         # HEINOUS VAPOR units silently absorb damage as gas entities
                         logger.debug(f"HEINOUS VAPOR: {self.get_display_name()} silently absorbed {prt_absorbed} damage")

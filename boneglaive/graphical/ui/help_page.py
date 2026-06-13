@@ -52,7 +52,7 @@ class HelpPage:
 
     def _load_unit_help_data(self):
         """Load unit help data."""
-        from boneglaive.game.unit_help_data import get_unit_help_data
+        from boneglaive.utils.unit_help_data import get_unit_help_data
         return get_unit_help_data()
 
     def _load_icon(self, icon_name: str, icon_type: str = "skill") -> Optional[pygame.Surface]:

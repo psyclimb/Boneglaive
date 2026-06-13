@@ -7,6 +7,10 @@ from typing import Dict
 WIDTH = 20
 HEIGHT = 10
 MAX_UNITS = 3  # Maximum units per player
+RESPAWN_TIMER = 3  # Turns until dead unit can respawn
+UPGRADE_POINT_THRESHOLDS = [2, 4, 6]  # GP thresholds that award upgrade points
+SETUP_MIN_DISTANCE = 3  # Minimum Chebyshev distance between player spawn zones
+INVULNERABLE_PRT = 999  # PRT value for effectively invulnerable units (Heinous Vapor, Topiary)
 CRITICAL_HEALTH_PERCENT = 0.3  # Percentage of max HP considered "critical"
 
 class UnitType(Enum):

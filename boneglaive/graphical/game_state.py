@@ -31,7 +31,7 @@ class VisualUnit:
         self.game_unit = game_unit  # Reference to logic unit
         self.animated_unit = animated_unit  # Reference to visual unit
         self.last_hp = game_unit.hp
-        self.last_position = (game_unit.x, game_unit.y)
+        self.last_position = (game_unit.x, game_unit.y)  # Screen coords (x, y), not game coords (y, x)
         # Note: Game units don't have AP, they have action points per turn
         self.last_ap = 0
         self.last_skill = None  # Track last used skill
@@ -720,8 +720,17 @@ class GameStateAdapter:
             if hasattr(game_unit, 'geas_breaking_for_animation') and game_unit.geas_breaking_for_animation:
                 game_unit.geas_breaking_for_animation = False
 
+            # Detect partition shield hit — spawn reverberation animation
+            if hasattr(game_unit, 'partition_hit_for_animation') and game_unit.partition_hit_for_animation:
+                game_unit.partition_hit_for_animation = False
+                events.append(AnimationEvent(
+                    "partition_hit",
+                    source_unit=game_unit,
+                    target_unit=game_unit
+                ))
+
             # Detect position changes
-            # NOTE: Game uses (y, x) = (row, col), we need (x, y) = (col, row)
+            # VisualUnit tracks screen coords (x, y), not game coords (y, x)
             current_pos = (game_unit.x, game_unit.y)
             if current_pos != visual_unit.last_position:
                 # Check if this is an off-map position (e.g., GAS_MACHINIST Diverge uses -999, -999)
