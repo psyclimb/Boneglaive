@@ -414,6 +414,16 @@ class GraphicalRenderer:
             TerrainType.CONVEYOR: asset_path("graphics/furniture/conveyor_belt.svg"),
             TerrainType.MINI_PUMPKIN: asset_path("graphics/furniture/mini_pumpkin.svg"),
             TerrainType.POTPOURRI_BOWL: asset_path("graphics/furniture/potpourri_bowl.svg"),
+
+            # Verdant Terrace map terrain and furniture
+            TerrainType.UNDERGROWTH: asset_path("graphics/terrain/undergrowth.svg"),
+            TerrainType.PYLON: asset_path("graphics/terrain/pylon.svg"),
+            TerrainType.SUNDIAL: asset_path("graphics/furniture/sundial.svg"),
+            TerrainType.FIRE_PIT: asset_path("graphics/furniture/fire_pit.svg"),
+            TerrainType.GRANITE_SPHERE: asset_path("graphics/furniture/granite_sphere.svg"),
+            TerrainType.TERRACOTTA: asset_path("graphics/furniture/terracotta.svg"),
+            TerrainType.LITHOPHONE: asset_path("graphics/furniture/lithophone.svg"),
+            TerrainType.RATTAN_CHAIR: asset_path("graphics/furniture/rattan_chair.svg"),
         }
 
     def _load_terrain_tile(self, terrain_type: TerrainType) -> Optional[pygame.Surface]:
@@ -1779,6 +1789,12 @@ class GraphicalRenderer:
             TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
             TerrainType.POTPOURRI_BOWL: "Potpourri Bowl",
             TerrainType.TOPIARY: "Topiary",
+            TerrainType.SUNDIAL: "Sundial",
+            TerrainType.FIRE_PIT: "Fire Pit",
+            TerrainType.GRANITE_SPHERE: "Granite Sphere",
+            TerrainType.TERRACOTTA: "Terracotta Planter",
+            TerrainType.LITHOPHONE: "Lithophone",
+            TerrainType.RATTAN_CHAIR: "Rattan Chair",
         }
         return furniture_names.get(terrain_type, "Unknown Furniture")
 
@@ -3734,7 +3750,9 @@ class GraphicalRenderer:
             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
             TerrainType.COUCH, TerrainType.TOOLBOX, TerrainType.COT,
-            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL,
+            TerrainType.SUNDIAL, TerrainType.FIRE_PIT, TerrainType.GRANITE_SPHERE,
+            TerrainType.TERRACOTTA, TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR
         ]
         return terrain_type in furniture_types
 
@@ -3752,6 +3770,8 @@ class GraphicalRenderer:
             return TerrainType.CANYON_FLOOR
         elif 'lime' in map_name or 'foyer' in map_name:
             return TerrainType.DUST
+        elif 'verdant' in map_name:
+            return TerrainType.UNDERGROWTH
         else:
             # Default to empty for unknown maps
             return TerrainType.EMPTY

@@ -249,7 +249,10 @@ class MarketFuturesSkill(ActiveSkill):
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                          TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                         TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]
+                         TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY,
+                         TerrainType.SUNDIAL, TerrainType.FIRE_PIT,
+                         TerrainType.GRANITE_SPHERE, TerrainType.TERRACOTTA,
+                         TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR]
 
         # If not furniture, check if it's an enemy (with Valuation Oracle upgrade)
         is_valid_enemy = False
@@ -596,7 +599,13 @@ class MarketFuturesSkill(ActiveSkill):
             TerrainType.CONVEYOR: "Conveyor Belt",
             TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
             TerrainType.POTPOURRI_BOWL: "Potpourri Bowl",
-            TerrainType.TOPIARY: "Topiary"
+            TerrainType.TOPIARY: "Topiary",
+            TerrainType.SUNDIAL: "Sundial",
+            TerrainType.FIRE_PIT: "Fire Pit",
+            TerrainType.GRANITE_SPHERE: "Granite Sphere",
+            TerrainType.TERRACOTTA: "Terracotta Planter",
+            TerrainType.LITHOPHONE: "Lithophone",
+            TerrainType.RATTAN_CHAIR: "Rattan Chair"
         }
         return terrain_names.get(terrain_type, "Radio Console")
 
@@ -703,7 +712,10 @@ class AuctionCurseSkill(ActiveSkill):
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                              TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                             TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]:
+                             TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY,
+                         TerrainType.SUNDIAL, TerrainType.FIRE_PIT,
+                         TerrainType.GRANITE_SPHERE, TerrainType.TERRACOTTA,
+                         TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR]:
                     nearby_furniture.append((y, x))
 
                     # Get astral value (will be generated if it doesn't exist yet)
@@ -895,7 +907,13 @@ class DivineDrepreciationSkill(ActiveSkill):
             TerrainType.CONVEYOR: "Conveyor Belt",
             TerrainType.MINI_PUMPKIN: "Mini Pumpkin",
             TerrainType.POTPOURRI_BOWL: "Potpourri Bowl",
-            TerrainType.TOPIARY: "Topiary"
+            TerrainType.TOPIARY: "Topiary",
+            TerrainType.SUNDIAL: "Sundial",
+            TerrainType.FIRE_PIT: "Fire Pit",
+            TerrainType.GRANITE_SPHERE: "Granite Sphere",
+            TerrainType.TERRACOTTA: "Terracotta Planter",
+            TerrainType.LITHOPHONE: "Lithophone",
+            TerrainType.RATTAN_CHAIR: "Rattan Chair"
         }
         return terrain_names.get(terrain_type, "Radio Console")
 
@@ -919,7 +937,10 @@ class DivineDrepreciationSkill(ActiveSkill):
                          TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                          TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                          TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                         TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]
+                         TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY,
+                         TerrainType.SUNDIAL, TerrainType.FIRE_PIT,
+                         TerrainType.GRANITE_SPHERE, TerrainType.TERRACOTTA,
+                         TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR]
 
         # If not furniture, check if it's an enemy (with Valuation Oracle upgrade)
         is_valid_enemy = False
@@ -1037,7 +1058,10 @@ class DivineDrepreciationSkill(ActiveSkill):
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                              TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                             TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]:
+                             TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY,
+                         TerrainType.SUNDIAL, TerrainType.FIRE_PIT,
+                         TerrainType.GRANITE_SPHERE, TerrainType.TERRACOTTA,
+                         TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR]:
                     other_furniture.append(pos)
                     # Ensure astral value exists for all furniture
                     game.map.get_cosmic_value(pos[0], pos[1], player=user.player, game=game)
@@ -1671,7 +1695,10 @@ class DeftRerollSkill(ActiveSkill):
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                              TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                             TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]:
+                             TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY,
+                         TerrainType.SUNDIAL, TerrainType.FIRE_PIT,
+                         TerrainType.GRANITE_SPHERE, TerrainType.TERRACOTTA,
+                         TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR]:
                     furniture_to_reroll.append(pos)
 
                 # With Valuation Oracle upgrade: Check for appraised enemies

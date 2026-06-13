@@ -79,7 +79,16 @@ class AssetManager:
             'melange_fume': '~',   # Tilde for aromatic fumes
             'derelict_building': '&',  # Ampersand for old decrepit building walls
             'slag_wall': '#',  # Hash for slag walls (same as other walls)
-            'topiary': '&'  # Ampersand for topiary sculptures
+            'topiary': '&',  # Ampersand for topiary sculptures
+            # Verdant Terrace map terrain
+            'undergrowth': ',',    # Comma for lush jungle floor (like dust)
+            'pylon': '#',          # Hash for concrete pylon (like other blockers)
+            'sundial': 'o',        # Lowercase o for circular sundial face
+            'fire_pit': 'w',       # Lowercase w for flames
+            'granite_sphere': 'O', # Capital O for large round sphere
+            'terracotta': 'U',     # Capital U for planter shape
+            'lithophone': '=',     # Equals sign for flat stone slab
+            'rattan_chair': 'h'    # Lowercase h for chair silhouette
         }
         
         # UI symbols

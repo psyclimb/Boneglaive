@@ -49,6 +49,15 @@ class TerrainType(Enum):
     DERELICT_BUILDING = 31  # Old decrepit building walls from Derelict upgrade, blocks movement and line of sight
     SLAG_WALL = 32  # Superheated molten slag from Hornswoggle, temporary, blocks movement and line of sight
     TOPIARY = 33  # Unit transformed into topiary sculpture by Topiary Breath, blocks movement and line of sight
+    # Verdant Terrace map - Jungle patio, the Landscaper's home region
+    UNDERGROWTH = 34  # Lush jungle floor, visual only (passable)
+    PYLON = 35  # Reinforced concrete support column wrapped in vines, blocks movement and line of sight
+    SUNDIAL = 36  # Stone sundial on a pedestal, blocks movement but not line of sight
+    FIRE_PIT = 37  # Stone-lined fire pit, blocks movement but not line of sight
+    GRANITE_SPHERE = 38  # Large polished granite sphere on a low pedestal, blocks movement but not line of sight
+    TERRACOTTA = 39  # Glazed terracotta planter with lush ferns, blocks movement but not line of sight
+    LITHOPHONE = 40  # Resonant stone slab on a frame, blocks movement but not line of sight
+    RATTAN_CHAIR = 41  # Woven rattan armchair, blocks movement but not line of sight
 
 
 class GameMap:
@@ -105,19 +114,19 @@ class GameMap:
         terrain = self.get_terrain_at(y, x)
         # All furniture types, pillars, limestone, stained stone, and marrow walls are impassable
         # Rails, canyon floor, concrete floor, leaf pits, melange fumes, blood plasma, and mini pumpkins are passable by all units
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN]
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN, TerrainType.UNDERGROWTH]
 
     def can_place_unit(self, y: int, x: int) -> bool:
         """Check if a unit can be placed at this position."""
         terrain = self.get_terrain_at(y, x)
-        # Units can be placed on empty, dusty, canyon floor, concrete floor, rail tiles, leaf pits, melange fumes, blood plasma, or mini pumpkins
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN]
+        # Units can be placed on empty, dusty, canyon floor, concrete floor, rail tiles, leaf pits, melange fumes, blood plasma, mini pumpkins, or undergrowth
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.LEAF_PIT, TerrainType.MELANGE_FUME, TerrainType.BLOOD_PLASMA, TerrainType.MINI_PUMPKIN, TerrainType.UNDERGROWTH]
         
     def blocks_line_of_sight(self, y: int, x: int) -> bool:
         """Check if a position blocks line of sight for ranged attacks."""
         terrain = self.get_terrain_at(y, x)
         # Limestone, pillars, stained stone, hydraulic presses, marrow walls, and derelict buildings block line of sight
-        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS, TerrainType.MARROW_WALL, TerrainType.DERELICT_BUILDING, TerrainType.SLAG_WALL, TerrainType.TOPIARY]
+        return terrain in [TerrainType.LIMESTONE, TerrainType.PILLAR, TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS, TerrainType.MARROW_WALL, TerrainType.DERELICT_BUILDING, TerrainType.SLAG_WALL, TerrainType.TOPIARY, TerrainType.PYLON]
 
     def get_cosmic_value(self, y: int, x: int, player=None, game=None) -> Optional[int]:
         """
@@ -135,7 +144,10 @@ class GameMap:
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                           TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                          TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]:
+                          TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY,
+                          TerrainType.SUNDIAL, TerrainType.FIRE_PIT,
+                          TerrainType.GRANITE_SPHERE, TerrainType.TERRACOTTA,
+                          TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR]:
             return None
 
         # Check if player has DELPHIC_APPRAISER
@@ -180,7 +192,10 @@ class GameMap:
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                           TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                          TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]:
+                          TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY,
+                          TerrainType.SUNDIAL, TerrainType.FIRE_PIT,
+                          TerrainType.GRANITE_SPHERE, TerrainType.TERRACOTTA,
+                          TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR]:
             return False
 
         # Initialize player's cosmic values dict if it doesn't exist
@@ -200,7 +215,10 @@ class GameMap:
                           TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                           TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                           TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                          TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY]
+                          TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY,
+                          TerrainType.SUNDIAL, TerrainType.FIRE_PIT,
+                          TerrainType.GRANITE_SPHERE, TerrainType.TERRACOTTA,
+                          TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR]
 
     def set_lighting_effect(self, y: int, x: int, light_type: str, color: str = "white", radius: int = 1) -> None:
         """
@@ -329,7 +347,7 @@ class GameMap:
         terrain = self.get_terrain_at(y, x)
         # Rails can be placed on empty, dust, canyon floor, concrete floor, or existing rail tiles
         # Cannot be placed on blocking terrain or furniture
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL]
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.UNDERGROWTH]
 
 
     def get_rail_positions(self) -> List[Tuple[int, int]]:
@@ -1001,6 +1019,100 @@ class HardPressedMap(GameMap):
                 self.set_terrain_at(y, x, TerrainType.CONCRETE_FLOOR)
 
 
+class VerdantTerraceMap(GameMap):
+    """Verdant Terrace - Lush jungle patio, the Landscaper's home region."""
+
+    def __init__(self):
+        super().__init__()
+        self.name = "Verdant Terrace"
+        self.generate_map()
+
+    def generate_map(self) -> None:
+        """Generate the Verdant Terrace map with staggered pylon layout and jungle-industrial furniture."""
+        self.reset_to_empty()
+
+        # Four L-shaped pylon clusters (staggered, creating partial cover)
+        # Each cluster: 2 horizontal + 1 extending inward = 3 tiles
+        # Total: 16 blocking tiles
+        pylon_positions = [
+            # Top-left cluster (L facing inward-down)
+            (2, 5), (2, 6), (3, 5),
+            # Top-right cluster (L facing inward-down, mirrored)
+            (2, 13), (2, 14), (3, 14),
+            # Bottom-left cluster (L facing inward-up, mirrored vertically)
+            (6, 5), (7, 5), (7, 6),
+            # Bottom-right cluster (L facing inward-up, mirrored both)
+            (6, 14), (7, 13), (7, 14),
+            # Center pair - two isolated pylons breaking the central corridor
+            (4, 9), (4, 10), (5, 9), (5, 10),
+        ]
+        for y, x in pylon_positions:
+            self.set_terrain_at(y, x, TerrainType.PYLON)
+
+        # Furniture placement: 36 total (8 sundial, 6 fire_pit, 6 granite_sphere,
+        #                                  6 terracotta, 6 lithophone, 4 rattan_chair)
+
+        # SUNDIAL (8) - Edge anchors, perimeter landmarks
+        sundial_positions = [
+            (0, 1), (0, 18),   # Top edge, near corners
+            (9, 1), (9, 18),   # Bottom edge, near corners
+            (0, 6), (0, 13),   # Top edge, mid-positions
+            (9, 6), (9, 13),   # Bottom edge, mid-positions
+        ]
+        for y, x in sundial_positions:
+            self.set_terrain_at(y, x, TerrainType.SUNDIAL)
+
+        # FIRE_PIT (6) - Inner sentinel ring, early warning positions
+        fire_pit_positions = [
+            (1, 3), (1, 16),   # Upper inner ring
+            (8, 3), (8, 16),   # Lower inner ring
+            (1, 9), (8, 10),   # Top/bottom center offsets
+        ]
+        for y, x in fire_pit_positions:
+            self.set_terrain_at(y, x, TerrainType.FIRE_PIT)
+
+        # GRANITE_SPHERE (6) - Core positions flanking pylon clusters
+        granite_sphere_positions = [
+            (3, 8), (3, 11),   # Flanking top pylons, inner side
+            (6, 8), (6, 11),   # Flanking bottom pylons, inner side
+            (4, 3), (5, 16),   # Mid-map side accents
+        ]
+        for y, x in granite_sphere_positions:
+            self.set_terrain_at(y, x, TerrainType.GRANITE_SPHERE)
+
+        # TERRACOTTA (6) - Core positions flanking pylon clusters, outer side
+        terracotta_positions = [
+            (2, 3), (2, 16),   # Flanking top pylons, outer side
+            (7, 3), (7, 16),   # Flanking bottom pylons, outer side
+            (5, 3), (4, 16),   # Mid-map side accents (opposite of granite spheres)
+        ]
+        for y, x in terracotta_positions:
+            self.set_terrain_at(y, x, TerrainType.TERRACOTTA)
+
+        # LITHOPHONE (6) - Scattered through open areas
+        lithophone_positions = [
+            (0, 10), (9, 9),   # Top/bottom center area
+            (4, 1), (5, 18),   # Far edges, mid-height
+            (3, 17), (6, 2),   # Near east/west pylon clusters
+        ]
+        for y, x in lithophone_positions:
+            self.set_terrain_at(y, x, TerrainType.LITHOPHONE)
+
+        # RATTAN_CHAIR (4) - Corner accents
+        rattan_chair_positions = [
+            (1, 0), (1, 19),   # Top corners
+            (8, 0), (8, 19),   # Bottom corners
+        ]
+        for y, x in rattan_chair_positions:
+            self.set_terrain_at(y, x, TerrainType.RATTAN_CHAIR)
+
+        # Undergrowth floor (fill all remaining EMPTY tiles)
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.get_terrain_at(y, x) == TerrainType.EMPTY:
+                    self.set_terrain_at(y, x, TerrainType.UNDERGROWTH)
+
+
 class MapFactory:
     """Factory class for creating different maps."""
     
@@ -1031,6 +1143,9 @@ class MapFactory:
         elif map_name.lower() == "hard_pressed":
             logger.info("Creating Hard Pressed map")
             return HardPressedMap()
+        elif map_name.lower() == "verdant_terrace":
+            logger.info("Creating Verdant Terrace map")
+            return VerdantTerraceMap()
         else:
             logger.warning(f"Unknown map name '{map_name}', defaulting to empty GameMap")
             # Default to empty map
@@ -1038,21 +1153,23 @@ class MapFactory:
 
     @staticmethod
     def list_available_maps() -> List[str]:
-        """List all available maps (both JSON and hardcoded)."""
-        maps = []
-        
-        # Check for JSON maps
+        """List all available maps in display order."""
+        # Canonical display order
+        display_order = ["hard_pressed", "lime_foyer", "stained_stones", "verdant_terrace"]
+
+        # Collect all available maps (JSON + hardcoded)
+        available = set()
         maps_dir = "maps"
         if os.path.exists(maps_dir):
             for filename in os.listdir(maps_dir):
                 if filename.endswith(".json"):
-                    map_name = filename[:-5]  # Remove .json extension
-                    maps.append(map_name)
-        
-        # Add hardcoded maps (only if not already found as JSON)
-        hardcoded_maps = ["stained_stones", "hard_pressed", "lime_foyer"]
-        for map_name in hardcoded_maps:
-            if map_name not in maps:
-                maps.append(map_name)
-        
-        return maps
+                    available.add(filename[:-5])
+        for name in display_order:
+            available.add(name)
+
+        # Return in display order, then any extras not in the order
+        result = [name for name in display_order if name in available]
+        for name in sorted(available):
+            if name not in result:
+                result.append(name)
+        return result

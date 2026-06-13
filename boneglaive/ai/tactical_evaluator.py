@@ -2115,7 +2115,10 @@ class TacticalEvaluator:
                              TerrainType.BENCH, TerrainType.PODIUM, TerrainType.VASE,
                              TerrainType.WORKBENCH, TerrainType.COUCH, TerrainType.TOOLBOX,
                              TerrainType.COT, TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN,
-                             TerrainType.POTPOURRI_BOWL]:
+                             TerrainType.POTPOURRI_BOWL, TerrainType.TOPIARY,
+                             TerrainType.SUNDIAL, TerrainType.FIRE_PIT,
+                             TerrainType.GRANITE_SPHERE, TerrainType.TERRACOTTA,
+                             TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR]:
                     count += 1
         return count
 

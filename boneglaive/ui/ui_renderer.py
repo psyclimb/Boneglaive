@@ -648,6 +648,75 @@ class UIRenderer:
                     color_id = 21  # Canyon floor color (tan/brown) same as leaf pits
                     tile_attr = curses.A_DIM  # Dim to show fumes are translucent
 
+                # Verdant Terrace map terrain types
+                elif terrain == TerrainType.UNDERGROWTH:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("undergrowth")
+                    color_id = 3  # Green on black for jungle floor
+                    tile_attr = curses.A_DIM
+                elif terrain == TerrainType.PYLON:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("pylon")
+                    color_id = 12  # White for blocking terrain
+                    tile_attr = curses.A_BOLD
+                elif terrain == TerrainType.SUNDIAL:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("sundial")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM
+
+                    if has_teleport_anchor:
+                        tile = "@"
+                        color_id = teleport_anchor_color
+                        tile_attr = curses.A_BOLD
+
+                elif terrain == TerrainType.FIRE_PIT:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("fire_pit")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM
+
+                    if has_teleport_anchor:
+                        tile = "@"
+                        color_id = teleport_anchor_color
+                        tile_attr = curses.A_BOLD
+
+                elif terrain == TerrainType.GRANITE_SPHERE:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("granite_sphere")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM
+
+                    if has_teleport_anchor:
+                        tile = "@"
+                        color_id = teleport_anchor_color
+                        tile_attr = curses.A_BOLD
+
+                elif terrain == TerrainType.TERRACOTTA:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("terracotta")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM
+
+                    if has_teleport_anchor:
+                        tile = "@"
+                        color_id = teleport_anchor_color
+                        tile_attr = curses.A_BOLD
+
+                elif terrain == TerrainType.LITHOPHONE:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("lithophone")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM
+
+                    if has_teleport_anchor:
+                        tile = "@"
+                        color_id = teleport_anchor_color
+                        tile_attr = curses.A_BOLD
+
+                elif terrain == TerrainType.RATTAN_CHAIR:
+                    tile = self.game_ui.asset_manager.get_terrain_tile("rattan_chair")
+                    color_id = 14  # White for furniture
+                    tile_attr = curses.A_DIM
+
+                    if has_teleport_anchor:
+                        tile = "@"
+                        color_id = teleport_anchor_color
+                        tile_attr = curses.A_BOLD
+
                 elif terrain == TerrainType.DERELICT_BUILDING:
                     tile = self.game_ui.asset_manager.get_terrain_tile("derelict_building")
 

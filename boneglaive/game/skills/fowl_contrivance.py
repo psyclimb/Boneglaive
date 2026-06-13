@@ -691,7 +691,10 @@ class BigArcSkill(ActiveSkill):
                     TerrainType.TOOLBOX, TerrainType.COT, TerrainType.CONVEYOR,
                     TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL,
                     TerrainType.SLAG_WALL, TerrainType.TOPIARY,
-                    TerrainType.DERELICT_BUILDING
+                    TerrainType.DERELICT_BUILDING,
+                    TerrainType.PYLON, TerrainType.SUNDIAL, TerrainType.FIRE_PIT,
+                    TerrainType.GRANITE_SPHERE, TerrainType.TERRACOTTA,
+                    TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR
                 ]
                 displaceable_terrain = destructible_terrain
 

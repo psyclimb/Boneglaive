@@ -465,7 +465,9 @@ class DivineDrepreciationAnimation:
                             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
                             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
                             TerrainType.COUCH, TerrainType.TOOLBOX, TerrainType.COT,
-                            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+                            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL,
+                            TerrainType.SUNDIAL, TerrainType.FIRE_PIT, TerrainType.GRANITE_SPHERE,
+                            TerrainType.TERRACOTTA, TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR
                         }
                         has_furniture = tile_terrain in furniture_types
 
