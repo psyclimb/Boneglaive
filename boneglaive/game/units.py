@@ -711,10 +711,12 @@ class Unit:
                     player=self.player
                 )
 
-                # Spawn building around the derelicted unit
+                # Spawn building around the derelicted unit (only with Derelict upgrade)
                 if self._game and self.partition_dissociation_caster:
-                    from boneglaive.game.skills.derelictionist import _place_derelict_building
-                    _place_derelict_building(self, self.partition_dissociation_caster, self._game, ui=None)
+                    from boneglaive.game.upgrades import UpgradeManager
+                    if UpgradeManager.is_skill_upgraded(self.partition_dissociation_caster, "Derelict"):
+                        from boneglaive.game.skills.derelictionist import _place_derelict_building
+                        _place_derelict_building(self, self.partition_dissociation_caster, self._game, ui=None)
                 
                 # Remove partition shield status (but keep prt=999 until end of turn)
                 self.partition_shield_active = False

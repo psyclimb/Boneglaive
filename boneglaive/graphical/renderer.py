@@ -4256,18 +4256,6 @@ class GraphicalRenderer:
                         (GRID_OFFSET_X + ghost_x * TILE_SIZE, GRID_OFFSET_Y + ghost_y * TILE_SIZE)
                     )
 
-        # Draw setup valid tiles (blue/cyan)
-        if self.setup_placing_unit and self.setup_valid_tiles:
-            setup_color = (100, 200, 255)  # Blue/cyan for setup
-            for y, x in self.setup_valid_tiles:
-                indicator_surf.fill((0, 0, 0, 0))
-                pygame.draw.rect(indicator_surf, (*setup_color, 80), indicator_rect)
-                pygame.draw.rect(indicator_surf, (*setup_color, 200), indicator_rect, 3)
-                surface.blit(
-                    indicator_surf,
-                    (GRID_OFFSET_X + x * TILE_SIZE, GRID_OFFSET_Y + y * TILE_SIZE)
-                )
-
         # Draw setup ghost preview
         if self.setup_placing_unit and self.setup_ghost_pos and self.selected_unit_type:
             ghost_x, ghost_y = self.setup_ghost_pos  # screen_to_grid returns (grid_x, grid_y)
