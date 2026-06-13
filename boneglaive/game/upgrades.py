@@ -293,7 +293,7 @@ SKILL_UPGRADES = {
         },
         "Dissonance": {
             "name": "Dissonance",
-            "description": "Impact whirls surrounding terrain and furniture one step counter-clockwise. Displaces units in the path.",
+            "description": "Impact whirls all surrounding terrain counter-clockwise. Displaces units in the path.",
             "type": "buff",
             "cost": 1
         }

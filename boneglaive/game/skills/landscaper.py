@@ -49,9 +49,9 @@ DRAG_DIRECTION_CCW = {
     'NW': 'SW',
 }
 
-# CCW rotation for the 5x5 ring around Dissonance impact (upgrade)
+# CCW rotation for the 5x5 outer ring around Dissonance impact (upgrade)
 # Each (dy, dx) offset maps to its CCW neighbor on the perimeter
-RING_CCW = {
+OUTER_RING_CCW = {
     # Top row (left to right)
     (-2, -2): (-2, -1),
     (-2, -1): (-2,  0),
@@ -72,6 +72,22 @@ RING_CCW = {
     ( 1, -2): ( 0, -2),
     ( 0, -2): (-1, -2),
     (-1, -2): (-2, -2),
+}
+
+# CCW rotation for the 3x3 inner ring around Dissonance impact (upgrade)
+INNER_RING_CCW = {
+    # Top row (left to right)
+    (-1, -1): (-1,  0),
+    (-1,  0): (-1,  1),
+    # Right column (top to bottom)
+    (-1,  1): ( 0,  1),
+    ( 0,  1): ( 1,  1),
+    # Bottom row (right to left)
+    ( 1,  1): ( 1,  0),
+    ( 1,  0): ( 1, -1),
+    # Left column (bottom to top)
+    ( 1, -1): ( 0, -1),
+    ( 0, -1): (-1, -1),
 }
 
 
@@ -1201,9 +1217,12 @@ class DissonanceSkill(ActiveSkill):
         rotated_tiles = []
 
         if is_upgraded:
-            # Snapshot all 16 ring positions before any changes
+            # Combine both rings for unified processing (no key collisions)
+            all_rings = {**OUTER_RING_CCW, **INNER_RING_CCW}
+
+            # Snapshot all ring positions before any changes
             ring_snapshot = {}
-            for (dy, dx) in RING_CCW:
+            for (dy, dx) in all_rings:
                 ry, rx = ty + dy, tx + dx
                 if not game.is_valid_position(ry, rx):
                     ring_snapshot[(dy, dx)] = None
@@ -1264,7 +1283,7 @@ class DissonanceSkill(ActiveSkill):
 
             # Place terrain at CCW destinations
             units_to_displace = []
-            for (src_dy, src_dx), (dest_dy, dest_dx) in RING_CCW.items():
+            for (src_dy, src_dx), (dest_dy, dest_dx) in all_rings.items():
                 snap = ring_snapshot[(src_dy, src_dx)]
                 if snap is None:
                     continue
