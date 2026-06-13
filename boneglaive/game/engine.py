@@ -3301,6 +3301,10 @@ class Game:
                 pos_y, pos_x = pos_tuple
                 self.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
                 del self.slag_wall_tiles[pos_tuple]
+                # Clean up Market Futures anchor if slag overwrote imbued furniture
+                if hasattr(self, 'teleport_anchors') and pos_tuple in self.teleport_anchors:
+                    del self.teleport_anchors[pos_tuple]
+                    self.update_anchor_status_effects()
 
             # Store for graphical animation detection
             self.last_despawned_slag_walls = list(slag_to_remove)

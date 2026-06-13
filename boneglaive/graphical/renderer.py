@@ -3757,7 +3757,7 @@ class GraphicalRenderer:
         ]
         return terrain_type in furniture_types
 
-    def _get_base_terrain_for_map(self, game_map) -> TerrainType:
+    def _get_base_terrain_for_map(self, game_map, x: int = 0, y: int = 0) -> TerrainType:
         """Get the base terrain type for the current map (to render under furniture)."""
         if not game_map or not hasattr(game_map, 'name'):
             return TerrainType.EMPTY
@@ -3772,6 +3772,9 @@ class GraphicalRenderer:
         elif 'lime' in map_name or 'foyer' in map_name:
             return TerrainType.DUST
         elif 'verdant' in map_name:
+            # Verdant Terrace has two floor types: flagstone center, undergrowth edges
+            if 1 <= y <= 8 and 3 <= x <= 16:
+                return TerrainType.FLAGSTONE
             return TerrainType.UNDERGROWTH
         else:
             # Default to empty for unknown maps
@@ -3814,9 +3817,9 @@ class GraphicalRenderer:
 
         # Check if this is furniture, empty, or non-unit topiary - render base terrain first
         is_furniture = self._is_furniture(terrain_type)
-        if (is_furniture or terrain_type == TerrainType.EMPTY or terrain_type == TerrainType.TOPIARY) and game_map:
-            # Get the base terrain for this map
-            base_terrain = self._get_base_terrain_for_map(game_map)
+        if (is_furniture or terrain_type == TerrainType.EMPTY or terrain_type == TerrainType.TOPIARY or terrain_type == TerrainType.PYLON) and game_map:
+            # Get the base terrain for this map (position-aware for mixed-floor maps)
+            base_terrain = self._get_base_terrain_for_map(game_map, x, y)
             if base_terrain != TerrainType.EMPTY:
                 # Render base terrain texture underneath furniture/empty tiles
                 base_surface = self._load_terrain_tile(base_terrain)

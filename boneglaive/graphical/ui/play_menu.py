@@ -79,7 +79,11 @@ class MapSelectionMenu(MenuScreen):
         self.button_spacing = spacing
 
         start_x = (screen_width - button_w) // 2
-        start_y = menu_start_y(screen_height)
+
+        # Center all buttons vertically: map buttons + extra spacing + back button
+        num_maps = len(self.available_maps)
+        total_height = num_maps * (button_h + spacing) + spacing * 2 + button_h
+        start_y = max(10, (screen_height - total_height) // 2)
 
         self.buttons = []
         for i, map_name in enumerate(self.available_maps):
@@ -91,7 +95,7 @@ class MapSelectionMenu(MenuScreen):
                        lambda mn=map_name: self._select_map(mn), image=map_icon)
             )
 
-        back_y = start_y + len(self.available_maps) * (button_h + spacing) + spacing * 2
+        back_y = start_y + num_maps * (button_h + spacing) + spacing * 2
         self.buttons.append(
             Button(start_x, back_y, button_w, button_h, "Back", font,
                    lambda: self._set_action("back"), glaive_direction="left")
@@ -113,7 +117,8 @@ class MapSelectionMenu(MenuScreen):
         icon_map = {
             'lime_foyer': 'lime_foyer_icon.svg',
             'hard_pressed': 'hard_pressed_icon.svg',
-            'stained_stones': 'stained_stones_icon.svg'
+            'stained_stones': 'stained_stones_icon.svg',
+            'verdant_terrace': 'verdant_terrace_icon.svg'
         }
         icon_filename = icon_map.get(map_name)
         if not icon_filename:

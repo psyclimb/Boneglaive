@@ -521,6 +521,11 @@ class MarrowDikeSkill(ActiveSkill):
             original_terrain = current_terrain
             game.previous_terrain[tile] = original_terrain
             
+            # Clean up Market Futures anchor if overwriting imbued furniture
+            if hasattr(game, 'teleport_anchors') and tile in game.teleport_anchors:
+                del game.teleport_anchors[tile]
+                game.update_anchor_status_effects()
+
             # Set the tile to MARROW_WALL terrain (special terrain for dike)
             game.map.set_terrain_at(tile_y, tile_x, TerrainType.MARROW_WALL)
             

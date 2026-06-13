@@ -394,6 +394,11 @@ class HornswoggleSkill(ActiveSkill):
         if hasattr(game, 'topiary_terrain') and (grab_y, grab_x) in game.topiary_terrain:
             del game.topiary_terrain[(grab_y, grab_x)]
 
+        # Migrate Market Futures teleport anchor — furniture is being moved, not destroyed
+        grabbed_anchor = None
+        if hasattr(game, 'teleport_anchors') and (grab_y, grab_x) in game.teleport_anchors:
+            grabbed_anchor = game.teleport_anchors.pop((grab_y, grab_x))
+
         grab_name = grabbed_topiary_unit.get_display_name() if grabbed_topiary_unit else grabbed_terrain.name.replace('_', ' ').lower()
         message_log.add_message(
             f"{user.get_display_name()}'s sonic wave latches onto {grab_name}",
@@ -439,6 +444,10 @@ class HornswoggleSkill(ActiveSkill):
             # Clean up terrain-topiary tracking if overwriting one
             if hasattr(game, 'topiary_terrain') and (slag_y, slag_x) in game.topiary_terrain:
                 del game.topiary_terrain[(slag_y, slag_x)]
+            # Clean up Market Futures anchor if overwriting imbued furniture
+            if hasattr(game, 'teleport_anchors') and (slag_y, slag_x) in game.teleport_anchors:
+                del game.teleport_anchors[(slag_y, slag_x)]
+                game.update_anchor_status_effects()
             game.map.set_terrain_at(slag_y, slag_x, TerrainType.SLAG_WALL)
             game.slag_wall_tiles[(slag_y, slag_x)] = {
                 'duration': self.SLAG_DURATION,
@@ -463,6 +472,11 @@ class HornswoggleSkill(ActiveSkill):
 
         # Migrate astral values from grab position to deposit position
         _migrate_cosmic_values(game, grab_y, grab_x, deposit_y, deposit_x)
+
+        # Migrate Market Futures anchor to deposit position
+        if grabbed_anchor is not None:
+            game.teleport_anchors[(deposit_y, deposit_x)] = grabbed_anchor
+            game.update_anchor_status_effects()
 
         # If we grabbed a topiary-unit, move the unit to the deposit position
         if grabbed_topiary_unit:
@@ -549,6 +563,9 @@ class HornswoggleSkill(ActiveSkill):
                     # Place slag at source
                     if hasattr(game, 'slag_wall_tiles') and (sy, sx) in game.slag_wall_tiles:
                         del game.slag_wall_tiles[(sy, sx)]
+                    if hasattr(game, 'teleport_anchors') and (sy, sx) in game.teleport_anchors:
+                        del game.teleport_anchors[(sy, sx)]
+                        game.update_anchor_status_effects()
                     game.map.set_terrain_at(sy, sx, TerrainType.SLAG_WALL)
                     game.slag_wall_tiles[(sy, sx)] = {
                         'duration': self.SLAG_DURATION,
@@ -1124,6 +1141,11 @@ class DissonanceSkill(ActiveSkill):
         # Clean up terrain-topiary tracking if applicable (upgraded Topiary Breath)
         if hasattr(game, 'topiary_terrain') and (ty, tx) in game.topiary_terrain:
             del game.topiary_terrain[(ty, tx)]
+
+        # Clean up Market Futures teleport anchor if furniture was imbued
+        if hasattr(game, 'teleport_anchors') and (ty, tx) in game.teleport_anchors:
+            del game.teleport_anchors[(ty, tx)]
+            game.update_anchor_status_effects()
 
         # Text mode shatter animation — forks strike then terrain explodes
         if ui and hasattr(ui, 'renderer'):

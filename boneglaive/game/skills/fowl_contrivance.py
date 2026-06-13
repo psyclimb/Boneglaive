@@ -726,6 +726,9 @@ class BigArcSkill(ActiveSkill):
                         del game.marrow_dike_tiles[(pos_y, pos_x)]
                     if hasattr(game, 'derelict_building_tiles') and (pos_y, pos_x) in game.derelict_building_tiles:
                         del game.derelict_building_tiles[(pos_y, pos_x)]
+                    if hasattr(game, 'teleport_anchors') and (pos_y, pos_x) in game.teleport_anchors:
+                        del game.teleport_anchors[(pos_y, pos_x)]
+                        game.update_anchor_status_effects()
 
                 # Step 1: Destroy terrain/furniture at primary (center) impact
                 terrain = game.map.get_terrain_at(second_center_y, second_center_x)
