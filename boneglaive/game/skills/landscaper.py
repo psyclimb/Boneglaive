@@ -238,7 +238,7 @@ class HornswoggleSkill(ActiveSkill):
         super().__init__(
             name="Hornswoggle",
             key="H",
-            description="Fire sonic wave to grab terrain, drag it 90° CCW depositing slag walls. Wave range 3, drag range 4.",
+            description="Fire sonic wave to grab terrain, drag it 90° CCW depositing slag walls. Wave range 4, drag range 4.",
             target_type=TargetType.NONE,
             cooldown=9,
             range_=0

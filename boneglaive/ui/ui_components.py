@@ -1327,13 +1327,13 @@ class UnitHelpComponent(UIComponent):
                 'overview': [
                     'The LANDSCAPER is a four-armed terrain manipulator who reshapes the battlefield through acoustic resonance. She wields quartz crystal tuning forks and a Tibetan horn array to grab terrain, build slag walls, turn units into topiary sculptures, and shatter terrain for piercing shrapnel.',
                     '',
-                    'Role: Disabler / Displacer / Utility / Burst Damage'
+                    'Role: Displacer / Disabler / Utility'
                 ],
                 'stats': [
                     'HP: 20',
                     'Attack: 1',
                     'Defense: 1',
-                    'Movement: 3',
+                    'Movement: 2',
                     'Range: 1'
                 ],
                 'skills': [
@@ -1346,7 +1346,7 @@ class UnitHelpComponent(UIComponent):
                         'name': 'HORNSWOGGLE (Active)',
                         'description': 'Fire a sonic wave in one of 8 directions. The wave grabs the first terrain it hits and drags it 90 degrees counter-clockwise. Terrain flies over all obstacles to max drag range. Slag walls are deposited along the drag path, displacing any units or terrain in the way. Can grab any terrain including topiaries.',
                         'details': [
-                            'Wave range: 3, Drag range: 4',
+                            'Wave range: 4, Drag range: 4',
                             'Slag wall duration: 3 turns',
                             'Cooldown: 9 turns',
                             'Upgrade: matching terrain near the grab point also shifts, leaving more slag'
@@ -1363,10 +1363,10 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'DISSONANCE (Active)',
-                        'description': 'Launch an acoustic gyre that shatters terrain from within. Shrapnel flies in all 8 directions dealing 4 piercing damage (ignores DEF). Shrapnel stops at terrain but passes through multiple units. Shattering a topiary frees the unit inside.',
+                        'description': 'Launch an acoustic gyre that shatters terrain from within. Shrapnel flies in all 8 directions dealing 5 piercing damage (ignores DEF). Shrapnel stops at terrain but passes through multiple units. Shattering a topiary frees the unit inside.',
                         'details': [
-                            'Cast range: 3, Shrapnel range: 2',
-                            'Damage: 4 piercing (shrapnel)',
+                            'Cast range: 4, Shrapnel range: 2',
+                            'Damage: 5 piercing (shrapnel)',
                             'Cooldown: 9 turns'
                         ]
                     }

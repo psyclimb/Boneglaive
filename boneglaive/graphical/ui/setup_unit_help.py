@@ -340,7 +340,7 @@ class SetupUnitHelp:
             },
             UnitType.LANDSCAPER: {
                 'difficulty': 4,  # Out of 5
-                'role': 'Disabler / Displacer / Utility / Burst Damage',
+                'role': 'Displacer / Disabler / Utility',
                 'overview': 'A four-armed acoustic resonance master wielding quartz tuning forks and a Tibetan horn array. This terrain specialist grabs and moves terrain, creates temporary slag walls, petrifies enemies into garden sculptures, and shatters terrain into lethal shrapnel.',
                 'passive': {
                     'name': 'TRANSLATIVE STROKE',
