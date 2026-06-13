@@ -348,7 +348,7 @@ class GameMap:
         terrain = self.get_terrain_at(y, x)
         # Rails can be placed on empty, dust, canyon floor, concrete floor, or existing rail tiles
         # Cannot be placed on blocking terrain or furniture
-        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.UNDERGROWTH]
+        return terrain in [TerrainType.EMPTY, TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR, TerrainType.RAIL, TerrainType.UNDERGROWTH, TerrainType.FLAGSTONE]
 
 
     def get_rail_positions(self) -> List[Tuple[int, int]]:
