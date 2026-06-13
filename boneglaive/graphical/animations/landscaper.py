@@ -90,10 +90,16 @@ class TranslativeStrokeAnimation:
 
         # State
         self.impact_triggered = False
+        self.swing_sound_played = False
         self.watch_hand_angle = 0.0  # Current hand rotation
 
     def update(self, delta_time):
         self.elapsed += delta_time
+
+        # Phase 1: Fork swing sound
+        if not self.swing_sound_played:
+            self.swing_sound_played = True
+            play_sound("translative_stroke_swing")
 
         # Phase 2: Impact trigger
         if self.elapsed >= self.strike_end and not self.impact_triggered:
@@ -326,6 +332,8 @@ class HornswoggleAnimation:
             self.terrain_pos = list(self.grab_screen)
             self.wave_progress = 0.0
             self.wave_sound_played = False
+            self.grab_sound_played = False
+            self.slag_sound_played = False
             self.deposit_sound_played = False
 
             self.wave_x = float(sx_screen)
@@ -399,6 +407,8 @@ class HornswoggleAnimation:
         self.terrain_pos = list(self.grab_screen)  # Current flying terrain position
         self.wave_progress = 0.0
         self.wave_sound_played = False
+        self.grab_sound_played = False
+        self.slag_sound_played = False
         self.deposit_sound_played = False
 
         # Wave projectile state
@@ -463,6 +473,9 @@ class HornswoggleAnimation:
 
         elif phase == "grab":
             # Grab impact at start of phase
+            if not self.grab_sound_played:
+                self.grab_sound_played = True
+                play_sound("hornswoggle_grab")
             if phase_t < delta_time * 2 and self.particle_emitter:
                 gx, gy = self.grab_screen
                 self.particle_emitter.emit_burst(gx, gy, BURGUNDY, count=15)
@@ -481,6 +494,9 @@ class HornswoggleAnimation:
                 slag_progress = (i + 1) / max(1, len(self.slag_screens) + 1)
                 if progress >= slag_progress and not self.slag_formed[i]:
                     self.slag_formed[i] = True
+                    if not self.slag_sound_played:
+                        self.slag_sound_played = True
+                        play_sound("hornswoggle_slag")
                     sx, sy = self.slag_screens[i]
                     # Reveal this slag tile on the map
                     self.hidden_tiles.discard(self.slag_grids[i])
@@ -774,6 +790,7 @@ class TopiaryBreathAnimation:
         self.total_duration = 2.3
         self.cone_alpha = 0
         self.rows_revealed = 0
+        self.charge_sound_played = False
         self.blast_sound_played = False
         self.petrify_sound_played = False
 
@@ -782,6 +799,9 @@ class TopiaryBreathAnimation:
 
         # Phase 1: Charge (0.0-0.4s)
         if self.elapsed < 0.4:
+            if not self.charge_sound_played:
+                self.charge_sound_played = True
+                play_sound("topiary_breath_charge")
             if self.elapsed < delta_time * 2 and self.screen_shake:
                 self.screen_shake(2, 0.3)
 
@@ -981,6 +1001,7 @@ class DissonanceAnimation:
         self.shrapnel = []
         self.shatter_triggered = False
         self.impact_triggered = False
+        self.flight_sound_played = False
 
         # Crack lines for internal shatter effect
         self.cracks = []
@@ -1003,6 +1024,9 @@ class DissonanceAnimation:
 
         # Phase 1: Flight — gyre projectile flies straight to target (0.0-0.9s)
         if self.elapsed < self.flight_end:
+            if not self.flight_sound_played:
+                self.flight_sound_played = True
+                play_sound("dissonance_flight")
             flight_t = min(1.0, self.elapsed / self.flight_end)
 
             # Straight-line interpolation from caster to target
@@ -1032,6 +1056,7 @@ class DissonanceAnimation:
         elif self.elapsed < self.impact_end:
             if not self.impact_triggered:
                 self.impact_triggered = True
+                play_sound("dissonance_impact")
                 if self.screen_shake:
                     self.screen_shake(5, 0.2)
                 if self.particle_emitter:

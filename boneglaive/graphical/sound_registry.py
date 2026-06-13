@@ -98,8 +98,6 @@ SKILL_SOUNDS = {
     "HORNSWOGGLE": "hornswoggle",
     "TOPIARY_BREATH": "topiary_breath",
     "DISSONANCE": "dissonance",
-    "SLAG_WALL_DESPAWN": None,  # Ambient crumble (silent for now)
-    "TOPIARY_REVERT": None,  # Ambient shatter (silent for now)
 }
 
 # Impact sounds (hit effects, explosions, etc.)
@@ -389,21 +387,28 @@ MULTI_EVENT_SOUNDS = {
     "aerosolize_extract": "sounds/skills/aerosolize_extract.wav",  # Weapon extracted and aerosolized — metallic dissolve
     "aerosolize_disarm": "sounds/skills/aerosolize_disarm.wav",    # Disarm applied — hollow clank of weapon gone
 
-    # LANDSCAPER - Basic Attack / Translative Stroke (1 event)
-    "translative_stroke_impact": "sounds/skills/translative_stroke_impact.wav",  # Fork connecting with target — resonant thud
+    # LANDSCAPER - Basic Attack / Translative Stroke (3 events)
+    "translative_stroke_swing": "sounds/skills/translative_stroke_swing.wav",    # Four tuning forks thrust toward target — crystalline quad-whoosh
+    "translative_stroke_impact": "sounds/skills/translative_stroke_impact.wav",  # Forks connecting with target — resonant thud
 
-    # LANDSCAPER - Hornswoggle (2 events)
+    # LANDSCAPER - Hornswoggle (4 events)
     "hornswoggle_wave": "sounds/skills/hornswoggle_wave.wav",        # Sonic wave fires from horn array — deep brass blast
+    "hornswoggle_grab": "sounds/skills/hornswoggle_grab.wav",        # Wave grips terrain — heavy stone crack and lock
+    "hornswoggle_slag": "sounds/skills/hornswoggle_slag.wav",        # Slag walls hardening along drag path — molten hiss and sizzle
     "hornswoggle_deposit": "sounds/skills/hornswoggle_deposit.wav",  # Terrain deposited at destination — heavy impact slam
 
-    # LANDSCAPER - Topiary Breath (2 events)
-    "topiary_breath_blast": "sounds/skills/topiary_breath_blast.wav",      # Petrifying cone erupts — wide resonant roar
-    "topiary_breath_petrify": "sounds/skills/topiary_breath_petrify.wav",  # Units crystallize into topiary — crackling solidification
+    # LANDSCAPER - Topiary Breath (3 events)
+    "topiary_breath_charge": "sounds/skills/topiary_breath_charge.wav",      # Horn array resonance building — rising harmonic pressure
+    "topiary_breath_blast": "sounds/skills/topiary_breath_blast.wav",        # Petrifying cone erupts — wide resonant roar
+    "topiary_breath_petrify": "sounds/skills/topiary_breath_petrify.wav",    # Units crystallize into topiary — crackling solidification
 
-    # LANDSCAPER - Dissonance (3 events)
+    # LANDSCAPER - Dissonance (5 events)
+    "dissonance_flight": "sounds/skills/dissonance_flight.wav",        # Acoustic gyre projectile in flight — rising whistling vortex hum
+    "dissonance_impact": "sounds/skills/dissonance_impact.wav",        # Gyre absorbed into terrain — muffled resonant crunch
     "dissonance_shatter": "sounds/skills/dissonance_shatter.wav",      # Terrain shatters explosively — heavy stone detonation
     "dissonance_whirl": "sounds/skills/dissonance_whirl.wav",          # Upgraded: terrain tiles ripped into CCW arc — grinding vortex roar
     "dissonance_shrapnel": "sounds/skills/dissonance_shrapnel.wav",    # Shrapnel radiates outward — sharp fragments whistling through air
+
 }
 
 
