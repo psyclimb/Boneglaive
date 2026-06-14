@@ -1356,7 +1356,7 @@ class UnitHelpComponent(UIComponent):
                         'name': 'TOPIARY BREATH (Active)',
                         'description': 'Blast a cone of petrifying resonance that transforms ALL units caught (allies and enemies) into invulnerable topiary terrain sculptures for 2 turns. Units are rearranged into a checker pattern. Topiaries have 999 PRT, block movement and LOS, are immune to status effects, and cannot act. Topiaries can be Hornswoggled or shattered by Dissonance.',
                         'details': [
-                            'Cone: 3/5/7/7 tiles wide over 4 rows',
+                            'Cone: 3/5/7/7 tiles wide (cardinal), 5/5/5/5 diamond (diagonal)',
                             'Duration: 2 turns',
                             'Cooldown: 13 turns'
                         ]

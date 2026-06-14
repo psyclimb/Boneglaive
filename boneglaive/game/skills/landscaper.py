@@ -149,25 +149,23 @@ def _get_cone_tiles(origin_y, origin_x, direction, game):
 
     Cardinal directions: rows of 3/5/7/7 tiles wide using a single perpendicular axis.
     Diagonal directions: diamond-shaped rows using both adjacent cardinal axes,
-    with spreads of 1/1/2/2 (Manhattan distance from center).
+    with spreads of 1/1/1/1 (Manhattan distance from center).
 
-    Returns list of (y, x) tuples within map bounds.
+    Returns (tiles, rows) where tiles is a list of (y, x) tuples within map
+    bounds and rows is a list of 4 lists (one per distance row) for animation.
     """
     dy, dx = DIRECTION_VECTORS[direction]
     seen = set()
     tiles = []
+    rows = [[], [], [], []]
 
     is_diagonal = dy != 0 and dx != 0
 
     if is_diagonal:
         # Diagonal: spread as 2D diamonds along both adjacent cardinal axes
-        # NE(-1,1): vertical=(-1,0), horizontal=(0,1)
-        # NW(-1,-1): vertical=(-1,0), horizontal=(0,-1)
-        # SE(1,1): vertical=(1,0), horizontal=(0,1)
-        # SW(1,-1): vertical=(1,0), horizontal=(0,-1)
         perp1_dy, perp1_dx = dy, 0   # vertical cardinal component
         perp2_dy, perp2_dx = 0, dx   # horizontal cardinal component
-        spreads = [1, 1, 2, 2]
+        spreads = [1, 1, 1, 1]
 
         for dist_idx, spread in enumerate(spreads):
             dist = dist_idx + 1
@@ -181,6 +179,7 @@ def _get_cone_tiles(origin_y, origin_x, direction, game):
                         if game.is_valid_position(tile_y, tile_x) and (tile_y, tile_x) not in seen:
                             seen.add((tile_y, tile_x))
                             tiles.append((tile_y, tile_x))
+                            rows[dist_idx].append((tile_y, tile_x))
     else:
         # Cardinal: single perpendicular axis, rows of 3/5/7/7
         if dy == 0:
@@ -200,8 +199,9 @@ def _get_cone_tiles(origin_y, origin_x, direction, game):
                 tile_x = center_x + perp_dx * offset
                 if game.is_valid_position(tile_y, tile_x):
                     tiles.append((tile_y, tile_x))
+                    rows[dist_idx].append((tile_y, tile_x))
 
-    return tiles
+    return tiles, rows
 
 
 class TranslativeStroke(PassiveSkill):
@@ -716,7 +716,7 @@ class TopiaryBreathSkill(ActiveSkill):
             return
 
         source_y, source_x = getattr(self, 'fire_source', (user.y, user.x))
-        cone_tiles = _get_cone_tiles(source_y, source_x, direction, game)
+        cone_tiles, cone_tile_rows = _get_cone_tiles(source_y, source_x, direction, game)
 
         # Find all units in the cone (excluding the caster)
         caught_units = []
@@ -744,6 +744,7 @@ class TopiaryBreathSkill(ActiveSkill):
                 'source': (source_y, source_x),
                 'direction': direction,
                 'cone_tiles': list(cone_tiles),
+                'cone_tile_rows': [list(row) for row in cone_tile_rows],
                 'transformed_units': [],
                 'terrain_topiaries': [],
                 'generated_topiaries': [],
@@ -1020,6 +1021,7 @@ class TopiaryBreathSkill(ActiveSkill):
             'source': (source_y, source_x),
             'direction': direction,
             'cone_tiles': list(cone_tiles),
+            'cone_tile_rows': [list(row) for row in cone_tile_rows],
             'transformed_units': [(u.y, u.x) for u in caught_units[:units_transformed]],
             'terrain_topiaries': terrain_topiary_positions,
             'generated_topiaries': generated_topiary_positions,

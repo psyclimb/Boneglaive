@@ -748,14 +748,26 @@ class TopiaryBreathAnimation:
             terrain_topiary_positions = topiary_data.get('terrain_topiaries', [])
             generated_topiary_positions = topiary_data.get('generated_topiaries', [])
 
+            cone_tile_rows = topiary_data.get('cone_tile_rows', None)
+
             for ty, tx in cone_tiles:
                 screen_pos = camera.grid_to_screen(tx, ty, centered=True)
                 self.cone_screens.append(screen_pos)
 
-                # Sort into rows by distance
-                dist = max(abs(ty - fire_src[0]), abs(tx - fire_src[1]))
-                if 1 <= dist <= 4:
-                    self.cone_rows[dist - 1].append(screen_pos)
+            # Use authoritative row data from skill logic if available
+            if cone_tile_rows:
+                for row_idx, row in enumerate(cone_tile_rows):
+                    if row_idx < 4:
+                        for ty, tx in row:
+                            self.cone_rows[row_idx].append(
+                                camera.grid_to_screen(tx, ty, centered=True))
+            else:
+                # Fallback: sort by Chebyshev distance (cardinal only)
+                for ty, tx in cone_tiles:
+                    screen_pos = camera.grid_to_screen(tx, ty, centered=True)
+                    dist = max(abs(ty - fire_src[0]), abs(tx - fire_src[1]))
+                    if 1 <= dist <= 4:
+                        self.cone_rows[dist - 1].append(screen_pos)
 
             # Petrification targets from transformed unit positions
             for ty, tx in transformed_positions:
@@ -828,7 +840,8 @@ class TopiaryBreathAnimation:
         elif self.elapsed < 1.8:
             if not self.petrify_sound_played:
                 self.petrify_sound_played = True
-                play_sound("topiary_breath_petrify")
+                if self.petrify_targets:
+                    play_sound("topiary_breath_petrify")
             pet_t = self.elapsed - 1.0
             for i, (px, py) in enumerate(self.petrify_targets):
                 trigger_time = i * 0.1

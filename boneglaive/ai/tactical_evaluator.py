@@ -2750,7 +2750,7 @@ class TacticalEvaluator:
         actions = []
 
         for dir_name, (dy, dx) in DIRECTION_VECTORS.items():
-            cone_tiles = _get_cone_tiles(unit.y, unit.x, dir_name, self.game)
+            cone_tiles, _ = _get_cone_tiles(unit.y, unit.x, dir_name, self.game)
             if not cone_tiles:
                 continue
 
