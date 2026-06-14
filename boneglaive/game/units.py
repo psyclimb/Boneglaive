@@ -1501,6 +1501,27 @@ class Unit:
                                 unit.status_disarmed_duration = 0
                         available_effects.append(("Disarmed", clear_disarmed))
 
+                    # Topiary
+                    if hasattr(unit, 'is_topiary') and unit.is_topiary:
+                        def clear_topiary():
+                            from boneglaive.game.map import TerrainType
+                            unit.is_topiary = False
+                            unit.topiary_duration = 0
+                            if hasattr(unit, 'topiary_original_prt'):
+                                unit.prt = unit.topiary_original_prt
+                                delattr(unit, 'topiary_original_prt')
+                            # Clear topiary terrain at unit's position
+                            if game.map.get_terrain_at(unit.y, unit.x) == TerrainType.TOPIARY:
+                                game.map.set_terrain_at(unit.y, unit.x, TerrainType.EMPTY)
+                            # Remove from topiary_units tracking
+                            if hasattr(game, 'topiary_units') and (unit.y, unit.x) in game.topiary_units:
+                                del game.topiary_units[(unit.y, unit.x)]
+                            # Clean up cosmic values at this position
+                            for player_id in list(game.map.cosmic_values.keys()):
+                                if (unit.y, unit.x) in game.map.cosmic_values[player_id]:
+                                    del game.map.cosmic_values[player_id][(unit.y, unit.x)]
+                        available_effects.append(("Topiary", clear_topiary))
+
                     # If any effects are available, randomly pick ONE to cleanse
                     if available_effects:
                         effect_name, clear_function = random.choice(available_effects)
