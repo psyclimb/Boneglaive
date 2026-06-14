@@ -758,8 +758,8 @@ class TopiaryBreathSkill(ActiveSkill):
         if not hasattr(game, 'topiary_terrain'):
             game.topiary_terrain = {}
 
-        # All checker-parity tiles in the cone: (ty + tx) % 2 == 0
-        all_checker_tiles = [(ty, tx) for ty, tx in cone_tiles if (ty + tx) % 2 == 0]
+        # All checker-parity tiles in the cone: (ty + tx) % 2 == 1
+        all_checker_tiles = [(ty, tx) for ty, tx in cone_tiles if (ty + tx) % 2 == 1]
 
         if is_upgraded:
             # UPGRADED: fill entire cone checker pattern with topiaries
@@ -956,10 +956,10 @@ class TopiaryBreathSkill(ActiveSkill):
                         (ty, tx) not in [(u.y, u.x) for u in caught_units]):
                     checker_positions.append((ty, tx))
 
-            # If not enough checker positions, also use odd positions
+            # If not enough checker positions, also use even positions
             if len(checker_positions) < len(caught_units):
                 for ty, tx in cone_tiles:
-                    if (ty + tx) % 2 != 0:
+                    if (ty + tx) % 2 != 1:
                         if (game.map.is_passable(ty, tx) and
                                 not game.map.is_furniture(ty, tx) and
                                 game.get_unit_at(ty, tx) is None):
