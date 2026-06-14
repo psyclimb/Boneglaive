@@ -4,8 +4,9 @@ Skills specific to the LANDSCAPER unit type.
 This module contains all passive and active abilities for LANDSCAPER units.
 
 The LANDSCAPER is a terrain manipulator who reshapes the battlefield through
-acoustic resonance — grabbing terrain, building slag walls, turning units into
-topiary sculptures, and shattering terrain for piercing shrapnel damage.
+acoustic resonance — grabbing terrain and furniture, building slag walls, turning
+units into topiary sculptures, and shattering terrain and furniture for piercing
+shrapnel damage.
 """
 
 try:
@@ -238,7 +239,7 @@ class HornswoggleSkill(ActiveSkill):
         super().__init__(
             name="Hornswoggle",
             key="H",
-            description="Fire sonic wave to grab terrain, drag it 90° CCW depositing slag walls. Wave range 4, drag range 4.",
+            description="Fire sonic wave to grab terrain or furniture, drag it 90° CCW depositing slag walls. Wave range 4, drag range 4.",
             target_type=TargetType.NONE,
             cooldown=9,
             range_=0
@@ -1031,7 +1032,7 @@ class TopiaryBreathSkill(ActiveSkill):
 class DissonanceSkill(ActiveSkill):
     """
     Active skill: DISSONANCE
-    Launch an acoustic gyre into terrain, shattering it from within.
+    Launch an acoustic gyre into terrain or furniture, shattering it from within.
     Shrapnel flies in all 8 directions dealing piercing damage.
     Shrapnel stops at terrain, passes through units.
     """
@@ -1042,7 +1043,7 @@ class DissonanceSkill(ActiveSkill):
         super().__init__(
             name="Dissonance",
             key="D",
-            description="Launch acoustic gyre to shatter terrain. 5 piercing shrapnel in 8 directions. Stops at terrain, passes through units. Frees topiary units.",
+            description="Launch acoustic gyre to shatter terrain or furniture. 5 piercing shrapnel in 8 directions. Stops at terrain, passes through units. Frees topiary units.",
             target_type=TargetType.AREA,
             cooldown=9,
             range_=4

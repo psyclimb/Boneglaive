@@ -341,7 +341,7 @@ class SetupUnitHelp:
             UnitType.LANDSCAPER: {
                 'difficulty': 4,  # Out of 5
                 'role': 'Displacer / Disabler / Utility',
-                'overview': 'A four-armed acoustic resonance master wielding quartz tuning forks and a Tibetan horn array. This terrain specialist grabs and moves terrain, creates temporary slag walls, petrifies enemies into garden sculptures, and shatters terrain into lethal shrapnel.',
+                'overview': 'A four-armed acoustic resonance master wielding quartz tuning forks and a Tibetan horn array. This terrain specialist grabs and moves terrain and furniture, creates temporary slag walls, petrifies enemies into garden sculptures, and shatters terrain and furniture into lethal shrapnel.',
                 'passive': {
                     'name': 'TRANSLATIVE STROKE',
                     'desc': 'Basic attacks hit 4 times with tuning forks. All active skill cooldowns are reduced by the total damage dealt across all four hits.'
@@ -349,7 +349,7 @@ class SetupUnitHelp:
                 'skills': [
                     {
                         'name': 'HORNSWOGGLE',
-                        'desc': 'Fires a sonic wave that grabs the first terrain hit and drags it 90 degrees counter-clockwise. Slag walls form along the drag path, displacing anything in the way.'
+                        'desc': 'Fires a sonic wave that grabs the first terrain or furniture hit and drags it 90 degrees counter-clockwise. Slag walls form along the drag path, displacing anything in the way.'
                     },
                     {
                         'name': 'TOPIARY BREATH',
@@ -357,7 +357,7 @@ class SetupUnitHelp:
                     },
                     {
                         'name': 'DISSONANCE',
-                        'desc': 'Launches an acoustic gyre that shatters terrain from within. Shrapnel flies in all 8 directions dealing piercing damage. Shattering a topiary frees the unit inside.'
+                        'desc': 'Launches an acoustic gyre that shatters terrain or furniture from within. Shrapnel flies in all 8 directions dealing piercing damage. Shattering a topiary frees the unit inside.'
                     }
                 ]
             },

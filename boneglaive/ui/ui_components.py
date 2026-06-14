@@ -1325,7 +1325,7 @@ class UnitHelpComponent(UIComponent):
             UnitType.LANDSCAPER: {
                 'title': 'LANDSCAPER',
                 'overview': [
-                    'The LANDSCAPER is a four-armed terrain manipulator who reshapes the battlefield through acoustic resonance. She wields quartz crystal tuning forks and a Tibetan horn array to grab terrain, build slag walls, turn units into topiary sculptures, and shatter terrain for piercing shrapnel.',
+                    'The LANDSCAPER is a four-armed terrain manipulator who reshapes the battlefield through acoustic resonance. She wields quartz crystal tuning forks and a Tibetan horn array to grab terrain and furniture, build slag walls, turn units into topiary sculptures, and shatter terrain and furniture for piercing shrapnel.',
                     '',
                     'Role: Displacer / Disabler / Utility'
                 ],
@@ -1344,7 +1344,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'HORNSWOGGLE (Active)',
-                        'description': 'Fire a sonic wave in one of 8 directions. The wave grabs the first terrain it hits and drags it 90 degrees counter-clockwise. Terrain flies over all obstacles to max drag range. Slag walls are deposited along the drag path, displacing any units or terrain in the way. Can grab any terrain including topiaries.',
+                        'description': 'Fire a sonic wave in one of 8 directions. The wave grabs the first terrain or furniture it hits and drags it 90 degrees counter-clockwise. Terrain flies over all obstacles to max drag range. Slag walls are deposited along the drag path, displacing any units or terrain in the way. Can grab any terrain or furniture including topiaries.',
                         'details': [
                             'Wave range: 4, Drag range: 4',
                             'Slag wall duration: 3 turns',
@@ -1363,7 +1363,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'DISSONANCE (Active)',
-                        'description': 'Launch an acoustic gyre that shatters terrain from within. Shrapnel flies in all 8 directions dealing 5 piercing damage (ignores DEF). Shrapnel stops at terrain but passes through multiple units. Shattering a topiary frees the unit inside.',
+                        'description': 'Launch an acoustic gyre that shatters terrain or furniture from within. Shrapnel flies in all 8 directions dealing 5 piercing damage (ignores DEF). Shrapnel stops at terrain but passes through multiple units. Shattering a topiary frees the unit inside.',
                         'details': [
                             'Cast range: 4, Shrapnel range: 2',
                             'Damage: 5 piercing (shrapnel)',
@@ -1377,12 +1377,12 @@ class UnitHelpComponent(UIComponent):
                     '- Topiary Breath + Hornswoggle: drag a petrified enemy across the map',
                     '- Get ATK buffs from teammates to increase Translative Stroke cycling speed',
                     '- Careful with Topiary Breath — it affects your allies too!',
-                    '- Slag walls displace units and overwrite existing terrain'
+                    '- Slag walls displace units and overwrite existing terrain and furniture'
                 ],
                 'tactical': [
                     '- Strong against: Static defensive units, clustered formations, terrain-dependent strategies',
                     '- Vulnerable to: Ranged focus fire, PRT (blocks each Translative Stroke hit), Stasiality (resists Topiary)',
-                    '- Best positioning: Mid-line near terrain, in melee range for Translative Stroke cooldown cycling'
+                    '- Best positioning: Mid-line near terrain or furniture, in melee range for Translative Stroke cooldown cycling'
                 ]
             },
             'HEINOUS_VAPOR_BROACHING': {
