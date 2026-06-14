@@ -13,7 +13,6 @@ from boneglaive.utils.debug import debug_config, measure_perf, logger
 from boneglaive.utils.asset_manager import AssetManager
 from boneglaive.utils.config import ConfigManager, GameMode
 from boneglaive.utils.input_handler import InputHandler, GameAction
-from boneglaive.game.player_profile import profile_manager
 from boneglaive.renderers.curses_renderer import CursesRenderer
 from boneglaive.utils.render_interface import RenderInterface
 from boneglaive.utils.message_log import message_log, MessageType
@@ -69,24 +68,13 @@ class GameUI:
         from boneglaive.utils.debug import logger
         logger.info(f"GameUI: Reading selected_map from config: '{selected_map}'")
 
-        # Build player names dict based on profile and game mode
-        player_names = {}
-        current_profile = profile_manager.get_current_profile()
-        if current_profile:
-            player_names[1] = current_profile.name
-            logger.info(f"GameUI: Using profile name '{current_profile.name}' for Player 1")
-        else:
-            player_names[1] = "Player 1"
-            logger.info("GameUI: No profile selected, using default 'Player 1'")
-
-        # Check if Player 2 is AI
+        # Build player names dict based on game mode
+        player_names = {1: "Player 1"}
         game_mode = self.config_manager.get('game_mode', GameMode.VS_AI.value)
         if game_mode == GameMode.VS_AI.value:
             player_names[2] = "AI"
-            logger.info("GameUI: Player 2 is AI opponent")
         else:
             player_names[2] = "Player 2"
-            logger.info("GameUI: Player 2 is human opponent")
 
         self.game = Game(skip_setup=False, map_name=selected_map, player_names=player_names)
         
@@ -185,18 +173,6 @@ class GameUI:
         winner_name = self.game.get_player_name(winner)
         message_log.add_system_message(f"Game over. {winner_name} wins")
         self.message = f"{winner_name} wins"
-
-        # Track profile stats (only for Player 1 - the human player)
-        profile = profile_manager.get_current_profile()
-        if profile:
-            if winner == 1:
-                profile.record_win()
-                logger.info(f"Profile {profile.name}: Recorded win")
-            else:
-                profile.record_loss()
-                logger.info(f"Profile {profile.name}: Recorded loss")
-            # Save profile to persist stats
-            profile_manager.save_profile(profile)
 
         # Show the game over prompt
         self.game_over_prompt.show(winner)

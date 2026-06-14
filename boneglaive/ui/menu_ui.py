@@ -17,7 +17,6 @@ from boneglaive.utils.debug import debug_config, logger
 from boneglaive.renderers.curses_renderer import CursesRenderer
 from boneglaive.utils.render_interface import RenderInterface
 from boneglaive import __version__
-from boneglaive.game.player_profile import profile_manager
 
 class MenuItem:
     """Represents a menu item."""
@@ -73,19 +72,6 @@ class MenuUI:
         self.current_menu = self._create_main_menu()
         self.running = True
 
-        # Auto-load the last selected profile if one exists
-        saved_profile_name = self.config.get('current_profile', '')
-        if saved_profile_name:
-            profile = profile_manager.load_profile(saved_profile_name)
-            if profile:
-                profile_manager.set_current_profile(profile)
-                logger.info(f"Auto-loaded profile: {saved_profile_name}")
-            else:
-                logger.warning(f"Failed to auto-load profile: {saved_profile_name}")
-                # Clear the invalid profile from config
-                self.config.set('current_profile', '')
-                self.config.save_config()
-
         # Draw the menu immediately to avoid black screen
         self.draw()
     
@@ -103,17 +89,9 @@ class MenuUI:
             MenuItem("Back", lambda: ("submenu", None))
         ])
 
-        profile_menu = Menu("Profile", [
-            MenuItem("Select Profile", self._select_profile),
-            MenuItem("Create Profile", self._create_profile),
-            MenuItem("View Stats", self._view_profile_stats),
-            MenuItem("Back", lambda: ("submenu", None))
-        ])
-
         # Create main menu
         main_menu = Menu("Boneglaive", [
             MenuItem("Play", None, play_menu),
-            MenuItem("Profile", None, profile_menu),
             MenuItem("Settings", None, settings_menu),
             MenuItem("About", self._show_about),
             MenuItem("Quit", self._quit_game)
@@ -121,7 +99,6 @@ class MenuUI:
 
         # Set parent menus
         play_menu.parent = main_menu
-        profile_menu.parent = main_menu
         settings_menu.parent = main_menu
 
         return main_menu
@@ -305,7 +282,7 @@ class MenuUI:
 
         Args:
             prompt: Prompt to display
-            max_length: Maximum length of input (default 8 for profile names)
+            max_length: Maximum length of input (default 8)
 
         Returns:
             User input string, or None if cancelled
@@ -369,139 +346,6 @@ class MenuUI:
                 input_text += char
                 self.renderer.draw_text(input_row, cursor_col + len(input_text) - 1, char, 1, 0)
                 self.renderer.refresh()
-
-    def _create_profile(self):
-        """Create a new profile."""
-        name = self._get_text_input("Enter profile name (max 8 characters):", 8)
-
-        if name:
-            try:
-                profile = profile_manager.create_profile(name)
-                profile_manager.set_current_profile(profile)
-                # Save profile to config for auto-load on next startup
-                self.config.set('current_profile', name)
-                self.config.save_config()
-                logger.info(f"Created profile: {name}")
-                # Show success message
-                return ("show_message", f"Profile '{name}' created!")
-            except ValueError as e:
-                # Profile already exists
-                logger.warning(f"Profile creation failed: {e}")
-                return ("show_message", f"Error: {e}")
-
-        return None
-
-    def _select_profile(self):
-        """Select an existing profile from a list."""
-        profiles = profile_manager.list_profiles()
-
-        if not profiles:
-            return ("show_message", "No profiles found. Create one first!")
-
-        # Create a menu with all profiles
-        profile_items = []
-        for profile_name in profiles:
-            # Create a lambda that captures the profile name
-            profile_items.append(
-                MenuItem(profile_name, lambda p=profile_name: self._load_profile(p))
-            )
-        profile_items.append(MenuItem("Back", lambda: ("submenu", None)))
-
-        profile_select_menu = Menu("Select Profile", profile_items)
-        profile_select_menu.parent = self._find_menu_by_title("Profile")
-
-        return ("submenu", profile_select_menu)
-
-    def _load_profile(self, name: str):
-        """Load a specific profile."""
-        profile = profile_manager.load_profile(name)
-        if profile:
-            profile_manager.set_current_profile(profile)
-            # Save profile to config for auto-load on next startup
-            self.config.set('current_profile', name)
-            self.config.save_config()
-            logger.info(f"Loaded profile: {name}")
-            return ("show_message", f"Profile '{name}' loaded!")
-        else:
-            return ("show_message", f"Error loading profile '{name}'")
-
-    def _view_profile_stats(self):
-        """Display current profile statistics."""
-        profile = profile_manager.get_current_profile()
-
-        if not profile:
-            return ("show_message", "No profile selected.")
-
-        return ("show_profile_stats", None)
-
-    def _display_profile_stats(self):
-        """Display the profile statistics screen."""
-        profile = profile_manager.get_current_profile()
-
-        if not profile:
-            return
-
-        self.renderer.clear_screen()
-
-        # Get screen dimensions
-        if hasattr(self.renderer, 'grid_height'):
-            height = self.renderer.grid_height
-            width = self.renderer.grid_width
-        else:
-            height = self.renderer.height
-            width = self.renderer.width
-
-        # Profile stats content
-        win_rate = profile.get_win_rate()
-        most_picked = profile.get_most_picked_unit() or "None"
-
-        lines = [
-            f"PROFILE: {profile.name}",
-            "",
-            "=== GAME STATS ===",
-            f"Games Played: {profile.games_played}",
-            f"Wins: {profile.wins}",
-            f"Losses: {profile.losses}",
-            f"Win Rate: {win_rate:.1f}%",
-            "",
-            "=== UNIT STATS ===",
-            f"Most Picked Unit: {most_picked}",
-            "",
-            "Unit Pick Counts:",
-        ]
-
-        # Add unit picks (only show units with picks > 0)
-        for unit_name, picks in sorted(profile.unit_picks.items(), key=lambda x: x[1], reverse=True):
-            if picks > 0:
-                lines.append(f"  {unit_name}: {picks}")
-
-        lines.append("")
-        lines.append("Press any key to return to menu...")
-
-        # Calculate starting position to center the content
-        start_row = max(2, (height - len(lines)) // 2)
-
-        # Draw each line
-        for i, line in enumerate(lines):
-            if line:  # Non-empty line
-                # Center the text horizontally
-                col = max(2, (width - len(line)) // 2)
-                if f"PROFILE:" in line:
-                    # Title in bold
-                    self.renderer.draw_text(start_row + i, col, line, 1, curses.A_BOLD)
-                elif "===" in line:
-                    # Section headers
-                    self.renderer.draw_text(start_row + i, col, line, 3, curses.A_BOLD)
-                elif "Win Rate:" in line or "Most Picked" in line:
-                    # Highlight key stats
-                    self.renderer.draw_text(start_row + i, col, line, 2, 0)
-                else:
-                    # Regular text
-                    self.renderer.draw_text(start_row + i, col, line, 1, 0)
-
-        # Refresh display and wait for input
-        self.renderer.refresh()
-        self.renderer.get_input()  # Wait for any key press
 
     def _display_message(self, message: str):
         """Display a simple message screen."""
@@ -577,12 +421,7 @@ class MenuUI:
             height = self.renderer.height
             width = self.renderer.width
 
-        # Draw current profile indicator in top-right corner
-        profile = profile_manager.get_current_profile()
-        if profile:
-            profile_text = f"Profile: {profile.name}"
-            profile_col = width - len(profile_text) - 2
-            self.renderer.draw_text(1, profile_col, profile_text, 3, 0)
+
 
         # Draw title art only for main menu
         if menu.title == "Boneglaive":
@@ -670,8 +509,6 @@ class MenuUI:
         elif action == "show_about":
             self._display_about_screen()
 
-        elif action == "show_profile_stats":
-            self._display_profile_stats()
 
         elif action == "show_message":
             self._display_message(data)

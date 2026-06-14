@@ -740,7 +740,7 @@ class MenuScreen:
 
 class TextInputDialog:
     """
-    A dialog for text input (e.g., profile name entry).
+    A dialog for text input.
     """
 
     def __init__(

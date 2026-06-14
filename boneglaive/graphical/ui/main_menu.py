@@ -7,7 +7,6 @@ import pygame
 from typing import Optional
 from boneglaive import __version__
 from .menu_components import MenuScreen, Button, COLOR_BG, COLOR_TEXT
-from boneglaive.game.player_profile import profile_manager
 from .animated_background import AnimatedBackground
 from .kaleidoscope_background import KaleidoscopeBackground
 from boneglaive.utils.paths import asset_path

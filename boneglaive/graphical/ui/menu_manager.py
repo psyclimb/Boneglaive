@@ -8,11 +8,9 @@ from typing import Optional, List
 from .menu_components import TextInputDialog
 from .main_menu import MainMenuScreen
 from .play_menu import PlaySubmenu, MapSelectionMenu
-from .profile_menu import ProfileSubmenu, ProfileListScreen, ProfileStatsScreen, ProfileDeleteScreen
 from .settings_menu import SettingsSubmenu, DisplaySettingsScreen, SoundSettingsScreen, InterfaceSettingsScreen
 from .about_screen import AboutScreen
 from .how_to_play_screen import HowToPlayScreen
-from boneglaive.game.player_profile import profile_manager
 from boneglaive.utils.config import ConfigManager
 
 
@@ -65,25 +63,10 @@ class MenuManager:
         # Result to return when exiting menu
         self.result = None
 
-        # Auto-load profile if one exists
-        self._auto_load_profile()
-
         # Start with main menu
         self._push_screen(self._create_main_menu())
 
         self.running = True
-
-    def _auto_load_profile(self):
-        """Auto-load the last selected profile if one exists."""
-        saved_profile_name = self.config.get('current_profile', '')
-        if saved_profile_name:
-            profile = profile_manager.load_profile(saved_profile_name)
-            if profile:
-                profile_manager.set_current_profile(profile)
-            else:
-                # Clear invalid profile from config
-                self.config.set('current_profile', '')
-                self.config.save_config()
 
     def _create_main_menu(self):
         """Create the main menu screen."""
@@ -151,39 +134,6 @@ class MenuManager:
             # Start the game
             self.running = False
             self.result = ("start_game", None)
-
-        elif action == "profile":
-            profile_submenu = ProfileSubmenu(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
-            self._push_screen(profile_submenu)
-
-        elif action == "select_profile":
-            profile_list = ProfileListScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
-            self._push_screen(profile_list)
-
-        elif action == "create_profile":
-            # Show text input dialog
-            self.text_input_dialog = TextInputDialog(
-                "Enter profile name (max 8 characters):",
-                self.font,
-                max_length=8,
-                on_confirm=self._on_profile_created,
-                on_cancel=lambda: None
-            )
-
-        elif action == "delete_profile":
-            # Show delete profile screen
-            delete_screen = ProfileDeleteScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
-            self._push_screen(delete_screen)
-
-        elif action == "view_stats":
-            # Check if profile is selected
-            profile = profile_manager.get_current_profile()
-            if not profile:
-                # Could show a message, for now just do nothing
-                pass
-            else:
-                stats_screen = ProfileStatsScreen(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
-                self._push_screen(stats_screen)
 
         elif action == "settings":
             settings_submenu = SettingsSubmenu(self.font, self.large_font, self.screen_width, self.screen_height, self.shared_background)
@@ -256,17 +206,6 @@ class MenuManager:
         while self.screen_stack:
             self.screen_stack.pop()
         self._push_screen(self._create_main_menu())
-
-    def _on_profile_created(self, name: str):
-        """Handle profile creation."""
-        try:
-            profile = profile_manager.create_profile(name)
-            profile_manager.set_current_profile(profile)
-            self.config.set('current_profile', name)
-            self.config.save_config()
-        except ValueError:
-            # Profile already exists - could show error message
-            pass
 
     def update(self, delta_time: float):
         """Update current screen."""

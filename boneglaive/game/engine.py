@@ -795,15 +795,6 @@ class Game:
         # Decrement remaining units
         self.setup_units_remaining[self.setup_player] -= 1
 
-        # Track unit pick for Player 1 (human player)
-        if self.setup_player == 1:
-            from boneglaive.game.player_profile import profile_manager
-            profile = profile_manager.get_current_profile()
-            if profile:
-                profile.record_unit_pick(unit_type)
-                profile_manager.save_profile(profile)
-                logger.debug(f"Profile {profile.name}: Recorded pick for {unit_type.name}")
-
         return True
             
     def remove_last_setup_unit(self):
