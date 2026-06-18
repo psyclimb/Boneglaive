@@ -19,10 +19,7 @@ if TYPE_CHECKING:
 
 
 class SmartAI:
-    """
-    Intelligent AI controller using modular decision-making systems.
-    Modular AI controller with strategic thinking.
-    """
+    """Intelligent AI controller using modular decision-making systems."""
 
     def __init__(self, game: 'Game', ui: Optional['GameUI'] = None):
         """
@@ -180,6 +177,23 @@ class SmartAI:
         """
         # Topiary units cannot act
         if getattr(unit, 'is_topiary', False):
+            return
+
+        # Neural Shunt units will act randomly — skip AI planning
+        if getattr(unit, 'neural_shunt_affected', False):
+            return
+
+        # Jawline-affected units cannot move or use skills (can still attack)
+        if getattr(unit, 'jawline_affected', False):
+            # Only evaluate attacks, skip full action evaluation
+            try:
+                attacks = self.evaluator._evaluate_attacks(unit, analysis, plan)
+                if attacks:
+                    best = max(attacks, key=lambda a: a.priority)
+                    if best.target:
+                        unit.attack_target = (best.target.y, best.target.x)
+            except Exception as e:
+                logger.error(f"Error evaluating attacks for jawline-affected {unit.get_display_name()}: {e}")
             return
 
         # Reset unit targets

@@ -47,7 +47,7 @@ class VisualUnit:
         # Track vagal run duration for abreaction animation
         self.last_vagal_run_duration = getattr(game_unit, 'vagal_run_duration', 0)
         # Track demilune zone duration to detect when upgraded Demilune creates a new zone
-        self.last_demilune_zone_duration = getattr(game_unit, 'demilune_zone_duration', 0)
+        self.last_demilune_zone_duration = 0  # Deprecated — zone mechanic replaced by Selenic Backdraft status
         # Track derelicted duration to detect when upgraded Derelict creates buildings
         self.last_derelicted_duration = getattr(game_unit, 'derelicted_duration', 0)
         # Track autoclave_failure_shown to detect failed Autoclave activation
@@ -90,72 +90,92 @@ class VisualUnit:
         Get current status effects on a unit.
         Returns a dict of {effect_name: is_active}
         """
-        effects = {}
+        return get_unit_status_effects(game_unit)
 
-        # Map status effect attributes to icon names
-        # Check various status effect flags
-        if hasattr(game_unit, 'was_pried') and game_unit.was_pried:
-            effects['pry'] = True
-        if hasattr(game_unit, 'trapped_by') and game_unit.trapped_by:
-            effects['trapped'] = True
-        if hasattr(game_unit, 'jawline_affected') and game_unit.jawline_affected:
-            effects['jawline'] = True
-        if hasattr(game_unit, 'estranged') and game_unit.estranged:
-            effects['estranged'] = True
-        if hasattr(game_unit, 'mired') and game_unit.mired:
-            effects['mired'] = True
-        if hasattr(game_unit, 'gaussian_dusk_recharge') and game_unit.gaussian_dusk_recharge > 0:
-            effects['recharging'] = True
-        if hasattr(game_unit, 'shrapnel_duration') and game_unit.shrapnel_duration > 0:
-            effects['shrapnel'] = True
-        if hasattr(game_unit, 'radiation_stacks') and len(game_unit.radiation_stacks) > 0:
-            effects['radiation_burn'] = True
-        if hasattr(game_unit, 'neural_shunt_affected') and game_unit.neural_shunt_affected:
-            effects['neural_shunt'] = True
-        if hasattr(game_unit, 'carrier_rave_active') and game_unit.carrier_rave_active:
-            effects['carrier_rave'] = True
-        if hasattr(game_unit, 'trauma_processing_active') and game_unit.trauma_processing_active:
-            effects['parallax'] = True  # Trauma Processing uses parallax icon
-        if hasattr(game_unit, 'derelicted') and game_unit.derelicted:
-            effects['derelicted'] = True
-        if hasattr(game_unit, 'is_topiary') and game_unit.is_topiary:
-            effects['topiary'] = True
-        if hasattr(game_unit, 'partition_shield_active') and game_unit.partition_shield_active:
-            effects['partition'] = True
-        if hasattr(game_unit, 'severance_active') and game_unit.severance_active:
-            effects['severance'] = True
-        if hasattr(game_unit, 'demilune_debuffed') and game_unit.demilune_debuffed:
-            effects['lunacy'] = True  # Demilune uses lunacy icon
-        if hasattr(game_unit, 'geas_affected') and game_unit.geas_affected:
-            effects['geas'] = True
-        if hasattr(game_unit, 'infusion_stacks') and game_unit.infusion_stacks > 0:
-            effects['infusion'] = True
-        if hasattr(game_unit, 'potpourri_held') and game_unit.potpourri_held:
-            effects['infusion'] = True  # Potpourrist's infuse uses infusion icon
-        if hasattr(game_unit, 'ossify_active') and game_unit.ossify_active:
-            effects['ossify'] = True
-        if hasattr(game_unit, 'site_inspection_marked') and game_unit.site_inspection_marked:
-            effects['site_inspection'] = True
-        if hasattr(game_unit, 'status_site_inspection') and game_unit.status_site_inspection:
-            effects['site_inspection'] = True
-        if hasattr(game_unit, 'status_site_inspection_partial') and game_unit.status_site_inspection_partial:
-            effects['site_inspection_partial'] = True
-        if hasattr(game_unit, 'valuation_oracle_active') and game_unit.valuation_oracle_active:
-            effects['valuation_oracle'] = True
-        if hasattr(game_unit, 'valuation_oracle_buff') and game_unit.valuation_oracle_buff:
-            effects['valuation_oracle'] = True
-        if hasattr(game_unit, 'vagal_run_active') and game_unit.vagal_run_active:
-            effects['vagal_run'] = True
-        if hasattr(game_unit, 'auction_curse_dot') and game_unit.auction_curse_dot:
-            effects['auction_curse'] = True
-        if hasattr(game_unit, 'investment_active') and game_unit.investment_active:
-            effects['investment'] = True
-        if hasattr(game_unit, 'can_use_anchor') and game_unit.can_use_anchor:
-            effects['parallax'] = True
-        if hasattr(game_unit, 'market_futures_bonus_applied') and game_unit.market_futures_bonus_applied:
-            effects['investment'] = True
 
-        return effects
+def get_unit_status_effects(game_unit):
+    """
+    Get current status effects on a unit.
+    Returns a dict of {effect_name: is_active}.
+    Module-level function so it can be called from both VisualUnit and AnimatedUnit.
+    """
+    effects = {}
+
+    # Map status effect attributes to icon names
+    # Check various status effect flags
+    if hasattr(game_unit, 'was_pried') and game_unit.was_pried:
+        effects['pry'] = True
+    if hasattr(game_unit, 'trapped_by') and game_unit.trapped_by:
+        effects['trapped'] = True
+    if hasattr(game_unit, 'jawline_affected') and game_unit.jawline_affected:
+        effects['jawline'] = True
+    if hasattr(game_unit, 'estranged') and game_unit.estranged:
+        effects['estranged'] = True
+    if hasattr(game_unit, 'mired') and game_unit.mired:
+        effects['mired'] = True
+    if hasattr(game_unit, 'gaussian_dusk_recharge') and game_unit.gaussian_dusk_recharge > 0:
+        effects['recharging'] = True
+    if hasattr(game_unit, 'shrapnel_duration') and game_unit.shrapnel_duration > 0:
+        effects['shrapnel'] = True
+    if hasattr(game_unit, 'radiation_stacks') and len(game_unit.radiation_stacks) > 0:
+        effects['radiation_burn'] = True
+    if hasattr(game_unit, 'neural_shunt_affected') and game_unit.neural_shunt_affected:
+        effects['neural_shunt'] = True
+    if hasattr(game_unit, 'carrier_rave_active') and game_unit.carrier_rave_active:
+        effects['carrier_rave'] = True
+    if hasattr(game_unit, 'trauma_processing_active') and game_unit.trauma_processing_active:
+        effects['parallax'] = True  # Trauma Processing uses parallax icon
+    if hasattr(game_unit, 'derelicted') and game_unit.derelicted:
+        effects['derelicted'] = True
+    if hasattr(game_unit, 'status_disarmed') and game_unit.status_disarmed:
+        effects['disarmed'] = True
+    from boneglaive.utils.constants import UnitType
+    if hasattr(game_unit, 'type') and game_unit.type == UnitType.MANDIBLE_FOREMAN:
+        if hasattr(game_unit, '_game') and game_unit._game:
+            if any(u.is_alive() and u.trapped_by is game_unit for u in game_unit._game.units):
+                effects['disarmed'] = True
+    if hasattr(game_unit, 'is_topiary') and game_unit.is_topiary:
+        effects['topiary'] = True
+    if hasattr(game_unit, 'partition_shield_active') and game_unit.partition_shield_active:
+        effects['partition'] = True
+    if hasattr(game_unit, 'severance_active') and game_unit.severance_active:
+        effects['severance'] = True
+    if hasattr(game_unit, 'demilune_debuffed') and game_unit.demilune_debuffed:
+        effects['lunacy'] = True  # Demilune uses lunacy icon
+    if hasattr(game_unit, 'selenic_backdraft') and game_unit.selenic_backdraft:
+        effects['selenic_backdraft'] = True
+    if hasattr(game_unit, 'geas_affected') and game_unit.geas_affected:
+        effects['geas'] = True
+    if hasattr(game_unit, 'infusion_stacks') and game_unit.infusion_stacks > 0:
+        effects['infusion'] = True
+    if hasattr(game_unit, 'potpourri_held') and game_unit.potpourri_held:
+        effects['infusion'] = True  # Potpourrist's infuse uses infusion icon
+    if hasattr(game_unit, 'ossify_active') and game_unit.ossify_active:
+        effects['ossify'] = True
+    if hasattr(game_unit, 'site_inspection_marked') and game_unit.site_inspection_marked:
+        effects['site_inspection'] = True
+    if hasattr(game_unit, 'status_site_inspection') and game_unit.status_site_inspection:
+        effects['site_inspection'] = True
+    if hasattr(game_unit, 'status_site_inspection_partial') and game_unit.status_site_inspection_partial:
+        effects['site_inspection_partial'] = True
+    if hasattr(game_unit, 'valuation_oracle_active') and game_unit.valuation_oracle_active:
+        effects['valuation_oracle'] = True
+    if hasattr(game_unit, 'valuation_oracle_buff') and game_unit.valuation_oracle_buff:
+        effects['valuation_oracle'] = True
+    if hasattr(game_unit, 'vagal_run_active') and game_unit.vagal_run_active:
+        effects['vagal_run'] = True
+    if hasattr(game_unit, 'auction_curse_dot') and game_unit.auction_curse_dot:
+        effects['auction_curse'] = True
+    if hasattr(game_unit, 'investment_active') and game_unit.investment_active:
+        effects['investment'] = True
+    if hasattr(game_unit, 'can_use_anchor') and game_unit.can_use_anchor:
+        effects['parallax'] = True
+    if hasattr(game_unit, 'market_futures_bonus_applied') and game_unit.market_futures_bonus_applied:
+        effects['investment'] = True
+    if hasattr(game_unit, 'first_turn_move_bonus') and game_unit.first_turn_move_bonus:
+        effects['first_turn_move_bonus'] = True
+
+    return effects
 
 
 class GameStateAdapter:
@@ -457,7 +477,10 @@ class GameStateAdapter:
             if current_hp != visual_unit.last_hp:
                 hp_delta = current_hp - visual_unit.last_hp
 
-                if hp_delta < 0:
+                # Skip damage/death animations for expired summons (vapors, doppelgangers timing out)
+                is_expired_summon = getattr(game_unit, '_expired_summon', False)
+
+                if hp_delta < 0 and not is_expired_summon:
                     # Check if unit just entered critical health (retching)
                     # Must check BEFORE updating last_hp
                     if (visual_unit.last_hp > game_unit.get_critical_threshold() and
@@ -593,8 +616,8 @@ class GameStateAdapter:
 
                 visual_unit.last_hp = current_hp
 
-                # Check for death
-                if current_hp <= 0:
+                # Check for death (skip for expired summons — they just fade out)
+                if current_hp <= 0 and not is_expired_summon:
                     events.append(AnimationEvent(
                         "death",
                         source_unit=game_unit,
@@ -949,6 +972,10 @@ class GameStateAdapter:
                             from boneglaive.game.upgrades import UpgradeManager
                             if UpgradeManager.is_skill_upgraded(game_unit, "Jawline"):
                                 skill_name = "Jawline_Upgraded"  # Use upgraded animation variant
+                        elif skill_name == "Demilune":
+                            from boneglaive.game.upgrades import UpgradeManager
+                            if UpgradeManager.is_skill_upgraded(game_unit, "Demilune"):
+                                skill_name = "Demilune_Upgraded"  # Use upgraded animation variant
 
                         # MOVE+SKILL POSITION FIX: Use move_target position if unit is moving
                         # When move+skill are queued, game_unit.x/y is still at OLD position during pre-sync
@@ -1083,25 +1110,6 @@ class GameStateAdapter:
             new_taunted = visual_unit._get_taunted_units(game_unit, self.game)
             visual_unit.last_taunted_units = new_taunted
 
-            # Detect Demilune zone creation (upgraded Demilune only)
-            # Zone is created during skill execution, so we detect when duration goes from 0 to >0
-            current_demilune_zone_duration = getattr(game_unit, 'demilune_zone_duration', 0)
-            if current_demilune_zone_duration > 0 and visual_unit.last_demilune_zone_duration == 0:
-                # New Demilune zone was just created!
-                if (hasattr(game_unit, 'demilune_mirrored_zone_tiles') and
-                    game_unit.demilune_mirrored_zone_tiles):
-
-
-                    # Create zone animation event
-                    events.append(AnimationEvent(
-                        "zone_create",
-                        source_unit=game_unit,
-                        zone_name="SELENIC_BACKDRAFT",
-                        zone_tiles=game_unit.demilune_mirrored_zone_tiles.copy()
-                    ))
-
-            # Update zone duration tracking
-            visual_unit.last_demilune_zone_duration = current_demilune_zone_duration
 
             # Detect Derelict building creation (upgraded Derelict only)
             # Buildings are created during skill execution when Derelicted status is applied

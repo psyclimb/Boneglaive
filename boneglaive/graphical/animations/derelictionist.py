@@ -405,8 +405,7 @@ class PartitionAnimation:
         # Create floating particles inside bubble
         self.particles = BubbleParticles(self.center_x, self.center_y)
 
-        # Bright flash at full formation
-        self.screen_flash_callback((154, 202, 248), 0.12)
+        # Bright flash at full formation (removed — screen flashes reserved for Rail Genesis)
 
     def _start_fadeout(self):
         """Phase 3: Fadeout - Forcefield fades gracefully."""
@@ -1137,8 +1136,7 @@ class PartitionDissociationAnimation:
         # Screen shake (danger detected)
         self.screen_shake_callback(7, 0.3)
 
-        # Bright white-blue flash
-        self.screen_flash_callback((232, 232, 240), 0.15)
+        # Bright white-blue flash (removed — screen flashes reserved for Rail Genesis)
 
     def _start_lock(self):
         """Phase 2: Emergency Lock - Forcefield solidifies."""
@@ -3018,9 +3016,6 @@ class VagalRunAnimation:
         # Explosive fracture at bottom of nerve path
         self.explosion = FractureExplosion(self.target_x, self.target_y + 20)
 
-        # Screen flash (ice-blue)
-        self.screen_flash_callback((170, 218, 255), 0.2)
-
         # Heavy screen shake
         self.screen_shake_callback(6, 0.6)
 
@@ -3204,9 +3199,6 @@ class VagalRunAbreactionAnimation:
 
         # Explosive fracture at bottom of nerve path
         self.explosion = FractureExplosion(self.target_x, self.target_y + 20)
-
-        # Screen flash (ice-blue)
-        self.screen_flash_callback((170, 218, 255), 0.2)
 
         # Heavy screen shake
         self.screen_shake_callback(6, 0.6)

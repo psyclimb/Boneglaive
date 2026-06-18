@@ -30,8 +30,7 @@ class LOTOChecker:
         if hasattr(unit, 'derelicted') and unit.derelicted:
             blocked.add('move')
 
-        if hasattr(unit, 'mired') and unit.mired:
-            blocked.add('move')
+        # Mired reduces attack and movement range, but does not block move action
 
         if hasattr(unit, 'jawline_affected') and unit.jawline_affected:
             blocked.add('move')

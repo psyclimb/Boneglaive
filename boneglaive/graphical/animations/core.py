@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""
-Modern Graphical Renderer Demo for Boneglaive (Pygame version)
-Demonstrates what the game MIGHT look like with modern rendering.
-
-No external dependencies needed (uses pygame from requirements.txt)
-Run: python3 demo_modern_renderer_pygame.py
-"""
+"""Core animation classes, particles, and shared constants for the graphical renderer."""
 import pygame
 import random
 import math
@@ -402,6 +396,14 @@ class AnimatedUnit:
         # Performance: Cache particle surfaces to avoid creating new ones every frame
         self._particle_surface_cache = {}  # size -> surface mapping
 
+        # Status effect cycling display
+        self.status_active_effects = []  # List of effect name strings
+        self.status_cycle_timer = 0.0    # Time since last flash
+        self.status_cycle_index = 0      # Current index in effects list
+        self.status_flash_timer = None   # None = idle, float = flash in progress
+        self.status_flash_icon = None    # Cached surface for current flash
+        self._status_icon_cache = {}     # {effect_name: surface}
+
         # Stats
         self.max_hp = 20
         self.hp = 20
@@ -639,6 +641,47 @@ class AnimatedUnit:
         # Update vapor cloud (for HEINOUS VAPOR)
         if self.vapor_cloud:
             self.vapor_cloud.update(delta_time)
+
+        # Update status effect cycling
+        if self.status_active_effects:
+            self.status_cycle_timer += delta_time
+
+            # Advance flash timer if a flash is in progress
+            if self.status_flash_timer is not None:
+                self.status_flash_timer += delta_time
+                if self.status_flash_timer >= 0.9:
+                    self.status_flash_timer = None
+
+            # Trigger next flash when interval expires and no flash is active
+            if self.status_flash_timer is None and self.status_cycle_timer >= 4.0:
+                self.status_cycle_timer = 0.0
+                effect_name = self.status_active_effects[self.status_cycle_index]
+                self.status_flash_icon = self._load_status_icon(effect_name)
+                self.status_flash_timer = 0.0
+                self.status_cycle_index = (self.status_cycle_index + 1) % len(self.status_active_effects)
+        else:
+            self.status_cycle_timer = 0.0
+            self.status_flash_timer = None
+            self.status_cycle_index = 0
+
+    def _load_status_icon(self, effect_name):
+        """Load and cache a status effect icon SVG at cycling display size."""
+        if effect_name in self._status_icon_cache:
+            return self._status_icon_cache[effect_name]
+
+        icon_size = 64
+        icon_path = f"graphics/status_icons/{effect_name}.svg"
+        icon_surface = load_svg(icon_path, icon_size, icon_size)
+        if icon_surface is None:
+            # Fallback: colored circle placeholder
+            icon_surface = pygame.Surface((icon_size, icon_size), pygame.SRCALPHA)
+            pygame.draw.circle(icon_surface, (255, 100, 100),
+                               (icon_size // 2, icon_size // 2), icon_size // 3)
+            pygame.draw.circle(icon_surface, (255, 255, 255),
+                               (icon_size // 2, icon_size // 2), icon_size // 3, 2)
+
+        self._status_icon_cache[effect_name] = icon_surface
+        return icon_surface
 
     def draw(self, surface, font):
         # Calculate final position
@@ -910,6 +953,21 @@ class AnimatedUnit:
         tile_y = self.y - TILE_SIZE // 2
         tile_rect = pygame.Rect(tile_x, tile_y, TILE_SIZE, TILE_SIZE)
         pygame.draw.rect(surface, outline_color, tile_rect, 2)
+
+        # Draw cycling status effect icon
+        if self.status_flash_timer is not None and self.status_flash_icon is not None:
+            ft = self.status_flash_timer
+            # Fade in 0.2s → hold 0.5s → fade out 0.2s, fully opaque at peak
+            if ft < 0.2:
+                alpha = int(255 * (ft / 0.2))
+            elif ft < 0.7:
+                alpha = 255
+            else:
+                alpha = int(255 * (1.0 - (ft - 0.7) / 0.2))
+            alpha = max(0, min(255, alpha))
+            self.status_flash_icon.set_alpha(alpha)
+            icon_rect = self.status_flash_icon.get_rect(center=(final_x, final_y))
+            surface.blit(self.status_flash_icon, icon_rect)
 
         # HP bar and name hidden for cleaner demo
         # bar_width = 50

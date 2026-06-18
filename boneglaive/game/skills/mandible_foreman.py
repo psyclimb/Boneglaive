@@ -948,7 +948,8 @@ class SiteInspectionSkill(ActiveSkill):
                             # Apply full effect
                             ally.status_site_inspection = True
                             ally.status_site_inspection_duration = self.effect_duration
-                            # Add movement bonus (attack bonus already applied)
+                            # Add the missing bonuses (partial gave +0 atk/+1 move, full gives +1 atk/+1 move)
+                            ally.attack_bonus = getattr(ally, 'attack_bonus', 0) + 1
                             ally.move_range_bonus = getattr(ally, 'move_range_bonus', 0) + 1
                             message_log.add_message(
                                 f"{ally.get_display_name()}'s Site Inspection upgraded to full effect",
@@ -1263,22 +1264,7 @@ class JawlineSkill(ActiveSkill):
                 # For diagonals, perpendicular is the other diagonal
                 perp_y, perp_x = -dir_x, dir_y
 
-            # Build the 3x9 line, blocked by terrain, furniture, and enemy units
-            # First add the 8 surrounding tiles (like base version)
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    # Skip the center (user's position)
-                    if dy == 0 and dx == 0:
-                        continue
-
-                    y = user.y + dy
-                    x = user.x + dx
-
-                    # Check if position is valid
-                    if game.is_valid_position(y, x):
-                        area_positions.append((y, x))
-
-            # Then build the directional line extending forward
+            # Build the directional line extending forward
             # Track which offsets have been blocked at each distance
             blocked_offsets = set()
 
@@ -1435,12 +1421,11 @@ class JawlineSkill(ActiveSkill):
                             # Apply Jawline effect if not immune
                             target.jawline_affected = True
                             target.jawline_duration = self.effect_duration
-                            # Store original move range to restore later
-                            target.jawline_original_move = target.move_range
-                            # Set a large negative bonus to reduce movement to 0
-                            # This ensures movement is 0 regardless of other bonuses
-                            target.move_range_bonus = -target.move_range
-                            
+                            # Store the penalty amount for proper restoration
+                            jawline_penalty = target.move_range + target.move_range_bonus
+                            target.jawline_original_move = jawline_penalty
+                            target.move_range_bonus -= jawline_penalty
+
                             message_log.add_message(
                                 f"{target.get_display_name()} is immobilized by the Jawline tether",
                                 MessageType.WARNING,
@@ -1448,7 +1433,7 @@ class JawlineSkill(ActiveSkill):
                                 target=target.player,
                                 target_name=target.get_display_name()
                             )
-            
+
             # Show damage numbers for all affected enemies
             for target, damage in affected_enemies:
                 # Flash the target
@@ -1520,12 +1505,11 @@ class JawlineSkill(ActiveSkill):
                             # Apply Jawline effect if not immune
                             target.jawline_affected = True
                             target.jawline_duration = self.effect_duration
-                            # Store original move range to restore later
-                            target.jawline_original_move = target.move_range
-                            # Set a large negative bonus to reduce movement to 0
-                            # This ensures movement is 0 regardless of other bonuses
-                            target.move_range_bonus = -target.move_range
-                            
+                            # Store the penalty amount for proper restoration
+                            jawline_penalty = target.move_range + target.move_range_bonus
+                            target.jawline_original_move = jawline_penalty
+                            target.move_range_bonus -= jawline_penalty
+
                             message_log.add_message(
                                 f"{target.get_display_name()} is immobilized by the Jawline tether",
                                 MessageType.WARNING,
@@ -1533,5 +1517,5 @@ class JawlineSkill(ActiveSkill):
                                 target=target.player,
                                 target_name=target.get_display_name()
                             )
-        
+
         return True

@@ -1321,8 +1321,6 @@ class AerosolizeArmsAnimation:
         self.phase = "disarm"
         self.timer = 0
         play_sound("aerosolize_disarm")
-        # Quick flash
-        self.screen_flash_callback(color=(100, 100, 100), duration=0.1)
 
     def draw(self, surface):
         """Draw animation."""

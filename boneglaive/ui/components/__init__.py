@@ -1,1 +1,1 @@
-# UI Components package
+"""UI components subpackage for text mode menus."""

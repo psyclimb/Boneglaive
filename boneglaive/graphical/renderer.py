@@ -217,6 +217,7 @@ class GraphicalRenderer:
 
         # Pending animation events (damage/heal numbers to show after animations finish)
         self.pending_animation_events = []
+        self.ai_turn_active = False  # True while AI is thinking/executing
 
         # Visual effects
         self.screen_shake_intensity = 0
@@ -1743,11 +1744,9 @@ class GraphicalRenderer:
                 self.help_page.show(self.viewed_opponent_unit.type)
 
         elif action == "execute":
-            pass
             self.execute_turn()
 
         elif action == "concede":
-            pass  # Concede requested
             self.concede_dialog.show()
 
     def _get_terrain_name(self, terrain_type) -> str:
@@ -2441,6 +2440,14 @@ class GraphicalRenderer:
                     unit.potpourri_aura_active = False
                     unit.potpourri_aura_particles.clear()
 
+                # Sync active status effects for cycling icon display
+                from boneglaive.graphical.game_state import get_unit_status_effects
+                new_effects = list(get_unit_status_effects(unit.game_unit).keys())
+                if new_effects != unit.status_active_effects:
+                    unit.status_active_effects = new_effects
+                    if unit.status_cycle_index >= len(new_effects):
+                        unit.status_cycle_index = 0
+
             unit.update(delta_time)
 
         # Update particles
@@ -2461,11 +2468,6 @@ class GraphicalRenderer:
 
         # Update debris with collision detection (for PRY splash damage)
         if len(self.debris_particles) > 0 and not hasattr(self, '_debris_logged'):
-            pass
-            pass  # Debris created
-            if self.debris_particles:
-                d = self.debris_particles[0]
-                pass  # First debris details
             self._debris_logged = True
         remaining_debris = []
         debris_collision_count = 0
@@ -2956,8 +2958,26 @@ class GraphicalRenderer:
                     )
                     if carabiner_attack:
                         self.active_animations.append(carabiner_attack)
-                    else:
-                        pass
+
+                    # Spawn Radio Effulgent tile flash on the adjacent tiles
+                    attacker_y, attacker_x = attacker.y, attacker.x
+                    target_y, target_x = attack_target[0], attack_target[1]
+                    dy = target_y - attacker_y
+                    dx = target_x - attacker_x
+                    is_cardinal = (dy == 0 or dx == 0)
+                    pulse_name = "NEUTRON_ILLUMINANT_CARDINAL" if is_cardinal else "NEUTRON_ILLUMINANT_DIAGONAL"
+
+                    pulse_animation = AnimationFactory.create_animation(
+                        skill_name=pulse_name,
+                        caster_unit=attacker_animated,
+                        target_unit=None,
+                        target_pos=None,
+                        particle_emitter=self.particle_emitter,
+                        screen_flash_callback=self.trigger_screen_flash,
+                        camera=self.camera
+                    )
+                    if pulse_animation:
+                        self.active_animations.append(pulse_animation)
 
                 elif has_carrier_rave:
                     # Use triple strike animation
@@ -2979,8 +2999,21 @@ class GraphicalRenderer:
 
                     if karrier_animation:
                         self.active_animations.append(karrier_animation)
-                    else:
-                        pass
+
+                    # Spawn Radio Effulgent tile flashes for each of the 3 strikes
+                    # Strike pattern: cardinal, diagonal, cardinal (matching strike positions)
+                    for pulse_name in ["NEUTRON_ILLUMINANT_CARDINAL", "NEUTRON_ILLUMINANT_DIAGONAL", "NEUTRON_ILLUMINANT_CARDINAL"]:
+                        pulse_animation = AnimationFactory.create_animation(
+                            skill_name=pulse_name,
+                            caster_unit=attacker_animated,
+                            target_unit=None,
+                            target_pos=None,
+                            particle_emitter=self.particle_emitter,
+                            screen_flash_callback=self.trigger_screen_flash,
+                            camera=self.camera
+                        )
+                        if pulse_animation:
+                            self.active_animations.append(pulse_animation)
                 else:
                     # Use normal Radio Effulgent pulse animation
                     # Determine attack direction (cardinal vs diagonal)
@@ -4324,7 +4357,12 @@ class GraphicalRenderer:
             has_actions = any(u.move_target or u.attack_target or u.skill_target for u in game.units if u.is_alive())
             # Disable action menu when game over window is minimized
             force_disable_actions = self.game_over_window.visible and self.game_over_window.minimized
-            self.action_menu.update(game, selected_game_unit, self.current_action_mode, has_actions, force_disable=force_disable_actions)
+            # Lock execute button while turn is in progress, animations are playing, or AI is acting
+            turn_locked = (self.game_adapter.executing_turn or
+                           self.has_active_animations() or
+                           bool(self.pending_animation_events) or
+                           self.ai_turn_active)
+            self.action_menu.update(game, selected_game_unit, self.current_action_mode, has_actions, force_disable=force_disable_actions, turn_locked=turn_locked)
 
         # Draw top bar (full width)
         self.top_bar.draw(surface, SCREEN_WIDTH)
@@ -4541,10 +4579,18 @@ class GraphicalRenderer:
             message_log.add_system_message("Player 2 units receive +1 move range for going second!")
             self.combat_log.add_message("Player 2 units receive +1 move range for going second!", "system")
 
-    def execute_turn(self):
+    def execute_turn(self, _ai=False):
         """Execute the current turn (process all planned actions)."""
         if not self.game_adapter.game:
             pass  # No game instance
+            return
+
+        # Block player input from double-firing while turn is executing,
+        # animations are playing, or pending events are still queued.
+        # AI calls bypass this guard since they are already sequenced correctly.
+        if not _ai and (self.game_adapter.executing_turn or
+                self.has_active_animations() or
+                self.pending_animation_events):
             return
 
         # Start motor animation
@@ -4575,6 +4621,12 @@ class GraphicalRenderer:
         # Skill animations will be triggered by detecting skill usage in sync_state
         self.game_adapter.executing_turn = True
         self.game_adapter.post_execution_sync = False  # Flag to skip attack animations in pre-sync
+
+        # Process Neural Shunt random actions BEFORE pre-sync so the animation
+        # system can detect the randomly-selected action (move/attack/skill).
+        # Without this, the random action is generated and consumed entirely inside
+        # execute_turn(), invisible to the animation detection system.
+        self.game_adapter.game.process_neural_shunt_actions()
 
         # Sync state BEFORE turn execution to catch planned skills
         pre_events = self.game_adapter.sync_state()
@@ -4670,6 +4722,7 @@ class GraphicalRenderer:
         # Process AI turn if it's player 2's turn and AI is enabled
         # BUT skip if game is already over
         if self.game_adapter.ai_interface and self.game_adapter.game.current_player == 2 and not self.game_adapter.game.winner:
+            self.ai_turn_active = True
             # Apply player 2 first turn buff (if applicable)
             if hasattr(self.game_adapter.game, 'is_player2_first_turn') and self.game_adapter.game.is_player2_first_turn:
                 self._apply_player2_first_turn_buff()
@@ -4692,7 +4745,8 @@ class GraphicalRenderer:
             self.game_adapter.ai_interface.process_turn()
 
             # Execute the AI's planned actions immediately
-            self.execute_turn()
+            self.execute_turn(_ai=True)
+            self.ai_turn_active = False
 
             # Check if AI won - stop processing if game is over
             if self.game_adapter.game.winner:

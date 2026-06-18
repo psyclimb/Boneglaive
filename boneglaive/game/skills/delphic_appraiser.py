@@ -4,11 +4,10 @@ Skills specific to the DELPHIC_APPRAISER unit type.
 This module contains all passive and active abilities for DELPHIC_APPRAISER units.
 """
 
-try:
-    import curses
-except ImportError:
-    curses = None
 import time
+
+# Text-mode bold attribute (_A_BOLD) — avoids importing curses in game layer
+_A_BOLD = 2097152
 import random
 from typing import Optional, List, Dict, Tuple, TYPE_CHECKING
 
@@ -162,13 +161,14 @@ class ValuationOracle(PassiveSkill):
                     # Mark for initial application animation
                     ally.valuation_oracle_initial_application = True
 
+                # Apply bonuses only on first application (not every turn)
+                if not hasattr(ally, 'valuation_oracle_buff') or not ally.valuation_oracle_buff:
+                    ally.defense_bonus += 1
+                    ally.attack_range_bonus += 1
+
                 # Set status effect flag and duration (lasts indefinitely while adjacent)
                 ally.valuation_oracle_buff = True
                 ally.valuation_oracle_duration = 999  # High value, will be refreshed each turn while adjacent
-
-                # Apply bonuses to defense and attack range using *_bonus attributes
-                ally.defense_bonus = 1
-                ally.attack_range_bonus = 1
             else:
                 # Before removing, check if unit is adjacent to imbued furniture/enemy (Market Futures upgrade)
                 # These buffs are managed by update_anchor_status_effects(), so don't remove them here
@@ -208,9 +208,9 @@ class ValuationOracle(PassiveSkill):
                     if hasattr(ally, 'valuation_oracle_buff') and ally.valuation_oracle_buff:
                         ally.valuation_oracle_buff = False
                         ally.valuation_oracle_duration = 0
-                        # Remove bonuses
-                        ally.defense_bonus = 0
-                        ally.attack_range_bonus = 0
+                        # Remove bonuses (subtract, don't zero)
+                        ally.defense_bonus = max(0, ally.defense_bonus - 1)
+                        ally.attack_range_bonus = max(0, ally.attack_range_bonus - 1)
 
 
 class MarketFuturesSkill(ActiveSkill):
@@ -1335,13 +1335,13 @@ class DivineDrepreciationSkill(ActiveSkill):
                     # First clear the area
                     ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
                     # Draw with alternating bold/normal for a flashing effect
-                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                    attrs = _A_BOLD if i % 2 == 0 else 0
                     ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
                 
                 # Final damage display (stays on screen slightly longer)
-                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
+                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, _A_BOLD)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
 

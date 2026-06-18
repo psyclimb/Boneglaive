@@ -2,7 +2,7 @@
 """
 Unit classes and related functionality for Boneglaive.
 """
-from typing import List, Dict, Optional, Tuple, TYPE_CHECKING
+from typing import List, Dict, Optional, TYPE_CHECKING
 from boneglaive.utils.constants import UNIT_STATS, UnitType, INVULNERABLE_PRT
 from boneglaive.utils.debug import logger
 
@@ -94,8 +94,6 @@ class Unit:
         self.status_disarmed = False
         self.status_disarmed_duration = 0
         self.viseroy_disarm_cooldown = 0
-        self.status_tactical_momentum = False
-        self.status_tactical_momentum_duration = 0
         self.status_imbued = False
         self.status_imbued_duration = 0
         self.status_imbued_player = None
@@ -185,9 +183,9 @@ class Unit:
         self.geas_attack_reduction = False
         self.potpourri_held = False
         self.potpourri_duration = 0
-        self.demilune_zone_tiles = []
-        self.demilune_mirrored_zone_tiles = []
-        self.demilune_zone_duration = 0
+        self.selenic_backdraft = False
+        self.selenic_backdraft_by = None
+        self.selenic_backdraft_duration = 0
 
         # LANDSCAPER Topiary Breath
         self.is_topiary = False
@@ -266,13 +264,14 @@ class Unit:
             }
             
         # For all other units, apply bonuses and penalties normally
-        # Apply Estrange effect (-2 to all stats) if unit is estranged
-        estrange_penalty = -2 if self.estranged else 0
-        
-        # Apply Pumped Up status effect bonuses (+1 to all stats including PRT)
+        ESTRANGE_STAT_PENALTY = -2
+        PUMPED_UP_STAT_BONUS = 1
+
+        estrange_penalty = ESTRANGE_STAT_PENALTY if self.estranged else 0
+
         pumped_up_bonus = 0
         if hasattr(self, 'pumped_up_active') and self.pumped_up_active:
-            pumped_up_bonus = 1
+            pumped_up_bonus = PUMPED_UP_STAT_BONUS
 
         # Shredded status overrides all defense bonuses to 0
         shredded_override = (hasattr(self, 'shredded') and self.shredded)
@@ -304,11 +303,11 @@ class Unit:
         stats['move_range'] = max(0, base_movement)
         
         
-        # If unit is a doppelganger (from Græ Exchange), set its attack to at least 2
+        # If unit is a doppelganger (from Grae Exchange), set its attack to at least 2
+        DOPPELGANGER_MIN_ATTACK = 2
         if self.is_doppelganger:
-            # For GRAYMAN doppelgangers, use half attack but with a minimum of 2
             halved_attack = stats['attack'] // 2
-            stats['attack'] = max(2, halved_attack)
+            stats['attack'] = max(DOPPELGANGER_MIN_ATTACK, halved_attack)
             # Echo cannot move
             stats['move_range'] = 0
             
@@ -318,9 +317,9 @@ class Unit:
         """Get effective PRT including bonuses from status effects."""
         effective_prt = self.prt + self.prt_bonus
 
-        # Add Pumped Up status effect bonus (+1 PRT)
+        PUMPED_UP_PRT_BONUS = 1
         if hasattr(self, 'pumped_up_active') and self.pumped_up_active:
-            effective_prt += 1
+            effective_prt += PUMPED_UP_PRT_BONUS
 
         return effective_prt
         
@@ -1141,49 +1140,35 @@ class Unit:
             # Decrement the duration
             self.pry_duration -= 1
 
-            # If duration expired, clear the effect and reset move penalty
+            # If duration expired, clear the effect and restore move penalty
             if self.pry_duration <= 0:
                 self.was_pried = False
                 self.pry_active = False
+                self.move_range_bonus += 1  # Restore the -1 penalty
                 if hasattr(self, 'pry_duration'):
                     delattr(self, 'pry_duration')
                 if hasattr(self, 'pry_penalty_amount'):
                     delattr(self, 'pry_penalty_amount')
-                # Now clear the movement penalty since Pry has expired
-                if self.move_range_bonus == -1:
-                    self.move_range_bonus = 0
-            else:
-                # Duration still active - ensure penalty is maintained
-                if hasattr(self, 'pry_penalty_amount'):
-                    self.move_range_bonus = self.pry_penalty_amount
         # Handle upgraded Pry status effect duration
         elif hasattr(self, 'pry_upgraded_duration') and self.pry_upgraded_duration > 0:
             # Decrement the duration
             self.pry_upgraded_duration -= 1
 
-            # If duration expired, clear the effect and reset move penalty
+            # If duration expired, clear the effect and restore move penalty
             if self.pry_upgraded_duration <= 0:
                 self.was_pried_upgraded = False
                 self.pry_active = False
+                self.move_range_bonus += 2  # Restore the -2 penalty
                 if hasattr(self, 'pry_upgraded_duration'):
                     delattr(self, 'pry_upgraded_duration')
                 if hasattr(self, 'pry_upgraded_penalty_amount'):
                     delattr(self, 'pry_upgraded_penalty_amount')
-                # Now clear the movement penalty since upgraded Pry has expired
-                if self.move_range_bonus == -2:
-                    self.move_range_bonus = 0
-            else:
-                # Duration still active - ensure penalty is maintained
-                if hasattr(self, 'pry_upgraded_penalty_amount'):
-                    self.move_range_bonus = self.pry_upgraded_penalty_amount
         # For backward compatibility - reset was_pried if no duration
         elif self.was_pried:
             self.was_pried = False
             if hasattr(self, 'pry_active'):
                 self.pry_active = False
-            # Clear movement penalty for legacy Pry effects
-            if self.move_range_bonus < 0:
-                self.move_range_bonus = 0
+            self.move_range_bonus += 1
         elif self.was_pried_upgraded:
             self.was_pried_upgraded = False
             if hasattr(self, 'pry_active'):
@@ -1420,8 +1405,9 @@ class Unit:
                             unit.jawline_affected = False
                             if hasattr(unit, 'jawline_duration'):
                                 unit.jawline_duration = 0
-                            # Jawline applies -2 movement penalty - restore it
-                            unit.move_range_bonus += 2
+                            # Restore the actual penalty that was applied
+                            if hasattr(unit, 'jawline_original_move'):
+                                unit.move_range_bonus += unit.jawline_original_move
                         available_effects.append(("Jawline immobilization", clear_jawline))
 
                     # Recharging
@@ -1456,8 +1442,9 @@ class Unit:
                             unit.mired = False
                             if hasattr(unit, 'mired_duration'):
                                 unit.mired_duration = 0
-                            # Restore the attack penalty that was applied by mired (-2 attack)
-                            unit.attack_bonus += 2
+                            # Restore the penalties that were applied by mired (-1 attack, -1 move)
+                            unit.attack_bonus += 1
+                            unit.move_range_bonus += 1
                         available_effects.append(("Mired", clear_mired))
 
                     # Neural Shunt
@@ -1500,6 +1487,14 @@ class Unit:
                             if hasattr(unit, 'status_disarmed_duration'):
                                 unit.status_disarmed_duration = 0
                         available_effects.append(("Disarmed", clear_disarmed))
+
+                    # Selenic Backdraft
+                    if hasattr(unit, 'selenic_backdraft') and unit.selenic_backdraft:
+                        def clear_selenic():
+                            unit.selenic_backdraft = False
+                            unit.selenic_backdraft_by = None
+                            unit.selenic_backdraft_duration = 0
+                        available_effects.append(("Selenic Backdraft", clear_selenic))
 
                     # Topiary
                     if hasattr(unit, 'is_topiary') and unit.is_topiary:
@@ -2059,27 +2054,49 @@ class Unit:
     
     def _cleanse_all_negative_effects(self):
         """Remove all negative status effects from the unit."""
+        # Reverse stat modifications before clearing flags
+        if hasattr(self, 'mired') and self.mired:
+            self.attack_bonus += 1  # Mired applies -1 attack
+            self.move_range_bonus += 1  # Mired applies -1 move
+
+        if hasattr(self, 'jawline_affected') and self.jawline_affected:
+            if hasattr(self, 'jawline_original_move'):
+                self.move_range_bonus += self.jawline_original_move
+                delattr(self, 'jawline_original_move')
+
+        if hasattr(self, 'estranged') and self.estranged:
+            if hasattr(self, 'estranged_original_max_hp'):
+                self.max_hp = self.estranged_original_max_hp
+                delattr(self, 'estranged_original_max_hp')
+
+        # Reverse Pry movement penalty
+        if hasattr(self, 'was_pried_upgraded') and self.was_pried_upgraded:
+            self.move_range_bonus += 2
+        elif hasattr(self, 'was_pried') and self.was_pried:
+            self.move_range_bonus += 1
+
         # List of negative status effects to cleanse
         negative_effects = [
             'estranged', 'mired', 'jawline_affected', 'neural_shunt_affected',
-            'derelicted'  # Include derelicted in cleanse
+            'derelicted', 'was_pried', 'was_pried_upgraded', 'pry_active'
         ]
-        
+
         # Reset negative status effects
         for effect in negative_effects:
             if hasattr(self, effect):
                 setattr(self, effect, False)
-        
+
         # Reset duration counters
         duration_counters = [
-            'mired_duration', 'jawline_duration', 'neural_shunt_duration',
-            'derelicted_duration'
+            'estranged_duration', 'mired_duration', 'jawline_duration',
+            'neural_shunt_duration', 'derelicted_duration',
+            'pry_upgraded_duration'
         ]
-        
+
         for counter in duration_counters:
             if hasattr(self, counter):
                 setattr(self, counter, 0)
-        
+
         # Clear radiation stacks
         if hasattr(self, 'radiation_stacks'):
             self.radiation_stacks = []

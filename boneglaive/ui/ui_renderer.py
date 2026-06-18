@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Curses-based tile and status effect rendering for text mode."""
 try:
     import curses
 except ImportError:
@@ -54,6 +55,9 @@ class UIRenderer:
         if hasattr(unit, 'status_disarmed') and unit.status_disarmed:
             effects.append(('disarmed', '[', curses.A_BOLD))
 
+        if hasattr(unit, 'selenic_backdraft') and unit.selenic_backdraft:
+            effects.append(('selenic_backdraft', ')', curses.A_BOLD))
+
         if hasattr(unit, 'status_imbued') and unit.status_imbued:
             effects.append(('imbued', '@', curses.A_BOLD))
 
@@ -100,9 +104,6 @@ class UIRenderer:
             effects.append(('site_inspection', '#', curses.A_BOLD))
         elif hasattr(unit, 'status_site_inspection_partial') and unit.status_site_inspection_partial:
             effects.append(('site_inspection_partial', ',', curses.A_BOLD))
-
-        if hasattr(unit, 'status_tactical_momentum') and unit.status_tactical_momentum:
-            effects.append(('tactical_momentum', ']', curses.A_BOLD))
 
         if hasattr(unit, 'has_investment_effect') and unit.has_investment_effect:
             effects.append(('investment', '$', curses.A_BOLD))
@@ -1133,30 +1134,6 @@ class UIRenderer:
                                 self.renderer.draw_tile(y, x, tile, color_id, attr)
                             continue
 
-                # Check if this position is in an active Demilune zone
-                for u in self.game_ui.game.units:
-                    if u.type == UnitType.POTPOURRIST and u.is_alive():
-                        if hasattr(u, 'demilune_zone_duration') and u.demilune_zone_duration > 0:
-                            # Check if position is in primary or mirrored zone
-                            in_primary_zone = (hasattr(u, 'demilune_zone_tiles') and (y, x) in u.demilune_zone_tiles)
-                            in_mirrored_zone = (hasattr(u, 'demilune_mirrored_zone_tiles') and (y, x) in u.demilune_mirrored_zone_tiles)
-
-                            if in_primary_zone or in_mirrored_zone:
-                                # Draw crescent zone marker
-                                tile = "("  # Crescent moon symbol
-                                color_id = 3 if u.player == 1 else 4  # Color based on player
-
-                                # Check if cursor is here
-                                is_cursor_here = (pos == cursor_manager.cursor_pos and show_cursor)
-
-                                if is_cursor_here:
-                                    # Draw with cursor color
-                                    self.renderer.draw_tile(y, x, tile, 2, curses.A_BOLD)
-                                else:
-                                    # Draw the zone marker
-                                    self.renderer.draw_tile(y, x, tile, color_id, 0)
-                                continue
-
                 # Check if this position is in a Jawline network area
                 for u in self.game_ui.game.units:
                     if u.is_alive() and u.selected_skill and hasattr(u.selected_skill, 'name') and \
@@ -1740,8 +1717,6 @@ class UIRenderer:
                 positive_effects.append("Site Inspection")
             elif hasattr(unit, 'status_site_inspection_partial') and unit.status_site_inspection_partial:
                 positive_effects.append("Site Inspection (Partial)")
-            if hasattr(unit, 'status_tactical_momentum') and unit.status_tactical_momentum:
-                positive_effects.append(f"Tactical Momentum({unit.status_tactical_momentum_duration})")
             if hasattr(unit, 'first_turn_move_bonus') and unit.first_turn_move_bonus:
                 positive_effects.append("First Turn Bonus")
             if hasattr(unit, 'is_doppelganger') and unit.is_doppelganger and not (hasattr(unit, 'doppelganger_duration') and unit.doppelganger_duration > 0):
@@ -1785,6 +1760,12 @@ class UIRenderer:
                     negative_effects.append(f"Lunacy({unit.demilune_debuff_duration})")
                 else:
                     negative_effects.append("Lunacy")
+
+            if hasattr(unit, 'selenic_backdraft') and unit.selenic_backdraft:
+                if hasattr(unit, 'selenic_backdraft_duration') and unit.selenic_backdraft_duration > 0:
+                    negative_effects.append(f"Selenic Backdraft({unit.selenic_backdraft_duration})")
+                else:
+                    negative_effects.append("Selenic Backdraft")
 
             if hasattr(unit, 'taunted_by') and unit.taunted_by:
                 # Check if it has duration, otherwise just show boolean

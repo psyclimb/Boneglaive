@@ -1145,7 +1145,7 @@ class GeasBreakHeal:
 
 class DemiluneSwing:
     """DEMILUNE - Heavy arc swing of granite pedestal with stone impact effects."""
-    def __init__(self, caster_x, caster_y, caster_unit, target_x, target_y, infused=False, targets=None,
+    def __init__(self, caster_x, caster_y, caster_unit, target_x, target_y, infused=False, upgraded=False, targets=None,
                  caster_grid_pos=None, target_grid_pos=None, camera=None):
         self.caster_x = caster_x
         self.caster_y = caster_y
@@ -1153,10 +1153,11 @@ class DemiluneSwing:
         self.target_x = target_x
         self.target_y = target_y
         self.infused = infused
+        self.upgraded = upgraded  # Selenic Backdraft: second swing in opposite direction
         self.targets = targets or []  # List of units that will be hit
         self.camera = camera
 
-        self.phase = "windup"  # windup -> swing -> impact -> settling -> complete
+        self.phase = "windup"  # windup -> swing -> impact -> settling -> [backdraft_windup -> backdraft_swing -> backdraft_impact -> backdraft_settling ->] complete
 
         # Pedestal pulling back
         play_sound("demilune_swing")
@@ -1284,6 +1285,74 @@ class DemiluneSwing:
             # West: sweep bottom to top (descending y) - inverted from east
             self.sweep_tiles.sort(key=lambda pos: pos[0], reverse=True)
 
+        # Selenic Backdraft: compute back-arc tiles (opposite direction)
+        self.back_arc_tiles = []
+        self.back_sweep_tiles = []
+        if upgraded and caster_grid_pos and target_grid_pos:
+            caster_grid_y, caster_grid_x = caster_grid_pos
+            target_grid_y, target_grid_x = target_grid_pos
+            # Opposite direction
+            opp_dy = caster_grid_y - target_grid_y
+            opp_dx = caster_grid_x - target_grid_x
+            opp_target_y = caster_grid_y + opp_dy
+            opp_target_x = caster_grid_x + opp_dx
+
+            back_grid_tiles = []
+            # Mirror the direction logic
+            opposite_dir = {"north": "south", "south": "north", "east": "west", "west": "east"}
+            self.back_swing_direction = opposite_dir.get(self.swing_direction, "south")
+
+            if self.back_swing_direction == "north":
+                back_grid_tiles = [
+                    (caster_grid_y - 1, caster_grid_x - 1), (caster_grid_y - 1, caster_grid_x),
+                    (caster_grid_y - 1, caster_grid_x + 1), (caster_grid_y, caster_grid_x - 1),
+                    (caster_grid_y, caster_grid_x + 1)]
+            elif self.back_swing_direction == "south":
+                back_grid_tiles = [
+                    (caster_grid_y + 1, caster_grid_x - 1), (caster_grid_y + 1, caster_grid_x),
+                    (caster_grid_y + 1, caster_grid_x + 1), (caster_grid_y, caster_grid_x - 1),
+                    (caster_grid_y, caster_grid_x + 1)]
+            elif self.back_swing_direction == "west":
+                back_grid_tiles = [
+                    (caster_grid_y - 1, caster_grid_x - 1), (caster_grid_y, caster_grid_x - 1),
+                    (caster_grid_y + 1, caster_grid_x - 1), (caster_grid_y - 1, caster_grid_x),
+                    (caster_grid_y + 1, caster_grid_x)]
+            elif self.back_swing_direction == "east":
+                back_grid_tiles = [
+                    (caster_grid_y - 1, caster_grid_x + 1), (caster_grid_y, caster_grid_x + 1),
+                    (caster_grid_y + 1, caster_grid_x + 1), (caster_grid_y - 1, caster_grid_x),
+                    (caster_grid_y + 1, caster_grid_x)]
+
+            for grid_y, grid_x in back_grid_tiles:
+                if self.camera:
+                    screen_x, screen_y = self.camera.grid_to_screen(grid_x, grid_y)
+                else:
+                    GRID_OFFSET_X = 100
+                    GRID_OFFSET_Y = 50
+                    screen_x = GRID_OFFSET_X + grid_x * TILE_SIZE + TILE_SIZE // 2
+                    screen_y = GRID_OFFSET_Y + grid_y * TILE_SIZE + TILE_SIZE // 2
+                self.back_arc_tiles.append((screen_y, screen_x))
+
+            self.back_sweep_tiles = list(self.back_arc_tiles)
+            if self.back_swing_direction == "south":
+                self.back_sweep_tiles.sort(key=lambda pos: pos[1])
+            elif self.back_swing_direction == "north":
+                self.back_sweep_tiles.sort(key=lambda pos: pos[1], reverse=True)
+            elif self.back_swing_direction == "east":
+                self.back_sweep_tiles.sort(key=lambda pos: pos[0])
+            elif self.back_swing_direction == "west":
+                self.back_sweep_tiles.sort(key=lambda pos: pos[0], reverse=True)
+
+        # Selenic Backdraft color scheme (stinky moon potpourri)
+        self.backdraft_color_core = (180, 160, 200)     # Dusty lavender
+        self.backdraft_color_mid = (140, 100, 160)      # Deep plum
+        self.backdraft_color_outer = (100, 80, 120)     # Dark purple haze
+        self.backdraft_color_sparkle = (220, 200, 255)  # Pale moonlight glint
+        self.backdraft_color_accent = (200, 150, 200)   # Potpourrist purple tint
+
+        # Backdraft fume particles (spawned during swing phase)
+        self.backdraft_fumes = [] if upgraded else None
+
         # Animation state
         self.swing_progress = 0  # 0 to 1 across sweep
         self.pedestal_trail = []  # Trail positions for visualization
@@ -1410,6 +1479,76 @@ class DemiluneSwing:
                                     'alpha_mod': 0.3
                                 })
 
+                # Selenic Backdraft: spawn perfume fume blast on back-arc tiles simultaneously
+                if self.upgraded and self.backdraft_fumes is not None and self.back_sweep_tiles:
+                    back_tile_index = int(progress * len(self.back_sweep_tiles))
+                    if back_tile_index < len(self.back_sweep_tiles):
+                        back_tile_y, back_tile_x = self.back_sweep_tiles[back_tile_index]
+
+                        # Only spawn once per tile (use offset indices)
+                        back_key = back_tile_index + 1000
+                        if back_key not in [e.get('tile_index', -1) for e in self.impact_effects]:
+                            self.impact_effects.append({'tile_index': back_key, 'time': self.timer})
+
+                            # Direction from caster outward to this tile
+                            dir_x = back_tile_x - self.caster_x
+                            dir_y = back_tile_y - self.caster_y
+                            dir_len = math.sqrt(dir_x * dir_x + dir_y * dir_y) or 1
+                            dir_x /= dir_len
+                            dir_y /= dir_len
+
+                            # Big perfume fume blast — directional cloud
+                            for _ in range(18):
+                                # Bias velocity outward from caster with spread
+                                spread_angle = random.uniform(-0.8, 0.8)
+                                cos_a = math.cos(spread_angle)
+                                sin_a = math.sin(spread_angle)
+                                out_x = dir_x * cos_a - dir_y * sin_a
+                                out_y = dir_x * sin_a + dir_y * cos_a
+                                speed = random.uniform(60, 180)
+
+                                self.backdraft_fumes.append({
+                                    'x': back_tile_x + random.uniform(-8, 8),
+                                    'y': back_tile_y + random.uniform(-8, 8),
+                                    'vx': out_x * speed + random.uniform(-20, 20),
+                                    'vy': out_y * speed + random.uniform(-20, 20),
+                                    'lifetime': random.uniform(0.6, 1.2),
+                                    'max_lifetime': 0,  # Set below
+                                    'size': random.uniform(10, 20),
+                                    'color': random.choice([
+                                        self.backdraft_color_core,
+                                        self.backdraft_color_mid,
+                                        self.backdraft_color_outer,
+                                        self.backdraft_color_accent,
+                                    ]),
+                                    'swirl_phase': random.uniform(0, math.pi * 2),
+                                    'swirl_speed': random.uniform(2.0, 4.0),
+                                })
+                                self.backdraft_fumes[-1]['max_lifetime'] = self.backdraft_fumes[-1]['lifetime']
+
+                            # Sparkle accents scattered through the cloud
+                            for _ in range(4):
+                                spread_angle = random.uniform(-0.6, 0.6)
+                                cos_a = math.cos(spread_angle)
+                                sin_a = math.sin(spread_angle)
+                                out_x = dir_x * cos_a - dir_y * sin_a
+                                out_y = dir_x * sin_a + dir_y * cos_a
+                                speed = random.uniform(40, 120)
+
+                                self.backdraft_fumes.append({
+                                    'x': back_tile_x + random.uniform(-5, 5),
+                                    'y': back_tile_y + random.uniform(-5, 5),
+                                    'vx': out_x * speed,
+                                    'vy': out_y * speed,
+                                    'lifetime': random.uniform(0.3, 0.6),
+                                    'max_lifetime': 0,
+                                    'size': random.uniform(2, 5),
+                                    'color': self.backdraft_color_sparkle,
+                                    'swirl_phase': 0,
+                                    'swirl_speed': 0,
+                                })
+                                self.backdraft_fumes[-1]['max_lifetime'] = self.backdraft_fumes[-1]['lifetime']
+
             else:
                 self.phase = "impact"
                 self.timer = 0
@@ -1467,12 +1606,81 @@ class DemiluneSwing:
                 if fume['lifetime'] <= 0:
                     self.fragrance_particles.remove(fume)
 
+        # Update backdraft perfume fumes
+        if self.backdraft_fumes is not None:
+            for fume in self.backdraft_fumes[:]:
+                # Swirl drift
+                fume['swirl_phase'] += fume['swirl_speed'] * delta_time
+                swirl_vx = math.sin(fume['swirl_phase']) * 15
+                swirl_vy = math.cos(fume['swirl_phase']) * 10
+
+                # Movement with drag
+                fume['x'] += (fume['vx'] + swirl_vx) * delta_time
+                fume['y'] += (fume['vy'] + swirl_vy) * delta_time
+                fume['vx'] *= (1.0 - 2.5 * delta_time)  # Drag deceleration
+                fume['vy'] *= (1.0 - 2.5 * delta_time)
+
+                # Expand over lifetime
+                age_ratio = 1.0 - (fume['lifetime'] / fume['max_lifetime']) if fume['max_lifetime'] > 0 else 1.0
+                fume['size'] *= (1.0 + 0.8 * delta_time)  # Gradual expansion
+
+                fume['lifetime'] -= delta_time
+                if fume['lifetime'] <= 0:
+                    self.backdraft_fumes.remove(fume)
+
         return self.active
 
     def draw(self, surface):
         """Draw the demilune swing animation."""
         if not self.active and self.phase == "complete":
             return
+
+        # Draw backdraft perfume fumes (behind everything else)
+        if self.backdraft_fumes is not None:
+            for fume in self.backdraft_fumes:
+                if fume['lifetime'] > 0:
+                    life_ratio = fume['lifetime'] / fume['max_lifetime'] if fume['max_lifetime'] > 0 else 0
+                    alpha = int(160 * life_ratio)
+                    if alpha > 0:
+                        size = int(fume['size'])
+                        surf_size = size * 3
+                        fume_surf = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
+                        center = surf_size // 2
+
+                        is_sparkle = (fume['color'] == self.backdraft_color_sparkle)
+
+                        if is_sparkle:
+                            # Sparkle: bright small point
+                            pygame.draw.circle(fume_surf, (*fume['color'], alpha),
+                                             (center, center), max(1, size // 2))
+                        else:
+                            # Outer diffuse cloud
+                            outer_alpha = alpha // 3
+                            pygame.draw.circle(fume_surf, (*self.backdraft_color_outer, outer_alpha),
+                                             (center, center), size + 4)
+
+                            # Mid cloud
+                            mid_alpha = alpha // 2
+                            pygame.draw.circle(fume_surf, (*fume['color'], mid_alpha),
+                                             (center, center), size)
+
+                            # Core glow
+                            core_alpha = min(255, int(alpha * 0.8))
+                            pygame.draw.circle(fume_surf, (*self.backdraft_color_core, core_alpha),
+                                             (center, center), max(1, size // 2))
+
+                        surface.blit(fume_surf, (int(fume['x'] - center), int(fume['y'] - center)))
+
+            # Back-arc tile flash during impact
+            if self.phase == "impact" and self.back_arc_tiles:
+                flash_alpha = int(100 * max(0, 1.0 - self.timer / 0.2))
+                if flash_alpha > 0:
+                    for tile_y, tile_x in self.back_arc_tiles:
+                        flash_size = TILE_SIZE
+                        flash_surf = pygame.Surface((flash_size, flash_size), pygame.SRCALPHA)
+                        pygame.draw.rect(flash_surf, (*self.backdraft_color_mid, flash_alpha),
+                                       (0, 0, flash_size, flash_size))
+                        surface.blit(flash_surf, (int(tile_x - flash_size // 2), int(tile_y - flash_size // 2)))
 
         # Draw clock-hand style swing with motion blur trail
         if self.phase == "swing" or self.phase == "impact":

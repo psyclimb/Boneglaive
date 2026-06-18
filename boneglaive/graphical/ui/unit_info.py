@@ -69,6 +69,53 @@ class UnitInfoPanel:
         self.game_unit = None
         self.furniture_info = furniture_info
 
+    def _get_content_height(self) -> int:
+        """Calculate the height needed for the panel's content."""
+        if not self.game_unit:
+            return PANEL_PADDING * 2
+
+        h = PANEL_PADDING  # Top padding
+        h += 32  # Unit name
+        h += 22  # Player indicator / position
+        h += HP_BAR_HEIGHT  # HP bar
+        h += 15  # Spacing after HP bar
+        h += 4 * LINE_HEIGHT  # ATK, DEF, Move, Range
+
+        # PRT
+        if hasattr(self.game_unit, 'prt') and self.game_unit.prt > 0:
+            h += 5 + LINE_HEIGHT
+
+        # Dominion (Marrow Condenser)
+        if (hasattr(self.game_unit, 'passive_skill') and
+                hasattr(self.game_unit.passive_skill, 'name') and
+                self.game_unit.passive_skill.name == "Dominion"):
+            h += 5 + LINE_HEIGHT
+
+        # Effluvium Lathe (Gas Machinist)
+        if (hasattr(self.game_unit, 'passive_skill') and
+                hasattr(self.game_unit.passive_skill, 'name') and
+                self.game_unit.passive_skill.name == "Effluvium Lathe"):
+            h += 5 + LINE_HEIGHT
+
+        # Enemy astral value
+        if self.enemy_astral_value is not None:
+            h += 5 + 8 + LINE_HEIGHT + 8
+
+        # Status effects
+        from .status_effects import STATUS_EFFECTS
+        num_effects = 0
+        for effect_key, effect_data in STATUS_EFFECTS.items():
+            try:
+                if effect_data["check"](self.game_unit):
+                    num_effects += 1
+            except AttributeError:
+                continue
+        if num_effects > 0:
+            h += 10 + 18 + num_effects * 16
+
+        h += PANEL_PADDING  # Bottom padding
+        return h
+
     def draw(self, surface: pygame.Surface, x: int, y: int):
         """
         Draw the unit info panel.
@@ -85,9 +132,12 @@ class UnitInfoPanel:
         if not self.selected_unit or not self.game_unit:
             return
 
+        # Calculate content height so the panel fits its content
+        panel_height = self._get_content_height()
+
         # Draw background panel with gradient
         from .menu_components import draw_gradient_rect
-        panel_rect = pygame.Rect(x, y, PANEL_WIDTH, PANEL_HEIGHT)
+        panel_rect = pygame.Rect(x, y, PANEL_WIDTH, panel_height)
         draw_gradient_rect(surface, panel_rect, COLOR_BG_TOP, COLOR_BG_BOTTOM, alpha=220)
 
         # Draw border with player color
@@ -320,6 +370,83 @@ class UnitInfoPanel:
                 max_font_size=20
             )
             surface.blit(prt_value, (x + 150, y))
+
+            y += LINE_HEIGHT
+
+        # Show Dominion kill count for MARROW CONDENSER
+        if (hasattr(self.game_unit, 'passive_skill') and
+                hasattr(self.game_unit.passive_skill, 'name') and
+                self.game_unit.passive_skill.name == "Dominion"):
+            passive = self.game_unit.passive_skill
+            y += 5
+            dominion_label = render_fitted_text(
+                "Dominion:",
+                max_width=145,
+                max_height=LINE_HEIGHT,
+                color=COLOR_STAT_LABEL,
+                base_font_size=18,
+                min_font_size=14,
+                max_font_size=20
+            )
+            surface.blit(dominion_label, (x, y))
+
+            kills = passive.kills
+            # Color based on progress: dim if 0, dark red scaling brighter with kills
+            if kills == 0:
+                kill_color = COLOR_TEXT_DIM
+            else:
+                kill_color = (200, 60, 60)  # Crimson — matches Marrow Condenser theme
+
+            kill_str = str(kills)
+            dominion_value = render_fitted_text(
+                kill_str,
+                max_width=85,
+                max_height=LINE_HEIGHT,
+                color=kill_color,
+                base_font_size=18,
+                min_font_size=14,
+                max_font_size=20
+            )
+            surface.blit(dominion_value, (x + 150, y))
+
+            y += LINE_HEIGHT
+
+        # Show Effluvium Lathe charges for GAS MACHINIST
+        if (hasattr(self.game_unit, 'passive_skill') and
+                hasattr(self.game_unit.passive_skill, 'name') and
+                self.game_unit.passive_skill.name == "Effluvium Lathe"):
+            passive = self.game_unit.passive_skill
+            y += 5
+            lathe_label = render_fitted_text(
+                "Effluvium:",
+                max_width=145,
+                max_height=LINE_HEIGHT,
+                color=COLOR_STAT_LABEL,
+                base_font_size=18,
+                min_font_size=14,
+                max_font_size=20
+            )
+            surface.blit(lathe_label, (x, y))
+
+            charges = passive.charges
+            max_charges = passive.max_charges
+            if charges == 0:
+                charge_color = COLOR_TEXT_DIM
+            elif charges == max_charges:
+                charge_color = (100, 255, 100)  # Green — fully charged
+            else:
+                charge_color = (100, 200, 100)  # Muted green — partially charged
+
+            lathe_value = render_fitted_text(
+                f"{charges}/{max_charges}",
+                max_width=85,
+                max_height=LINE_HEIGHT,
+                color=charge_color,
+                base_font_size=18,
+                min_font_size=14,
+                max_font_size=20
+            )
+            surface.blit(lathe_value, (x + 150, y))
 
             y += LINE_HEIGHT
 

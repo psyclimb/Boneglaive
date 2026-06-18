@@ -155,6 +155,10 @@ class BattlefieldAnalyzer:
         """
         # For each enemy unit, mark all positions they can attack
         for enemy in analysis.enemy_units:
+            # Topiary units are terrain — they cannot attack
+            if getattr(enemy, 'is_topiary', False):
+                continue
+
             stats = enemy.get_effective_stats()
             attack_range = stats['attack_range']
             potential_damage = stats['attack']
@@ -165,6 +169,9 @@ class BattlefieldAnalyzer:
                     distance = self.game.chess_distance(enemy.y, enemy.x, y, x)
 
                     if distance <= attack_range and distance > 0:
+                        # Check line of sight
+                        if not self.game.has_line_of_sight(enemy.y, enemy.x, y, x):
+                            continue
                         pos = (y, x)
                         if pos not in analysis.threat_map:
                             analysis.threat_map[pos] = ThreatZone(pos)

@@ -55,13 +55,13 @@ jobs:
       - name: Package artifact
         run: |
           cd dist/linux
-          zip -r ../../boneglaive-v1.3-linux.zip boneglaive/
+          zip -r ../../boneglaive-v1.3a-linux.zip boneglaive/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: boneglaive-linux
-          path: boneglaive-v1.3-linux.zip
+          path: boneglaive-v1.3a-linux.zip
 
   build-windows:
     name: Windows
@@ -165,13 +165,13 @@ jobs:
 
       - name: Package artifact
         run: |
-          Compress-Archive -Path dist\windows\boneglaive\* -DestinationPath boneglaive-v1.3-windows.zip
+          Compress-Archive -Path dist\windows\boneglaive\* -DestinationPath boneglaive-v1.3a-windows.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: boneglaive-windows
-          path: boneglaive-v1.3-windows.zip
+          path: boneglaive-v1.3a-windows.zip
 
   release:
     name: Attach to Release
@@ -186,5 +186,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            boneglaive-linux/boneglaive-v1.3-linux.zip
-            boneglaive-windows/boneglaive-v1.3-windows.zip
+            boneglaive-linux/boneglaive-v1.3a-linux.zip
+            boneglaive-windows/boneglaive-v1.3a-windows.zip

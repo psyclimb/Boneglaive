@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Curses-based UI components for the text mode interface."""
 try:
     import curses
 except ImportError:
@@ -901,7 +902,7 @@ class UnitHelpComponent(UIComponent):
                     },
                     {
                         'name': 'MARROW DIKE (Active)',
-                        'description': 'The MARROW CONDENSER creates bone marrow walls in a 5x5 perimeter around itself. Enemy units on the perimeter tiles are pulled one tile inward. The walls last 3 turns and block movement and line of sight. When upgraded, walls take an additional hit to destroy, and enemies starting their turn inside suffer -2 attack with Mired.',
+                        'description': 'The MARROW CONDENSER creates bone marrow walls in a 5x5 perimeter around itself. Enemy units on the perimeter tiles are pulled one tile inward. The walls last 3 turns and block movement and line of sight. When upgraded, walls take an additional hit to destroy, and enemies starting their turn inside suffer -1 attack and -1 movement with Mired.',
                         'details': [
                             'Range: 5x5 perimeter',
                             'Cooldown: 4 turns'
@@ -2374,28 +2375,15 @@ class CursorManager(UIComponent):
                 terrain = self.game_ui.game.map.get_terrain_at(y, x)
                 terrain_name = terrain.name.lower().replace('_', ' ')
 
-                # Check if this position is in a Demilune zone
-                pos_tuple = (y, x)
-                from boneglaive.utils.constants import UnitType
-                for potpourrist in self.game_ui.game.units:
-                    if (potpourrist.type == UnitType.POTPOURRIST and
-                        potpourrist.is_alive() and
-                        hasattr(potpourrist, 'demilune_zone_duration') and
-                        potpourrist.demilune_zone_duration > 0):
-                        if (hasattr(potpourrist, 'demilune_mirrored_zone_tiles') and
-                            pos_tuple in potpourrist.demilune_mirrored_zone_tiles):
-                            terrain_name = "selenic backdraft"
-                            break
-
                 # Check if this position is inside an upgraded Marrow Dike interior (viscous plasma)
-                if terrain_name != "selenic backdraft":
-                    if (hasattr(self.game_ui.game, 'marrow_dike_interior') and
-                        pos_tuple in self.game_ui.game.marrow_dike_interior):
-                        dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
-                        # If this is an upgraded Marrow Dike on passable terrain, show plasma label
-                        if (dike_info.get('upgraded', False) and
-                            self.game_ui.game.map.is_passable(y, x)):
-                            terrain_name = "viscous plasma"
+                pos_tuple = (y, x)
+                if (hasattr(self.game_ui.game, 'marrow_dike_interior') and
+                    pos_tuple in self.game_ui.game.marrow_dike_interior):
+                    dike_info = self.game_ui.game.marrow_dike_interior[pos_tuple]
+                    # If this is an upgraded Marrow Dike on passable terrain, show plasma label
+                    if (dike_info.get('upgraded', False) and
+                        self.game_ui.game.map.is_passable(y, x)):
+                        terrain_name = "viscous plasma"
 
                 # Check if terrain is furniture and player has DELPHIC_APPRAISER
                 message = f"Tile: {terrain_name}"

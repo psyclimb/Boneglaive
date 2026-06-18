@@ -4,6 +4,7 @@ Core skill classes and types for the Boneglaive skill system.
 This module provides the foundation for all skill implementations.
 """
 
+import random
 from enum import Enum, auto
 from typing import Optional, Dict, List, Any, Tuple, TYPE_CHECKING
 
@@ -46,8 +47,6 @@ class Skill:
         self.range = range_  # How far the skill can be used
         self.area = area     # Area of effect (0 for single target)
         
-        # Special cooldown debug string
-        import random
         self.id = f"{name}-{random.randint(1000, 9999)}"
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:

@@ -22,8 +22,7 @@ from boneglaive.graphical.animations.mandible_foreman import (
 )
 from boneglaive.graphical.animations.potpourrist import (
     PedestalStrike, InfuseEffect, DemiluneSwing, GraniteGeasEffect,
-    MelangeEminenceHealAnimation, MelangeEminenceInfusedHealAnimation,
-    SelenicBackdraftZone
+    MelangeEminenceHealAnimation, MelangeEminenceInfusedHealAnimation
 )
 from boneglaive.graphical.animations.grayman import (
     DeltaConfigAnimation,
@@ -132,7 +131,8 @@ class AnimationFactory:
         "INFUSE": (InfuseEffect, {}),
         "DEMILUNE": (DemiluneSwing, {}),
         "DEMILUNE_INFUSED": (DemiluneSwing, {"infused": True}),
-        "SELENIC_BACKDRAFT": (SelenicBackdraftZone, {}),  # Persistent zone for upgraded Demilune
+        "DEMILUNE_UPGRADED": (DemiluneSwing, {"upgraded": True}),
+        "DEMILUNE_INFUSED_UPGRADED": (DemiluneSwing, {"infused": True, "upgraded": True}),
         "GRANITE_GEAS": (GraniteGeasEffect, {}),
         "MELANGE_EMINENCE_HEAL": (MelangeEminenceHealAnimation, {}),
         "MELANGE_EMINENCE_INFUSED_HEAL": (MelangeEminenceInfusedHealAnimation, {}),
@@ -547,8 +547,9 @@ class AnimationFactory:
                     caster_unit=caster_unit
                 )
             elif anim_class.__name__ == "DemiluneSwing":
-                # DemiluneSwing needs caster, target positions, and infused flag
+                # DemiluneSwing needs caster, target positions, infused and upgraded flags
                 # Use the is_infused parameter passed from the event (captured before skill execution)
+                # Upgraded flag comes from default_kwargs in the animation map entry
                 animation = anim_class(
                     caster_x=caster_screen_x,
                     caster_y=caster_screen_y,
@@ -556,6 +557,7 @@ class AnimationFactory:
                     target_x=kwargs.get('target_x', caster_screen_x),
                     target_y=kwargs.get('target_y', caster_screen_y),
                     infused=is_infused,  # Use the parameter, not the game state
+                    upgraded=base_kwargs.get('upgraded', False),  # Selenic Backdraft
                     targets=units_list,  # Pass all units so animation can detect hits
                     # Pass grid positions for accurate arc calculation
                     caster_grid_pos=(caster_unit.grid_y, caster_unit.grid_x) if hasattr(caster_unit, 'grid_y') else None,
@@ -1307,19 +1309,6 @@ class AnimationFactory:
                     bounce_count=bounce_count,
                     is_infused=is_infused,
                     is_crit=is_crit
-                )
-            elif anim_class.__name__ == "SelenicBackdraftZone":
-                # Selenic Backdraft Zone - Persistent ground effect for upgraded Demilune
-                # Requires: zone_tiles (list of grid positions), caster_unit, camera, game
-                if not zone_tiles:
-                    pass
-                    return None
-
-                animation = anim_class(
-                    zone_tiles=zone_tiles,
-                    caster_unit=caster_unit,
-                    camera=camera,
-                    game=game
                 )
             elif anim_class.__name__ == "DerelictBuildingFormation":
                 # Derelict Building Formation - Building rising animation

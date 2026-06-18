@@ -517,7 +517,7 @@ class ActionMenu:
         # LOTO system
         self.loto_renderer = LOTORenderer()
 
-    def update(self, game, selected_unit, current_mode: str, has_actions: bool, force_disable: bool = False):
+    def update(self, game, selected_unit, current_mode: str, has_actions: bool, force_disable: bool = False, turn_locked: bool = False):
         """
         Update action menu state.
 
@@ -527,7 +527,9 @@ class ActionMenu:
             current_mode: Current action mode string
             has_actions: Whether any units have queued actions
             force_disable: If True, disable all buttons (e.g., during game over)
+            turn_locked: If True, disable execute button (turn in progress / animations playing)
         """
+        self.turn_locked = turn_locked
         self.current_mode = current_mode.lower() if current_mode else None
         self.has_actions_queued = has_actions
 
@@ -639,7 +641,7 @@ class ActionMenu:
                 button.active = False
                 button.blocked_actions = set()
             elif button.action == "execute":
-                button.enabled = True
+                button.enabled = not self.turn_locked
                 button.active = False
                 button.blocked_actions = set()
                 button.has_actions_queued = self.has_actions_queued

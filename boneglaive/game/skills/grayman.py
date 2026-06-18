@@ -155,7 +155,8 @@ class DeltaConfigSkill(ActiveSkill):
                 adj_x = original_pos[1] + dx
                 if game.is_valid_position(adj_y, adj_x):
                     enemy = game.get_unit_at(adj_y, adj_x)
-                    if enemy and enemy.player != user.player and enemy.is_alive():
+                    if (enemy and enemy.player != user.player and enemy.is_alive()
+                            and not enemy.is_immune_to_effects()):
                         abducted_enemies.append((enemy, dy, dx))
 
         # Log the skill activation with different message if upgraded
@@ -543,6 +544,10 @@ class EstrangeSkill(ActiveSkill):
         if target_unit.player == user.player:
             return False
 
+        # Cannot target untargetable units (e.g., Karrier Rave phasing)
+        if target_unit.is_untargetable():
+            return False
+
         # Use the correct starting position (current position or planned move position)
         from_y = user.y
         from_x = user.x
@@ -557,31 +562,24 @@ class EstrangeSkill(ActiveSkill):
             return False
 
         # Check line of sight
-        from boneglaive.utils.coordinates import get_line, Position
-        path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
-
-        # Check for obstacles along the path (excluding the start and end points)
-        for pos in path[1:-1]:
-            # Check if the position is blocked by terrain
-            if not game.map.is_passable(pos.y, pos.x):
-                return False
-
-            # Check if position is blocked by another unit
-            blocking_unit = game.get_unit_at(pos.y, pos.x)
-            if blocking_unit:
-                return False
+        if not game.has_line_of_sight(from_y, from_x, target_pos[0], target_pos[1]):
+            return False
 
         return True
-            
+
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         if not self.can_use(user, target_pos, game):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
-        
+
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+
         # Get target unit
-        target = game.get_unit_at(target_pos[0], target_pos[1])  
-        
+        target = game.get_unit_at(target_pos[0], target_pos[1])
+
         # Log that the skill has been readied
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
@@ -590,10 +588,10 @@ class EstrangeSkill(ActiveSkill):
             player=user.player,
             target_name=target.get_display_name()
         )
-        
+
         self.current_cooldown = self.cooldown
         return True
-        
+
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Estrange skill to phase a target out of normal spacetime."""
         from boneglaive.utils.message_log import message_log, MessageType
@@ -819,6 +817,10 @@ class GraeExchangeSkill(ActiveSkill):
         if target_unit.player == user.player:
             return False
 
+        # Cannot target untargetable units (e.g., Karrier Rave phasing)
+        if target_unit.is_untargetable():
+            return False
+
         # Check if target is immune to banishment (GRAYMAN with Stasiality)
         if target_unit.type == UnitType.GRAYMAN:
             # GRAYMAN units (including doppelgangers) cannot be banished
@@ -840,27 +842,20 @@ class GraeExchangeSkill(ActiveSkill):
             return False
 
         # Check line of sight
-        from boneglaive.utils.coordinates import get_line, Position
-        path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
-
-        # Check for obstacles along the path (excluding the start and end points)
-        for pos in path[1:-1]:
-            # Check if the position is blocked by terrain
-            if not game.map.is_passable(pos.y, pos.x):
-                return False
-
-            # Check if position is blocked by another unit
-            blocking_unit = game.get_unit_at(pos.y, pos.x)
-            if blocking_unit:
-                return False
+        if not game.has_line_of_sight(from_y, from_x, target_pos[0], target_pos[1]):
+            return False
 
         return True
-            
+
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         if not self.can_use(user, target_pos, game):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
+
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
 
         # Get target unit
         target = game.get_unit_at(target_pos[0], target_pos[1])
@@ -876,7 +871,7 @@ class GraeExchangeSkill(ActiveSkill):
 
         self.current_cooldown = self.cooldown
         return True
-        
+
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Græ Exchange skill - banish target enemy and replace with doppelganger."""
         from boneglaive.utils.message_log import message_log, MessageType

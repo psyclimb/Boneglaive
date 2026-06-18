@@ -4,11 +4,10 @@ Skills specific to the INTERFERER unit type.
 This module contains all passive and active abilities for INTERFERER units.
 """
 
-try:
-    import curses
-except ImportError:
-    curses = None
 import time
+
+# Text-mode bold attribute (_A_BOLD) — avoids importing curses in game layer
+_A_BOLD = 2097152
 import random
 from typing import Optional, TYPE_CHECKING
 from boneglaive.utils.animation_helpers import sleep_with_animation_speed
@@ -209,6 +208,10 @@ class NeuralShuntSkill(ActiveSkill):
         if not target or target.player == user.player:
             return False
 
+        # Cannot target untargetable units (e.g., Karrier Rave phasing)
+        if target.is_untargetable():
+            return False
+
         # Check range (use get_range for upgrade support)
         from_y = user.y
         from_x = user.x
@@ -218,6 +221,10 @@ class NeuralShuntSkill(ActiveSkill):
         distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
         effective_range = self.get_range(user)
         if distance > effective_range:
+            return False
+
+        # Check line of sight
+        if not game.has_line_of_sight(from_y, from_x, target_pos[0], target_pos[1]):
             return False
 
         return True
@@ -360,7 +367,7 @@ class NeuralShuntSkill(ActiveSkill):
             damage_text = f"-{damage}"
             for i in range(3):
                 ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
-                attrs = curses.A_BOLD if i % 2 == 0 else 0
+                attrs = _A_BOLD if i % 2 == 0 else 0
                 ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.1)
@@ -391,18 +398,6 @@ class NeuralShuntSkill(ActiveSkill):
                     target_name=target.get_display_name()
                 )
         
-        # Trigger Radio Effulgent pulse and RF burn effects
-        # With Neural Shunt upgrade: No flash
-        from boneglaive.game.upgrades import UpgradeManager
-        neural_shunt_upgraded = UpgradeManager.is_skill_upgraded(user, "Neural Shunt")
-
-        if user.passive_skill and user.passive_skill.name == "Radio Effulgent":
-            # Only trigger flash effect if Neural Shunt is not upgraded
-            if not neural_shunt_upgraded:
-                user.passive_skill.trigger_flash_effect(user, target_pos, game, ui)
-            # Always trigger radiation effect (only applies if enemies are in range)
-            user.passive_skill.trigger_radiation(user, target_pos, game, ui)
-
         return True
 
 
@@ -531,9 +526,9 @@ class ScalarNodeSkill(ActiveSkill):
             from_y, from_x = user.move_target
             
         distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
-        if distance > self.range:
+        if distance > self.get_range(user):
             return False
-            
+
         return True
     
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:

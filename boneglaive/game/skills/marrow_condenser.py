@@ -6,10 +6,8 @@ This module contains all passive and active abilities for MARROW CONDENSER units
 
 from typing import Optional, TYPE_CHECKING
 import random
-try:
-    import curses
-except ImportError:
-    curses = None
+# Text-mode bold attribute (_A_BOLD) — avoids importing curses in game layer
+_A_BOLD = 2097152
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
@@ -156,7 +154,7 @@ class OssifySkill(ActiveSkill):
         user.defense_bonus += defense_bonus
 
         # Apply movement penalty (always)
-        user.move_range_bonus = -1
+        user.move_range_bonus -= 1
         # Set the ossify status effect flag and duration for UI display
         user.ossify_active = True
         user.ossify_duration = duration  # Track duration
@@ -310,9 +308,10 @@ class MarrowDikeSkill(ActiveSkill):
                 if hasattr(unit_at_pos, 'mired') and unit_at_pos.mired:
                     unit_at_pos.mired = False
                     unit_at_pos.mired_duration = 0
-                    # Restore attack penalty that was applied by mired effect
+                    # Restore penalties that were applied by mired effect
                     if hasattr(unit_at_pos, 'attack_bonus'):
-                        unit_at_pos.attack_bonus += 2  # Remove the -2 penalty
+                        unit_at_pos.attack_bonus += 1
+                        unit_at_pos.move_range_bonus += 1
         
         # Process wall tile removals and restore terrain
         for tile_y, tile_x in tiles_to_remove:
@@ -577,7 +576,8 @@ class MarrowDikeSkill(ActiveSkill):
                     elif not hasattr(unit_at_pos, 'mired') or not unit_at_pos.mired:
                         unit_at_pos.mired = True
                         unit_at_pos.mired_duration = self.duration
-                        unit_at_pos.attack_bonus -= 2
+                        unit_at_pos.attack_bonus -= 1
+                        unit_at_pos.move_range_bonus -= 1
 
                         # Shorter message for each enemy unit trapped inside
                         message_log.add_message(
@@ -788,21 +788,6 @@ class BoneTitheSkill(ActiveSkill):
             
         # Always usable as long as basic validation passes
         return True
-        
-        # If not upgraded, check if user has enough health to heal at least one ally
-        if not self.upgraded:
-            min_health_needed = self.self_damage
-            if potential_allies_to_heal > 0 and user.hp <= min_health_needed:
-                from boneglaive.utils.message_log import message_log, MessageType
-                message_log.add_message(
-                    f"{user.get_display_name()} needs at least {min_health_needed+1} HP to use Bone Tithe.",
-                    MessageType.WARNING,
-                    player=user.player
-                )
-                return False
-        
-        # Skill can be used if there are any valid targets or we're upgraded (which might share buffs)
-        return potential_allies_to_heal > 0 or self.upgraded
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """Queue the Bone Tithe skill for execution."""
@@ -967,13 +952,13 @@ class BoneTitheSkill(ActiveSkill):
                         # First clear the area
                         ui.renderer.draw_damage_text(user.y-1, user.x*2, " " * len(healing_text), 7)
                         # Draw with alternating bold/normal for a flashing effect
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        attrs = _A_BOLD if i % 2 == 0 else 0
                         ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
                     
                     # Final healing display (stays on screen slightly longer)
-                    ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, _A_BOLD)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.3)
                 
@@ -1065,7 +1050,7 @@ class BoneTitheSkill(ActiveSkill):
                 # Show damage number
                 if hasattr(ui, 'renderer'):
                     damage_text = f"-{damage}"
-                    ui.renderer.draw_damage_text(enemy.y - 1, enemy.x * 2, damage_text, 1, curses.A_BOLD)
+                    ui.renderer.draw_damage_text(enemy.y - 1, enemy.x * 2, damage_text, 1, _A_BOLD)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
                 

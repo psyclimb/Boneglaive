@@ -357,9 +357,10 @@ class UpgradeWindow:
             lines.append(' '.join(current_line))
 
         # Draw lines (max 2 lines)
+        line_height = self.small_font.get_linesize()
         for i, line in enumerate(lines[:2]):
             line_surface = self.small_font.render(line, True, color)
-            surface.blit(line_surface, (x, y + i * 15))
+            surface.blit(line_surface, (x, y + i * line_height))
 
     def handle_mouse_motion(self, pos: tuple):
         """Handle mouse motion to update hover states."""

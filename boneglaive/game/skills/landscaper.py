@@ -330,8 +330,8 @@ class HornswoggleSkill(ActiveSkill):
             logger.warning("HORNSWOGGLE: No direction stored")
             return
 
-        # Use stored source position (calculated during planning from effective position)
-        source_y, source_x = getattr(self, 'fire_source', (user.y, user.x))
+        # Always use actual position at execution time (move has already resolved)
+        source_y, source_x = user.y, user.x
 
         # Find terrain in wave path from the source position
         grab_pos = self._find_terrain_in_direction(source_y, source_x, direction, game)
@@ -442,6 +442,8 @@ class HornswoggleSkill(ActiveSkill):
                               exclude_tiles=drag_tile_set, skip_unit=grabbed_topiary_unit)
 
             # Place slag wall — overwrites whatever terrain was here
+            # Store original terrain so it can be restored on expiry
+            original_terrain = game.map.get_terrain_at(slag_y, slag_x)
             # Clean up terrain-topiary tracking if overwriting one
             if hasattr(game, 'topiary_terrain') and (slag_y, slag_x) in game.topiary_terrain:
                 del game.topiary_terrain[(slag_y, slag_x)]
@@ -452,7 +454,8 @@ class HornswoggleSkill(ActiveSkill):
             game.map.set_terrain_at(slag_y, slag_x, TerrainType.SLAG_WALL)
             game.slag_wall_tiles[(slag_y, slag_x)] = {
                 'duration': self.SLAG_DURATION,
-                'owner': user
+                'owner': user,
+                'original_terrain': original_terrain
             }
             slag_positions.append((slag_y, slag_x))
 
@@ -715,7 +718,8 @@ class TopiaryBreathSkill(ActiveSkill):
             logger.warning("TOPIARY BREATH: No direction stored")
             return
 
-        source_y, source_x = getattr(self, 'fire_source', (user.y, user.x))
+        # Always use actual position at execution time (move has already resolved)
+        source_y, source_x = user.y, user.x
         cone_tiles, cone_tile_rows = _get_cone_tiles(source_y, source_x, direction, game)
 
         # Find all units in the cone (excluding the caster)
@@ -1306,8 +1310,23 @@ class DissonanceSkill(ActiveSkill):
                 if hasattr(game, 'derelict_building_tiles') and (ry, rx) in game.derelict_building_tiles:
                     del game.derelict_building_tiles[(ry, rx)]
 
+            # First, displace non-topiary units at destination positions before placing terrain
+            for (src_dy, src_dx), (dest_dy, dest_dx) in all_rings.items():
+                snap = ring_snapshot[(src_dy, src_dx)]
+                if snap is None:
+                    continue
+
+                dest_y = ty + dest_dy
+                dest_x = tx + dest_dx
+                if not game.is_valid_position(dest_y, dest_x):
+                    continue
+
+                dest_unit = game.get_unit_at(dest_y, dest_x)
+                if dest_unit and dest_unit.is_alive():
+                    if not (snap['topiary_unit'] and dest_unit == snap['topiary_unit']['unit']):
+                        _displace_unit_at(game, dest_y, dest_x, user, "shifting terrain")
+
             # Place terrain at CCW destinations
-            units_to_displace = []
             for (src_dy, src_dx), (dest_dy, dest_dx) in all_rings.items():
                 snap = ring_snapshot[(src_dy, src_dx)]
                 if snap is None:
@@ -1346,16 +1365,6 @@ class DissonanceSkill(ActiveSkill):
                     'from': (src_y, src_x),
                     'to': (dest_y, dest_x),
                 })
-
-                # Check for non-topiary unit at destination needing displacement
-                dest_unit = game.get_unit_at(dest_y, dest_x)
-                if dest_unit and dest_unit.is_alive():
-                    if not (snap['topiary_unit'] and dest_unit == snap['topiary_unit']['unit']):
-                        units_to_displace.append((dest_unit, dest_y, dest_x))
-
-            # Displace units pushed by rotating terrain
-            for displaced_unit, at_y, at_x in units_to_displace:
-                _displace_unit_at(game, at_y, at_x, user, "shifting terrain")
 
             if rotated_tiles:
                 message_log.add_message(

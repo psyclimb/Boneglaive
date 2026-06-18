@@ -874,7 +874,8 @@ class Game:
         if self.setup_player == 2:
             # Resolve any unit placement conflicts before the game starts
             self._resolve_unit_placement_conflicts()
-            
+            self._rebuild_unit_grid()
+
             # Assign Greek identification letters to units
             self._assign_unit_identifiers()
             
@@ -1052,7 +1053,8 @@ class Game:
             # SAFETY CHECK: Prevent teleporting onto another unit
             # This catches bugs where position validation happened before execution
             # but another unit moved to the target position in between
-            if new_key in self.unit_grid and self.unit_grid[new_key] != unit:
+            # During setup phase, cross-player overlap is intentional (hidden placement)
+            if new_key in self.unit_grid and self.unit_grid[new_key] != unit and not self.setup_phase:
                 existing_unit = self.unit_grid[new_key]
                 logger.error(f"BUG: Unit collision blocked! {unit.get_display_name()} attempting to move to {new_key} but {existing_unit.get_display_name()} is already there")
 
@@ -1664,22 +1666,10 @@ class Game:
         # Use provided position or unit's current position
         unit_y, unit_x = from_pos if from_pos else (unit.y, unit.x)
 
-        # Check if attacker is in any POTPOURRIST's Demilune zone (GRAYMAN is immune)
-        # Use queued-from position so moving out of the zone before attacking doesn't bypass it
-        if unit.type != UnitType.GRAYMAN:
-            attacker_pos = unit.attack_queued_from if (hasattr(unit, 'attack_queued_from') and unit.attack_queued_from) else (unit_y, unit_x)
-            for potpourrist in self.units:
-                if (potpourrist.type == UnitType.POTPOURRIST and
-                    potpourrist.is_alive() and
-                    hasattr(potpourrist, 'demilune_zone_duration') and
-                    potpourrist.demilune_zone_duration > 0):
-                    # Check if attacker is in this POTPOURRIST's mirrored zone
-                    if (hasattr(potpourrist, 'demilune_mirrored_zone_tiles') and
-                        attacker_pos in potpourrist.demilune_mirrored_zone_tiles):
-                        # Check if the target is this POTPOURRIST
-                        if target == potpourrist:
-                            # Attacker is in the zone and trying to attack the POTPOURRIST who created it
-                            return False
+        # Check Selenic Backdraft: attacker cannot basic attack the POTPOURRIST who applied it
+        if (hasattr(unit, 'selenic_backdraft') and unit.selenic_backdraft and
+            hasattr(unit, 'selenic_backdraft_by') and unit.selenic_backdraft_by == target):
+            return False
 
         # Check universal targeting restrictions
         if not self.can_target_unit(unit, target):
@@ -1803,6 +1793,9 @@ class Game:
                 
                 # Check for Marrow Dike wall tiles that can be attacked (both ally and enemy walls)
                 if hasattr(self, 'marrow_dike_tiles') and (y, x) in self.marrow_dike_tiles:
+                    # Ranged units need line of sight to walls
+                    if effective_attack_range > 1 and not self.has_line_of_sight(y_pos, x_pos, y, x):
+                        continue
                     attacks.append((y, x))
         
         return attacks
@@ -2053,6 +2046,9 @@ class Game:
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
 
+        # Mark as handled to prevent double-processing by post-skill death scan
+        dying_unit._engine_death_handled = True
+
         # Check for Auction Curse upgrade bonus (if unit dies while cursed)
         if (hasattr(dying_unit, 'auction_curse_dot') and dying_unit.auction_curse_dot and
             hasattr(dying_unit, 'auction_curse_caster') and dying_unit.auction_curse_caster and
@@ -2206,10 +2202,13 @@ class Game:
         
         # Process MARROW CONDENSER kill counter ONLY
         # This is just for tracking the kill count used in Bone Tithe damage calculation
-        # No stat bonuses are granted for kills outside the Marrow Dike
-        if killer_unit and killer_unit.type == UnitType.MARROW_CONDENSER and hasattr(killer_unit, 'passive_skill'):
+        # No stat bonuses are granted for kills outside the Marrow Dike.
+        # Skip when the death occurred inside a Marrow Dike — the in-dike block below
+        # counts that kill, so handling it here too would double-count.
+        if (not in_marrow_dike and killer_unit and killer_unit.type == UnitType.MARROW_CONDENSER
+                and hasattr(killer_unit, 'passive_skill')):
             passive = killer_unit.passive_skill
-            
+
             # Check if it's Dominion passive
             if passive.name == "Dominion":
                 # Increment kill counter (used for bone tithe damage calculation)
@@ -2328,8 +2327,83 @@ class Game:
         # Handle Doppelganger death by triggering chain reactions
         if dying_unit.is_doppelganger:
             self._trigger_doppelganger_death_effect(dying_unit, ui)
-        
-    
+            # Remove doppelganger from game — they don't respawn
+            if dying_unit in self.units:
+                self.units.remove(dying_unit)
+            self._remove_from_unit_grid(dying_unit)
+
+        # Clean up scalar nodes owned by the dying INTERFERER
+        if dying_unit.type == UnitType.INTERFERER:
+            if hasattr(self, 'scalar_nodes') and self.scalar_nodes:
+                nodes_to_remove = [pos for pos, info in self.scalar_nodes.items()
+                                   if info.get('owner') is dying_unit]
+                for pos in nodes_to_remove:
+                    del self.scalar_nodes[pos]
+                if nodes_to_remove:
+                    logger.debug(f"Removed {len(nodes_to_remove)} scalar nodes after {dying_unit.get_display_name()}'s death")
+
+        # Clean up teleport anchors owned by the dying DELPHIC_APPRAISER
+        if dying_unit.type == UnitType.DELPHIC_APPRAISER:
+            if hasattr(self, 'teleport_anchors') and self.teleport_anchors:
+                anchors_to_remove = [pos for pos, info in self.teleport_anchors.items()
+                                     if info.get('creator') is dying_unit]
+                for pos in anchors_to_remove:
+                    del self.teleport_anchors[pos]
+                if anchors_to_remove:
+                    self.update_anchor_status_effects()
+                    logger.debug(f"Removed {len(anchors_to_remove)} teleport anchors after {dying_unit.get_display_name()}'s death")
+
+        # Clean up Marrow Dike walls and interior owned by the dying MARROW_CONDENSER
+        if dying_unit.type == UnitType.MARROW_CONDENSER:
+            from boneglaive.game.map import TerrainType
+            if hasattr(self, 'marrow_dike_tiles') and self.marrow_dike_tiles:
+                dike_to_remove = [pos for pos, info in self.marrow_dike_tiles.items()
+                                  if info.get('owner') is dying_unit]
+                for pos in dike_to_remove:
+                    pos_y, pos_x = pos
+                    original = self.marrow_dike_tiles[pos].get('original_terrain', TerrainType.EMPTY)
+                    self.map.set_terrain_at(pos_y, pos_x, original)
+                    del self.marrow_dike_tiles[pos]
+                if dike_to_remove:
+                    logger.debug(f"Removed {len(dike_to_remove)} Marrow Dike walls after {dying_unit.get_display_name()}'s death")
+            if hasattr(self, 'marrow_dike_interior') and self.marrow_dike_interior:
+                interior_to_remove = [pos for pos, info in self.marrow_dike_interior.items()
+                                      if info.get('owner') is dying_unit]
+                for pos in interior_to_remove:
+                    # Restore original terrain if blood plasma was placed
+                    pos_y, pos_x = pos
+                    current_terrain = self.map.get_terrain_at(pos_y, pos_x)
+                    if current_terrain == TerrainType.BLOOD_PLASMA:
+                        if hasattr(self, 'previous_terrain') and pos in self.previous_terrain:
+                            self.map.set_terrain_at(pos_y, pos_x, self.previous_terrain[pos])
+                            del self.previous_terrain[pos]
+                    del self.marrow_dike_interior[pos]
+
+        # Clean up stale references pointing to the dying unit
+        if dying_unit.type == UnitType.POTPOURRIST:
+            for unit in self.units:
+                if not unit.is_alive():
+                    continue
+                # Clear Granite Geas taunt references
+                if hasattr(unit, 'taunted_by') and unit.taunted_by is dying_unit:
+                    unit.taunted_by = None
+                    unit.geas_affected = False
+                    unit.geas_attack_reduction = False
+                    if hasattr(unit, 'taunt_duration'):
+                        unit.taunt_duration = 0
+                # Clear Selenic Backdraft references
+                if hasattr(unit, 'selenic_backdraft_by') and unit.selenic_backdraft_by is dying_unit:
+                    unit.selenic_backdraft = False
+                    unit.selenic_backdraft_by = None
+                    unit.selenic_backdraft_duration = 0
+                # Clear Demilune debuff references
+                if hasattr(unit, 'demilune_debuffed_by') and unit.demilune_debuffed_by is dying_unit:
+                    unit.demilune_debuffed = False
+                    unit.demilune_debuffed_by = None
+                    if hasattr(unit, 'demilune_debuff_duration'):
+                        unit.demilune_debuff_duration = 0
+
+
     def process_buff_durations(self, ui=None):
         """
         Backward compatibility method - redirects to process_status_effects.
@@ -2463,6 +2537,7 @@ class Game:
                     logger.debug(f"{unit.get_display_name()}'s Imbued duration: {unit.status_imbued_duration}")
 
                     if unit.status_imbued_duration <= 0:
+                        imbue_caster_player = unit.status_imbued_player
                         unit.status_imbued = False
                         unit.status_imbued_player = None
                         unit.status_imbued_cosmic_value = None
@@ -2470,7 +2545,7 @@ class Game:
                         message_log.add_message(
                             f"{unit.get_display_name()}'s Market Futures imbuement fades",
                             MessageType.ABILITY,
-                            player=unit.status_imbued_player if unit.status_imbued_player else unit.player
+                            player=imbue_caster_player if imbue_caster_player else unit.player
                         )
 
                         # Update anchor status effects after imbued status expires
@@ -2502,20 +2577,6 @@ class Game:
                         player=unit.player
                     )
 
-            # Process Tactical Momentum status effect (MANDIBLE_FOREMAN Expedite upgrade)
-            if hasattr(unit, 'status_tactical_momentum') and unit.status_tactical_momentum:
-                unit.status_tactical_momentum_duration -= 1
-                logger.debug(f"{unit.get_display_name()}'s Tactical Momentum duration: {unit.status_tactical_momentum_duration}")
-
-                if unit.status_tactical_momentum_duration <= 0:
-                    unit.status_tactical_momentum = False
-                    unit.defense_bonus -= 2  # Remove the +2 defense
-
-                    message_log.add_message(
-                        f"{unit.get_display_name()}'s tactical momentum fades",
-                        MessageType.ABILITY,
-                        player=unit.player
-                    )
 
             # Process Pry movement penalty effect
             if hasattr(unit, 'pry_duration') and unit.pry_duration > 0:
@@ -2753,15 +2814,11 @@ class Game:
                     # Remove the status effect
                     unit.jawline_affected = False
                     
-                    # Reset movement to original value
+                    # Restore movement by reversing the penalty that was applied
                     if hasattr(unit, 'jawline_original_move'):
-                        # Restore movement by removing the negative bonus that was applied
-                        # Reset the bonus without manually setting move_range since we stored the original
-                        unit.move_range_bonus = 0
-                        
-                        # Clean up the stored value
+                        unit.move_range_bonus += unit.jawline_original_move
                         delattr(unit, 'jawline_original_move')
-                    
+
                     # Log the expiration
                     message_log.add_message(
                         f"{unit.get_display_name()} breaks free and can move again",
@@ -2981,9 +3038,9 @@ class Game:
                         # Remove the buff
                         unit.valuation_oracle_buff = False
                         
-                        # Remove bonuses
-                        unit.defense_bonus = 0
-                        unit.attack_range_bonus = 0
+                        # Subtract only the bonuses that Valuation Oracle granted
+                        unit.defense_bonus = max(0, unit.defense_bonus - 1)
+                        unit.attack_range_bonus = max(0, unit.attack_range_bonus - 1)
                         
                         # Log the expiration
                         message_log.add_message(
@@ -3004,8 +3061,9 @@ class Game:
                         # Remove the status effect
                         unit.mired = False
 
-                        # Restore attack bonus that was removed by the mired effect
-                        unit.attack_bonus += 2
+                        # Restore bonuses that were removed by the mired effect
+                        unit.attack_bonus += 1
+                        unit.move_range_bonus += 1
             
             # Process Pumped Up status effect from mini pumpkins
             if hasattr(unit, 'pumped_up_active') and unit.pumped_up_active:
@@ -3086,7 +3144,8 @@ class Game:
 
             for pos_tuple in slag_to_remove:
                 pos_y, pos_x = pos_tuple
-                self.map.set_terrain_at(pos_y, pos_x, TerrainType.EMPTY)
+                original = self.slag_wall_tiles[pos_tuple].get('original_terrain', TerrainType.EMPTY)
+                self.map.set_terrain_at(pos_y, pos_x, original)
                 del self.slag_wall_tiles[pos_tuple]
                 # Clean up Market Futures anchor if slag overwrote imbued furniture
                 if hasattr(self, 'teleport_anchors') and pos_tuple in self.teleport_anchors:
@@ -3213,7 +3272,10 @@ class Game:
         self.process_buff_durations(ui)
         
         # Process Neural Shunt random actions for affected units
-        self._process_neural_shunt_actions()
+        # (may already have been called by the graphical renderer for animation detection)
+        if not getattr(self, '_neural_shunt_processed', False):
+            self._process_neural_shunt_actions()
+        self._neural_shunt_processed = False
         
         # NOTE: Doppelganger expiration moved to AFTER action execution to fix attack resolution bug
         # Echoes now expire at the end of turn, allowing their final attacks to complete
@@ -3468,25 +3530,17 @@ class Game:
                     )
                     continue  # Skip this attack and go to next unit
 
-                # Check if attacker is in a Demilune zone blocking this attack (GRAYMAN is immune)
-                # Use queued-from position so moving out of the zone before attacking doesn't bypass it
-                if unit.type != UnitType.GRAYMAN:
-                    attacker_pos = unit.attack_queued_from if (hasattr(unit, 'attack_queued_from') and unit.attack_queued_from) else (unit.y, unit.x)
-                    for potpourrist in self.units:
-                        if (potpourrist.type == UnitType.POTPOURRIST and
-                            potpourrist.is_alive() and
-                            hasattr(potpourrist, 'demilune_zone_duration') and
-                            potpourrist.demilune_zone_duration > 0):
-                            if (hasattr(potpourrist, 'demilune_mirrored_zone_tiles') and
-                                attacker_pos in potpourrist.demilune_mirrored_zone_tiles):
-                                if target == potpourrist:
-                                    logger.debug(f"Attack cancelled: {unit.get_display_name()} is in Demilune zone")
-                                    message_log.add_message(
-                                        f"{unit.get_display_name()}'s attack is repelled by the selenic zone",
-                                        MessageType.COMBAT,
-                                        player=unit.player
-                                    )
-                                    continue  # Skip this attack and go to next unit
+                # Check Selenic Backdraft: attacker cannot basic attack the POTPOURRIST who applied it
+                if (hasattr(unit, 'selenic_backdraft') and unit.selenic_backdraft and
+                    hasattr(unit, 'selenic_backdraft_by') and target and
+                    unit.selenic_backdraft_by == target):
+                    logger.debug(f"Attack cancelled: {unit.get_display_name()} is blinded by Selenic Backdraft")
+                    message_log.add_message(
+                        f"{unit.get_display_name()}'s attack is repelled by the selenic backdraft",
+                        MessageType.COMBAT,
+                        player=unit.player
+                    )
+                    continue  # Skip this attack and go to next unit
 
                 # Check for Marrow Dike wall tiles that can be targeted
                 wall_target = None
@@ -3926,6 +3980,16 @@ class Game:
                     skill.execute(unit, target_pos, self, ui)
                     self.current_attacker = None
 
+                    # Check for deaths caused by skill execution (AOE/chain skills may kill multiple units)
+                    # Use _hp directly since is_alive() returns hp > 0, and hp setter's _handle_death
+                    # sets _death_handled but doesn't call handle_unit_death for engine-level effects
+                    skill_cause = skill.name.lower().replace(' ', '_')
+                    for check_unit in list(self.units):
+                        if (check_unit != unit and check_unit.hp <= 0 and
+                                not getattr(check_unit, '_engine_death_handled', False)):
+                            check_unit._engine_death_handled = True
+                            self.handle_unit_death(check_unit, unit, cause=skill_cause, ui=ui)
+
                     # Note: Cooldown is set in skill.use() to allow for upgrade modifications
                     # Don't override it here
 
@@ -4123,37 +4187,16 @@ class Game:
                 
                 # Check if unit died from the DOT
                 if unit.hp <= 0:
-                    # Check for Auction Curse upgrade bonus
-                    if (hasattr(unit, 'auction_curse_caster') and
-                        hasattr(unit, 'auction_curse_initial_hp') and
-                        hasattr(unit, 'auction_curse_applied_duration') and
-                        unit.auction_curse_caster):
-                        caster = unit.auction_curse_caster
-                        from boneglaive.game.upgrades import UpgradeManager
-                        if UpgradeManager.is_skill_upgraded(caster, "Auction Curse"):
-                            # Check if initial HP matched the curse duration when applied
-                            if unit.auction_curse_initial_hp == unit.auction_curse_applied_duration:
-                                # Play dramatic collection animation
-                                self._play_auction_curse_perfect_collection_animation(unit, caster, ui)
-
-                                # Award +1 GP to caster's player
-                                if caster.player == 1:
-                                    self.player1_gp += 1
-                                else:
-                                    self.player2_gp += 1
-
-                                message_log.add_message(
-                                    f"{caster.get_display_name()} collects the soul at its precise worth!",
-                                    MessageType.ABILITY,
-                                    player=caster.player
-                                )
-
                     # Use consistent format for death messages
+                    # NOTE: Auction Curse upgrade bonus GP is handled in handle_unit_death()
+                    # — do not award it here to avoid double GP
                     message_log.add_message(
                         f"{unit.get_display_name()} perishes!",
                         MessageType.COMBAT,
                         player=unit.player
                     )
+                    caster_ref = unit.auction_curse_caster if hasattr(unit, 'auction_curse_caster') else None
+                    self.handle_unit_death(unit, killer_unit=caster_ref, cause="auction_curse", ui=ui)
                 
                 # Check if the DOT effect has expired
                 if unit.auction_curse_dot_duration <= 0:
@@ -4334,6 +4377,7 @@ class Game:
                                     ui.renderer.refresh()
                     
                     # Kill the vapor using expire() to bypass invulnerability
+                    vapor_unit._expired_summon = True
                     vapor_unit.expire()
 
         # Process doppelganger expiration AFTER all actions have been executed
@@ -4351,8 +4395,12 @@ class Game:
                     # Trigger explosion effect (deals damage to adjacent enemies)
                     self._trigger_doppelganger_death_effect(unit, ui)
 
-                    # Kill the doppelganger
+                    # Kill the doppelganger and remove from game
+                    unit._expired_summon = True
                     unit.hp = 0
+                    if unit in self.units:
+                        self.units.remove(unit)
+                    self._remove_from_unit_grid(unit)
 
         # Clear all actions and update skill cooldowns
         # Note: last_executed_attack is now set during attack execution (line 3246),
@@ -4372,12 +4420,9 @@ class Game:
                     if unit.jawline_affected and unit.jawline_duration <= 0:
                         unit.jawline_affected = False
                         
-                        # Reset movement to original value if we have the stored original
+                        # Restore movement by reversing the penalty that was applied
                         if hasattr(unit, 'jawline_original_move'):
-                            # Reset the bonus to 0 to restore original movement
-                            unit.move_range_bonus = 0
-                            
-                            # Clean up the stored value
+                            unit.move_range_bonus += unit.jawline_original_move
                             delattr(unit, 'jawline_original_move')
                         
                         # Log the effect expiration
@@ -4744,19 +4789,19 @@ class Game:
                             unit.demilune_debuffed = False
                             unit.demilune_debuffed_by = None
 
-                    # Process Demilune zone duration (POTPOURRIST only)
-                    if unit.type == UnitType.POTPOURRIST:
-                        if hasattr(unit, 'demilune_zone_duration') and unit.demilune_zone_duration > 0:
-                            # Decrement duration
-                            unit.demilune_zone_duration -= 1
-                            logger.debug(f"{unit.get_display_name()}'s Demilune zone duration: {unit.demilune_zone_duration}")
+                    # Process Selenic Backdraft duration
+                    if hasattr(unit, 'selenic_backdraft') and unit.selenic_backdraft:
+                        unit.selenic_backdraft_duration -= 1
+                        logger.debug(f"{unit.get_display_name()}'s Selenic Backdraft duration: {unit.selenic_backdraft_duration}")
 
-                            # Check if zone has expired
-                            if unit.demilune_zone_duration <= 0:
-                                # Clear zones
-                                unit.demilune_zone_tiles = []
-                                unit.demilune_mirrored_zone_tiles = []
-                                logger.debug(f"{unit.get_display_name()}'s Demilune zones expired")
+                        if unit.selenic_backdraft_duration <= 0:
+                            unit.selenic_backdraft = False
+                            unit.selenic_backdraft_by = None
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s selenic blindness fades",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
 
             # Process Karrier Rave duration for units of the current player (after combat phase)
             # This ensures the effect lasts through the attack execution
@@ -5092,8 +5137,8 @@ class Game:
                         # Reset SEVERANCE status at start of new turn
                         unit.severance_active = False
                         unit.severance_duration = 0
-                        # Always reset movement bonus to 0 at start of turn
-                        unit.move_range_bonus = 0
+                        # Note: do NOT reset move_range_bonus here — other effects
+                        # (Pry, Jawline, Mired) legitimately modify it
 
         # Call graphical callback after passive skills are applied
         # This allows the graphical system to detect passive status effects (like Valuation Oracle)
@@ -5294,13 +5339,28 @@ class Game:
     
     def check_game_over(self):
         # Check GP win condition
-        if self.player1_gp >= self.gp_win_threshold:
+        p1_won = self.player1_gp >= self.gp_win_threshold
+        p2_won = self.player2_gp >= self.gp_win_threshold
+
+        if p1_won and p2_won:
+            # Both reached threshold — higher GP wins, tie goes to current player
+            if self.player1_gp > self.player2_gp:
+                self.winner = 1
+            elif self.player2_gp > self.player1_gp:
+                self.winner = 2
+            else:
+                self.winner = self.current_player
+            winner_name = self.get_player_name(self.winner)
+            message_log.add_system_message(
+                f"{winner_name} wins with {self.player1_gp if self.winner == 1 else self.player2_gp} GP!"
+            )
+        elif p1_won:
             self.winner = 1
             winner_name = self.get_player_name(1)
             message_log.add_system_message(
                 f"{winner_name} wins with {self.player1_gp} GP!"
             )
-        elif self.player2_gp >= self.gp_win_threshold:
+        elif p2_won:
             self.winner = 2
             winner_name = self.get_player_name(2)
             message_log.add_system_message(
@@ -5771,10 +5831,9 @@ class Game:
                             sleep_with_animation_speed(0.1)
                         logger.debug("Damage number display completed")
                     
-                    # Check if unit was defeated (silent)
+                    # Check if unit was defeated
                     if unit.hp <= 0:
-                        # Silent death - no message log entries
-                        pass
+                        self.handle_unit_death(unit, killer_unit=owner, cause="scalar_node", ui=ui)
                     
                     # Remove the triggered node
                     del self.scalar_nodes[unit_pos]
@@ -5969,6 +6028,10 @@ class Game:
                             trap_source = TrapSource(trap_y, trap_x)
                             fragcrest._apply_knockback(trap_source, target_unit, self)
 
+                        # Check if unit died from trap damage
+                        if target_unit.hp <= 0:
+                            self.handle_unit_death(target_unit, killer_unit=owner, cause="fragcrest_trap", ui=ui)
+
                     # Show Fragcrest animation at trap position (ASCII version only)
                     # Graphical version animation is handled by renderer detection system via triggered_fragcrest_traps
                     if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
@@ -6052,6 +6115,16 @@ class Game:
 
         return affected_positions
 
+    def process_neural_shunt_actions(self):
+        """
+        Public entry point for Neural Shunt random action processing.
+        Called by the graphical renderer BEFORE pre-execution sync so that
+        the random action is visible to the animation detection system.
+        Sets a flag so execute_turn() doesn't double-process.
+        """
+        self._process_neural_shunt_actions()
+        self._neural_shunt_processed = True
+
     def _process_neural_shunt_actions(self):
         """
         Process Neural Shunt random action effects for affected units.
@@ -6134,11 +6207,12 @@ class Game:
         attack_range = unit.get_effective_stats()['attack_range']
         
         for target_unit in self.units:
-            if (target_unit.is_alive() and 
+            if (target_unit.is_alive() and
                 target_unit != unit and
+                target_unit.player != unit.player and
                 not target_unit.is_untargetable()):
-                
-                distance = abs(target_unit.y - unit.y) + abs(target_unit.x - unit.x)
+
+                distance = max(abs(target_unit.y - unit.y), abs(target_unit.x - unit.x))
                 if distance <= attack_range:
                     valid_targets.append((target_unit.y, target_unit.x))
         
@@ -6192,6 +6266,8 @@ class Game:
         if valid_targets:
             target = random.choice(valid_targets)
             unit.skill_target = target
+            # Set cooldown — normally done by skill.use(), which we bypass
+            selected_skill.current_cooldown = selected_skill.cooldown
             logger.debug(f"Neural Shunt random skill: {unit.get_display_name()} uses {selected_skill.name} -> {target}")
         else:
             # Clear skill selection if no valid targets
@@ -6284,6 +6360,9 @@ class Game:
             # Clear the banished flag so they can award GP normally if killed later
             if hasattr(banished, 'is_banished'):
                 banished.is_banished = False
+
+            # Reset action state — unit returns fresh, not mid-action
+            banished.reset_action_targets()
 
             self.units.append(banished)
 
@@ -7100,13 +7179,12 @@ class Game:
 
                 # Apply Valuation Oracle buff based on adjacency to imbued furniture/enemy
                 if adjacent_to_imbued:
-                    # Set status effect flag and duration
-                    unit.valuation_oracle_buff = True
-                    unit.valuation_oracle_duration = 999
-
-                    # Apply bonuses
-                    unit.defense_bonus = 1
-                    unit.attack_range_bonus = 1
+                    if not hasattr(unit, 'valuation_oracle_buff') or not unit.valuation_oracle_buff:
+                        # First time applying — add bonuses
+                        unit.valuation_oracle_buff = True
+                        unit.valuation_oracle_duration = 999
+                        unit.defense_bonus += 1
+                        unit.attack_range_bonus += 1
                     break  # Found an appraiser that applies the buff, no need to check others
                 # Note: Don't remove the buff here - let the passive handle removal
                 # to avoid conflicts with furniture-based buffs

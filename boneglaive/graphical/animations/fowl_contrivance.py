@@ -3138,8 +3138,7 @@ class GaussianDuskFireAnimation:
         self.phase = "pre_fire"
         self.timer = 0
 
-        # Brief bright flash on firing
-        self.screen_flash_callback((200, 230, 255), 0.05)
+        # Brief bright flash on firing (removed — screen flashes reserved for Rail Genesis)
 
     def _start_beam_travel(self):
         """Phase 2: Projectile Travel - Hypersonic projectile screams across map."""
@@ -3174,8 +3173,7 @@ class GaussianDuskFireAnimation:
         # Strong screen shake on firing (shorter but intense)
         self.screen_shake_callback(12, 0.3)
 
-        # Bright cyan flash
-        self.screen_flash_callback((0, 204, 255), 0.15)
+        # Bright cyan flash (removed — screen flashes reserved for Rail Genesis)
 
     def _start_aftermath(self):
         """Phase 3: Aftermath - Sparks, smoke, effects."""

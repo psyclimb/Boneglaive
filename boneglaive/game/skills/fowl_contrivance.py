@@ -295,14 +295,21 @@ class GaussianDuskSkill(ActiveSkill):
                         )
                     elif hp_percent >= 0.875:  # Defense shred threshold
                         # Apply shredded status (2 turns) - defense will be forced to 0 via get_effective_stats()
-                        unit.shredded = True
-                        unit.shredded_duration = 2
+                        if not unit.is_immune_to_effects():
+                            unit.shredded = True
+                            unit.shredded_duration = 2
 
-                        message_log.add_message(
-                            f"{unit.get_display_name()}'s defenses are completely shredded",
-                            MessageType.WARNING,
-                            player=user.player
-                        )
+                            message_log.add_message(
+                                f"{unit.get_display_name()}'s defenses are completely shredded",
+                                MessageType.WARNING,
+                                player=user.player
+                            )
+                        else:
+                            message_log.add_message(
+                                f"{unit.get_display_name()} resists the defense shred",
+                                MessageType.ABILITY,
+                                player=unit.player
+                            )
                 
                 # Store previous HP for critical health check
                 previous_hp = unit.hp
@@ -1252,8 +1259,9 @@ class FragcrestSkill(ActiveSkill):
                             player=unit.player
                         )
                 
-                # Calculate knockback
-                self._apply_knockback(user, unit, game)
+                # Calculate knockback (displacement-immune units resist)
+                if not unit.is_immune_to_effects():
+                    self._apply_knockback(user, unit, game)
                 
                 # Handle death if unit was killed
                 if unit.hp <= 0:

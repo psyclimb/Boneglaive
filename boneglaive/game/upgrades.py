@@ -4,7 +4,7 @@ Upgrade System for Boneglaive
 Defines skill and passive upgrades for all units.
 """
 
-from typing import Optional, Dict, List, Set
+from typing import Optional, Dict, List
 from boneglaive.utils.message_log import message_log, MessageType
 
 # ============================================================================
@@ -131,7 +131,7 @@ SKILL_UPGRADES = {
         },
         "Demilune": {
             "name": "Demilune",
-            "description": "After swinging, creates a mirrored crescent zone in the opposite direction. Enemies within cannot attack POTPOURRIST.",
+            "description": "Swings a mirrored crescent in the opposite direction dealing equal damage. Targets hit cannot basic attack POTPOURRIST.",
             "type": "buff",
             "cost": 1
         },

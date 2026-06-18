@@ -105,6 +105,15 @@ class TacticalEvaluator:
             List of attack actions with scores
         """
         actions = []
+
+        # Disarmed units cannot attack at all
+        if getattr(unit, 'status_disarmed', False):
+            return actions
+
+        # MANDIBLE FOREMAN cannot attack while trapping a unit
+        if hasattr(unit, 'trapped_unit') and unit.trapped_unit is not None:
+            return actions
+
         stats = unit.get_effective_stats()
         attack_range = stats['attack_range']
         damage = stats['attack']
@@ -113,6 +122,15 @@ class TacticalEvaluator:
         for enemy in analysis.enemy_units:
             # Skip HEINOUS VAPOR units (invulnerable - waste of actions)
             if enemy.type == UnitType.HEINOUS_VAPOR:
+                continue
+
+            # Skip topiary units (invulnerable terrain - 999 PRT)
+            if getattr(enemy, 'is_topiary', False):
+                continue
+
+            # Skip targets protected by Selenic Backdraft
+            if (getattr(unit, 'selenic_backdraft', False) and
+                    getattr(unit, 'selenic_backdraft_by', None) is enemy):
                 continue
 
             # Skip untargetable enemies (safety check - should already be filtered in analyzer)
@@ -541,16 +559,50 @@ class TacticalEvaluator:
                     logger.error(f"        Error evaluating Scalar Node: {e}")
                 continue
 
+            # Resolve effective target type (some skills override via get_target_type)
+            effective_target_type = skill.target_type
+            if hasattr(skill, 'get_target_type'):
+                try:
+                    effective_target_type = skill.get_target_type(unit)
+                except Exception:
+                    pass
+
             # Check if it's a self-targeted/AOE skill
-            if hasattr(skill, 'target_type') and skill.target_type == TargetType.SELF:
+            if effective_target_type == TargetType.SELF:
                 # Self-targeted AOE skills (e.g., Jawline)
                 try:
                     if skill.can_use(unit, (unit.y, unit.x), self.game):
                         # Score based on number of enemies in AOE
                         score = self._score_aoe_skill_use(unit, skill, analysis, plan)
-                        if score > 0:  # Only use if there are targets
+                        # Self-buff skills (Infuse, Karrier Rave, Ossify) have value even without adjacent enemies
+                        if score == 0 and skill.name in ("Infuse", "Karrier Rave", "Ossify"):
+                            score = 30.0
+                        if score > 0:
                             action = Action("skill", target=(skill, unit), priority=score)
                             actions.append(action)
+                except Exception:
+                    continue
+            elif effective_target_type == TargetType.AREA:
+                # AREA-targeted skills that target empty tiles (Vault, Delta Config)
+                try:
+                    # Try positions around the unit and around enemies
+                    area_targets_tried = set()
+                    search_range = getattr(skill, 'range', 3)
+                    for dy in range(-search_range, search_range + 1):
+                        for dx in range(-search_range, search_range + 1):
+                            ty, tx = unit.y + dy, unit.x + dx
+                            if (ty, tx) in area_targets_tried:
+                                continue
+                            area_targets_tried.add((ty, tx))
+                            if not self.game.is_valid_position(ty, tx):
+                                continue
+                            try:
+                                if skill.can_use(unit, (ty, tx), self.game):
+                                    score = self._score_skill_use(unit, skill, unit, analysis, plan)
+                                    action = Action("skill", target=(skill, (ty, tx)), priority=score)
+                                    actions.append(action)
+                            except Exception:
+                                continue
                 except Exception:
                     continue
             else:
@@ -558,6 +610,10 @@ class TacticalEvaluator:
                 for enemy in analysis.enemy_units:
                     # Skip HEINOUS VAPOR units (invulnerable - waste of actions)
                     if enemy.type == UnitType.HEINOUS_VAPOR:
+                        continue
+
+                    # Skip topiary units (invulnerable terrain - 999 PRT)
+                    if getattr(enemy, 'is_topiary', False):
                         continue
 
                     # Skip untargetable enemies (safety check - should already be filtered in analyzer)
@@ -682,6 +738,15 @@ class TacticalEvaluator:
             List of combo actions with scores
         """
         actions = []
+
+        # Disarmed units cannot attack at all
+        if getattr(unit, 'status_disarmed', False):
+            return actions
+
+        # MANDIBLE FOREMAN cannot attack while trapping a unit
+        if hasattr(unit, 'trapped_unit') and unit.trapped_unit is not None:
+            return actions
+
         stats = unit.get_effective_stats()
         move_range = stats['move_range']
         attack_range = stats['attack_range']
@@ -697,6 +762,15 @@ class TacticalEvaluator:
             for enemy in analysis.enemy_units:
                 # Skip HEINOUS VAPOR units (invulnerable - waste of actions)
                 if enemy.type == UnitType.HEINOUS_VAPOR:
+                    continue
+
+                # Skip topiary units (invulnerable terrain - 999 PRT)
+                if getattr(enemy, 'is_topiary', False):
+                    continue
+
+                # Skip targets protected by Selenic Backdraft
+                if (getattr(unit, 'selenic_backdraft', False) and
+                        getattr(unit, 'selenic_backdraft_by', None) is enemy):
                     continue
 
                 distance_from_new_pos = self.game.chess_distance(y, x, enemy.y, enemy.x)
@@ -1181,7 +1255,10 @@ class TacticalEvaluator:
         # Harmful status effects that Vagal Run cleanses
         harmful_statuses = [
             'trapped_by', 'mired', 'jawline_affected', 'trauma_debt',
-            'estranged', 'auction_curse', 'gaussian_dusk_recharge'
+            'estranged', 'auction_curse', 'gaussian_dusk_recharge',
+            'status_disarmed', 'selenic_backdraft', 'demilune_debuffed',
+            'is_topiary', 'neural_shunt_affected', 'geas_affected',
+            'shredded', 'derelicted', 'shrapnel_duration'
         ]
 
         # Evaluate each ally
@@ -1750,6 +1827,10 @@ class TacticalEvaluator:
             if enemy.type == UnitType.HEINOUS_VAPOR:
                 continue
 
+            # Skip topiary units (invulnerable terrain - 999 PRT)
+            if getattr(enemy, 'is_topiary', False):
+                continue
+
             dist = self.game.chess_distance(y, x, enemy.y, enemy.x)
             if dist <= 1:  # Adjacent
                 nearby_enemies += 1
@@ -2280,7 +2361,7 @@ class TacticalEvaluator:
                     continue
 
                 enemy = self.game.get_unit_at(check_y, check_x)
-                if enemy and enemy.player != unit.player and enemy.type != UnitType.HEINOUS_VAPOR:
+                if enemy and enemy.player != unit.player and enemy.type != UnitType.HEINOUS_VAPOR and not getattr(enemy, 'is_topiary', False):
                     enemies_in_area += 1
 
                     # Check move stat for pull value

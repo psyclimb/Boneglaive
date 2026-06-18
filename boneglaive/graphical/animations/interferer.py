@@ -16,270 +16,247 @@ COLOR_FLASH_BRIGHT = (255, 255, 255)  # Bright white for the illuminant effect
 COLOR_FLASH_CORE = (200, 240, 255)  # Pale blue for core
 
 
-class NeutronIlluminantCardinal:
+class _RadioEffulgentWave:
     """
-    Radio Effulgent pulse animation for CARDINAL attacks.
-    Cardinal attacks (N/S/E/W) radiate diagonally around the INTERFERER.
-    Creates bright, illuminant-like flashes in the 4 diagonal directions.
+    Base class for Radio Effulgent RF wave animations.
+    Radiates concentric arc wavefronts outward from the INTERFERER toward
+    affected tiles, with interference patterns on arrival and directional
+    EM field-line particles.
     """
 
-    def __init__(self, caster_x, caster_y, caster_unit, particle_emitter, screen_flash_callback=None):
-        """
-        Args:
-            caster_x: Screen X position of INTERFERER
-            caster_y: Screen Y position of INTERFERER
-            caster_unit: AnimatedUnit for the INTERFERER
-            particle_emitter: ParticleEmitter for spawning particles
-            screen_flash_callback: Callback to trigger screen flash effect
-        """
+    def __init__(self, caster_x, caster_y, caster_unit, particle_emitter,
+                 screen_flash_callback=None, tile_offsets=None):
         self.caster_x = caster_x
         self.caster_y = caster_y
         self.caster_unit = caster_unit
         self.particle_emitter = particle_emitter
         self.screen_flash_callback = screen_flash_callback
 
-        # Animation timing
         self.timer = 0
-        self.duration = 0.5
-        self.flash_duration = 0.2  # How long the bright flash lasts
-
+        self.duration = 0.55
         self.finished = False
 
-        # Diagonal positions around INTERFERER (NE, SE, SW, NW)
-        self.flash_positions = [
-            (caster_x + TILE_SIZE, caster_y - TILE_SIZE),  # NE
-            (caster_x + TILE_SIZE, caster_y + TILE_SIZE),  # SE
-            (caster_x - TILE_SIZE, caster_y + TILE_SIZE),  # SW
-            (caster_x - TILE_SIZE, caster_y - TILE_SIZE),  # NW
-        ]
+        # Build per-direction data: direction vector, target screen pos, angle
+        self.directions = []
+        for dx_tiles, dy_tiles in (tile_offsets or []):
+            tx = caster_x + dx_tiles * TILE_SIZE
+            ty = caster_y + dy_tiles * TILE_SIZE
+            vec_x = float(dx_tiles)
+            vec_y = float(dy_tiles)
+            length = math.sqrt(vec_x * vec_x + vec_y * vec_y)
+            if length > 0:
+                vec_x /= length
+                vec_y /= length
+            angle = math.atan2(vec_y, vec_x)
+            self.directions.append({
+                'tx': tx, 'ty': ty,
+                'vx': vec_x, 'vy': vec_y,
+                'angle': angle,
+            })
 
-        # Trigger screen flash immediately
-        if self.screen_flash_callback:
-            # Blue flash with carabiner glow color
-            self.screen_flash_callback(COLOR_CARABINER_GLOW, 0.15)
+        # Wavefront config — 4 concentric arcs per direction, staggered launch
+        self.num_wavefronts = 4
+        self.wave_interval = 0.055        # time between successive wavefronts
+        self.wave_travel_time = 0.18      # time for a wavefront to reach tile
+        self.interference_duration = 0.22 # lingering rings at target tile
+        self.arc_spread = 1.2             # radians (~70°) total arc width
 
-        # Spawn immediate particle burst
-        self._spawn_flash_particles()
+        # Spawn directional EM field-line particles
+        self._spawn_particles()
 
-    def _spawn_flash_particles(self):
-        """Spawn bright flash particles at all diagonal positions."""
-        # Flash at each diagonal position
-        for pos_x, pos_y in self.flash_positions:
-            # Bright burst at this position
-            for _ in range(20):
+    def _spawn_particles(self):
+        """Spawn directional particles along each emission axis."""
+        for d in self.directions:
+            # Field-line particles from caster toward tile
+            for _ in range(8):
+                spread = random.uniform(-0.25, 0.25)
+                cos_a = math.cos(d['angle'] + spread)
+                sin_a = math.sin(d['angle'] + spread)
+                speed = random.uniform(140, 280)
+                px = self.caster_x + d['vx'] * random.uniform(4, 12)
+                py = self.caster_y + d['vy'] * random.uniform(4, 12)
+                color = random.choice([COLOR_CARABINER_GLOW, COLOR_RADIO_WAVE, COLOR_FLASH_CORE])
+                p = Particle(px, py, cos_a * speed, sin_a * speed, color,
+                             size=random.uniform(1.5, 3.0), lifetime=random.uniform(0.18, 0.32))
+                p.fade = True
+                p.gravity = 0
+                self.particle_emitter.particles.append(p)
+
+            # Small static sparks at the target tile
+            for _ in range(5):
                 angle = random.uniform(0, 2 * math.pi)
-                speed = random.uniform(40, 120)
-                vx = math.cos(angle) * speed
-                vy = math.sin(angle) * speed
-                color = random.choice([COLOR_FLASH_BRIGHT, COLOR_CARABINER_GLOW, COLOR_FLASH_CORE])
-                size = random.uniform(4, 8)
-                lifetime = random.uniform(0.3, 0.6)
-
-                particle = Particle(pos_x, pos_y, vx, vy, color, size, lifetime)
-                particle.fade = True
-                self.particle_emitter.particles.append(particle)
-
-        # Also spawn particles at center
-        for _ in range(15):
-            angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(60, 150)
-            vx = math.cos(angle) * speed
-            vy = math.sin(angle) * speed
-            color = random.choice([COLOR_FLASH_BRIGHT, COLOR_CARABINER_GLOW])
-            size = random.uniform(3, 6)
-            lifetime = random.uniform(0.2, 0.4)
-
-            particle = Particle(self.caster_x, self.caster_y, vx, vy, color, size, lifetime)
-            particle.fade = True
-            self.particle_emitter.particles.append(particle)
+                speed = random.uniform(15, 50)
+                color = random.choice([COLOR_FLASH_CORE, COLOR_CARABINER_GLOW])
+                p = Particle(d['tx'] + random.uniform(-6, 6),
+                             d['ty'] + random.uniform(-6, 6),
+                             math.cos(angle) * speed, math.sin(angle) * speed,
+                             color, size=random.uniform(1.5, 2.5),
+                             lifetime=random.uniform(0.25, 0.45))
+                p.fade = True
+                p.gravity = 0
+                self.particle_emitter.particles.append(p)
 
     def update(self, delta_time):
-        """Update animation state."""
         self.timer += delta_time
 
-        # Spawn additional radiating particles during flash
-        if self.timer < self.flash_duration and random.random() < 0.5:
-            pos_x, pos_y = random.choice(self.flash_positions)
-            angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(30, 80)
-            vx = math.cos(angle) * speed
-            vy = math.sin(angle) * speed
-            color = random.choice([COLOR_CARABINER_GLOW, COLOR_RADIO_WAVE, COLOR_FLASH_CORE])
-            size = random.uniform(3, 6)
-
-            particle = Particle(pos_x, pos_y, vx, vy, color, size, 0.3)
-            particle.fade = True
-            self.particle_emitter.particles.append(particle)
+        # Continuous directional sparks during wave propagation
+        if self.timer < self.wave_travel_time + self.wave_interval * self.num_wavefronts:
+            for d in self.directions:
+                if random.random() < 0.35:
+                    spread = random.uniform(-0.18, 0.18)
+                    cos_a = math.cos(d['angle'] + spread)
+                    sin_a = math.sin(d['angle'] + spread)
+                    speed = random.uniform(100, 200)
+                    progress = min(1.0, self.timer / self.wave_travel_time)
+                    px = self.caster_x + d['vx'] * TILE_SIZE * progress * random.uniform(0.3, 1.0)
+                    py = self.caster_y + d['vy'] * TILE_SIZE * progress * random.uniform(0.3, 1.0)
+                    color = random.choice([COLOR_RADIO_WAVE, COLOR_CARABINER_GLOW])
+                    p = Particle(px, py, cos_a * speed, sin_a * speed, color,
+                                 size=random.uniform(1.0, 2.5), lifetime=0.15)
+                    p.fade = True
+                    p.gravity = 0
+                    self.particle_emitter.particles.append(p)
 
         if self.timer >= self.duration:
             self.finished = True
+        return not self.finished
 
     def draw(self, surface):
-        """Draw bright flash overlays at diagonal positions."""
-        if self.timer < self.flash_duration:
-            # Fade out over flash duration
-            progress = self.timer / self.flash_duration
-            alpha = int(220 * (1 - progress))
+        if self.finished:
+            return
 
-            # Draw bright glow at each diagonal position
-            for pos_x, pos_y in self.flash_positions:
-                # Multiple layers for intense glow
-                for radius_mult in [1.5, 1.0, 0.5]:
-                    radius = int(TILE_SIZE * 0.8 * radius_mult)
-                    glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+        for d in self.directions:
+            angle = d['angle']
+            tx, ty = d['tx'], d['ty']
 
-                    # Outer glow
-                    layer_alpha = alpha // (int(1.0 / radius_mult) + 1)
-                    color = (*COLOR_CARABINER_GLOW, layer_alpha)
-                    pygame.draw.circle(glow_surf, color, (radius, radius), radius)
+            # Draw expanding arc wavefronts radiating from caster toward tile
+            for w in range(self.num_wavefronts):
+                wave_start = w * self.wave_interval
+                wave_age = self.timer - wave_start
+                if wave_age < 0 or wave_age > self.wave_travel_time + 0.08:
+                    continue
 
-                    # Bright center
-                    if radius_mult <= 0.7:
-                        core_alpha = min(255, int(alpha * 1.5))
-                        core_color = (*COLOR_FLASH_BRIGHT, core_alpha)
-                        core_radius = radius // 2
-                        pygame.draw.circle(glow_surf, core_color, (radius, radius), core_radius)
+                # Wavefront expands from caster outward
+                travel_progress = min(1.0, wave_age / self.wave_travel_time)
+                radius = TILE_SIZE * travel_progress * 1.1
 
-                    surface.blit(glow_surf,
-                               (int(pos_x - radius), int(pos_y - radius)),
-                               special_flags=pygame.BLEND_ADD)
+                if radius < 2:
+                    continue
+
+                # Fade: bright at start, fading as it reaches tile
+                fade = 1.0 - travel_progress * 0.7
+                # Alternate colors between wavefronts
+                if w % 2 == 0:
+                    base_color = COLOR_CARABINER_GLOW
+                else:
+                    base_color = COLOR_RADIO_WAVE
+
+                # Draw arc centered on caster, facing toward the tile
+                half_spread = self.arc_spread / 2
+                start_angle = angle - half_spread
+                end_angle = angle + half_spread
+
+                # Arc surface large enough to contain the full arc
+                surf_size = int(radius * 2 + 8)
+                if surf_size < 4:
+                    continue
+                arc_surf = pygame.Surface((surf_size, surf_size), pygame.SRCALPHA)
+                center = surf_size // 2
+
+                # Draw multiple concentric sub-arcs for thickness and glow
+                for thickness_pass in range(3):
+                    if thickness_pass == 0:
+                        # Outer glow — wide, dim
+                        arc_alpha = int(55 * fade)
+                        arc_width = max(3, int(4 * (1.0 - travel_progress * 0.5)))
+                        arc_color = (*base_color, arc_alpha)
+                    elif thickness_pass == 1:
+                        # Core arc — medium, brighter
+                        arc_alpha = int(130 * fade)
+                        arc_width = max(2, int(2.5 * (1.0 - travel_progress * 0.3)))
+                        arc_color = (*base_color, arc_alpha)
+                    else:
+                        # Leading edge highlight — thin, brightest
+                        arc_alpha = int(90 * fade)
+                        arc_width = max(1, int(1.5))
+                        arc_color = (*COLOR_FLASH_CORE, arc_alpha)
+
+                    r = int(radius)
+                    if r < arc_width:
+                        continue
+                    rect = pygame.Rect(center - r, center - r, r * 2, r * 2)
+                    pygame.draw.arc(arc_surf, arc_color, rect,
+                                    start_angle, end_angle, arc_width)
+
+                surface.blit(arc_surf,
+                             (int(self.caster_x - center), int(self.caster_y - center)),
+                             special_flags=pygame.BLEND_ADD)
+
+            # Interference pattern at the target tile (after wavefronts arrive)
+            first_arrival = self.wave_travel_time
+            interference_age = self.timer - first_arrival
+            if 0 < interference_age < self.interference_duration:
+                progress = interference_age / self.interference_duration
+                fade_alpha = 1.0 - progress
+
+                # Oscillating concentric rings (standing wave), diameter = TILE_SIZE
+                half_tile = TILE_SIZE // 2
+                num_rings = 3
+                for r_idx in range(num_rings):
+                    # Each ring oscillates in radius — constructive/destructive pattern
+                    phase = interference_age * 18.0 + r_idx * (math.pi * 2 / num_rings)
+                    oscillation = math.sin(phase) * 0.3 + 0.7
+                    # Scale rings evenly across the tile: innermost ~33%, mid ~66%, outer ~100% of half_tile
+                    base_radius = half_tile * (r_idx + 1) / num_rings
+                    ring_radius = int(base_radius * oscillation)
+                    if ring_radius < 2:
+                        continue
+
+                    ring_alpha = int(100 * fade_alpha * oscillation)
+                    if ring_alpha < 5:
+                        continue
+
+                    ring_surf_size = ring_radius * 2 + 6
+                    ring_surf = pygame.Surface((ring_surf_size, ring_surf_size), pygame.SRCALPHA)
+                    ring_center = ring_surf_size // 2
+
+                    # Alternate cyan/turquoise for interference bands
+                    ring_color = COLOR_CARABINER_GLOW if r_idx % 2 == 0 else COLOR_RADIO_WAVE
+                    pygame.draw.circle(ring_surf, (*ring_color, ring_alpha),
+                                       (ring_center, ring_center), ring_radius, max(1, 2 - r_idx // 2))
+
+                    surface.blit(ring_surf,
+                                 (int(tx - ring_center), int(ty - ring_center)),
+                                 special_flags=pygame.BLEND_ADD)
 
     def is_finished(self):
-        """Check if animation is complete."""
         return self.finished
 
 
-class NeutronIlluminantDiagonal:
+class NeutronIlluminantCardinal(_RadioEffulgentWave):
     """
-    Radio Effulgent pulse animation for DIAGONAL attacks.
-    Diagonal attacks radiate cardinally around the INTERFERER.
-    Creates bright, illuminant-like flashes in the 4 cardinal directions.
+    Radio Effulgent RF wave animation for CARDINAL attacks.
+    Cardinal attacks radiate RF waves diagonally around the INTERFERER.
     """
 
     def __init__(self, caster_x, caster_y, caster_unit, particle_emitter, screen_flash_callback=None):
-        """
-        Args:
-            caster_x: Screen X position of INTERFERER
-            caster_y: Screen Y position of INTERFERER
-            caster_unit: AnimatedUnit for the INTERFERER
-            particle_emitter: ParticleEmitter for spawning particles
-            screen_flash_callback: Callback to trigger screen flash effect
-        """
-        self.caster_x = caster_x
-        self.caster_y = caster_y
-        self.caster_unit = caster_unit
-        self.particle_emitter = particle_emitter
-        self.screen_flash_callback = screen_flash_callback
+        # Diagonal tile offsets (NE, SE, SW, NW)
+        super().__init__(caster_x, caster_y, caster_unit, particle_emitter,
+                         screen_flash_callback,
+                         tile_offsets=[(1, -1), (1, 1), (-1, 1), (-1, -1)])
 
-        # Animation timing
-        self.timer = 0
-        self.duration = 0.5
-        self.flash_duration = 0.2  # How long the bright flash lasts
 
-        self.finished = False
+class NeutronIlluminantDiagonal(_RadioEffulgentWave):
+    """
+    Radio Effulgent RF wave animation for DIAGONAL attacks.
+    Diagonal attacks radiate RF waves cardinally around the INTERFERER.
+    """
 
-        # Cardinal positions around INTERFERER (N, E, S, W)
-        self.flash_positions = [
-            (caster_x, caster_y - TILE_SIZE),  # N
-            (caster_x + TILE_SIZE, caster_y),  # E
-            (caster_x, caster_y + TILE_SIZE),  # S
-            (caster_x - TILE_SIZE, caster_y),  # W
-        ]
-
-        # Trigger screen flash immediately
-        if self.screen_flash_callback:
-            # Blue flash with carabiner glow color
-            self.screen_flash_callback(COLOR_CARABINER_GLOW, 0.15)
-
-        # Spawn immediate particle burst
-        self._spawn_flash_particles()
-
-    def _spawn_flash_particles(self):
-        """Spawn bright flash particles at all cardinal positions."""
-        # Flash at each cardinal position
-        for pos_x, pos_y in self.flash_positions:
-            # Bright burst at this position
-            for _ in range(20):
-                angle = random.uniform(0, 2 * math.pi)
-                speed = random.uniform(40, 120)
-                vx = math.cos(angle) * speed
-                vy = math.sin(angle) * speed
-                color = random.choice([COLOR_FLASH_BRIGHT, COLOR_CARABINER_GLOW, COLOR_FLASH_CORE])
-                size = random.uniform(4, 8)
-                lifetime = random.uniform(0.3, 0.6)
-
-                particle = Particle(pos_x, pos_y, vx, vy, color, size, lifetime)
-                particle.fade = True
-                self.particle_emitter.particles.append(particle)
-
-        # Also spawn particles at center
-        for _ in range(15):
-            angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(60, 150)
-            vx = math.cos(angle) * speed
-            vy = math.sin(angle) * speed
-            color = random.choice([COLOR_FLASH_BRIGHT, COLOR_CARABINER_GLOW])
-            size = random.uniform(3, 6)
-            lifetime = random.uniform(0.2, 0.4)
-
-            particle = Particle(self.caster_x, self.caster_y, vx, vy, color, size, lifetime)
-            particle.fade = True
-            self.particle_emitter.particles.append(particle)
-
-    def update(self, delta_time):
-        """Update animation state."""
-        self.timer += delta_time
-
-        # Spawn additional radiating particles during flash
-        if self.timer < self.flash_duration and random.random() < 0.5:
-            pos_x, pos_y = random.choice(self.flash_positions)
-            angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(30, 80)
-            vx = math.cos(angle) * speed
-            vy = math.sin(angle) * speed
-            color = random.choice([COLOR_CARABINER_GLOW, COLOR_RADIO_WAVE, COLOR_FLASH_CORE])
-            size = random.uniform(3, 6)
-
-            particle = Particle(pos_x, pos_y, vx, vy, color, size, 0.3)
-            particle.fade = True
-            self.particle_emitter.particles.append(particle)
-
-        if self.timer >= self.duration:
-            self.finished = True
-
-    def draw(self, surface):
-        """Draw bright flash overlays at cardinal positions."""
-        if self.timer < self.flash_duration:
-            # Fade out over flash duration
-            progress = self.timer / self.flash_duration
-            alpha = int(220 * (1 - progress))
-
-            # Draw bright glow at each cardinal position
-            for pos_x, pos_y in self.flash_positions:
-                # Multiple layers for intense glow
-                for radius_mult in [1.5, 1.0, 0.5]:
-                    radius = int(TILE_SIZE * 0.8 * radius_mult)
-                    glow_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-
-                    # Outer glow
-                    layer_alpha = alpha // (int(1.0 / radius_mult) + 1)
-                    color = (*COLOR_CARABINER_GLOW, layer_alpha)
-                    pygame.draw.circle(glow_surf, color, (radius, radius), radius)
-
-                    # Bright center
-                    if radius_mult <= 0.7:
-                        core_alpha = min(255, int(alpha * 1.5))
-                        core_color = (*COLOR_FLASH_BRIGHT, core_alpha)
-                        core_radius = radius // 2
-                        pygame.draw.circle(glow_surf, core_color, (radius, radius), core_radius)
-
-                    surface.blit(glow_surf,
-                               (int(pos_x - radius), int(pos_y - radius)),
-                               special_flags=pygame.BLEND_ADD)
-
-    def is_finished(self):
-        """Check if animation is complete."""
-        return self.finished
+    def __init__(self, caster_x, caster_y, caster_unit, particle_emitter, screen_flash_callback=None):
+        # Cardinal tile offsets (N, E, S, W)
+        super().__init__(caster_x, caster_y, caster_unit, particle_emitter,
+                         screen_flash_callback,
+                         tile_offsets=[(0, -1), (1, 0), (0, 1), (-1, 0)])
 
 
 class NeuralShuntAnimation:
@@ -379,10 +356,6 @@ class NeuralShuntAnimation:
                     particle = Particle(self.caster_x, self.caster_y, vx, vy, color, random.uniform(3, 7), 0.5)
                     particle.fade = True
                     self.particle_emitter.particles.append(particle)
-
-                # Cyan EM flash on impact
-                if self.screen_flash_callback:
-                    self.screen_flash_callback(self.color_cyan_glow, 0.1)
 
                 # Screen shake on impact - same as basic attack
                 if self.screen_shake_callback:
@@ -747,10 +720,6 @@ class ScalarNodeTriggerAnimation:
             # Spawn initial eruption burst
             if not self.eruption_spawned:
                 play_sound("scalar_node_trigger")
-                # White screen flash as flames erupt
-                if self.screen_flash_callback:
-                    self.screen_flash_callback(self.color_white, 0.15)
-
                 # Massive upward burst of flame particles
                 for _ in range(60):
                     # Strongly biased upward like a geyser
@@ -1207,10 +1176,6 @@ class KarrierRavePhaseOut:
                 self.phase = "phase_out"
                 self.timer = 0
 
-                # Flash as phase-out begins
-                if self.screen_flash_callback:
-                    self.screen_flash_callback(self.color_phase, 0.2)
-
         elif self.phase == "phase_out":
             # Phasing out of reality - fade to translucent as carrier wave absorbs him
             progress = self.timer / self.phase_duration
@@ -1528,9 +1493,6 @@ class KarrierRaveTripleStrike:
                 play_sound("karrier_rave_strike_hit")
                 # Cardinal cross pattern
                 self._add_strike_beams(use_diagonal=False)
-                # Flash
-                if self.screen_flash_callback:
-                    self.screen_flash_callback(self.color_carrier, 0.07)
                 # Impact particles
                 for _ in range(25):
                     angle = random.uniform(0, 2 * math.pi)
@@ -1581,9 +1543,6 @@ class KarrierRaveTripleStrike:
                 play_sound("karrier_rave_strike_hit")
                 # Diagonal X pattern
                 self._add_strike_beams(use_diagonal=True)
-                # Flash
-                if self.screen_flash_callback:
-                    self.screen_flash_callback(self.color_energy, 0.07)
                 # Impact particles
                 for _ in range(30):
                     angle = random.uniform(0, 2 * math.pi)
@@ -1636,9 +1595,6 @@ class KarrierRaveTripleStrike:
                 self._add_strike_beams(use_diagonal=False)  # Cardinal beams
                 self._add_strike_beams(use_diagonal=True)   # Diagonal beams
 
-                # Massive flash and explosion
-                if self.screen_flash_callback:
-                    self.screen_flash_callback(self.color_white, 0.12)
                 for _ in range(50):
                     angle = random.uniform(0, 2 * math.pi)
                     speed = random.uniform(180, 350)
@@ -1849,10 +1805,6 @@ class InterfererDualCarabinerAttack:
                               size=random.uniform(2, 4), lifetime=random.uniform(0.15, 0.25))
             particle.gravity = 120
             self.particle_emitter.particles.append(particle)
-
-        # Trigger Radio Effulgent cyan EM pulse (screen and tiles)
-        if self.screen_flash:
-            self.screen_flash(self.color_cyan_glow, 0.1)
 
         # Mark that flash was triggered for tile illumination
         self.flash_triggered = True

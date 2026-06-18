@@ -4,7 +4,7 @@ Map system for Boneglaive - includes map generation and terrain effects.
 """
 
 from enum import Enum
-from typing import Dict, List, Optional, Tuple, Set
+from typing import Dict, List, Optional, Tuple
 import json
 import os
 

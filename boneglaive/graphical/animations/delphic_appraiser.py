@@ -1084,7 +1084,9 @@ class AuctionCurseAnimation:
             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
             TerrainType.COUCH, TerrainType.TOOLBOX, TerrainType.COT,
-            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL,
+            TerrainType.SUNDIAL, TerrainType.FIRE_PIT, TerrainType.GRANITE_SPHERE,
+            TerrainType.TERRACOTTA, TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR
         }
 
         # Check 2-tile radius (5×5 area)
@@ -2414,7 +2416,9 @@ class AuctionCurseTickAnimation:
             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
             TerrainType.COUCH, TerrainType.TOOLBOX, TerrainType.COT,
-            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL,
+            TerrainType.SUNDIAL, TerrainType.FIRE_PIT, TerrainType.GRANITE_SPHERE,
+            TerrainType.TERRACOTTA, TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR
         }
 
         # Check 2-tile radius (5×5 area)
@@ -2974,7 +2978,6 @@ class DeftRerollAnimation:
         self.fracture_lines = FractureLines(self.caster_x, self.caster_y, self.camera)
 
         self.screen_shake_callback(intensity=2, duration=0.6)
-        self.screen_flash_callback((255, 215, 0), 0.3)
 
     def _start_spinning(self):
         """Phase 2: Spinning — CosmicRerollNumber at each furniture tile."""
@@ -3177,7 +3180,9 @@ class AuctionCurseSoulCollectionAnimation:
             TerrainType.EASEL, TerrainType.SCULPTURE, TerrainType.BENCH,
             TerrainType.PODIUM, TerrainType.VASE, TerrainType.WORKBENCH,
             TerrainType.COUCH, TerrainType.TOOLBOX, TerrainType.COT,
-            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL
+            TerrainType.CONVEYOR, TerrainType.MINI_PUMPKIN, TerrainType.POTPOURRI_BOWL,
+            TerrainType.SUNDIAL, TerrainType.FIRE_PIT, TerrainType.GRANITE_SPHERE,
+            TerrainType.TERRACOTTA, TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR
         }
 
         # Check 2-tile radius (5x5 area)

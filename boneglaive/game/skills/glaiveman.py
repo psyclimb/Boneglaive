@@ -4,11 +4,10 @@ Skills specific to the GLAIVEMAN unit type.
 This module contains all passive and active abilities for GLAIVEMAN units.
 """
 
-try:
-    import curses
-except ImportError:
-    curses = None
 import time
+
+# Text-mode bold attribute (_A_BOLD) — avoids importing curses in game layer
+_A_BOLD = 2097152
 from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
 from typing import Optional, TYPE_CHECKING
@@ -69,15 +68,6 @@ class Autoclave(PassiveSkill):
                 self._trigger_autoclave(user, game)
                 self.activated = True
         
-    def mark_ready_to_trigger(self) -> None:
-        """
-        Legacy method kept for backward compatibility.
-        The new system uses direct triggering instead of this two-step process.
-        """
-        # Only log that this deprecated method was called
-        from boneglaive.utils.debug import logger
-        logger.debug("Deprecated mark_ready_to_trigger called for Autoclave. This method is now a no-op.")
-            
     def _has_eligible_targets(self, user: 'Unit', game: 'Game') -> bool:
         """Check if there are any eligible targets for Autoclave."""
         from boneglaive.utils.debug import logger
@@ -120,10 +110,6 @@ class Autoclave(PassiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         import time
-        try:
-            import curses
-        except ImportError:
-            curses = None
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         logger.debug(f"EXECUTING AUTOCLAVE for {user.get_display_name()}")
@@ -225,13 +211,13 @@ class Autoclave(PassiveSkill):
                         # Make damage text more prominent with flashing effect
                         for i in range(3):
                             ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            attrs = _A_BOLD if i % 2 == 0 else 0
                             ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
 
                         # Final damage display (stays visible a bit longer)
-                        ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+                        ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, _A_BOLD)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.2)
                     # Graphical version handles damage display through animation system
@@ -290,13 +276,13 @@ class Autoclave(PassiveSkill):
                     # First clear the area
                     ui.renderer.draw_damage_text(user.y-1, user.x*2, " " * len(healing_text), 7)
                     # Draw with alternating bold/normal for a flashing effect
-                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                    attrs = _A_BOLD if i % 2 == 0 else 0
                     ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
 
                 # Final healing display (stays on screen slightly longer)
-                ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
+                ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, _A_BOLD)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.3)
             
@@ -321,16 +307,12 @@ class Autoclave(PassiveSkill):
                 # Show healing number above unit
                 healing_text = f"+{healing}"
                 if hasattr(ui.renderer, 'draw_text'):
-                    try:
-                        import curses
-                    except ImportError:
-                        curses = None
                     # Make healing text more prominent
                     for i in range(3):
                         # Clear area first
                         ui.renderer.draw_damage_text(user.y-1, user.x*2, " " * len(healing_text), 2)
                         # Draw healing text
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        attrs = _A_BOLD if i % 2 == 0 else 0
                         ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 2, attrs)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.1)
@@ -352,10 +334,6 @@ class Autoclave(PassiveSkill):
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         import time
-        try:
-            import curses
-        except ImportError:
-            curses = None
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         user.last_executed_glaive_sweep = True
@@ -410,7 +388,7 @@ class Autoclave(PassiveSkill):
                 adjacent_target = game.get_unit_at(adj_y, adj_x)
                 if adjacent_target and adjacent_target.player != user.player and adjacent_target.is_alive():
                     # Calculate damage with defense
-                    defense_reduced = max(0, melee_damage - adjacent_target.defense)
+                    defense_reduced = max(1, melee_damage - adjacent_target.defense)
                     adjacent_target.hp -= defense_reduced
 
                     message_log.add_combat_message(
@@ -429,13 +407,13 @@ class Autoclave(PassiveSkill):
                         # Make damage text more prominent with flashing effect
                         for i in range(3):
                             ui.renderer.draw_damage_text(adjacent_target.y-1, adjacent_target.x*2, " " * len(damage_text), 7)
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            attrs = _A_BOLD if i % 2 == 0 else 0
                             ui.renderer.draw_damage_text(adjacent_target.y-1, adjacent_target.x*2, damage_text, 7, attrs)
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
 
                         # Final damage display (stays visible a bit longer)
-                        ui.renderer.draw_damage_text(adjacent_target.y-1, adjacent_target.x*2, damage_text, 7, curses.A_BOLD)
+                        ui.renderer.draw_damage_text(adjacent_target.y-1, adjacent_target.x*2, damage_text, 7, _A_BOLD)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.2)
 
@@ -482,23 +460,24 @@ class PrySkill(ActiveSkill):
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if not target or target.player == user.player:
             return False
-        
+
+        # Cannot target untargetable units (e.g., Karrier Rave phasing)
+        if target.is_untargetable():
+            return False
+
         # Check if target is within range from the correct position
         # (either current position or planned move position)
         from_y = user.y
         from_x = user.x
-        
+
         # If unit has a planned move, use that position instead
         if user.move_target:
             from_y, from_x = user.move_target
-            
+
         distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
-            
-        # Remove the displacement position check - allow using Pry even if unit can't be moved
-        # The execute method will handle the case where there are no valid displacement positions
-        # by applying damage and movement penalty without displacement
+
         return True
         
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -549,10 +528,6 @@ class PrySkill(ActiveSkill):
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-        try:
-            import curses
-        except ImportError:
-            curses = None
         
         # Get target unit (might have moved)
         target = game.get_unit_at(target_pos[0], target_pos[1])
@@ -792,7 +767,7 @@ class PrySkill(ActiveSkill):
                 # Make damage text visible
                 for i in range(2):  # Fewer flashes for secondary targets
                     ui.renderer.draw_damage_text(adjacent_unit.y-1, adjacent_unit.x*2, " " * len(damage_text), 7)
-                    attrs = curses.A_BOLD if i % 2 == 0 else 0
+                    attrs = _A_BOLD if i % 2 == 0 else 0
                     ui.renderer.draw_damage_text(adjacent_unit.y-1, adjacent_unit.x*2, damage_text, 7, attrs)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.1)
@@ -813,13 +788,13 @@ class PrySkill(ActiveSkill):
             # Make damage text more prominent
             for i in range(3):
                 ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
-                attrs = curses.A_BOLD if i % 2 == 0 else 0
+                attrs = _A_BOLD if i % 2 == 0 else 0
                 ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.1)
             
             # Final damage display (stays on screen slightly longer)
-            ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
+            ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, _A_BOLD)
             ui.renderer.refresh()
             sleep_with_animation_speed(0.2)
         
@@ -837,7 +812,7 @@ class PrySkill(ActiveSkill):
             is_upgraded = UpgradeManager.is_skill_upgraded(user, "Pry")
             move_penalty = -2 if is_upgraded else -1
 
-            target.move_range_bonus = move_penalty
+            target.move_range_bonus += move_penalty
 
             # Mark the unit with the appropriate Pry status
             if is_upgraded:
@@ -1299,10 +1274,6 @@ class VaultSkill(ActiveSkill):
 
             # If upgraded, show radial shockwave effects at all adjacent tiles
             if is_upgraded:
-                try:
-                    import curses
-                except ImportError:
-                    curses = None
                 # Show shockwave burst at all 8 adjacent tiles simultaneously
                 adjacent_offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
                 shockwave_frames = ['*', '+', '.']  # Brief burst effect
@@ -1402,10 +1373,6 @@ class VaultSkill(ActiveSkill):
 
             # Show damage numbers for all damaged units
             if ui and hasattr(ui, 'renderer') and damaged_units:
-                try:
-                    import curses
-                except ImportError:
-                    curses = None
                 for damaged_unit, damage_amount in damaged_units:
                     damage_text = f"-{damage_amount}"
 
@@ -1415,7 +1382,7 @@ class VaultSkill(ActiveSkill):
                             damaged_unit.y - 1, damaged_unit.x * 2,
                             " " * len(damage_text), 7
                         )
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
+                        attrs = _A_BOLD if i % 2 == 0 else 0
                         ui.renderer.draw_damage_text(
                             damaged_unit.y - 1, damaged_unit.x * 2,
                             damage_text, 23, attrs  # Color 23 = magenta for damage
@@ -1426,7 +1393,7 @@ class VaultSkill(ActiveSkill):
                     # Final damage display (stays visible a bit longer)
                     ui.renderer.draw_damage_text(
                         damaged_unit.y - 1, damaged_unit.x * 2,
-                        damage_text, 23, curses.A_BOLD
+                        damage_text, 23, _A_BOLD
                     )
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.2)
@@ -1462,23 +1429,27 @@ class JudgementSkill(ActiveSkill):
         target = game.get_unit_at(target_pos[0], target_pos[1])
         if not target or target.player == user.player:
             return False
-            
+
+        # Cannot target untargetable units (e.g., Karrier Rave phasing)
+        if target.is_untargetable():
+            return False
+
         # Check if target is within range from the correct position
         from_y = user.y
         from_x = user.x
-        
+
         # If unit has a planned move, use that position instead
         if user.move_target:
             from_y, from_x = user.move_target
-            
+
         distance = game.chess_distance(from_y, from_x, target_pos[0], target_pos[1])
         if distance > self.range:
             return False
-            
+
         # Check if there's line of sight to the target
         if not game.has_line_of_sight(from_y, from_x, target_pos[0], target_pos[1]):
             return False
-            
+
         return True
             
     def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -1513,10 +1484,6 @@ class JudgementSkill(ActiveSkill):
         import time
         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-        try:
-            import curses
-        except ImportError:
-            curses = None
         
         # Get target unit
         target = game.get_unit_at(target_pos[0], target_pos[1])
@@ -1609,7 +1576,7 @@ class JudgementSkill(ActiveSkill):
                 
                 # Show impact effect on target tile only
                 for i in range(4):  # Quick impact flash
-                    ui.renderer.draw_tile(target.y, target.x, impact_char, 7, curses.A_BOLD)  # White color with bold (same as STAINED_STONE)
+                    ui.renderer.draw_tile(target.y, target.x, impact_char, 7, _A_BOLD)  # White color with bold (same as STAINED_STONE)
                     ui.renderer.refresh()
                     sleep_with_animation_speed(0.05)
                     
@@ -1705,7 +1672,7 @@ class JudgementSkill(ActiveSkill):
             
             for i in range(3):
                 ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
-                attrs = curses.A_BOLD if i % 2 == 0 else 0
+                attrs = _A_BOLD if i % 2 == 0 else 0
                 ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
                 ui.renderer.refresh()
                 sleep_with_animation_speed(0.1)

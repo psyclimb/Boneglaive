@@ -79,7 +79,7 @@ STATUS_EFFECTS = {
         "name": "Mired",
         "type": "debuff",
         "icon": "M",
-        "description": "Attack reduced by 2 from Marrow Dike",
+        "description": "Attack and movement reduced by 1 from Marrow Dike",
         "duration_key": "mired_duration",
         "check": lambda u: u.mired
     },
@@ -107,6 +107,14 @@ STATUS_EFFECTS = {
         "duration_key": "derelicted_duration",
         "check": lambda u: u.derelicted
     },
+    "disarmed": {
+        "name": "Disarmed",
+        "type": "debuff",
+        "icon": "DA",
+        "description": "Cannot attack",
+        "duration_key": "status_disarmed_duration",
+        "check": lambda u: getattr(u, 'status_disarmed', False)
+    },
     "topiary": {
         "name": "Topiary",
         "type": "debuff",
@@ -115,11 +123,19 @@ STATUS_EFFECTS = {
         "duration_key": "topiary_duration",
         "check": lambda u: getattr(u, 'is_topiary', False)
     },
+    "selenic_backdraft": {
+        "name": "Selenic Backdraft",
+        "type": "debuff",
+        "icon": "SB",
+        "description": "Cannot basic attack POTPOURRIST",
+        "duration_key": "selenic_backdraft_duration",
+        "check": lambda u: getattr(u, 'selenic_backdraft', False)
+    },
     "demilune_debuffed": {
         "name": "Lunacy",
         "type": "debuff",
         "icon": "DM",
-        "description": "Attack reduced" + (" / Defense halved" if hasattr(lambda u: u, "demilune_defense_halved") else ""),
+        "description": "Attack reduced",
         "duration_key": "demilune_debuff_duration",
         "check": lambda u: u.demilune_debuffed
     },

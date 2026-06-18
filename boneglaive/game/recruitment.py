@@ -4,7 +4,7 @@ Unit recruitment system for the setup phase.
 Manages the pool of available units and recruitment mechanics.
 """
 
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field
 from boneglaive.utils.constants import UnitType

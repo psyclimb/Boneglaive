@@ -415,26 +415,17 @@ class DemiluneSkill(ActiveSkill):
         # Get arc tiles
         arc_tiles = self._get_arc_tiles(user.y, user.x, target_pos[0], target_pos[1])
 
-        # Check for Demilune upgrade (mirrored zone)
+        # Check for Demilune upgrade (Selenic Backdraft — mirrored arc)
         from boneglaive.game.upgrades import UpgradeManager
         demilune_upgraded = UpgradeManager.is_skill_upgraded(user, "Demilune")
 
-        # If upgraded, create zone in opposite direction (NOT where attack hit)
+        # If upgraded, calculate back-arc tiles for the Selenic Backdraft swing
+        back_arc_tiles = []
         if demilune_upgraded:
-            # Calculate opposite target position (reverse direction)
             dy = target_pos[0] - user.y
             dx = target_pos[1] - user.x
             opposite_target = (user.y - dy, user.x - dx)
-
-            # Get mirrored arc tiles in opposite direction
-            mirrored_arc_tiles = self._get_arc_tiles(user.y, user.x, opposite_target[0], opposite_target[1])
-            user.demilune_mirrored_zone_tiles = mirrored_arc_tiles.copy()
-
-            # The zone only exists in the mirrored area, NOT the attack area
-            user.demilune_zone_tiles = []
-
-            # Set zone duration (starts at 3, decrements to 0, so it lasts 2 full turns)
-            user.demilune_zone_duration = 3
+            back_arc_tiles = self._get_arc_tiles(user.y, user.x, opposite_target[0], opposite_target[1])
 
             message_log.add_message(
                 f"{user.get_display_name()} swings the granite pedestal and creates a selenic backdraft",
@@ -442,10 +433,6 @@ class DemiluneSkill(ActiveSkill):
                 player=user.player
             )
         else:
-            user.demilune_zone_tiles = []
-            user.demilune_mirrored_zone_tiles = []
-            user.demilune_zone_duration = 0
-
             message_log.add_message(
                 f"{user.get_display_name()} swings the granite pedestal in a crescent sweep",
                 MessageType.ABILITY,
@@ -496,6 +483,9 @@ class DemiluneSkill(ActiveSkill):
                 target.hp = max(0, target.hp - damage)
                 actual_damage = old_hp - target.hp
                 game.current_attacker = None
+
+                if target.hp > 0:
+                    game.check_critical_health(target, user, old_hp, ui)
 
                 message_log.add_combat_message(
                     attacker_name=user.get_display_name(),
@@ -567,6 +557,86 @@ class DemiluneSkill(ActiveSkill):
                     )
 
                 hit_count += 1
+
+        # Selenic Backdraft: upgraded back-arc deals same damage + applies Selenic Backdraft status
+        if demilune_upgraded and back_arc_tiles:
+            # Text mode animation for back-arc
+            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
+                sweep_tiles = self._get_sweep_order(user.y, user.x, opposite_target[0], opposite_target[1])
+                sweep_animation = ui.asset_manager.get_skill_animation_sequence('demilune_sweep')
+                if not sweep_animation:
+                    sweep_animation = ['/', '|', '\\', '-', '*']
+
+                for i, (tile_y, tile_x) in enumerate(sweep_tiles):
+                    frame_index = min(i, len(sweep_animation) - 1)
+                    frame = sweep_animation[frame_index]
+                    ui.renderer.draw_tile(tile_y, tile_x, frame, 5, curses.A_BOLD)  # Magenta for backdraft
+                    ui.renderer.refresh()
+                    sleep_with_animation_speed(0.08)
+
+                impact_frame = '*'
+                for tile_y, tile_x in back_arc_tiles:
+                    ui.renderer.draw_tile(tile_y, tile_x, impact_frame, 5, curses.A_BOLD)
+                ui.renderer.refresh()
+                sleep_with_animation_speed(0.15)
+
+                if hasattr(ui, 'draw_board'):
+                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
+
+            for tile_y, tile_x in back_arc_tiles:
+                target = game.get_unit_at(tile_y, tile_x)
+                if target and target.player != user.player and target.is_alive():
+                    # Deal same damage as front arc
+                    game.current_attacker = user
+                    old_hp = target.hp
+                    target.hp = max(0, target.hp - damage)
+                    actual_damage = old_hp - target.hp
+                    game.current_attacker = None
+
+                    if target.hp > 0:
+                        game.check_critical_health(target, user, old_hp, ui)
+
+                    message_log.add_combat_message(
+                        attacker_name=user.get_display_name(),
+                        target_name=target.get_display_name(),
+                        damage=actual_damage,
+                        ability="Selenic Backdraft",
+                        attacker_player=user.player,
+                        target_player=target.player
+                    )
+
+                    # Text mode damage display
+                    if ui and hasattr(ui, 'renderer'):
+                        damage_text = f"-{actual_damage}"
+                        for i in range(3):
+                            ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
+                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 5, attrs)
+                            ui.renderer.refresh()
+                            time.sleep(0.1)
+                        ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 5, curses.A_BOLD)
+                        ui.renderer.refresh()
+                        time.sleep(0.3)
+
+                    # Apply Selenic Backdraft status if not immune
+                    if not target.is_immune_to_effects():
+                        target.selenic_backdraft = True
+                        target.selenic_backdraft_by = user
+                        target.selenic_backdraft_duration = 3 if enhanced else 2
+
+                        message_log.add_message(
+                            f"{target.get_display_name()} is blinded by the selenic backdraft",
+                            MessageType.WARNING,
+                            player=target.player
+                        )
+                    else:
+                        message_log.add_message(
+                            f"{target.get_display_name()} is immune to Selenic Backdraft due to Stasiality",
+                            MessageType.ABILITY,
+                            player=target.player
+                        )
+
+                    hit_count += 1
 
         return True
 
@@ -745,6 +815,9 @@ class GraniteGeasSkill(ActiveSkill):
         actual_damage = old_hp - target.hp
         game.current_attacker = None
 
+        if target.hp > 0:
+            game.check_critical_health(target, user, old_hp, ui)
+
         message_log.add_combat_message(
             attacker_name=user.get_display_name(),
             target_name=target.get_display_name(),
@@ -876,7 +949,20 @@ class GraniteGeasSkill(ActiveSkill):
                         game.current_attacker = user
                         old_hp = adj_unit.hp
                         adj_unit.hp = max(0, adj_unit.hp - damage)
+                        actual_chain_damage = old_hp - adj_unit.hp
                         game.current_attacker = None
+
+                        if adj_unit.hp > 0:
+                            game.check_critical_health(adj_unit, user, old_hp, ui)
+
+                        message_log.add_combat_message(
+                            attacker_name=user.get_display_name(),
+                            target_name=adj_unit.get_display_name(),
+                            damage=actual_chain_damage,
+                            ability="Granite Geas",
+                            attacker_player=user.player,
+                            target_player=adj_unit.player
+                        )
 
                         # Apply taunt if not immune
                         if not adj_unit.is_immune_to_effects():

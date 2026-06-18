@@ -7,11 +7,10 @@ The DERELICTIONIST is a support/healer unit focused on psychological abandonment
 trauma processing, and distance-based healing mechanics.
 """
 
-try:
-    import curses
-except ImportError:
-    curses = None
 import time
+
+# Text-mode bold attribute (_A_BOLD) — avoids importing curses in game layer
+_A_BOLD = 2097152
 import random
 import math
 from typing import Optional, TYPE_CHECKING
@@ -51,9 +50,11 @@ def _place_derelict_building(target, user, game, ui):
         if not game.is_valid_position(pos_y, pos_x):
             continue
 
-        # Displace any unit occupying this tile
+        # Displace any unit occupying this tile (skip immune units)
         unit_at_pos = game.get_unit_at(pos_y, pos_x)
         if unit_at_pos is not None:
+            if unit_at_pos.is_immune_to_effects():
+                continue
             displacement_found = False
             for dy in [-1, 0, 1]:
                 for dx in [-1, 0, 1]:
@@ -281,10 +282,6 @@ class VagalRunSkill(ActiveSkill):
                     
                     # Show healing effect on map if UI is available
                     if ui and hasattr(ui, 'renderer'):
-                        try:
-                            import curses
-                        except ImportError:
-                            curses = None
                         import time
                         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
                         
@@ -295,13 +292,13 @@ class VagalRunSkill(ActiveSkill):
                             # First clear the area
                             ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(healing_text), 7)
                             # Draw with alternating bold/normal for a flashing effect
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            attrs = _A_BOLD if i % 2 == 0 else 0
                             ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, attrs)  # Green color
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
                         
                         # Final healing display (stays on screen slightly longer)
-                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, curses.A_BOLD)
+                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, _A_BOLD)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
             
@@ -397,7 +394,8 @@ class VagalRunSkill(ActiveSkill):
             target.mired = False
             if hasattr(target, 'mired_duration'):
                 target.mired_duration = 0
-            # Restore the movement penalty that was applied by mired (-1 move)
+            # Restore the penalties that were applied by mired (-1 attack, -1 move)
+            target.attack_bonus += 1
             target.move_range_bonus += 1
             cleared_effects.append("Mired")
             
@@ -437,6 +435,16 @@ class VagalRunSkill(ActiveSkill):
             
         if hasattr(target, 'auction_curse_dot') and target.auction_curse_dot:
             target.auction_curse_dot = False
+            if hasattr(target, 'auction_curse_no_heal'):
+                target.auction_curse_no_heal = False
+            if hasattr(target, 'auction_curse_dot_duration'):
+                target.auction_curse_dot_duration = 0
+            if hasattr(target, 'auction_curse_caster'):
+                target.auction_curse_caster = None
+            if hasattr(target, 'auction_curse_initial_hp'):
+                target.auction_curse_initial_hp = 0
+            if hasattr(target, 'auction_curse_applied_duration'):
+                target.auction_curse_applied_duration = 0
             cleared_effects.append("Auction Curse")
 
         if hasattr(target, 'status_imbued') and target.status_imbued:
@@ -480,6 +488,36 @@ class VagalRunSkill(ActiveSkill):
             if hasattr(target, 'status_disarmed_duration'):
                 target.status_disarmed_duration = 0
             cleared_effects.append("Disarmed")
+
+        if hasattr(target, 'selenic_backdraft') and target.selenic_backdraft:
+            target.selenic_backdraft = False
+            target.selenic_backdraft_by = None
+            if hasattr(target, 'selenic_backdraft_duration'):
+                target.selenic_backdraft_duration = 0
+            cleared_effects.append("Selenic Backdraft")
+
+        if hasattr(target, 'demilune_debuffed') and target.demilune_debuffed:
+            target.demilune_debuffed = False
+            target.demilune_debuffed_by = None
+            if hasattr(target, 'demilune_debuff_duration'):
+                target.demilune_debuff_duration = 0
+            cleared_effects.append("Lunacy")
+
+        if hasattr(target, 'shredded') and target.shredded:
+            target.shredded = False
+            if hasattr(target, 'shredded_duration'):
+                target.shredded_duration = 0
+            cleared_effects.append("Shredded")
+
+        if hasattr(target, 'geas_affected') and target.geas_affected:
+            target.geas_affected = False
+            if hasattr(target, 'geas_attack_reduction'):
+                target.geas_attack_reduction = False
+            if hasattr(target, 'taunted_by'):
+                target.taunted_by = None
+            if hasattr(target, 'taunt_duration'):
+                target.taunt_duration = 0
+            cleared_effects.append("Granite Geas")
 
         # Clear positive status effects (but not permanent abilities or vagal run)
         if hasattr(target, 'carrier_rave_active') and target.carrier_rave_active:
@@ -553,6 +591,14 @@ class VagalRunSkill(ActiveSkill):
             if hasattr(target, 'market_futures_maturity'):
                 target.attack_bonus = max(0, target.attack_bonus - target.market_futures_maturity)
                 target.market_futures_maturity = 0
+            # Remove range bonus that was applied with the investment
+            target.attack_range_bonus = max(0, target.attack_range_bonus - 1)
+            if hasattr(target, 'market_futures_range_bonus_active'):
+                target.market_futures_range_bonus_active = False
+            if hasattr(target, 'market_futures_bonus_applied'):
+                target.market_futures_bonus_applied = False
+            if hasattr(target, 'market_futures_will_expire_after_attack'):
+                target.market_futures_will_expire_after_attack = False
             cleared_effects.append("Investment")
             
         if hasattr(target, 'partition_shield_active') and target.partition_shield_active:
@@ -808,10 +854,6 @@ class DerelictSkill(ActiveSkill):
 
                     # Show healing effect on map if UI is available
                     if ui and hasattr(ui, 'renderer'):
-                        try:
-                            import curses
-                        except ImportError:
-                            curses = None
                         import time
                         from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
@@ -822,13 +864,13 @@ class DerelictSkill(ActiveSkill):
                             # First clear the area
                             ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(healing_text), 7)
                             # Draw with alternating bold/normal for a flashing effect
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
+                            attrs = _A_BOLD if i % 2 == 0 else 0
                             ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, attrs)  # Green color
                             ui.renderer.refresh()
                             sleep_with_animation_speed(0.1)
 
                         # Final healing display (stays on screen slightly longer)
-                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, curses.A_BOLD)
+                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, _A_BOLD)
                         ui.renderer.refresh()
                         sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
         

@@ -529,8 +529,6 @@ class HornswoggleAnimation:
                     self.particle_emitter.emit_burst(ddx, ddy, BONE_IVORY, count=10)
                 if self.screen_shake:
                     self.screen_shake(7, 0.2)
-                if self.screen_flash:
-                    self.screen_flash(BURGUNDY_DARK, 0.1)
 
         elif phase == "sympathetic":
             # Sympathetic Resonance — reveal tiles progressively
@@ -830,10 +828,6 @@ class TopiaryBreathAnimation:
                     for sx, sy in self.cone_rows[min(new_rows - 1, 3)]:
                         self.particle_emitter.emit_burst(sx, sy, BURGUNDY, count=4)
 
-            if blast_t < delta_time * 2:
-                if self.screen_flash:
-                    self.screen_flash(BURGUNDY_DARK, 0.15)
-
             self.cone_alpha = min(80, int(blast_t * 200))
 
         # Phase 3: Petrification (1.0-1.8s) — reveal topiary tiles progressively
@@ -1095,8 +1089,6 @@ class DissonanceAnimation:
                 intensity = 10 if self.is_topiary else 8
                 if self.screen_shake:
                     self.screen_shake(intensity, 0.3)
-                if self.screen_flash:
-                    self.screen_flash(BURGUNDY_DARK, 0.1)
                 if self.particle_emitter:
                     self.particle_emitter.emit_burst(self.target_x, self.target_y, STONE_GRAY, count=35)
                     self.particle_emitter.emit_burst(self.target_x, self.target_y, BONE_IVORY, count=15)
@@ -1146,8 +1138,6 @@ class DissonanceAnimation:
                     play_sound("dissonance_whirl")
                     if self.screen_shake:
                         self.screen_shake(7, 0.5)
-                    if self.screen_flash:
-                        self.screen_flash(BURGUNDY_DARK, 0.12)
 
             # --- Arc (0.21 - 0.76): tiles fly along curved CCW paths ---
             elif whirl_t < ARC_END:
@@ -1187,9 +1177,6 @@ class DissonanceAnimation:
                     # Impact effects at each landing point
                     if self.screen_shake:
                         self.screen_shake(8, 0.2)
-                    if self.screen_flash:
-                        self.screen_flash(QUARTZ_BRIGHT, 0.08)
-
                     for td in self.whirl_tile_data:
                         td['landed'] = True
                         lx, ly = td['to_screen']

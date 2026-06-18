@@ -351,8 +351,7 @@ class OssifyAnimation:
         # Play hardening sound
         play_sound("ossify_harden")
 
-        # Brief white flash at hardening completion
-        self.screen_flash_callback((255, 255, 255), 0.15)
+        # Brief white flash at hardening completion (removed — screen flashes reserved for Rail Genesis)
 
     def update(self, delta_time):
         """Update animation state. Returns True if active, False when done."""
@@ -896,8 +895,7 @@ class BoneTitheAnimation:
         # Medium-heavy screen shake for absorption
         self.screen_shake_callback(6, 0.4)
 
-        # Red flash during absorption
-        self.screen_flash_callback((255, 0, 0), 0.15)
+        # Red flash during absorption (removed — screen flashes reserved for Rail Genesis)
 
     def update(self, delta_time):
         """Update animation state. Returns True if active, False when done."""
@@ -1026,8 +1024,7 @@ class BoneTitheDeathHealAnimation:
         BONE_ACCENT = (224, 213, 197)   # #e0d5c5
         EYE_GLOW = (255, 0, 0)          # #ff0000
 
-        # Crimson screen flash
-        self.screen_flash_callback((139, 0, 0), 0.2)
+        # Crimson screen flash (removed — screen flashes reserved for Rail Genesis)
 
         if self.particle_emitter:
             # 1. VISCERAL BLOOD EXPLOSION - massive central burst
@@ -2120,8 +2117,7 @@ class MarrowDikeAnimation:
         wall_screen_positions = [w['screen'] for w in self.wall_positions]
         self.network = WallNetwork(wall_screen_positions, upgraded=self.upgraded)
 
-        # White flash at solidification
-        self.screen_flash_callback((255, 255, 255), 0.15)
+        # White flash at solidification (removed — screen flashes reserved for Rail Genesis)
 
         # Light settling shake
         self.screen_shake_callback(2, 0.3)
