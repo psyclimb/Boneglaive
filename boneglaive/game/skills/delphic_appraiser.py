@@ -4,17 +4,13 @@ Skills specific to the DELPHIC_APPRAISER unit type.
 This module contains all passive and active abilities for DELPHIC_APPRAISER units.
 """
 
-import time
 
-# Text-mode bold attribute (_A_BOLD) — avoids importing curses in game layer
-_A_BOLD = 2097152
 import random
 from typing import Optional, List, Dict, Tuple, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
-from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 from boneglaive.utils.constants import UnitType
 from boneglaive.game.map import TerrainType
 
@@ -394,21 +390,6 @@ class MarketFuturesSkill(ActiveSkill):
         # Update anchor status effects for all units
         game.update_anchor_status_effects()
         
-        # Play Market Futures animation sequence
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get the pre-defined market futures animation sequence
-            market_futures_animation = ui.asset_manager.get_skill_animation_sequence('market_futures')
-            if not market_futures_animation:
-                # Fallback animation showing the complete progression
-                market_futures_animation = ['A', '|', '-', '#', '\\', '|', '/', '-', '#', '&', '%', '@', '$', '.', '*', '+', '*', '.', '~', '-', '=', 'T', '@']
-
-            # Play the complete Market Futures animation at target position
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                market_futures_animation,
-                6,  # Cyan/blue color for market analysis
-                0.1  # Duration per frame
-            )
 
         # If Market Futures upgrade is active, immediately apply Valuation Oracle to adjacent allies
         from boneglaive.game.upgrades import UpgradeManager
@@ -541,30 +522,6 @@ class MarketFuturesSkill(ActiveSkill):
             
             # Investment message removed from log
             
-        # Play teleport animation
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get teleport animation - ally transforms into golden market arrows
-            teleport_animation = ui.asset_manager.get_skill_animation_sequence('market_teleport')
-            if not teleport_animation:
-                teleport_animation = ['$', '^', '>', 'v', 'v', '*', 'A']
-                
-            # Show animation from old position to new position
-            if hasattr(ui.renderer, 'animate_path'):
-                ui.renderer.animate_path(
-                    old_pos[0], old_pos[1],
-                    destination[0], destination[1],
-                    teleport_animation,
-                    3,  # Yellow/gold color
-                    0.1  # Duration
-                )
-            else:
-                # Fallback to basic animation if animate_path not available
-                ui.renderer.animate_attack_sequence(
-                    destination[0], destination[1],
-                    teleport_animation,
-                    3,  # Yellow/gold color
-                    0.2  # Duration
-                )
             
         # Deactivate the anchor after use
         if hasattr(game, 'teleport_anchors') and anchor_pos in game.teleport_anchors:
@@ -799,72 +756,6 @@ class AuctionCurseSkill(ActiveSkill):
                     player=target_unit.player
                 )
 
-        # Play Auction Curse animation - astral auctioneers appear at furniture AND appraised enemy locations
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Combine furniture and appraised enemy positions for animation
-            auctioneer_positions = nearby_furniture.copy() if nearby_furniture else []
-
-            # With Valuation Oracle upgrade: Add appraised enemy positions
-            if valuation_oracle_upgraded and nearby_appraised_enemies:
-                for enemy_unit in nearby_appraised_enemies:
-                    auctioneer_positions.append((enemy_unit.y, enemy_unit.x))
-
-            # Step 1: Podiums and astral auctioneers ascend at all auctioneer locations
-            if auctioneer_positions:
-                podium_ascension = ['.', '_', '=', 'i', 'I']  # Ground → podium → auctioneer rises
-                for pos in auctioneer_positions:
-                    ui.renderer.animate_attack_sequence(
-                        pos[0], pos[1],
-                        podium_ascension,
-                        7,  # White/light color for astral beings
-                        0.18  # Duration per frame
-                    )
-                    sleep_with_animation_speed(0.03)  # Slight stagger between locations
-
-                sleep_with_animation_speed(0.15)  # Pause between major phases
-
-                # Step 2: Astral auctioneers raise bidding paddles
-                paddle_raising = ['I', 'Y', 'T']  # Auctioneer → raising paddle → paddle fully raised
-                for pos in auctioneer_positions:
-                    ui.renderer.animate_attack_sequence(
-                        pos[0], pos[1],
-                        paddle_raising,
-                        7,  # Yellow for astral energy
-                        0.15  # Duration per frame
-                    )
-                    sleep_with_animation_speed(0.03)  # Slight stagger
-
-                sleep_with_animation_speed(0.2)  # Dramatic pause before curse
-
-                # Step 3: Twisted curse descends from all auctioneers to converge on victim
-                curse_descent = ['~', '*', 'v', 'V']  # Curse energy → swirling → descending → impact
-
-                # First show curse energy forming at each auctioneer
-                for pos in auctioneer_positions:
-                    ui.renderer.animate_attack_sequence(
-                        pos[0], pos[1],
-                        ['~', '*'],  # Just the initial curse energy
-                        19,  # Red text for malevolent energy
-                        0.12
-                    )
-
-                # Then show curse converging on the target
-                ui.renderer.animate_attack_sequence(
-                    target_pos[0], target_pos[1],
-                    ['v', 'V', '@', '&'],  # Curse descends → impacts → victim cursed → ongoing effect
-                    19,  # Red text for curse affliction
-                    0.2  # Duration per frame
-                )
-
-            else:
-                # Fallback if no furniture/enemies nearby - simple curse effect
-                simple_curse = ['~', '*', 'v', '@']
-                ui.renderer.animate_attack_sequence(
-                    target_pos[0], target_pos[1],
-                    simple_curse,
-                    19,  # Red text color
-                    0.2
-                )
 
         return True
 
@@ -1179,16 +1070,6 @@ class DivineDrepreciationSkill(ActiveSkill):
 
         # Reroll astral values for all other furniture in the AOE
         for pos in other_furniture:
-            # Show flashing random numbers animation on this furniture before setting final value
-            if ui and hasattr(ui, 'renderer'):
-                # Create animation with random numbers cycling
-                reroll_animation = [str(random.randint(1, 9)) for _ in range(12)]  # 12 frames of random numbers
-                ui.renderer.animate_attack_sequence(
-                    pos[0], pos[1],
-                    reroll_animation,
-                    7,  # Yellow/white flashing
-                    0.1  # Fast flashing
-                )
 
             # Generate a new random astral value (1-9) for this player
             new_value = random.randint(1, 9)
@@ -1198,15 +1079,6 @@ class DivineDrepreciationSkill(ActiveSkill):
         # With Valuation Oracle upgrade: Reroll astral values for appraised enemies
         if hasattr(user, 'passive_skill') and user.passive_skill and appraised_enemies:
             for pos, enemy_unit in appraised_enemies:
-                # Show flashing random numbers animation on enemy
-                if ui and hasattr(ui, 'renderer'):
-                    reroll_animation = [str(random.randint(1, 9)) for _ in range(12)]
-                    ui.renderer.animate_attack_sequence(
-                        pos[0], pos[1],
-                        reroll_animation,
-                        7,  # Yellow/white flashing
-                        0.1  # Fast flashing
-                    )
 
                 # Generate a new random astral value (1-9) for this enemy
                 new_value = random.randint(1, 9)
@@ -1236,71 +1108,6 @@ class DivineDrepreciationSkill(ActiveSkill):
                 player=user.player
             )
 
-        # Play fast sinkhole animation sequence
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Step 1: Value Collapse - Show furniture's astral value plummeting
-            value_collapse_animation = []
-            current_value = original_cosmic_value
-            while current_value > 1 and len(value_collapse_animation) < 3:  # Limit to 3 frames max
-                value_collapse_animation.append(str(current_value))
-                current_value = max(1, current_value - 3)  # Drop faster for shorter animation
-            value_collapse_animation.append('1')  # Always end at 1
-            
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                value_collapse_animation,
-                7,  # White->Yellow showing instability  
-                0.08  # Quick duration
-            )
-
-            # Step 2: Sinkhole Formation - Floor collapses inward creating gravitational pull
-            sinkhole_animation = ['o', 'O', '@']
-            # Show sinkhole forming at center and expanding outward
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                sinkhole_animation,
-                0,  # Black/dark showing the void
-                0.06  # Quick formation
-            )
-            
-            # Show sinkhole effect radiating outward in concentric rings
-            for distance in range(1, 4):  # 1, 2, 3 distance from center
-                for y in range(target_pos[0] - distance, target_pos[0] + distance + 1):
-                    for x in range(target_pos[1] - distance, target_pos[1] + distance + 1):
-                        # Only animate positions at exactly the current distance (ring edge)
-                        if (abs(y - target_pos[0]) == distance or abs(x - target_pos[1]) == distance) and \
-                           game.is_valid_position(y, x) and (y, x) in affected_area:
-                            ui.renderer.animate_attack_sequence(
-                                y, x,
-                                ['o'],  # Single frame showing ground instability
-                                0,  # Dark color
-                                0.02  # Very quick
-                            )
-
-            # Step 3: Everything Falls In - Units tumble toward center, simultaneous effects
-            fall_animation = ['\\', '|', '/']
-            
-            # Apply effects to all units simultaneously
-            for unit in enemies_in_area:
-                # Show tumbling/falling effect
-                ui.renderer.animate_attack_sequence(
-                    unit.y, unit.x,
-                    fall_animation,
-                    10,  # Red color showing damage/distress
-                    0.10  # Duration
-                )
-            
-            # Show furniture revaluation effect simultaneously
-            if other_furniture:
-                for pos in other_furniture:
-                    # Furniture gets jostled and revalued as everything shifts
-                    revalue_animation = ['?', '$', '*']
-                    ui.renderer.animate_attack_sequence(
-                        pos[0], pos[1],
-                        revalue_animation,
-                        3,  # Yellow/green for revaluation
-                        0.10  # Same duration as falling
-                    )
 
         # Now apply damage and pull effects after animation completes
         for effect_data in effects_to_apply:
@@ -1326,24 +1133,6 @@ class DivineDrepreciationSkill(ActiveSkill):
                 target_player=unit.player
             )
 
-            # Show damage number if UI is available (ASCII mode only)
-            if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text') and actual_damage > 0:
-                damage_text = f"-{actual_damage}"
-                
-                # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
-                for i in range(3):
-                    # First clear the area
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                    # Draw with alternating bold/normal for a flashing effect
-                    attrs = _A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.1)
-                
-                # Final damage display (stays on screen slightly longer)
-                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, _A_BOLD)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
 
             # Apply pull effects
             if actual_pull > 0 and distance > 0:
@@ -1712,15 +1501,6 @@ class DeftRerollSkill(ActiveSkill):
 
         # Reroll animation + values for all furniture
         for pos in furniture_to_reroll:
-            # Show flashing reroll animation
-            if ui and hasattr(ui, 'renderer'):
-                reroll_animation = [str(random.randint(1, 14)) for _ in range(12)]
-                ui.renderer.animate_attack_sequence(
-                    pos[0], pos[1],
-                    reroll_animation,
-                    7,  # Yellow/white
-                    0.5
-                )
 
             # Generate new cosmic value
             new_value = random.randint(1, 14)
@@ -1730,15 +1510,6 @@ class DeftRerollSkill(ActiveSkill):
         # With Valuation Oracle upgrade: Reroll astral values for appraised enemies
         if hasattr(user, 'passive_skill') and user.passive_skill and appraised_enemies:
             for pos, enemy_unit in appraised_enemies:
-                # Show flashing reroll animation
-                if ui and hasattr(ui, 'renderer'):
-                    reroll_animation = [str(random.randint(1, 14)) for _ in range(12)]
-                    ui.renderer.animate_attack_sequence(
-                        pos[0], pos[1],
-                        reroll_animation,
-                        7,  # Yellow/white
-                        0.5
-                    )
 
                 # Generate a new random astral value (1-14) for this enemy
                 new_value = random.randint(1, 14)
@@ -1753,10 +1524,6 @@ class DeftRerollSkill(ActiveSkill):
 
         # Store rerolled values on user for animation to access
         user.deft_reroll_values = rerolled_values
-
-        # Redraw board
-        if ui and hasattr(ui, 'draw_board'):
-            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
         message_log.add_message(
             f"{user.get_display_name()} rerolls the astral values",
