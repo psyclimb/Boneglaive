@@ -10,7 +10,7 @@ from boneglaive.utils.config import ConfigManager
 
 if TYPE_CHECKING:
     from boneglaive.game.engine import Game
-    from boneglaive.ui.game_ui import GameUI
+    from boneglaive.graphical.ui_adapter import GraphicalUIAdapter
 
 class AIInterface:
     """
@@ -26,7 +26,7 @@ class AIInterface:
         self.ai_controller = None
         self.config = ConfigManager()
 
-    def initialize(self, game: 'Game', ui: Optional['GameUI'] = None) -> bool:
+    def initialize(self, game: 'Game', ui: Optional['GraphicalUIAdapter'] = None) -> bool:
         """
         Initialize the AI interface with a game instance.
 

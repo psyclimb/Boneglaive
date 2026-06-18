@@ -15,19 +15,19 @@ from boneglaive.ai.pathfinding import PathfindingEngine
 if TYPE_CHECKING:
     from boneglaive.game.engine import Game
     from boneglaive.game.units import Unit
-    from boneglaive.ui.game_ui import GameUI
+    from boneglaive.graphical.ui_adapter import GraphicalUIAdapter
 
 
 class SmartAI:
     """Intelligent AI controller using modular decision-making systems."""
 
-    def __init__(self, game: 'Game', ui: Optional['GameUI'] = None):
+    def __init__(self, game: 'Game', ui: Optional['GraphicalUIAdapter'] = None):
         """
         Initialize the Smart AI.
 
         Args:
             game: Reference to the Game instance
-            ui: Optional reference to the GameUI instance
+            ui: Optional reference to the graphical UI adapter (for animations)
         """
         self.game = game
         self.ui = ui

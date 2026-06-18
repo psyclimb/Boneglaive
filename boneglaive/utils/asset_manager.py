@@ -25,13 +25,10 @@ class AssetManager:
         self._initialize_assets()
     
     def _initialize_assets(self) -> None:
-        """Initialize assets based on display mode."""
-        # For text mode, assets are just characters
-        if self.config_manager.is_text_mode():
-            self._initialize_text_assets()
-        else:
-            # In graphical mode, these would be paths to image files
-            self._initialize_graphical_assets()
+        """Initialize assets (character tiles and animation sequences)."""
+        # Assets are character/glyph based; the graphical renderer derives its
+        # own sprites and animations separately via the GameStateAdapter pipeline.
+        self._initialize_text_assets()
     
     def _initialize_text_assets(self) -> None:
         """Initialize text-based assets (ASCII/Unicode characters)."""
@@ -249,111 +246,7 @@ class AssetManager:
             'slag_forming': ['~', '=', '#', '#'],  # Molten slag cooling into wall
             'slag_crumble': ['#', '%', '*', '.', ' ']  # Slag wall decaying and crumbling
         }
-    
-    def _initialize_graphical_assets(self) -> None:
-        """
-        Initialize graphical assets (placeholder).
-        In a graphical implementation, this would load actual sprites.
-        """
-        # These would be asset paths in graphical mode
-        self.unit_tiles = {
-            UnitType.GLAIVEMAN: 'assets/sprites/glaiveman.png',
-            UnitType.ARCHER: 'assets/sprites/archer.png',
-            UnitType.MAGE: 'assets/sprites/mage.png',
-            UnitType.MANDIBLE_FOREMAN: 'assets/sprites/mandible_foreman.png',
-            UnitType.GRAYMAN: 'assets/sprites/grayman.png',
-            UnitType.MARROW_CONDENSER: 'assets/sprites/marrow_condenser.png',
-            UnitType.FOWL_CONTRIVANCE: 'assets/sprites/fowl_contrivance.png',
-            UnitType.GAS_MACHINIST: 'assets/sprites/gas_machinist.png',
-            UnitType.HEINOUS_VAPOR: 'assets/sprites/heinous_vapor.png',
-            UnitType.DELPHIC_APPRAISER: 'assets/sprites/delphic_appraiser.png',
-            UnitType.DERELICTIONIST: 'assets/sprites/derelictionist.png',
-            UnitType.INTERFERER: 'assets/sprites/interferer.png',
-            UnitType.POTPOURRIST: 'assets/sprites/potpourrist.png'
-        }
-        
-        self.terrain_tiles = {
-            'empty': 'assets/tiles/floor.png',
-            'wall': 'assets/tiles/wall.png',
-            'water': 'assets/tiles/water.png',
-            'forest': 'assets/tiles/forest.png',
-            'limestone': 'assets/tiles/limestone.png',
-            'dust': 'assets/tiles/dust.png',
-            'pillar': 'assets/tiles/pillar.png',
-            'furniture': 'assets/tiles/furniture.png',
-            'marrow_wall': 'assets/tiles/marrow_wall.png',
-            # Stained Stones map terrain
-            'tiffany_lamp': 'assets/tiles/tiffany_lamp.png',
-            'stained_stone': 'assets/tiles/stained_stone.png',
-            'easel': 'assets/tiles/easel.png',
-            'sculpture': 'assets/tiles/sculpture.png',
-            'bench': 'assets/tiles/bench.png',
-            'podium': 'assets/tiles/podium.png',
-            'vase': 'assets/tiles/vase.png'
-        }
-        
-        self.ui_tiles = {
-            'cursor': 'assets/ui/cursor.png',
-            'selected': 'assets/ui/selected.png',
-            'health': 'assets/ui/health.png',
-            'vault_target': 'assets/ui/vault_target.png',
-            'site_inspection': 'assets/ui/site_inspection.png',
-            'teleport_target': 'assets/ui/teleport_target.png'
-        }
-        
-        self.effect_tiles = {
-            'glaiveman_attack': 'assets/effects/glaive.png',
-            'archer_attack': 'assets/effects/arrow.png',
-            'mage_attack': 'assets/effects/magic.png',
-            'mandible_foreman_attack': 'assets/effects/mandibles.png',
-            'grayman_attack': 'assets/effects/distortion.png',
-            'marrow_condenser_attack': 'assets/effects/bone.png',
-            'fowl_contrivance_attack': 'assets/effects/fowl.png',
-            'gas_machinist_attack': 'assets/effects/gas.png',
-            'heinous_vapor_attack': 'assets/effects/vapor.png',
-            'delphic_appraiser_attack': 'assets/effects/evaluation.png',
-            'interferer_attack': 'assets/effects/radiation.png',
-            'potpourrist_attack': 'assets/effects/pedestal.png'
-        }
-        
-        # Add animation sequences for graphical mode too
-        self.animation_sequences = {
-            'glaiveman_attack': ['glaiveman_attack_1.png', 'glaiveman_attack_2.png', 'glaiveman_attack_3.png'],
-            'glaiveman_extended_attack': ['glaiveman_extend_1.png', 'glaiveman_extend_2.png', 'glaiveman_extend_3.png', 'glaiveman_extend_4.png', 'glaiveman_extend_5.png'],
-            'archer_attack': ['archer_attack_1.png', 'archer_attack_2.png', 'archer_attack_3.png'],
-            'mage_attack': ['mage_attack_1.png', 'mage_attack_2.png', 'mage_attack_3.png'],
-            'mandible_foreman_attack': ['mandible_attack_1.png', 'mandible_attack_2.png', 'mandible_attack_3.png', 'mandible_attack_4.png'],
-            'autoclave': ['autoclave_1.png', 'autoclave_2.png', 'autoclave_3.png', 'autoclave_4.png'],
-            'pry_range1': ['pry_range1_1.png', 'pry_range1_2.png', 'pry_range1_3.png'],
-            'pry_range2': ['pry_range2_1.png', 'pry_range2_2.png', 'pry_range2_3.png', 'pry_range2_4.png', 'pry_range2_5.png', 'pry_range2_6.png', 'pry_range2_7.png', 'pry_range2_8.png', 'pry_range2_9.png'],
-            'pry_launch': ['pry_launch_1.png', 'pry_launch_2.png', 'pry_launch_3.png', 'pry_launch_4.png'],
-            'pry_impact': ['pry_impact_1.png', 'pry_impact_2.png', 'pry_impact_3.png'],
-            'pry_debris': ['pry_debris_1.png', 'pry_debris_2.png', 'pry_debris_3.png'],
-            'vault': ['vault_1.png', 'vault_2.png', 'vault_3.png', 'vault_4.png'],
-            'vault_impact': ['vault_impact_1.png', 'vault_impact_2.png', 'vault_impact_3.png'],
-            'judgement': ['judgement_1.png', 'judgement_2.png', 'judgement_3.png', 'judgement_4.png'],
-            'judgement_critical': ['judgement_critical_1.png', 'judgement_critical_2.png', 'judgement_critical_3.png'],
-            'expedite_rush': ['expedite_rush_1.png', 'expedite_rush_2.png', 'expedite_rush_3.png'],
-            'expedite_impact': ['expedite_impact_1.png', 'expedite_impact_2.png', 'expedite_impact_3.png'],
-            'grayman_attack': ['grayman_attack_1.png', 'grayman_attack_2.png', 'grayman_attack_3.png'],
-            'delta_config': ['delta_config_1.png', 'delta_config_2.png', 'delta_config_3.png', 'delta_config_4.png'],
-            'estrange': ['estrange_1.png', 'estrange_2.png', 'estrange_3.png'],
-            'grae_exchange': ['grae_exchange_1.png', 'grae_exchange_2.png', 'grae_exchange_3.png'],
-            # MARROW_CONDENSER animations
-            'marrow_condenser_attack': ['marrow_attack_1.png', 'marrow_attack_2.png', 'marrow_attack_3.png'],
-            'ossify': ['ossify_1.png', 'ossify_2.png', 'ossify_3.png'],
-            'marrow_dike': ['marrow_dike_1.png', 'marrow_dike_2.png', 'marrow_dike_3.png'],
-            'slough': ['slough_1.png', 'slough_2.png', 'slough_3.png'],
-            # FOWL_CONTRIVANCE reworked animations
-            'fowl_contrivance_attack': ['fowl_attack_1.png', 'fowl_attack_2.png', 'fowl_attack_3.png'],
-            'gaussian_dusk_charging': ['gaussian_charge_1.png', 'gaussian_charge_2.png', 'gaussian_charge_3.png'],
-            'gaussian_dusk_firing': ['gaussian_fire_1.png', 'gaussian_fire_2.png', 'gaussian_fire_3.png'],
-            'parabol_launch': ['arc_launch_1.png', 'arc_launch_2.png', 'arc_launch_3.png'],
-            'parabol_impact': ['arc_impact_1.png', 'arc_impact_2.png', 'arc_impact_3.png'],
-            'fragcrest_burst': ['frag_burst_1.png', 'frag_burst_2.png', 'frag_burst_3.png'],
-            'wretch': ['wretch_1.png', 'wretch_2.png', 'wretch_3.png', 'wretch_4.png', 'wretch_5.png', 'wretch_6.png']
-        }
-    
+
     def get_unit_tile(self, unit_type: UnitType) -> str:
         """Get the tile representation for a unit type."""
         return self.unit_tiles.get(unit_type, '?')

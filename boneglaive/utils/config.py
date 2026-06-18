@@ -11,11 +11,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, Optional
 
-class DisplayMode(Enum):
-    """Display mode options."""
-    TEXT = "text"
-    GRAPHICAL = "graphical"
-
 class GameMode(Enum):
     """Game mode options."""
     SINGLE_PLAYER = "single"
@@ -26,7 +21,6 @@ class GameMode(Enum):
 class GameConfig:
     """Game configuration settings."""
     # Display settings
-    display_mode: str = DisplayMode.TEXT.value
     window_width: int = 800
     window_height: int = 600
     fullscreen: bool = False
@@ -105,7 +99,3 @@ class ConfigManager:
         """Set a configuration value."""
         if hasattr(self.config, key):
             setattr(self.config, key, value)
-            
-    def is_text_mode(self) -> bool:
-        """Check if display mode is text-based."""
-        return self.config.display_mode == DisplayMode.TEXT.value

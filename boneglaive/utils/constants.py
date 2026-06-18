@@ -79,24 +79,6 @@ GP_ELIGIBLE_UNITS = {
     UnitType.LANDSCAPER
 }
 
-# Attack visual effects
-ATTACK_EFFECTS = {
-    UnitType.GLAIVEMAN: "/",  # Glaive (melee)
-    UnitType.ARCHER: ">",      # Arrow (ranged)
-    UnitType.MAGE: "*",        # Magic star (ranged)
-    UnitType.GRAYMAN: "~",     # Reality distortion (ranged)
-    UnitType.MANDIBLE_FOREMAN: "{",  # { for mandible jaws (melee)
-    UnitType.MARROW_CONDENSER: "O",  # Bone (melee)
-    UnitType.FOWL_CONTRIVANCE: "|",   # Artillery shell (ranged)
-    UnitType.GAS_MACHINIST: "o",   # Gas bubble (melee)
-    UnitType.HEINOUS_VAPOR: "~",    # Vapor effect (area)
-    UnitType.DELPHIC_APPRAISER: "$",  # Currency symbol (evaluation)
-    UnitType.INTERFERER: "x",  # Plutonium carabiner cross (melee)
-    UnitType.DERELICTIONIST: "o",  # Psychological void (melee)
-    UnitType.POTPOURRIST: "I",  # Pedestal strike (melee)
-    UnitType.LANDSCAPER: "Y"  # Tuning fork strike (melee)
-}
-
 # Greek alphabet for unit identification
 UNIT_ID_ALPHABET = [
     'α',  # alpha
@@ -141,16 +123,4 @@ UNIT_DISPLAY_NAMES = {
     UnitType.DERELICTIONIST: 'DERELICTIONIST',
     UnitType.POTPOURRIST: 'POTPOURRIST',
     UnitType.LANDSCAPER: 'LANDSCAPER'
-}
-
-# Status effect symbols
-STATUS_EFFECT_SYMBOLS = {
-    'MIRED': 'm',             # Movement reduction from upgraded marrow dike
-    'RADIATION_BURN': '*',    # Radiation damage over time
-    'NEURAL_SHUNT': '?',      # Random action control
-    'KARRIER_RAVE': '!',      # Phased/untargetable state
-    'DERELICTED': '&',        # Immobilization from psychological abandonment
-    'SEVERANCE': 's',         # Enhanced movement from skill usage
-    'DEMILUNE_DEBUFF': '(',   # Damage reduction debuff from POTPOURRIST
-    'TOPIARY': 'T',           # Transformed into terrain sculpture by LANDSCAPER
 }
