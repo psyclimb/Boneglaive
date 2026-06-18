@@ -74,42 +74,6 @@ class MelangeEminence(PassiveSkill):
         actual_heal = user._hp - old_hp
 
         if actual_heal > 0:
-            # Show potpourri flourish animation if UI is available
-            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                import time
-                try:
-                    import curses
-                except ImportError:
-                    curses = None
-                from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-
-                # Get the appropriate potpourri flourish animation (enhanced if holding potpourri)
-                animation_key = 'melange_eminence_enhanced' if user.potpourri_held else 'melange_eminence'
-                flourish_animation = ui.asset_manager.get_skill_animation_sequence(animation_key)
-                if flourish_animation:
-                    # Animate the potpourri petals and aromatic fumes wafting around
-                    for frame in flourish_animation:
-                        ui.renderer.draw_tile(user.y, user.x, frame, 3)  # Green color for healing
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.07)  # Gentle, flowing animation speed
-
-                # Show healing number with flashing effect
-                healing_text = f"+{actual_heal}"
-
-                # Flash 3 times
-                for i in range(3):
-                    # First clear the area
-                    ui.renderer.draw_damage_text(user.y-1, user.x*2, " " * len(healing_text), 7)
-                    # Draw with alternating bold/normal for a flashing effect
-                    attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.1)
-
-                # Final healing display (stays on screen slightly longer)
-                ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, curses.A_BOLD)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.3)
 
             message_log.add_message(
                 f"{user.get_display_name()} inhales the restorative melange and heals for #HEAL_{actual_heal}# HP",
@@ -170,12 +134,6 @@ class InfuseSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Infuse skill during the combat phase."""
-        import time
-        try:
-            import curses
-        except ImportError:
-            curses = None
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         message_log.add_message(
             f"{user.get_display_name()} infuses the blend with aromatic power",
@@ -183,30 +141,6 @@ class InfuseSkill(ActiveSkill):
             player=user.player
         )
 
-        # Show potpourri creation animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get infuse animation sequence
-            infuse_animation = ui.asset_manager.get_skill_animation_sequence('infuse')
-            if not infuse_animation:
-                infuse_animation = [',', ':', '*', 'o', 'O', '@', 'O', 'o', '*', ':', ',', '~']  # Fallback
-
-            # Animate the potpourri creation
-            for frame in infuse_animation:
-                ui.renderer.draw_tile(user.y, user.x, frame, 5, curses.A_BOLD)  # Magenta/purple for potpourri
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.08)
-
-            # Flash to show completion
-            if hasattr(ui, 'asset_manager'):
-                tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
-                color_ids = [5, 3 if user.player == 1 else 4] * 2  # Alternate magenta with player color
-                durations = [0.1] * 4
-
-                ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
-
-            # Redraw board after animation
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
         # Set potpourri held flag and duration
         user.potpourri_held = True
@@ -381,12 +315,6 @@ class DemiluneSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Demilune skill during the combat phase."""
-        import time
-        try:
-            import curses
-        except ImportError:
-            curses = None
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         # Check if enhanced by potpourri
         enhanced = user.potpourri_held
@@ -439,38 +367,6 @@ class DemiluneSkill(ActiveSkill):
                 player=user.player
             )
 
-        # Show sweeping animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get the sweep order for animation
-            sweep_tiles = self._get_sweep_order(user.y, user.x, target_pos[0], target_pos[1])
-
-            # Get demilune sweep animation sequence
-            sweep_animation = ui.asset_manager.get_skill_animation_sequence('demilune_sweep')
-            if not sweep_animation:
-                sweep_animation = ['/', '|', '\\', '-', '*']  # Fallback
-
-            # Animate the sweep across tiles
-            for i, (tile_y, tile_x) in enumerate(sweep_tiles):
-                # Use different frames for different positions in the sweep
-                frame_index = min(i, len(sweep_animation) - 1)
-                frame = sweep_animation[frame_index]
-
-                # Draw the sweep effect
-                color = 7 if enhanced else 1  # Yellow if enhanced, red otherwise
-                ui.renderer.draw_tile(tile_y, tile_x, frame, color, curses.A_BOLD)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.08)
-
-            # Show impact effect on all tiles simultaneously
-            impact_frame = '*'
-            for tile_y, tile_x in arc_tiles:
-                ui.renderer.draw_tile(tile_y, tile_x, impact_frame, 1, curses.A_BOLD)  # Red for impact
-            ui.renderer.refresh()
-            sleep_with_animation_speed(0.15)
-
-            # Clear the animation
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
         # Apply damage and debuff to all enemy units in arc
         hit_count = 0
@@ -496,29 +392,6 @@ class DemiluneSkill(ActiveSkill):
                     target_player=target.player
                 )
 
-                # Show damage number on map (flashing like attacks)
-                if ui and hasattr(ui, 'renderer'):
-                    try:
-                        import curses
-                    except ImportError:
-                        curses = None
-                    import time
-                    damage_text = f"-{actual_damage}"
-
-                    # Flash damage text 3 times
-                    for i in range(3):
-                        # First clear the area
-                        ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
-                        # Draw with alternating bold/normal for flashing effect
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
-                        ui.renderer.refresh()
-                        time.sleep(0.1)
-
-                    # Final damage display (stays longer)
-                    ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
-                    ui.renderer.refresh()
-                    time.sleep(0.3)
 
                 # Apply Demilune debuff if not immune
                 if not target.is_immune_to_effects():
@@ -527,22 +400,6 @@ class DemiluneSkill(ActiveSkill):
                     # Enhanced (infused) extends Lunacy to 3 turns instead of 2
                     target.demilune_debuff_duration = 3 if enhanced else 2
 
-                    # Show moon phase animation if UI is available
-                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                        # Get lunacy moon phase animation
-                        moon_animation = ui.asset_manager.get_skill_animation_sequence('lunacy_moon')
-                        if not moon_animation:
-                            moon_animation = ['(', ' ', '(', ' ', '(', ' ', '(', ' ', '(']  # Fallback
-
-                        # Animate the moon waning over the target
-                        for frame in moon_animation:
-                            ui.renderer.draw_tile(target.y, target.x, frame, 7)  # Yellow for moon
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.08)
-
-                        # Redraw board after animation
-                        if hasattr(ui, 'draw_board'):
-                            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
                     message_log.add_message(
                         f"{target.get_display_name()}'s power wanes",
@@ -560,28 +417,6 @@ class DemiluneSkill(ActiveSkill):
 
         # Selenic Backdraft: upgraded back-arc deals same damage + applies Selenic Backdraft status
         if demilune_upgraded and back_arc_tiles:
-            # Text mode animation for back-arc
-            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                sweep_tiles = self._get_sweep_order(user.y, user.x, opposite_target[0], opposite_target[1])
-                sweep_animation = ui.asset_manager.get_skill_animation_sequence('demilune_sweep')
-                if not sweep_animation:
-                    sweep_animation = ['/', '|', '\\', '-', '*']
-
-                for i, (tile_y, tile_x) in enumerate(sweep_tiles):
-                    frame_index = min(i, len(sweep_animation) - 1)
-                    frame = sweep_animation[frame_index]
-                    ui.renderer.draw_tile(tile_y, tile_x, frame, 5, curses.A_BOLD)  # Magenta for backdraft
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.08)
-
-                impact_frame = '*'
-                for tile_y, tile_x in back_arc_tiles:
-                    ui.renderer.draw_tile(tile_y, tile_x, impact_frame, 5, curses.A_BOLD)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.15)
-
-                if hasattr(ui, 'draw_board'):
-                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
             for tile_y, tile_x in back_arc_tiles:
                 target = game.get_unit_at(tile_y, tile_x)
@@ -605,18 +440,6 @@ class DemiluneSkill(ActiveSkill):
                         target_player=target.player
                     )
 
-                    # Text mode damage display
-                    if ui and hasattr(ui, 'renderer'):
-                        damage_text = f"-{actual_damage}"
-                        for i in range(3):
-                            ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 5, attrs)
-                            ui.renderer.refresh()
-                            time.sleep(0.1)
-                        ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 5, curses.A_BOLD)
-                        ui.renderer.refresh()
-                        time.sleep(0.3)
 
                     # Apply Selenic Backdraft status if not immune
                     if not target.is_immune_to_effects():
@@ -727,12 +550,6 @@ class GraniteGeasSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Granite Geas skill during the combat phase."""
-        import time
-        try:
-            import curses
-        except ImportError:
-            curses = None
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         # Get target
         target = game.get_unit_at(target_pos[0], target_pos[1])
@@ -767,38 +584,6 @@ class GraniteGeasSkill(ActiveSkill):
             player=user.player
         )
 
-        # Show Granite Geas strike animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Part 1: Show POTPOURRIST raising and slamming the pedestal at attacker position
-            windup_animation = ui.asset_manager.get_skill_animation_sequence('granite_geas_windup')
-            if not windup_animation:
-                windup_animation = ['.', ':', '|', 'I', '^', '^', '^', '|', 'I', '!', ':', '.']  # Raising high, pausing, then SLAMMING
-
-            for frame in windup_animation:
-                ui.renderer.draw_tile(user.y, user.x, frame, 7, curses.A_BOLD)  # Yellow at attacker position
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.08)
-
-            # Part 2: Show impact on target
-            impact_animation = ui.asset_manager.get_skill_animation_sequence('granite_geas_impact')
-            if not impact_animation:
-                impact_animation = ['*', '#', '@', '#', '*', '.']  # Impact effect
-
-            for frame in impact_animation:
-                ui.renderer.draw_tile(target.y, target.x, frame, 7, curses.A_BOLD)  # Yellow at target position
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.06)
-
-            # Flash the target to show hit
-            if hasattr(ui.renderer, 'flash_tile'):
-                tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
-                color_ids = [6 if target.player == 1 else 10, 3 if target.player == 1 else 4] * 2
-                durations = [0.1] * 4
-                ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
-
-            # Redraw board after animation
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
         # Deal damage (check for Infuse upgrade bonus)
         from boneglaive.game.upgrades import UpgradeManager
@@ -827,29 +612,6 @@ class GraniteGeasSkill(ActiveSkill):
             target_player=target.player
         )
 
-        # Show damage number on map (flashing like attacks)
-        if ui and hasattr(ui, 'renderer'):
-            try:
-                import curses
-            except ImportError:
-                curses = None
-            import time
-            damage_text = f"-{actual_damage}"
-
-            # Flash damage text 3 times
-            for i in range(3):
-                # First clear the area
-                ui.renderer.draw_text(target.y-1, target.x*2, " " * len(damage_text), 7)
-                # Draw with alternating bold/normal for flashing effect
-                attrs = curses.A_BOLD if i % 2 == 0 else 0
-                ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, attrs)
-                ui.renderer.refresh()
-                time.sleep(0.1)
-
-            # Final damage display (stays longer)
-            ui.renderer.draw_text(target.y-1, target.x*2, damage_text, 7, curses.A_BOLD)
-            ui.renderer.refresh()
-            time.sleep(0.3)
 
         # Apply taunt if not immune
         if not target.is_immune_to_effects():
@@ -867,20 +629,6 @@ class GraniteGeasSkill(ActiveSkill):
             granite_geas_upgraded = UpgradeManager.is_skill_upgraded(user, "Granite Geas")
             target.geas_attack_reduction = granite_geas_upgraded
 
-            # Show geas binding animation - oils dripping and sealing
-            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                geas_binding = ui.asset_manager.get_skill_animation_sequence('geas_binding')
-                if not geas_binding:
-                    geas_binding = [',', '.', ':', '|', 'I', '#', '#', '0', '0']  # Oils dripping and sealing
-
-                for frame in geas_binding:
-                    ui.renderer.draw_tile(target.y, target.x, frame, 7, curses.A_BOLD)  # Yellow for geas magic
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.08)
-
-                # Redraw board after geas animation
-                if hasattr(ui, 'draw_board'):
-                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
             message_log.add_message(
                 f"{target.get_display_name()} is bound by a redolent geas",
@@ -922,28 +670,6 @@ class GraniteGeasSkill(ActiveSkill):
                     if (adj_unit and adj_unit.player != user.player and
                         adj_unit.is_alive() and adj_unit not in hit_units):
 
-                        # Show Granite Geas strike animation for chained target (ASCII version only)
-                        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                            # Show impact on chained target
-                            impact_animation = ui.asset_manager.get_skill_animation_sequence('granite_geas_impact')
-                            if not impact_animation:
-                                impact_animation = ['*', '#', '@', '#', '*', '.']
-
-                            for frame in impact_animation:
-                                ui.renderer.draw_tile(adj_unit.y, adj_unit.x, frame, 7, curses.A_BOLD)
-                                ui.renderer.refresh()
-                                sleep_with_animation_speed(0.06)
-
-                            # Flash the chained target
-                            if hasattr(ui.renderer, 'flash_tile'):
-                                tile_ids = [ui.asset_manager.get_unit_tile(adj_unit.type)] * 4
-                                color_ids = [6 if adj_unit.player == 1 else 10, 3 if adj_unit.player == 1 else 4] * 2
-                                durations = [0.1] * 4
-                                ui.renderer.flash_tile(adj_unit.y, adj_unit.x, tile_ids, color_ids, durations)
-
-                            # Redraw board after animation
-                            if hasattr(ui, 'draw_board'):
-                                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
                         # Deal damage
                         game.current_attacker = user
@@ -976,20 +702,6 @@ class GraniteGeasSkill(ActiveSkill):
                             adj_unit.granite_geas_chain_hit = True
                             adj_unit.granite_geas_infused = enhanced
 
-                            # Show geas binding animation for chained target (ASCII version only)
-                            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                                geas_binding = ui.asset_manager.get_skill_animation_sequence('geas_binding')
-                                if not geas_binding:
-                                    geas_binding = [',', '.', ':', '|', 'I', '#', '#', '0', '0']
-
-                                for frame in geas_binding:
-                                    ui.renderer.draw_tile(adj_unit.y, adj_unit.x, frame, 7, curses.A_BOLD)
-                                    ui.renderer.refresh()
-                                    sleep_with_animation_speed(0.08)
-
-                                # Redraw board after geas animation
-                                if hasattr(ui, 'draw_board'):
-                                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
                         # Mark as hit and add to queue for further chaining
                         hit_units.add(adj_unit)

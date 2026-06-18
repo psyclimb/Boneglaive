@@ -4,14 +4,12 @@ Skills specific to the GAS_MACHINIST unit type.
 This module contains all passive and active abilities for GAS_MACHINIST units.
 """
 
-import time
 import random
 from typing import Optional, List, Dict, Tuple, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
-from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 from boneglaive.utils.constants import UnitType
 
 if TYPE_CHECKING:
@@ -204,20 +202,6 @@ class EnbroachmentGasSkill(ActiveSkill):
 
         # Skill activation message removed - only show expulsion message
 
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get vapor summoning animation
-            vapor_animation = ui.asset_manager.get_skill_animation_sequence('summon_vapor')
-            if not vapor_animation:
-                vapor_animation = ['~', 'o', 'O', '1']  # Fallback animation
-
-            # Show summoning animation at target position
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                vapor_animation,
-                7,  # White color
-                0.15  # Duration
-            )
 
         # Create a HEINOUS_VAPOR unit at the target position
         from boneglaive.game.units import Unit
@@ -366,20 +350,6 @@ class SaftEGasSkill(ActiveSkill):
 
         # Skill activation message removed - only show expulsion message
 
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get vapor summoning animation
-            vapor_animation = ui.asset_manager.get_skill_animation_sequence('summon_vapor')
-            if not vapor_animation:
-                vapor_animation = ['~', 'o', 'O', '0']  # Fallback animation
-
-            # Show summoning animation at target position
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                vapor_animation,
-                7,  # White color
-                0.15  # Duration
-            )
 
         # Create a HEINOUS_VAPOR unit at the target position
         from boneglaive.game.units import Unit
@@ -556,20 +526,6 @@ class DivergeSkill(ActiveSkill):
 
         # Skill activation messages removed - will show splitting message later
 
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get diverge animation
-            diverge_animation = ui.asset_manager.get_skill_animation_sequence('diverge')
-            if not diverge_animation:
-                diverge_animation = ['*', '+', 'x', '#', '@']  # Fallback animation
-
-            # Show diverge animation at target position
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                diverge_animation,
-                7,  # White color
-                0.15  # Duration
-            )
 
         # Check if Diverge is upgraded to determine how many positions we need
         from boneglaive.game.upgrades import UpgradeManager
@@ -809,36 +765,6 @@ class DivergeSkill(ActiveSkill):
                         player=user.player
                     )
 
-        # Play additional animations for the new gases
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Show animation for Coolant Gas
-            coolant_animation = ui.asset_manager.get_skill_animation_sequence('coolant_gas')
-            if not coolant_animation:
-                coolant_animation = ['~', '*', self.coolant_symbol]
-
-            ui.renderer.animate_attack_sequence(
-                coolant_gas.y, coolant_gas.x,
-                coolant_animation,
-                6,  # Blue/cyan color
-                0.15
-            )
-
-            # Show animation for Cutting Gas
-            cutting_animation = ui.asset_manager.get_skill_animation_sequence('cutting_gas')
-            if not cutting_animation:
-                cutting_animation = ['~', '*', self.cutting_symbol]
-
-            ui.renderer.animate_attack_sequence(
-                cutting_gas.y, cutting_gas.x,
-                cutting_animation,
-                10,  # Red color
-                0.15
-            )
-
-            # Redraw to show final state
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                ui.renderer.refresh()
 
         return True
 
@@ -986,15 +912,6 @@ class AerosolizeArmsSkill(ActiveSkill):
             target_name=target_unit.get_display_name()
         )
 
-        # Play disarm animation
-        if ui and hasattr(ui, 'renderer'):
-            disarm_sequence = ['~', 'x', '*', '5']
-            ui.renderer.animate_attack_sequence(
-                target_unit.y, target_unit.x,
-                disarm_sequence,
-                7,  # White color
-                0.15
-            )
 
         # Find a valid position for the LIVING AEROSOL (prefer target's location or adjacent)
         valid_positions = []
@@ -1050,14 +967,5 @@ class AerosolizeArmsSkill(ActiveSkill):
             player=user.player
         )
 
-        # Play creation animation
-        if ui and hasattr(ui, 'renderer'):
-            aerosol_animation = ['5', '†', '‡', '5']
-            ui.renderer.animate_attack_sequence(
-                aerosol_pos[0], aerosol_pos[1],
-                aerosol_animation,
-                7,  # White color
-                0.15
-            )
 
         return True
