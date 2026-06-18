@@ -52,6 +52,11 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller boneglaive.spec --distpath dist/linux
 
+      - name: Copy license files to distribution root
+        run: |
+          cp LICENSE dist/linux/boneglaive/
+          cp ASSETS_LICENSE.md dist/linux/boneglaive/
+
       - name: Package artifact
         run: |
           cd dist/linux
@@ -162,6 +167,11 @@ jobs:
             Write-Error "Cairo DLLs missing from bundle: $($missing -join ', ')"
             exit 1
           }
+
+      - name: Copy license files to distribution root
+        run: |
+          Copy-Item LICENSE dist\windows\boneglaive\
+          Copy-Item ASSETS_LICENSE.md dist\windows\boneglaive\
 
       - name: Package artifact
         run: |

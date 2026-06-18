@@ -81,7 +81,7 @@ a = Analysis(
         ('sounds',    'sounds'),
         ('maps',      'maps'),
         ('config.json', '.'),
-        ('LICENSE', '.'),
+        # LICENSE and ASSETS_LICENSE.md copied to top-level in build workflow
         ('boneglaive/graphical/assets', 'boneglaive/graphical/assets'),
     ],
     hiddenimports=[
