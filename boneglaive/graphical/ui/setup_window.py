@@ -14,7 +14,8 @@ from boneglaive.utils.paths import asset_path, load_svg
 # Import unit types
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from boneglaive.utils.constants import UnitType, UNIT_STATS
+from boneglaive.utils.constants import UnitType, UNIT_STATS, UNIT_DISPLAY_NAMES
+from boneglaive.game.recruitment import RECRUITMENT_ORDER
 
 # Colors - Match main menu bone/industrial theme
 COLOR_OVERLAY = (0, 0, 0, 180)  # Semi-transparent black overlay
@@ -66,35 +67,11 @@ class SetupWindow:
         # Cache overlay surface (performance)
         self._overlay_cache = None
 
-        # Build unit types list
-        self.unit_types = [
-            UnitType.GLAIVEMAN,
-            UnitType.MANDIBLE_FOREMAN,
-            UnitType.GRAYMAN,
-            UnitType.MARROW_CONDENSER,
-            UnitType.FOWL_CONTRIVANCE,
-            UnitType.GAS_MACHINIST,
-            UnitType.DELPHIC_APPRAISER,
-            UnitType.INTERFERER,
-            UnitType.DERELICTIONIST,
-            UnitType.POTPOURRIST,
-            UnitType.LANDSCAPER,
-        ]
-
-        # Unit display names
-        self.unit_names = {
-            UnitType.GLAIVEMAN: "GLAIVEMAN",
-            UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
-            UnitType.GRAYMAN: "GRAYMAN",
-            UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
-            UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
-            UnitType.GAS_MACHINIST: "GAS MACHINIST",
-            UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
-            UnitType.INTERFERER: "INTERFERER",
-            UnitType.DERELICTIONIST: "DERELICTIONIST",
-            UnitType.POTPOURRIST: "POTPOURRIST",
-            UnitType.LANDSCAPER: "LANDSCAPER",
-        }
+        # Selectable unit types and display names are derived from the single
+        # canonical roster (RECRUITMENT_ORDER) and name table (UNIT_DISPLAY_NAMES)
+        # so the setup screen never drifts from the actual recruitment pool.
+        self.unit_types = list(RECRUITMENT_ORDER)
+        self.unit_names = {ut: UNIT_DISPLAY_NAMES[ut] for ut in RECRUITMENT_ORDER}
 
         # State
         self.selected_index = 0

@@ -11,7 +11,8 @@ from boneglaive.utils.paths import asset_path, load_svg
 
 # Import unit types and skills
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from boneglaive.utils.constants import UnitType, UNIT_STATS
+from boneglaive.utils.constants import UnitType, UNIT_STATS, UNIT_DISPLAY_NAMES
+from boneglaive.game.recruitment import RECRUITMENT_ORDER
 from .scrollbar import Scrollbar
 
 # Colors
@@ -45,19 +46,9 @@ class SetupUnitHelp:
         # Scrollbar component
         self.scrollbar = Scrollbar()
 
-        # Unit display names - base units
-        self.unit_names = {
-            UnitType.GLAIVEMAN: "GLAIVEMAN",
-            UnitType.MANDIBLE_FOREMAN: "MANDIBLE FOREMAN",
-            UnitType.GRAYMAN: "GRAYMAN",
-            UnitType.MARROW_CONDENSER: "MARROW CONDENSER",
-            UnitType.FOWL_CONTRIVANCE: "FOWL CONTRIVANCE",
-            UnitType.GAS_MACHINIST: "GAS MACHINIST",
-            UnitType.DELPHIC_APPRAISER: "DELPHIC APPRAISER",
-            UnitType.INTERFERER: "INTERFERER",
-            UnitType.DERELICTIONIST: "DERELICTIONIST",
-            UnitType.POTPOURRIST: "POTPOURRIST",
-        }
+        # Unit display names derived from the canonical roster + name table,
+        # so this panel always covers every recruitable unit (no manual drift).
+        self.unit_names = {ut: UNIT_DISPLAY_NAMES[ut] for ut in RECRUITMENT_ORDER}
 
         # Sprite cache
         self.sprite_cache = {}
@@ -65,7 +56,7 @@ class SetupUnitHelp:
         # Skill icon cache
         self.skill_icon_cache = {}
 
-        # Load unit help data from ASCII help component
+        # Load shared unit help data
         self.unit_help_data = self._load_unit_help_data()
 
         # Load simplified unit info for setup phase
