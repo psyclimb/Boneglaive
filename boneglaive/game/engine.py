@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 """Core game engine — state machine, combat resolution, and turn flow."""
 import logging
-try:
-    import curses
-except ImportError:
-    curses = None
 import time
 from boneglaive.utils.constants import (UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT, UNIT_SYMBOLS,
                                         MAX_UNITS, RESPAWN_TIMER, UPGRADE_POINT_THRESHOLDS)
@@ -13,7 +9,6 @@ from boneglaive.game.map import GameMap, MapFactory, TerrainType
 from boneglaive.utils.coordinates import Position
 from boneglaive.utils.debug import debug_config, measure_perf, game_assert, logger
 from boneglaive.utils.message_log import message_log, MessageType
-from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
 # Set up module logger if not already set up
 if 'logger' not in locals():
@@ -1385,21 +1380,6 @@ class Game:
                 player=unit.player
             )
 
-            # Show respawn animation (ASCII mode)
-            if ui and hasattr(ui, 'renderer'):
-                # Check if it's graphical or ASCII renderer
-                if hasattr(ui.renderer, 'camera'):
-                    # Graphical mode - skip ASCII animation
-                    pass
-                else:
-                    # ASCII mode
-                    unit_symbol = UNIT_SYMBOLS.get(unit.type, "?")
-                    ui.renderer.animate_attack_sequence(
-                        position[0], position[1],
-                        ['·', 'o', 'O', '0', unit_symbol],
-                        3,  # Green color
-                        0.1
-                    )
 
             logger.info(f"RESPAWN: {unit.get_display_name()} respawned at {position}")
 
@@ -1906,21 +1886,6 @@ class Game:
                 target_name=unit.get_display_name()
             )
             
-            # Add visual retch animation if UI is available
-            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                # Get retch animation from asset manager
-                retch_animation = ui.asset_manager.get_skill_animation_sequence('wretch')
-                if not retch_animation:
-                    # Fallback animation if not defined
-                    retch_animation = ['!', '?', '#', '@', '&', '%', '$']
-                
-                # Flash unit with yellow/red to indicate critical status
-                ui.renderer.animate_attack_sequence(
-                    unit.y, unit.x,
-                    retch_animation,
-                    6,  # Yellow color for critical
-                    0.08  # Quick animation
-                )
             
             # Check for Wretched Decension from FOWL_CONTRIVANCE
             if attacker and attacker.type == UnitType.FOWL_CONTRIVANCE:
@@ -1944,92 +1909,6 @@ class Game:
             
         # Continue normal processing
         return True
-
-    def _play_auction_curse_perfect_collection_animation(self, dying_unit, caster, ui):
-        """Play dramatic animation when Auction Curse upgrade bonus triggers."""
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-
-        if not ui or not hasattr(ui, 'renderer'):
-            return
-
-        # Get furniture positions where auctioneers appeared
-        furniture_positions = []
-        if hasattr(dying_unit, 'auction_curse_furniture_positions'):
-            furniture_positions = dying_unit.auction_curse_furniture_positions
-
-        # Phase 1: Auctioneers reappear at furniture positions
-        if furniture_positions:
-            auctioneer_rise = ['i', 'I', 'Y', 'T']
-            for pos in furniture_positions:
-                ui.renderer.animate_attack_sequence(
-                    pos[0], pos[1],
-                    auctioneer_rise,
-                    7,  # White - astral beings
-                    0.15
-                )
-                sleep_with_animation_speed(0.02)  # Slight stagger
-
-            sleep_with_animation_speed(0.2)  # Pause after all rise
-
-            # Phase 2: Gavel strikes - "SOLD!"
-            gavel_strike = ['T', '|', 'T', '|', 'T']
-            for pos in furniture_positions:
-                ui.renderer.animate_attack_sequence(
-                    pos[0], pos[1],
-                    gavel_strike,
-                    7,  # White
-                    0.1
-                )
-                sleep_with_animation_speed(0.01)  # Quick stagger
-
-            sleep_with_animation_speed(0.25)  # Dramatic pause
-
-        # Phase 3: Soul emergence at dying unit position
-        soul_emergence = ['.', 'o', 'O', '0', '@']
-        ui.renderer.animate_attack_sequence(
-            dying_unit.y, dying_unit.x,
-            soul_emergence,
-            7,  # White/bright
-            0.12
-        )
-
-        sleep_with_animation_speed(0.15)
-
-        # Phase 4: Soul ascension and collection burst
-        ascension_collection = ['^', '^', '^', '*', '+', 'x', 'X', '#', 'X', 'x', '+', '*', '$']
-        ui.renderer.animate_attack_sequence(
-            dying_unit.y, dying_unit.x,
-            ascension_collection,
-            3,  # Yellow/gold for value
-            0.06
-        )
-
-        sleep_with_animation_speed(0.2)
-
-        # Phase 5: Value transfer to caster
-        value_transfer = ['$', '$', '$']
-        ui.renderer.animate_attack_sequence(
-            caster.y, caster.x,
-            value_transfer,
-            3,  # Yellow/gold
-            0.1
-        )
-
-        sleep_with_animation_speed(0.15)
-
-        # Phase 6: Auctioneers descend back into furniture
-        if furniture_positions:
-            auctioneer_descend = ['I', 'i', '_', '.', ' ']
-            for pos in furniture_positions:
-                ui.renderer.animate_attack_sequence(
-                    pos[0], pos[1],
-                    auctioneer_descend,
-                    7,  # White fading
-                    0.12
-                )
-                sleep_with_animation_speed(0.02)  # Slight stagger
-
-        sleep_with_animation_speed(0.2)  # Final pause
 
     @measure_perf
     def handle_unit_death(self, dying_unit, killer_unit=None, cause="combat", ui=None):
@@ -2059,9 +1938,6 @@ class Game:
             if UpgradeManager.is_skill_upgraded(caster, "Auction Curse"):
                 # Check if initial HP matched the curse duration when applied
                 if dying_unit.auction_curse_initial_hp == dying_unit.auction_curse_applied_duration:
-                    # Play dramatic collection animation
-                    self._play_auction_curse_perfect_collection_animation(dying_unit, caster, ui)
-
                     # Award +1 GP to caster's player
                     if caster.player == 1:
                         self.player1_gp += 1
@@ -2105,32 +1981,6 @@ class Game:
                     if affected_allies:
                         heal_per_ally = bone_tithe_hp // len(affected_allies)
 
-                        # ASCII animation for death healing effect
-                        if ui and hasattr(ui, 'renderer'):
-                            from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-
-                            # Phase 1: Explosion at death location
-                            explosion_sequence = ['@', '*', '#', '*', '.']
-                            ui.renderer.animate_attack_sequence(
-                                dying_unit.y, dying_unit.x,
-                                explosion_sequence,
-                                1,  # Red color for blood/marrow burst
-                                0.4
-                            )
-
-                            # Phase 2: Bone chunks arrive at each ally (no projectile path)
-                            for target in affected_allies:
-                                # Show bone chunk arrival sequence at ally position
-                                bone_arrival_sequence = ['*', '#', '*']
-                                ui.renderer.animate_attack_sequence(
-                                    target.y, target.x,
-                                    bone_arrival_sequence,
-                                    7,  # White color for bone chunks
-                                    0.2
-                                )
-
-                            # Brief pause between distribution and absorption
-                            sleep_with_animation_speed(0.1)
 
                         # Apply healing and show absorption effect
                         for target in affected_allies:
@@ -2141,36 +1991,6 @@ class Game:
                                 player=dying_unit.player
                             )
 
-                            # Phase 3: Absorption glow on allies (ASCII mode)
-                            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                                # Show healing number with flashing effect (green color)
-                                if hasattr(ui.renderer, 'draw_damage_text') and actual_heal > 0:
-                                    try:
-                                        import curses
-                                    except ImportError:
-                                        curses = None
-                                    healing_text = f"+{actual_heal}"
-
-                                    # Make healing text prominent with flashing effect (green color)
-                                    for i in range(3):
-                                        # First clear the area
-                                        ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(healing_text), 7)
-                                        # Draw with alternating bold/normal for a flashing effect
-                                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, attrs)  # Green color
-                                        ui.renderer.refresh()
-                                        sleep_with_animation_speed(0.1)
-
-                                    # Final healing display (stays on screen slightly longer)
-                                    ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, curses.A_BOLD)
-                                    ui.renderer.refresh()
-                                    sleep_with_animation_speed(0.3)
-
-                                # Flash ally with red glow (marrow absorption)
-                                tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
-                                color_ids = [1, 7, 1, 7]  # Red/white flash for marrow energy
-                                durations = [0.1] * 4
-                                ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
 
                     # Animation is triggered through game_state sync system for graphical mode
 
@@ -2881,15 +2701,6 @@ class Game:
                             player=unit.player
                         )
                         
-                        # Show abreaction animation - final nerve pathway fracture
-                        if ui and hasattr(ui, 'renderer'):
-                            abreaction_animation = ['#', '+', '*', 'x', 'X', '*', '#', '@', '!']  # Complete neural fracture
-                            ui.renderer.animate_attack_sequence(
-                                unit.y, unit.x,
-                                abreaction_animation,
-                                6,  # Yellow color matching initial effect
-                                0.4  # Same timing as initial animation
-                            )
                         
                         logger.info(f"ABREACTION: {unit.get_display_name()} takes {actual_damage} damage")
                         
@@ -2907,40 +2718,7 @@ class Game:
                                     player=unit.player
                                 )
                                 
-                                # Show healing effect on map if UI is available
-                                if ui and hasattr(ui, 'renderer'):
-                                    try:
-                                        import curses
-                                    except ImportError:
-                                        curses = None
-                                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-
-                                    healing_text = f"+{actual_heal}"
-
-                                    # Make healing text prominent with flashing effect (green color)
-                                    for i in range(3):
-                                        # First clear the area
-                                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
-                                        # Draw with alternating bold/normal for a flashing effect
-                                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
-                                        ui.renderer.refresh()
-                                        sleep_with_animation_speed(0.1)
-                                    
-                                    # Final healing display (stays on screen slightly longer)
-                                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
-                                    ui.renderer.refresh()
-                                    sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
                         
-                        # Show healing abreaction animation - reverse of fracture (mending/restoration)
-                        if ui and hasattr(ui, 'renderer'):
-                            healing_abreaction_animation = ['!', '@', '#', '*', 'X', 'x', '*', '+', '#']  # Neural pathway restoration
-                            ui.renderer.animate_attack_sequence(
-                                unit.y, unit.x,
-                                healing_abreaction_animation,
-                                3,  # Green color for healing
-                                0.4  # Same timing as damage animation
-                            )
                         
                         logger.info(f"ABREACTION HEAL: {unit.get_display_name()} heals for {actual_heal} HP")
                     
@@ -3251,12 +3029,7 @@ class Game:
     @measure_perf
     def execute_turn(self, ui=None):
         """Execute all unit actions for the current turn with animated sequence."""
-        try:
-            import curses
-        except ImportError:
-            curses = None
         from boneglaive.utils.message_log import message_log, MessageType
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
         
         # Store UI reference for animations if provided
         if ui:
@@ -3358,18 +3131,6 @@ class Game:
                     
                     # Release trapped units before the FOREMAN's action is executed
                     for trapped_unit in trapped_units:
-                        # Play release animation if UI is available
-                        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                            # Create a series of jaw opening characters for the release
-                            release_animation = ['<', '[', ' ']
-                            
-                            # Show animation at the trapped unit's position
-                            ui.renderer.animate_attack_sequence(
-                                trapped_unit.y, trapped_unit.x,
-                                release_animation,
-                                6,  # color ID (yellowish)
-                                0.2  # duration
-                            )
                         
                         # Release the unit
                         trapped_unit.trapped_by = None
@@ -3585,10 +3346,6 @@ class Game:
                             MessageType.COMBAT,
                             player=unit.player
                         )
-
-                        # Show attack animation with damage after calculation
-                        if ui:
-                            self._show_wall_attack_animation(ui, unit, wall_target, damage)
 
                         # Handle wall destruction
                         if wall_info['hp'] <= 0:
@@ -3809,30 +3566,6 @@ class Game:
                                     target_name=target.get_display_name()
                                 )
 
-                                # Show disarm animation (ASCII mode only)
-                                if ui and hasattr(ui, 'renderer'):
-                                    # Detect if running in graphical mode
-                                    is_graphical = hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
-
-                                    if not is_graphical:
-                                        target_pos = (target.y, target.x)
-
-                                        # Phase 1: Crushing jaw animation with disarm symbols (ASCII only)
-                                        disarm_sequence = ['X', 'x', '*', 'X', '*', 'x', 'X']
-                                        ui.renderer.animate_attack_sequence(
-                                            target_pos[0], target_pos[1],
-                                            disarm_sequence,
-                                            10,  # Red background to show danger
-                                            0.08
-                                        )
-
-                                        # Phase 2: Flash the enemy in red multiple times
-                                        if hasattr(ui, 'asset_manager'):
-                                            tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 6
-                                            color_ids = [10, 1, 10, 1, 10, 1]  # Alternate red and white
-                                            durations = [0.1] * 6
-
-                                            ui.renderer.flash_tile(target_pos[0], target_pos[1], tile_ids, color_ids, durations)
 
                     # Only log combat messages and handle unit death for unit targets (not walls)
                     if target:
@@ -4022,18 +3755,6 @@ class Game:
                 # Process Auction Curse DOT effect
                 from boneglaive.utils.message_log import message_log, MessageType
                 
-                # Show DOT animation if UI is available
-                if ui and hasattr(ui, 'renderer'):
-                    # Create curse damage animation
-                    curse_animation = ['$', '$', '%', '*', '!']
-                    
-                    # Show animation at the affected unit's position
-                    ui.renderer.animate_attack_sequence(
-                        unit.y, unit.x,
-                        curse_animation,
-                        6,  # Red color for damage
-                        0.15  # Duration
-                    )
                 
                 # Apply the damage
                 damage = 1
@@ -4041,24 +3762,6 @@ class Game:
                 unit.hp = max(0, unit.hp - damage)
                 actual_damage = old_hp - unit.hp
                 
-                # Show damage number if UI is available
-                if ui and hasattr(ui, 'renderer'):
-                    damage_text = f"-{actual_damage}"
-                    
-                    # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
-                    for i in range(3):
-                        # First clear the area
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                        # Draw with alternating bold/normal for a flashing effect
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-                    
-                    # Final damage display (stays on screen slightly longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
                 
                 # Get the opposing player (caster of the Auction Curse)
                 caster_player = 3 - unit.player  # If unit.player is 1, this gives 2; if 2, gives 1
@@ -4116,17 +3819,6 @@ class Game:
                             self.map.cosmic_values[caster_player][(check_y, check_x)] = new_value
                             furniture_inflated += 1
 
-                            # Show cycling numbers animation on this furniture
-                            if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer'):
-                                # Create animation with rapidly ascending numbers 0-9
-                                inflation_animation = [str(i) for i in range(10)]  # 0, 1, 2, 3, 4, 5, 6, 7, 8, 9
-                                self.ui.renderer.animate_attack_sequence(
-                                    check_y, check_x,
-                                    inflation_animation,
-                                    7,  # Yellow/white flashing
-                                    0.08  # Fast flashing
-                                )
-
                         # With Valuation Oracle upgrade: Also inflate appraised enemy astral values
                         if valuation_oracle_upgraded and appraiser_unit:
                             enemy_unit = self.get_unit_at(check_y, check_x)
@@ -4149,16 +3841,6 @@ class Game:
                                         enemy_unit.status_imbued and
                                         enemy_unit.status_imbued_player == caster_player):
                                         enemy_unit.status_imbued_cosmic_value = new_value
-
-                                    # Show cycling numbers animation on this enemy
-                                    if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer'):
-                                        inflation_animation = [str(i) for i in range(10)]
-                                        self.ui.renderer.animate_attack_sequence(
-                                            check_y, check_x,
-                                            inflation_animation,
-                                            7,  # Yellow/white flashing
-                                            0.08  # Fast flashing
-                                        )
 
                 # Log furniture/enemy value inflation if any occurred
                 if furniture_inflated > 0 or enemies_inflated > 0:
@@ -4223,45 +3905,7 @@ class Game:
                 # This is a special action but still counts as an action for health regeneration
                 unit.took_no_actions = False
 
-                # Detect if running in graphical mode to avoid blocking sleeps
-                is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
-
-                # Find all units trapped by this foreman
-                trapped_units = [u for u in self.units if u.is_alive() and u.trapped_by == unit]
-
-                # Apply trap damage to each trapped unit (ASCII mode only for animations)
-                for trapped_unit in trapped_units:
-                    # Play trap animation if UI is available (ASCII mode only)
-                    if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                        # Get animation sequence for Viseroy trap
-                        animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-
-                        # Show jaw animation at trapped unit's position
-                        ui.renderer.animate_attack_sequence(
-                            trapped_unit.y, trapped_unit.x,
-                            animation_sequence,
-                            10,  # red background color
-                            0.2  # duration
-                        )
-                        time.sleep(0.2)
-
-                    # Play trap animation if UI is available but don't apply damage here (ASCII mode only)
-                    # Actual damage is now handled centrally in _apply_trap_damage method
-                    if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                        # Get animation sequence for Viseroy trap
-                        animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-
-                        # Show jaw animation at trapped unit's position (visual only)
-                        ui.renderer.animate_attack_sequence(
-                            trapped_unit.y, trapped_unit.x,
-                            animation_sequence,
-                            10,  # red background color
-                            0.2  # duration
-                        )
-                        time.sleep(0.2)
-
-                    # No need to show a message here, trap visuals are enough
-
+                # Trap damage to trapped units is handled centrally in _apply_trap_damage.
                 # Clean up the special flag
                 unit.viseroy_trap_action = False
             
@@ -4358,23 +4002,6 @@ class Game:
                                 player=gas_machinist.player
                             )
                             
-                            # Play reformation animation if UI is available
-                            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                                reform_animation = ui.asset_manager.get_skill_animation_sequence('reform')
-                                if not reform_animation:
-                                    reform_animation = [' ', '.', ':', 'o', 'O', 'M']
-                                
-                                ui.renderer.animate_attack_sequence(
-                                    vapor_unit.y, vapor_unit.x,
-                                    reform_animation,
-                                    7,  # White color
-                                    0.15  # Duration
-                                )
-                                
-                                # Redraw to show final state
-                                if hasattr(ui, 'draw_board'):
-                                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                                    ui.renderer.refresh()
                     
                     # Kill the vapor using expire() to bypass invulnerability
                     vapor_unit._expired_summon = True
@@ -4603,24 +4230,6 @@ class Game:
                             actual_heal = unit.heal(1, "resting regeneration")
                             logger.debug(f"{unit.get_display_name()} regenerated {actual_heal} HP from resting")
                             
-                            # Show healing number if UI is available
-                            if ui and hasattr(ui, 'renderer') and actual_heal > 0:
-                                healing_text = f"+{actual_heal}"
-                                
-                                # Make healing text prominent with flashing effect (green color)
-                                for i in range(3):
-                                    # First clear the area
-                                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
-                                    # Draw with alternating bold/normal for a flashing effect
-                                    attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
-                                    ui.renderer.refresh()
-                                    sleep_with_animation_speed(0.1)
-                                
-                                # Final healing display (stays on screen slightly longer)
-                                ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
-                                ui.renderer.refresh()
-                                sleep_with_animation_speed(0.3)
                             
                             # Log the regeneration using proper format for healing messages
                             # "healing for X HP" format ensures the number appears in white
@@ -4692,65 +4301,11 @@ class Game:
                                     taunter.geas_heal_sources = []
                                 taunter.geas_heal_sources.append(unit)
 
-                                # Show geas breaking animation on taunted unit (ASCII mode only)
-                                if not (hasattr(self, 'ui') and hasattr(self.ui, '__class__') and self.ui.__class__.__name__ == 'GraphicalUIAdapter'):
-                                    if hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer') and hasattr(self.ui, 'asset_manager'):
-                                        try:
-                                            import curses
-                                        except ImportError:
-                                            curses = None
-                                        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-
-                                        # Binding breaking animation on the unit who ignored the geas
-                                        geas_break = self.ui.asset_manager.get_skill_animation_sequence('geas_break')
-                                        if not geas_break:
-                                            geas_break = ['0', 'O', 'o', '.', '~', '~', '~']  # Binding breaking and energy dispersing
-
-                                        for frame in geas_break:
-                                            self.ui.renderer.draw_tile(unit.y, unit.x, frame, 7)  # Yellow for geas magic
-                                            self.ui.renderer.refresh()
-                                            sleep_with_animation_speed(0.08)
-
-                                        # Show healing glow on POTPOURRIST
-                                        heal_glow = ['+', '*', '+']
-                                        for frame in heal_glow:
-                                            self.ui.renderer.draw_tile(taunter.y, taunter.x, frame, 3, curses.A_BOLD)  # Green for healing
-                                            self.ui.renderer.refresh()
-                                            sleep_with_animation_speed(0.1)
-
-                                # Apply healing (runs in both ASCII and graphical mode)
+                                # Apply healing
                                 old_hp = taunter._hp
                                 taunter._hp = min(taunter.max_hp, taunter._hp + 4)
                                 actual_heal = taunter._hp - old_hp
 
-                                # Show healing number if heal occurred (ASCII mode only)
-                                if not (hasattr(self, 'ui') and hasattr(self.ui, '__class__') and self.ui.__class__.__name__ == 'GraphicalUIAdapter'):
-                                    if actual_heal > 0 and hasattr(self, 'ui') and self.ui and hasattr(self.ui, 'renderer'):
-                                        healing_text = f"+{actual_heal}"
-
-                                        # Flash 3 times
-                                        for i in range(3):
-                                            # First clear the area
-                                            self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, " " * len(healing_text), 7)
-                                            # Draw with alternating bold/normal for a flashing effect
-                                            try:
-                                                import curses
-                                            except ImportError:
-                                                curses = None
-                                            attrs = curses.A_BOLD if i % 2 == 0 else 0
-                                            self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, attrs)  # Green color
-                                            self.ui.renderer.refresh()
-                                            from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                                            sleep_with_animation_speed(0.1)
-
-                                        # Final healing display (stays on screen slightly longer)
-                                        self.ui.renderer.draw_damage_text(taunter.y-1, taunter.x*2, healing_text, 3, curses.A_BOLD)
-                                        self.ui.renderer.refresh()
-                                        sleep_with_animation_speed(0.3)
-
-                                        # Redraw board after animation
-                                        if hasattr(self.ui, 'draw_board'):
-                                            self.ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
                                 if actual_heal > 0:
                                     from boneglaive.utils.message_log import message_log, MessageType
                                     message_log.add_message(
@@ -5318,16 +4873,6 @@ class Game:
                 )
                 target_unit.autoclave_failure_shown = True
                 
-                # Visual feedback if UI is available
-                if ui and hasattr(ui, 'renderer'):
-                    # Show failed activation animation
-                    failed_animation = ['!', '?', '!']
-                    ui.renderer.animate_attack_sequence(
-                        target_unit.y, target_unit.x,
-                        failed_animation,
-                        6,  # yellowish color for warning
-                        0.2  # duration
-                    )
             
             return False
         
@@ -5389,10 +4934,6 @@ class Game:
         """Apply damage to units trapped by MANDIBLE_FOREMENs."""
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
-        try:
-            import curses
-        except ImportError:
-            curses = None
         
         # Find all trapped units
         for unit in self.units:
@@ -5426,19 +4967,6 @@ class Game:
                 ui = getattr(self, 'ui', None)
                 is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
 
-                # Play trap animation if UI is available (ASCII mode only)
-                if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                    # Get animation sequence for Viseroy trap
-                    animation_sequence = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-
-                    # Show jaw animation at trapped unit's position
-                    ui.renderer.animate_attack_sequence(
-                        unit.y, unit.x,
-                        animation_sequence,
-                        10,  # red background color
-                        0.2  # duration
-                    )
-                    time.sleep(0.2)
                 
                 # Incremental trap damage - starts at 3 (or 4 with upgrade) and increases by 1 each turn
                 # First turn trapped: trap_duration = 0, damage base = 3 (or 4 with upgrade)
@@ -5489,35 +5017,6 @@ class Game:
                     # Directly try to trigger Autoclave for the trapped unit
                     self.try_trigger_autoclave(unit, ui)
                 
-                # Show damage number if UI is available (ASCII mode only)
-                if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text'):
-                    # Flash the unit to show damage
-                    if hasattr(ui, 'asset_manager'):
-                        # Flash the unit with damage colors
-                        tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
-                        color_ids = [10, 3 if unit.player == 1 else 4] * 2  # Alternate red background with player color
-                        durations = [0.1] * 4
-
-                        # Use renderer's flash tile method
-                        ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
-
-                    # Show damage number above target with same appearance as attack damage
-                    damage_text = f"-{damage}"
-
-                    # Make damage text more prominent
-                    for i in range(3):
-                        # First clear the area
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                        # Draw with alternating bold/normal for a flashing effect
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color (same as attack damage)
-                        ui.renderer.refresh()
-                        time.sleep(0.1)
-
-                    # Final damage display (stays on screen slightly longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
-                    ui.renderer.refresh()
-                    time.sleep(0.3)  # Match the 0.3s delay used in attack damage
                 # Graphical version handles damage display through animation system
                 
                 # Check if the trapped unit was defeated
@@ -5609,36 +5108,6 @@ class Game:
                     
                     # Play release animation if UI is available
                     ui = getattr(self, 'ui', None)
-                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                        # Create a series of jaw opening characters for the release
-                        release_animation = ['<', '[', ' ']
-                        
-                        # Show animation at the trapped unit's position
-                        ui.renderer.animate_attack_sequence(
-                            unit.y, unit.x,
-                            release_animation,
-                            6,  # color ID (yellowish)
-                            0.2  # duration
-                        )
-                        
-                        # Draw a line between the FOREMAN and the unit to show the release
-                        if foreman.is_alive():
-                            # Calculate positions along the path
-                            from boneglaive.utils.coordinates import Position, get_line
-                            start_pos = Position(foreman.y, foreman.x)
-                            end_pos = Position(unit.y, unit.x)
-                            path = get_line(start_pos, end_pos)
-                            
-                            # Show the connection breaking
-                            for pos in path[1:-1]:  # Skip start and end positions
-                                ui.renderer.draw_tile(pos.y, pos.x, '·', 7)  # Small dots showing connection breaking
-                            ui.renderer.refresh()
-                            time.sleep(0.1)
-                            
-                            # Clear the connection
-                            for pos in path[1:-1]:
-                                ui.renderer.draw_tile(pos.y, pos.x, ' ', 0)
-                            ui.renderer.refresh()
                     
                     # Release the unit
                     unit.trapped_by = None
@@ -5705,10 +5174,6 @@ class Game:
                             player=aerosol.player
                         )
 
-                        # Show movement animation if UI is available
-                        if ui and hasattr(ui, 'renderer'):
-                            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                            time.sleep(0.2)
                     else:
                         logger.warning(f"No valid position for LIVING_AEROSOL to follow {unit.get_display_name()}")
 
@@ -5718,11 +5183,6 @@ class Game:
         Triggers when enemy units end their turn on a scalar node.
         """
         from boneglaive.utils.message_log import message_log, MessageType
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-        try:
-            import curses
-        except ImportError:
-            curses = None
         
         # DEBUG: Log scalar node checking
         logger.debug(f"Checking scalar node traps. Player {self.current_player} ending turn.")
@@ -5782,54 +5242,6 @@ class Game:
                     
                     # Show scalar node detonation animation
                     logger.debug(f"UI object: {ui}, has renderer: {hasattr(ui, 'renderer') if ui else False}")
-                    if ui and hasattr(ui, 'renderer'):
-                        logger.debug(f"UI has asset_manager: {hasattr(ui, 'asset_manager')}")
-                        # Try to get the scalar node detonation animation from asset manager
-                        if hasattr(ui, 'asset_manager'):
-                            detonation_animation = ui.asset_manager.get_skill_animation_sequence('scalar_node_detonation')
-                            logger.debug(f"Got animation from asset manager: {detonation_animation}")
-                        else:
-                            detonation_animation = []
-                        
-                        # Fallback animation if asset manager doesn't have it
-                        if not detonation_animation:
-                            detonation_animation = ['~', '~', '~', '~', '~', '*', '+', '*', '+', 'X', '#', '#', '+', '*', '~', '.']  # Standing wave builds to geyser of sparks from vaporization
-                            logger.debug(f"Using fallback animation: {detonation_animation}")
-                        
-                        logger.debug(f"About to play animation at position ({unit.y}, {unit.x})")
-                        
-                        # Create flashing scalar node detonation effect similar to JUDGEMENT's critical animation
-                        # Flash with alternating colors and vaporization frames
-                        tile_ids = []
-                        color_ids = []
-                        durations = []
-                        
-                        for frame in detonation_animation:
-                            tile_ids.append(frame)
-                            # Alternate between red (energy/damage), yellow (sparks), and white (vaporization)
-                            if frame in ['∼', '~', '≈']:  # Wave frames - red energy
-                                color_ids.append(1)  # Red
-                            elif frame in ['*', '+']:  # Spark frames - yellow
-                                color_ids.append(6)  # Yellow  
-                            elif frame in ['X', '#', '#']:  # Vaporization frames - white/bright
-                                color_ids.append(7)  # White
-                            else:  # Final dissipation - dim
-                                color_ids.append(8)  # Dark grey
-                            durations.append(0.05)  # Quick flashing frames
-                        
-                        ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
-                        logger.debug("Flash animation completed")
-                        
-                        # Show damage number
-                        logger.debug("Showing damage number")
-                        damage_text = f"-{damage}"
-                        for i in range(3):
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.1)
-                        logger.debug("Damage number display completed")
                     
                     # Check if unit was defeated
                     if unit.hp <= 0:
@@ -5885,11 +5297,6 @@ class Game:
         Only armed traps can trigger.
         """
         from boneglaive.utils.message_log import message_log, MessageType
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-        try:
-            import curses
-        except ImportError:
-            curses = None
         import math
 
         logger.debug(f"Checking Fragcrest traps. Player {self.current_player} ending turn.")
@@ -6033,31 +5440,6 @@ class Game:
                             self.handle_unit_death(target_unit, killer_unit=owner, cause="fragcrest_trap", ui=ui)
 
                     # Show Fragcrest animation at trap position (ASCII version only)
-                    # Graphical version animation is handled by renderer detection system via triggered_fragcrest_traps
-                    if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                        # ASCII version - show animation frames
-                        # Get fragmentation animation
-                        frag_animation = ui.asset_manager.get_skill_animation_sequence('fragcrest_burst')
-                        if not frag_animation:
-                            frag_animation = ['.', ':', '*', '+', '#', 'x']
-
-                        # Show trap trigger at trap position
-                        ui.renderer.draw_tile(trap_y, trap_x, 'V', 6)  # V for directional cone
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-
-                        # Show fragmentation burst spreading through cone
-                        for frame in frag_animation:
-                            for pos_y, pos_x, is_primary in affected_positions:
-                                # Base skill coloring: red for primary, yellow for secondary
-                                color = 1 if is_primary else 3
-                                ui.renderer.draw_tile(pos_y, pos_x, frame, color)
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.05)
-
-                        # Redraw the board after animation
-                        if hasattr(ui, 'draw_board'):
-                            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
 
                     # Store trap trigger info for graphical mode animation (after all damage/effects applied)
                     self.triggered_fragcrest_traps.append({
@@ -6378,15 +5760,6 @@ class Game:
                 player=banished.player
             )
 
-            # Show return animation if UI available
-            if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                return_animation = ['·', ':', 'o', 'O', '@']
-                ui.renderer.animate_attack_sequence(
-                    banished.y, banished.x,
-                    return_animation,
-                    7,  # White
-                    0.12
-                )
 
         if not affected_units:
             # No units affected by explosion
@@ -6399,47 +5772,6 @@ class Game:
             player=doppelganger_unit.player
         )
 
-        # Animation for doppelganger explosion
-        if ui and hasattr(ui, 'renderer'):
-            # Center explosion animation at doppelganger position
-            center_animation = ['P', '*', 'O', '0', '~', 'O', '#', ',', '.']
-            ui.renderer.animate_attack_sequence(
-                doppelganger_unit.y, doppelganger_unit.x,
-                center_animation,
-                6,  # Yellow/explosion color
-                0.08  # Duration (slightly faster for more dramatic effect)
-            )
-            
-            # Get the 8 adjacent positions (cardinal and diagonal)
-            adjacent_positions = []
-            for dy in [-1, 0, 1]:
-                for dx in [-1, 0, 1]:
-                    if dy == 0 and dx == 0:  # Skip the center (already animated)
-                        continue
-                    
-                    new_y, new_x = doppelganger_unit.y + dy, doppelganger_unit.x + dx
-                    # Only include positions that are valid (on the board)
-                    if self.is_valid_position(new_y, new_x):
-                        adjacent_positions.append((new_y, new_x))
-            
-            # Secondary explosion animation for surrounding tiles
-            # Shorter animation sequence for surrounding tiles
-            ripple_animation = ['·', ':', '°']
-            
-            # Animate all adjacent tiles
-            for pos in adjacent_positions:
-                ui.renderer.animate_attack_sequence(
-                    pos[0], pos[1],
-                    ripple_animation,
-                    6,  # Same yellow/explosion color
-                    0.04  # Faster animation for ripple effect
-                )
-            
-            # Redraw board after all animations
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                if hasattr(time, 'sleep'):
-                    time.sleep(0.2)  # Short pause after explosion
 
         # Check if Græ Exchange is upgraded (units hit by explosion are also banished)
         is_grae_upgraded = False
@@ -6540,303 +5872,30 @@ class Game:
                     target_player=unit.player
                 )
 
-            # Show impact effects for explosion if UI is available
-            if ui and hasattr(ui, 'renderer'):
-                try:
-                    import curses
-                except ImportError:
-                    curses = None
+            # Resolve explosion aftermath (death handling and chain reactions)
+            if not is_grae_upgraded:
+                # Damage path: check if unit was killed
+                if unit.hp <= 0 and previous_hp > 0:
+                    # Use centralized death handling
+                    self.handle_unit_death(unit, doppelganger_unit, cause="explosion", ui=ui)
 
-                if is_grae_upgraded:
-                    # BANISHMENT EFFECT: Show vanishing animation
-                    if hasattr(ui, 'renderer'):
-                        # Vanishing animation for banishment
-                        vanish_animation = ['@', 'o', 'O', ':', '·', ' ']
-                        ui.renderer.animate_attack_sequence(
-                            unit.y, unit.x,
-                            vanish_animation,
-                            5,  # Magenta/purple for banishment
-                            0.08
+            # Check if this was a MANDIBLE_FOREMAN or another doppelganger
+            if unit.type == UnitType.MANDIBLE_FOREMAN:
+                # Release trapped units
+                for trapped_unit in self.units:
+                    if trapped_unit.is_alive() and trapped_unit.trapped_by == unit:
+                        logger.debug(f"MANDIBLE_FOREMAN perished from explosion, releasing {trapped_unit.get_display_name()}")
+                        trapped_unit.trapped_by = None
+                        message_log.add_message(
+                            f"{trapped_unit.get_display_name()} is released from mechanical jaws",
+                            MessageType.ABILITY,
+                            target_name=trapped_unit.get_display_name()
                         )
-                else:
-                    # DAMAGE EFFECT: Show impact and damage number
-                    # First, show an impact effect on the unit before showing damage
-                    if hasattr(ui, 'asset_manager'):
-                        # Get the unit tile
-                        unit_tile = ui.asset_manager.get_unit_tile(unit.type)
-
-                        # Flash the unit with alternating colors to show impact
-                        for i in range(2):
-                            # Use alternating colors (yellow and white) to show impact
-                            color = 6 if i % 2 == 0 else 7  # 6:yellow, 7:white
-                            ui.renderer.draw_tile(unit.y, unit.x, unit_tile, color, curses.A_BOLD)
-                            ui.renderer.refresh()
-                            if hasattr(time, 'sleep'):
-                                time.sleep(0.1)
-
-                    # Show the damage text with flashing effect
-                    damage_text = f"-{damage}"
-
-                    # Make damage text more prominent with flashing effect
-                    for i in range(3):
-                        # First clear the area
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                        # Draw with alternating bold/normal for a flashing effect
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
-                        ui.renderer.refresh()
-                        if hasattr(time, 'sleep'):
-                            time.sleep(0.1)
-
-                    # Final damage display (stays on screen slightly longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
-                    ui.renderer.refresh()
-                    if hasattr(time, 'sleep'):
-                        time.sleep(0.2)
-
-                    # Check if unit was killed
-                    if unit.hp <= 0 and previous_hp > 0:
-                        # Use centralized death handling
-                        self.handle_unit_death(unit, doppelganger_unit, cause="explosion", ui=ui)
-                
-                # Check if this was a MANDIBLE_FOREMAN or another doppelganger
-                if unit.type == UnitType.MANDIBLE_FOREMAN:
-                    # Release trapped units
-                    for trapped_unit in self.units:
-                        if trapped_unit.is_alive() and trapped_unit.trapped_by == unit:
-                            logger.debug(f"MANDIBLE_FOREMAN perished from explosion, releasing {trapped_unit.get_display_name()}")
-                            trapped_unit.trapped_by = None
-                            message_log.add_message(
-                                f"{trapped_unit.get_display_name()} is released from mechanical jaws",
-                                MessageType.ABILITY,
-                                target_name=trapped_unit.get_display_name()
-                            )
-                elif unit.is_doppelganger:
-                    # Chain reaction - trigger this doppelganger's death effect too
-                    # Pass the processed_doppelgangers set to prevent infinite loops
-                    self._trigger_doppelganger_death_effect(unit, ui, processed_doppelgangers)
+            elif unit.is_doppelganger:
+                # Chain reaction - trigger this doppelganger's death effect too
+                # Pass the processed_doppelgangers set to prevent infinite loops
+                self._trigger_doppelganger_death_effect(unit, ui, processed_doppelgangers)
     
-    
-    def _show_wall_attack_animation(self, ui, unit, wall_position, damage):
-        """
-        Show animation for a wall attack when a unit attacks a Marrow Dike wall.
-        
-        Args:
-            ui: The UI reference for animations
-            unit: The attacking unit
-            wall_position: Tuple of (y, x) for the wall being attacked
-            damage: The amount of damage being dealt to the wall
-        """
-        try:
-            import curses
-        except ImportError:
-            curses = None
-        from boneglaive.utils.coordinates import Position, get_line
-        from boneglaive.utils.debug import logger
-        
-        # Skip animation if UI isn't available or doesn't have required methods
-        if not ui or not hasattr(ui, 'renderer') or not hasattr(ui, 'asset_manager'):
-            return
-            
-        # Unpack wall position
-        wall_y, wall_x = wall_position
-        
-        # Get attack animation sequence
-        # Use a special cracking/breaking sequence for wall attacks
-        wall_attack_animation = ui.asset_manager.get_skill_animation_sequence('wall_attack')
-        if not wall_attack_animation:
-            # Fallback animation if not defined
-            wall_attack_animation = ['*', '#', 'X', '=', '/', '\\', '|']
-        
-        # Get the unit's actual attack animation from the asset manager
-        from boneglaive.utils.constants import UnitType
-        
-        # Create start and end positions
-        start_pos = Position(unit.y, unit.x)
-        end_pos = Position(wall_y, wall_x)
-        
-        # Get attack animation for this unit type
-        effect_tile = ui.asset_manager.get_attack_effect(unit.type)
-        animation_sequence = ui.asset_manager.get_attack_animation_sequence(unit.type)
-        
-        # For ranged attacks (archer and mage), show animation at origin then projectile path
-        if unit.type in [UnitType.ARCHER, UnitType.MAGE]:
-            # First show attack preparation at attacker's position
-            prep_sequence = animation_sequence[:2]  # First few frames of animation sequence
-            ui.renderer.animate_attack_sequence(
-                start_pos.y, start_pos.x,
-                prep_sequence,
-                7,  # color ID
-                0.2  # quick preparation animation
-            )
-            
-            # Then animate projectile from attacker to target
-            ui.renderer.animate_projectile(
-                (start_pos.y, start_pos.x),
-                (end_pos.y, end_pos.x),
-                effect_tile,
-                7,  # color ID
-                0.3  # duration
-            )
-        # For MANDIBLE_FOREMAN, show a special animation sequence for mandible jaws
-        elif unit.type == UnitType.MANDIBLE_FOREMAN:
-            # Show the jaws animation at the attacker's position
-            ui.renderer.animate_attack_sequence(
-                start_pos.y, start_pos.x, 
-                animation_sequence[:3],  # First three frames - jaws opening
-                7,  # color ID
-                0.3  # slightly faster animation
-            )
-            
-            # Show a short connecting animation between attacker and target
-            ui.renderer.animate_projectile(
-                (start_pos.y, start_pos.x),
-                (end_pos.y, end_pos.x),
-                '{',  # Mandible symbol
-                7,    # color ID
-                0.2   # quick connection
-            )
-        # For GLAIVEMAN attacks, check range and choose the right animation
-        elif unit.type == UnitType.GLAIVEMAN:
-            # Calculate distance to target
-            distance = self.chess_distance(start_pos.y, start_pos.x, end_pos.y, end_pos.x)
-            
-            # For range 2 attacks, use extended animation
-            if distance == 2:
-                # Get the extended animation sequence
-                extended_sequence = ui.asset_manager.animation_sequences.get('glaiveman_extended_attack', [])
-                if extended_sequence:
-                    # First show windup animation at attacker's position
-                    ui.renderer.animate_attack_sequence(
-                        start_pos.y, start_pos.x, 
-                        extended_sequence[:4],  # First few frames at attacker position
-                        7,  # color ID
-                        0.3  # duration
-                    )
-                    
-                    # Calculate path from attacker to target
-                    path = get_line(start_pos, end_pos)
-                    
-                    # Show glaive extending if path has at least 3 points
-                    if len(path) >= 3:
-                        mid_pos = path[1]  # Second point in the path
-                        
-                        # Show glaive extending through middle position
-                        extension_chars = extended_sequence[4:8]  # Middle frames show extension
-                        for i, char in enumerate(extension_chars):
-                            ui.renderer.draw_tile(mid_pos.y, mid_pos.x, char, 7)
-                            ui.renderer.refresh()
-                            time.sleep(0.1)
-                else:
-                    # Fallback to standard animation
-                    ui.renderer.animate_attack_sequence(
-                        start_pos.y, start_pos.x, 
-                        animation_sequence,
-                        7,  # color ID
-                        0.5  # duration
-                    )
-            else:
-                # For range 1 attacks, use standard animation
-                ui.renderer.animate_attack_sequence(
-                    start_pos.y, start_pos.x, 
-                    animation_sequence,
-                    7,  # color ID
-                    0.5  # duration
-                )
-        # Special case for FOWL_CONTRIVANCE - bird swarm animation
-        elif unit.type == UnitType.FOWL_CONTRIVANCE:
-            # Get animation sequence for bird attacks
-            fowl_sequence = ui.asset_manager.animation_sequences.get('fowl_contrivance_attack', [])
-            if not fowl_sequence:
-                fowl_sequence = ['^', 'v', '>', '<', '^', 'v', '^', 'V']  # Fallback bird animation
-            
-            # Use alternating colors for a more dynamic bird flock appearance
-            color_sequence = [1, 4, 1, 4, 6, 7, 6, 7]  # Red, blue, yellow, white alternating
-            
-            # Show initial gathering animation at attacker's position
-            for i in range(3):
-                frame = fowl_sequence[i % len(fowl_sequence)]
-                color = color_sequence[i % len(color_sequence)]
-                ui.renderer.draw_tile(start_pos.y, start_pos.x, frame, color)
-                ui.renderer.refresh()
-                time.sleep(0.08)
-            
-            # Create path points between attacker and target
-            path = get_line(start_pos, end_pos)
-            
-            # Animate along the path with varied bird symbols
-            path_points = []
-            for i in range(1, len(path) - 1):  # Skip first (attacker) and last (target)
-                path_points.append(path[i])
-                
-            for i, pos in enumerate(path_points):
-                frame_idx = (i + 3) % len(fowl_sequence)  # Continue from where gathering left off
-                color_idx = (i + 3) % len(color_sequence)
-                ui.renderer.draw_tile(pos.y, pos.x, fowl_sequence[frame_idx], color_sequence[color_idx])
-                ui.renderer.refresh()
-                time.sleep(0.05)
-                
-                # Clear previous position (except the first one)
-                if i > 0 and i < len(path_points) - 1:
-                    prev_pos = path_points[i-1]
-                    ui.renderer.draw_tile(prev_pos.y, prev_pos.x, ' ', 0)
-                    ui.renderer.refresh()
-        # For all other melee attacks, show standard animation
-        else:
-            # Show the attack animation at the attacker's position
-            ui.renderer.animate_attack_sequence(
-                start_pos.y, start_pos.x, 
-                animation_sequence,
-                7,  # color ID
-                0.5  # duration
-            )
-        
-        # Show wall impact animation based on unit type
-        if unit.type == UnitType.MAGE:
-            impact_animation = ['!', '*', '!']  # Magic impact
-        elif unit.type == UnitType.MANDIBLE_FOREMAN:
-            impact_animation = ['>', '<', '}', '{', '≡']  # Mandible crushing impact
-        elif unit.type == UnitType.FOWL_CONTRIVANCE:
-            impact_animation = ['^', 'v', '^', 'V', '^']  # Bird dive impact
-        else:
-            # Use the wall cracking animation for other units
-            impact_animation = wall_attack_animation
-            
-        # Show impact animation at the wall position
-        ui.renderer.animate_attack_sequence(
-            wall_y, wall_x,
-            impact_animation,
-            6,  # Color code (red/orange)
-            0.1  # Duration per frame
-        )
-        
-        # Show damage number above the wall
-        damage_text = f"-{damage}"
-        
-        # Make damage text more prominent with flashing effect
-        for i in range(3):
-            # First clear the area
-            ui.renderer.draw_damage_text(wall_y-1, wall_x*2, " " * len(damage_text), 7)
-            # Draw with alternating bold/normal for a flashing effect
-            attrs = curses.A_BOLD if i % 2 == 0 else 0
-            ui.renderer.draw_damage_text(wall_y-1, wall_x*2, damage_text, 10, attrs)  # Red color for wall damage
-            ui.renderer.refresh()
-            time.sleep(0.1)
-        
-        # Final damage display (stays on screen slightly longer)
-        ui.renderer.draw_damage_text(wall_y-1, wall_x*2, damage_text, 10, curses.A_BOLD)
-        ui.renderer.refresh()
-        time.sleep(0.3)
-        
-        # Clear the damage text
-        ui.renderer.draw_damage_text(wall_y-1, wall_x*2, " " * len(damage_text), 0)
-        
-        # Draw a cracking effect on the wall to show damage
-        ui.renderer.draw_tile(wall_y, wall_x, '#', 20)  # Use red color for damaged wall
-        ui.renderer.refresh()
-        time.sleep(0.2)
-        
-        logger.debug(f"Wall attack animation shown at ({wall_y}, {wall_x})")
     
     @measure_perf
     def _handle_effect_expired(self, event_type, event_data):
@@ -7003,27 +6062,6 @@ class Game:
             
         
         # Animate the rail explosions if UI is available - all at once!
-        # ASCII mode animation only
-        if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_tile'):
-            explosion_frames = ['*', '#', '*', '#', '*']
-            explosion_colors = [19, 7, 19, 7, 19]  # Red text, yellow text, red text, yellow text, red text
-
-            # Clear any highlights/selections that might interfere
-            if hasattr(ui, 'cursor_manager'):
-                ui.cursor_manager.highlighted_positions = []
-                ui.cursor_manager.clear_selection()
-
-            # Flash all rails simultaneously through explosion sequence
-            for frame_char, color in zip(explosion_frames, explosion_colors):
-                # Draw explosion frame on each rail position
-                for rail_y, rail_x in rail_positions:
-                    # First clear the position completely with black background
-                    ui.renderer.draw_tile(rail_y, rail_x, ' ', 0, 0)
-                    # Then draw the explosion character with proper colors
-                    ui.renderer.draw_tile(rail_y, rail_x, frame_char, color, curses.A_BOLD)
-
-                ui.renderer.refresh()
-                time.sleep(0.12)  # Quick flash timing
         
         # Actually remove all rails from the map and restore original terrain
         rail_count = len(rail_positions)
@@ -7400,27 +6438,3 @@ class Game:
                         player=unit.player
                     )
                 
-                # Show healing animation if UI is available and healing occurred
-                if ui and hasattr(ui, 'renderer') and actual_heal > 0:
-                    try:
-                        import curses
-                    except ImportError:
-                        curses = None
-                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-
-                    healing_text = f"+{actual_heal}"
-                    
-                    # Make healing text prominent with flashing effect (green color)
-                    for i in range(3):
-                        # First clear the area
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
-                        # Draw with alternating bold/normal for a flashing effect
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-                    
-                    # Final healing display (stays on screen slightly longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.3)
