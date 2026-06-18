@@ -196,16 +196,9 @@ class DischargeSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Expedite skill."""
         from boneglaive.utils.message_log import message_log, MessageType
-        import time
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
-        try:
-            import curses
-        except ImportError:
-            curses = None
 
         # Detect if running in graphical mode to avoid blocking sleeps
-        is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
 
         # Clear the expedite path indicator
         user.expedite_path_indicator = None
@@ -367,26 +360,6 @@ class DischargeSkill(ActiveSkill):
                             target_name=enemy_hit.get_display_name()
                         )
 
-                        # Show disarm animation (ASCII mode only)
-                        if ui and hasattr(ui, 'renderer') and not is_graphical:
-                            enemy_pos = (enemy_hit.y, enemy_hit.x)
-
-                            # Phase 1: Crushing jaw animation with disarm symbols (ASCII only)
-                            disarm_sequence = ['X', 'x', '*', 'X', '*', 'x', 'X']
-                            ui.renderer.animate_attack_sequence(
-                                enemy_pos[0], enemy_pos[1],
-                                disarm_sequence,
-                                10,  # Red background to show danger
-                                0.08
-                            )
-
-                            # Phase 2: Flash the enemy in red multiple times
-                            if hasattr(ui, 'asset_manager'):
-                                tile_ids = [ui.asset_manager.get_unit_tile(enemy_hit.type)] * 6
-                                color_ids = [10, 1, 10, 1, 10, 1]  # Alternate red and white
-                                durations = [0.1] * 6
-
-                                ui.renderer.flash_tile(enemy_pos[0], enemy_pos[1], tile_ids, color_ids, durations)
                 elif enemy_hit.hp > 0:
                     message_log.add_message(
                         f"{enemy_hit.get_display_name()} is immune to Viseroy due to Stasiality",
@@ -395,171 +368,6 @@ class DischargeSkill(ActiveSkill):
                         target_name=enemy_hit.get_display_name()
                     )
 
-        # Play animation if UI is available (ASCII mode only)
-        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get animation sequence for rush animation
-            rush_animation = ui.asset_manager.get_skill_animation_sequence('expedite_rush')
-            
-            if not rush_animation:
-                rush_animation = ['{', '<', '[', '{']  # Fallback
-            
-            # Instead of animating every position, simulate FOREMAN flying through with jaws open
-            # First, determine start and end point for animation
-            start_pos = (user.y, user.x)
-            end_pos = enemy_pos if enemy_hit else (path_positions[-1] if path_positions else start_pos)
-            
-            # Get all positions between start and end for drawing FOREMAN
-            animation_positions = []
-            for pos in path_positions:
-                animation_positions.append(pos)
-                if pos == end_pos:
-                    break
-            
-            # For very short paths, skip complex animation but still show impact animations
-            if len(animation_positions) <= 1:
-                # If we hit an enemy, show impact animations (damage already applied above)
-                if enemy_hit:
-                    # Show hit animation and damage numbers even for short paths
-                    if ui and hasattr(ui, 'renderer'):
-                        # Show impact animation at enemy position
-                        impact_animation = ui.asset_manager.get_skill_animation_sequence('expedite_impact')
-                        if not impact_animation:
-                            impact_animation = ['!', '!', '#', 'X', '*', '.']  # Fallback
-                        
-                        ui.renderer.animate_attack_sequence(
-                            enemy_pos[0], enemy_pos[1],
-                            impact_animation,
-                            10,  # red background for impact
-                            0.1  # duration
-                        )
-                        
-                        # Flash the enemy to show it was hit
-                        if hasattr(ui, 'asset_manager'):
-                            tile_ids = [ui.asset_manager.get_unit_tile(enemy_hit.type)] * 4
-                            color_ids = [10, 3 if enemy_hit.player == 1 else 4] * 2  # Alternate red background with player color
-                            durations = [0.1] * 4
-                            
-                            ui.renderer.flash_tile(enemy_pos[0], enemy_pos[1], tile_ids, color_ids, durations)
-                        
-                        # Show damage number
-                        damage_text = f"-{damage}"
-
-                        for i in range(3):
-                            ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, " " * len(damage_text), 7)
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_damage_text(enemy_pos[0]-1, enemy_pos[1]*2, damage_text, 7, attrs)
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.1)
-
-                        # Show trapping animation (if trapped - logic already ran above)
-                        if enemy_hit.hp > 0 and enemy_hit.trapped_by == user:
-                            trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-                            if trap_animation:
-                                ui.renderer.animate_attack_sequence(
-                                    enemy_pos[0], enemy_pos[1],
-                                    trap_animation,
-                                    7,  # white color, matching MANDIBLE_FOREMAN's animation
-                                    0.1  # duration
-                                )
-                # Note: Position updates now happen before UI block (line 276+)
-                
-                # Redraw the board after movement
-                if hasattr(ui, 'draw_board'):
-                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                
-                return True
-                
-            # Initialize the board with FOREMAN removed from original position
-            if hasattr(ui, 'draw_board'):
-                # Temporarily "remove" FOREMAN from the board
-                orig_y, orig_x = user.y, user.x
-                user.y, user.x = -1, -1  # Move off-board for redraw
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                user.y, user.x = orig_y, orig_x  # Restore position (but not drawn yet)
-            
-            # For each frame of the animation
-            # We'll move FOREMAN along the path with his jaws open
-            for anim_frame in range(len(animation_positions)):
-                # Calculate current position (how far along the path)
-                position_idx = min(anim_frame, len(animation_positions) - 1)
-                current_y, current_x = animation_positions[position_idx]
-                
-                # Choose jaw animation frame based on how far along we are
-                # The closer to the target, the more open the jaws
-                jaw_frame_idx = min(position_idx % len(rush_animation), len(rush_animation) - 1)
-                jaw_frame = rush_animation[jaw_frame_idx]
-                
-                # Draw FOREMAN as the jaw symbol at the current position
-                ui.renderer.draw_tile(current_y, current_x, jaw_frame, 7)  # white color
-                ui.renderer.refresh()
-                
-                # If not at the last position, restore terrain at current position before moving
-                if anim_frame < len(animation_positions) - 1:
-                    sleep_with_animation_speed(0.05)  # Control animation speed
-                    
-                    # Restore the proper terrain tile instead of showing a blank space
-                    terrain_type = game.map.get_terrain_at(current_y, current_x)
-                    # Convert the enum to string name for asset lookup
-                    terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
-                    terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
-                    
-                    # Use appropriate terrain color based on terrain type
-                    if terrain_name == 'empty':
-                        terrain_color = 1  # Default (white on black)
-                    elif terrain_name == 'dust':
-                        terrain_color = 11  # Dust color
-                    elif terrain_name == 'limestone':
-                        terrain_color = 12  # Limestone color
-                    elif terrain_name == 'pillar':
-                        terrain_color = 13  # Pillar color
-                    elif terrain_name == 'furniture' or terrain_name.startswith('coat_rack') or terrain_name.startswith('ottoman'):
-                        terrain_color = 14  # Furniture color
-                    elif terrain_name == 'marrow_wall':
-                        terrain_color = 20  # Marrow Wall color
-                    else:
-                        terrain_color = 1  # Default for unknown types
-                    
-                    # Check if there's a unit at this position that isn't the FOREMAN
-                    other_unit = game.get_unit_at(current_y, current_x)
-                    if other_unit and other_unit != user:
-                        # Draw the unit instead of terrain
-                        unit_tile = ui.asset_manager.get_unit_tile(other_unit.type)
-                        unit_color = 3 if other_unit.player == 1 else 4  # Player colors
-                        ui.renderer.draw_tile(current_y, current_x, unit_tile, unit_color)
-                    else:
-                        # Draw appropriate terrain
-                        ui.renderer.draw_tile(current_y, current_x, terrain_tile, terrain_color)
-                    
-                    ui.renderer.refresh()
-            
-            # If we hit an enemy, play impact animation
-            if enemy_hit:
-                impact_animation = ui.asset_manager.get_skill_animation_sequence('expedite_impact')
-                
-                if not impact_animation:
-                    impact_animation = ['!', '!', '#', 'X', '*', '.']  # Fallback
-                
-                # Show impact animation at enemy position
-                ui.renderer.animate_attack_sequence(
-                    enemy_pos[0], enemy_pos[1],
-                    impact_animation,
-                    10,  # red background for impact
-                    0.1  # duration
-                )
-                
-                # Flash the enemy to show it was hit
-                if hasattr(ui, 'asset_manager'):
-                    tile_ids = [ui.asset_manager.get_unit_tile(enemy_hit.type)] * 4
-                    color_ids = [10, 3 if enemy_hit.player == 1 else 4] * 2  # Alternate red background with player color
-                    durations = [0.1] * 4
-                    
-                    ui.renderer.flash_tile(enemy_pos[0], enemy_pos[1], tile_ids, color_ids, durations)
-
-                # Note: Damage, trap, and position logic now handled before UI block (lines 228-299)
-            
-            # Redraw board after animations
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         # Note: Position updates now happen before UI block (lines 275-299), so no else block needed
 
         # Clear expediting flag now that trap has been applied
@@ -640,11 +448,8 @@ class SiteInspectionSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Site Inspection skill."""
         from boneglaive.utils.message_log import message_log, MessageType
-        import time
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
         # Detect if running in graphical mode to avoid blocking sleeps
-        is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
 
         # Clear the site inspection indicator after execution
         user.site_inspection_indicator = None
@@ -677,158 +482,6 @@ class SiteInspectionSkill(ActiveSkill):
         # Check if Site Inspection is upgraded for enhanced animation
         from boneglaive.game.upgrades import UpgradeManager
         is_upgraded = UpgradeManager.is_skill_upgraded(user, "Site Inspection")
-
-        # Play animation if UI is available (ASCII mode only)
-        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get the animation sequence
-            inspection_animation = ui.asset_manager.get_skill_animation_sequence('site_inspection')
-            if not inspection_animation:
-                inspection_animation = ['#', 'O', '#', 'O', '#']  # Fallback with eye-like symbols
-
-            if is_upgraded:
-                # Enhanced animation for upgraded Site Inspection
-                # Phase 1: Faster, more intense scanning with double pass
-                for pass_num in range(2):  # Two scanning passes
-                    for dy in [-1, 0, 1]:
-                        for dx in [-1, 0, 1]:
-                            check_y = y + dy
-                            check_x = x + dx
-
-                            # Skip out of bounds positions
-                            if not game.is_valid_position(check_y, check_x):
-                                continue
-
-                            # Show inspection animation at each position (faster)
-                            ui.renderer.animate_attack_sequence(
-                                check_y, check_x,
-                                inspection_animation,
-                                3 if user.player == 1 else 4,  # Player color
-                                0.03  # faster animation for upgraded
-                            )
-
-                # Phase 2: Radial pulse effect from center
-                for radius in range(3):
-                    for dy in [-1, 0, 1]:
-                        for dx in [-1, 0, 1]:
-                            if abs(dy) + abs(dx) == radius or (radius == 2 and abs(dy) == 1 and abs(dx) == 1):
-                                check_y = y + dy
-                                check_x = x + dx
-                                if game.is_valid_position(check_y, check_x):
-                                    ui.renderer.draw_tile(check_y, check_x, '●', 2)  # Green pulse
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.08)
-
-                # Phase 3: Enhanced outline with double-line effect
-                for i in range(3):  # More repetitions
-                    # Draw double-line effect (thicker border)
-                    # Top row
-                    for dx in [-1, 0, 1]:
-                        if game.is_valid_position(y - 1, x + dx):
-                            ui.renderer.draw_tile(y - 1, x + dx, '═', 3 if user.player == 1 else 4)
-
-                    # Bottom row
-                    for dx in [-1, 0, 1]:
-                        if game.is_valid_position(y + 1, x + dx):
-                            ui.renderer.draw_tile(y + 1, x + dx, '═', 3 if user.player == 1 else 4)
-
-                    # Left column
-                    for dy in [-1, 0, 1]:
-                        if game.is_valid_position(y + dy, x - 1):
-                            ui.renderer.draw_tile(y + dy, x - 1, '║', 3 if user.player == 1 else 4)
-
-                    # Right column
-                    for dy in [-1, 0, 1]:
-                        if game.is_valid_position(y + dy, x + 1):
-                            ui.renderer.draw_tile(y + dy, x + 1, '║', 3 if user.player == 1 else 4)
-
-                    # Enhanced corners
-                    if game.is_valid_position(y - 1, x - 1):
-                        ui.renderer.draw_tile(y - 1, x - 1, '╔', 3 if user.player == 1 else 4)
-                    if game.is_valid_position(y - 1, x + 1):
-                        ui.renderer.draw_tile(y - 1, x + 1, '╗', 3 if user.player == 1 else 4)
-                    if game.is_valid_position(y + 1, x - 1):
-                        ui.renderer.draw_tile(y + 1, x - 1, '╚', 3 if user.player == 1 else 4)
-                    if game.is_valid_position(y + 1, x + 1):
-                        ui.renderer.draw_tile(y + 1, x + 1, '╝', 3 if user.player == 1 else 4)
-
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.15)
-
-                    # Clear outline
-                    for dy in [-1, 0, 1]:
-                        for dx in [-1, 0, 1]:
-                            if dy == 0 and dx == 0:
-                                continue  # Skip center
-                            if game.is_valid_position(y + dy, x + dx):
-                                ui.renderer.draw_tile(y + dy, x + dx, ' ', 3 if user.player == 1 else 4)
-
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.08)
-            else:
-                # Base animation (unchanged)
-                # Show scanning effect over the area
-                for dy in [-1, 0, 1]:
-                    for dx in [-1, 0, 1]:
-                        check_y = y + dy
-                        check_x = x + dx
-
-                        # Skip out of bounds positions
-                        if not game.is_valid_position(check_y, check_x):
-                            continue
-
-                        # Show inspection animation at each position
-                        ui.renderer.animate_attack_sequence(
-                            check_y, check_x,
-                            inspection_animation,
-                            3 if user.player == 1 else 4,  # Player color
-                            0.05  # fast animation
-                        )
-
-                # Draw an outline around the inspection area
-                for i in range(2):  # Repeat the outline effect
-                    # Top row
-                    for dx in [-1, 0, 1]:
-                        if game.is_valid_position(y - 1, x + dx):
-                            ui.renderer.draw_tile(y - 1, x + dx, '─', 3 if user.player == 1 else 4)
-
-                    # Bottom row
-                    for dx in [-1, 0, 1]:
-                        if game.is_valid_position(y + 1, x + dx):
-                            ui.renderer.draw_tile(y + 1, x + dx, '─', 3 if user.player == 1 else 4)
-
-                    # Left column
-                    for dy in [-1, 0, 1]:
-                        if game.is_valid_position(y + dy, x - 1):
-                            ui.renderer.draw_tile(y + dy, x - 1, '│', 3 if user.player == 1 else 4)
-
-                    # Right column
-                    for dy in [-1, 0, 1]:
-                        if game.is_valid_position(y + dy, x + 1):
-                            ui.renderer.draw_tile(y + dy, x + 1, '│', 3 if user.player == 1 else 4)
-
-                    # Corners
-                    if game.is_valid_position(y - 1, x - 1):
-                        ui.renderer.draw_tile(y - 1, x - 1, '┌', 3 if user.player == 1 else 4)
-                    if game.is_valid_position(y - 1, x + 1):
-                        ui.renderer.draw_tile(y - 1, x + 1, '┐', 3 if user.player == 1 else 4)
-                    if game.is_valid_position(y + 1, x - 1):
-                        ui.renderer.draw_tile(y + 1, x - 1, '└', 3 if user.player == 1 else 4)
-                    if game.is_valid_position(y + 1, x + 1):
-                        ui.renderer.draw_tile(y + 1, x + 1, '┘', 3 if user.player == 1 else 4)
-
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.2)
-
-                    # Clear outline (replace with spaces)
-                    for dy in [-1, 0, 1]:
-                        for dx in [-1, 0, 1]:
-                            if dy == 0 and dx == 0:
-                                continue  # Skip center
-                            if game.is_valid_position(y + dy, x + dx):
-                                ui.renderer.draw_tile(y + dy, x + dx, ' ', 3 if user.player == 1 else 4)
-
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.1)
 
         # Apply scaled buffs based on terrain count (works in both ASCII and graphical modes)
         # Upgrade adds +1 defense to all effects and makes 2+ terrain grant +1 defense
@@ -963,24 +616,6 @@ class SiteInspectionSkill(ActiveSkill):
                                 MessageType.ABILITY,
                                 player=user.player
                             )
-                        
-                        # Visual feedback for new status effect application (not refreshes) - ASCII UI only
-                        if (not has_full_effect and not has_partial_effect) or (has_partial_effect and effect_type == "full"):
-                            if ui and hasattr(ui, 'asset_manager'):
-                                tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 4
-                                color_ids = [2, 3 if ally.player == 1 else 4] * 2  # Green to indicate positive effect
-                                durations = [0.1] * 4
-
-                                ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
-
-                                # Display effect symbol above ally
-                                ui.renderer.draw_damage_text(ally.y-1, ally.x*2, effect_symbol, 2)  # Green text
-                                ui.renderer.refresh()
-                                sleep_with_animation_speed(0.3)
-
-                                # Clear effect symbol
-                                ui.renderer.draw_damage_text(ally.y-1, ally.x*2, "  ", 7)
-                                ui.renderer.refresh()
         else:
             # 2+ impassable terrain found - skill doesn't apply any buffs (unless upgraded)
             # This else block should not be reached when upgraded since the condition changed
@@ -1049,27 +684,7 @@ class SiteInspectionSkill(ActiveSkill):
                     player=user.player
                 )
 
-                # Show visual indicators for revealed traps
-                if ui and hasattr(ui, 'renderer'):
-                    for trap_pos in revealed_traps:
-                        trap_y, trap_x = trap_pos
-                        # Flash the revealed trap position
-                        for flash in range(3):
-                            ui.renderer.draw_tile(trap_y, trap_x, 'X', 1)  # X for explosive trap
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.2)
-                            
-                            # Restore terrain
-                            terrain_type = game.map.get_terrain_at(trap_y, trap_x)
-                            terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
-                            terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
-                            ui.renderer.draw_tile(trap_y, trap_x, terrain_tile, 1)
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.1)
         
-        # Redraw the board after animations
-        if hasattr(ui, 'draw_board'):
-            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
         return True
 
@@ -1196,15 +811,8 @@ class JawlineSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Jawline skill to deploy a network of mechanical jaws."""
         from boneglaive.utils.message_log import message_log, MessageType
-        import time
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-        try:
-            import curses
-        except ImportError:
-            curses = None
 
         # Detect if running in graphical mode to avoid blocking sleeps
-        is_graphical = ui and hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
 
         # Check if Jawline is upgraded
         from boneglaive.game.upgrades import UpgradeManager
@@ -1324,198 +932,63 @@ class JawlineSkill(ActiveSkill):
                         area_positions.append((y, x))
 
         # Play animation if UI is available (ASCII mode only)
-        if not is_graphical and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # First, show activation animation at the center
-            # Get jaw activation animation
-            trap_animation = ui.asset_manager.get_skill_animation_sequence('viseroy_trap')
-            if not trap_animation:
-                trap_animation = ['[', '<', '>', 'X', 'v', '|', ']']  # Fallback - ASCII only, single characters
+        # Apply Jawline damage and immobilization to enemies in all 8 adjacent tiles
+        for position in area_positions:
+            y, x = position
+            
+            # Check if there's an enemy at this position
+            target = game.get_unit_at(y, x)
+            if target and target.player != user.player:
+                # Enemy found - apply damage and effect
+                # Calculate damage (accounting for defense)
+                damage = max(1, self.damage - target.defense)
                 
-            # Show activation at user's position
-            ui.renderer.animate_attack_sequence(
-                user.y, user.x,
-                trap_animation,
-                7,  # white color, matching MANDIBLE_FOREMAN's attack animation
-                0.15  # duration
-            )
-            
-            # Then expand outward to the 8 surrounding positions
-            # Draw expanding ripple effect
-            for ripple_size in range(1, 4):  # 3 expanding ripples
-                for position in area_positions:
-                    y, x = position
-                    
-                    # Skip positions based on ripple size to create expansion effect
-                    # For ripple 1, only show cardinal directions
-                    # For ripple 2, show diagonal directions
-                    # For ripple 3, show all directions
-                    distance = max(abs(y - user.y), abs(x - user.x))
-                    if ripple_size == 1 and distance > 1:
-                        continue
-                    if ripple_size == 2 and distance <= 1:
-                        continue
-                        
-                    # Draw the ripple tile and refresh
-                    ripple_char = ['.', ':', '#'][ripple_size - 1]  # Different density for each ripple
-                    ui.renderer.draw_tile(y, x, ripple_char, 7)  # White color, matching MANDIBLE_FOREMAN's attack animation
-                    
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.1)
-            
-            # Now activate each surrounding position with a trap animation
-            affected_enemies = []
-            
-            for position in area_positions:
-                y, x = position
+                # Apply damage
+                previous_hp = target.hp
+                target.hp = max(0, target.hp - damage)
                 
-                # Show trap animation at each position
-                ui.renderer.animate_attack_sequence(
-                    y, x,
-                    trap_animation[-4:],  # Use last few frames of trap animation
-                    7,  # white color, matching MANDIBLE_FOREMAN's attack animation
-                    0.1  # faster for multiple positions
+                # Log damage
+                message_log.add_combat_message(
+                    attacker_name=user.get_display_name(),
+                    target_name=target.get_display_name(),
+                    damage=damage,
+                    ability="Jawline",
+                    attacker_player=user.player,
+                    target_player=target.player
                 )
                 
-                # Check if there's an enemy at this position
-                target = game.get_unit_at(y, x)
-                if target and target.player != user.player:
-                    # Enemy found - apply damage and effect
-                    # Calculate damage (accounting for defense)
-                    damage = max(1, self.damage - target.defense)
+                # Check if target was defeated and handle death properly
+                if target.hp <= 0:
+                    # Use centralized death handling to ensure all systems (like DOMINION) are notified
+                    game.handle_unit_death(target, user, cause="discharge", ui=ui)
+                # If not defeated, check for critical health and apply Jawline effect if not immune
+                else:
+                    # Check for critical health (retching) using centralized logic
+                    game.check_critical_health(target, user, previous_hp, ui)
                     
-                    # Track for animation
-                    affected_enemies.append((target, damage))
-                    
-                    # Apply damage
-                    previous_hp = target.hp
-                    target.hp = max(0, target.hp - damage)
-                    
-                    # Log damage
-                    message_log.add_combat_message(
-                        attacker_name=user.get_display_name(),
-                        target_name=target.get_display_name(),
-                        damage=damage,
-                        ability="Jawline",
-                        attacker_player=user.player,
-                        target_player=target.player
-                    )
-                    
-                    # Check if target was defeated and handle death properly
-                    if target.hp <= 0:
-                        # Use centralized death handling to ensure all systems (like DOMINION) are notified
-                        game.handle_unit_death(target, user, cause="discharge", ui=ui)
-                    # If not defeated, check for critical health and apply Jawline effect if not immune
+                    # Check if target is immune to status effects (GRAYMAN with Stasiality)
+                    if target.is_immune_to_effects():
+                        message_log.add_message(
+                            f"{target.get_display_name()} is immune to Jawline's immobilization due to Stasiality",
+                            MessageType.ABILITY,
+                            player=target.player,  # Use target's player color for immunity message
+                            target_name=target.get_display_name()
+                        )
                     else:
-                        # Check for critical health (retching) using centralized logic
-                        game.check_critical_health(target, user, previous_hp, ui)
-                        
-                        # Check if target is immune to status effects (GRAYMAN with Stasiality)
-                        if target.is_immune_to_effects():
-                            message_log.add_message(
-                                f"{target.get_display_name()} is immune to Jawline's immobilization due to Stasiality",
-                                MessageType.ABILITY,
-                                player=target.player,  # Use target's player color for immunity message
-                                target_name=target.get_display_name()
-                            )
-                        else:
-                            # Apply Jawline effect if not immune
-                            target.jawline_affected = True
-                            target.jawline_duration = self.effect_duration
-                            # Store the penalty amount for proper restoration
-                            jawline_penalty = target.move_range + target.move_range_bonus
-                            target.jawline_original_move = jawline_penalty
-                            target.move_range_bonus -= jawline_penalty
+                        # Apply Jawline effect if not immune
+                        target.jawline_affected = True
+                        target.jawline_duration = self.effect_duration
+                        # Store the penalty amount for proper restoration
+                        jawline_penalty = target.move_range + target.move_range_bonus
+                        target.jawline_original_move = jawline_penalty
+                        target.move_range_bonus -= jawline_penalty
 
-                            message_log.add_message(
-                                f"{target.get_display_name()} is immobilized by the Jawline tether",
-                                MessageType.WARNING,
-                                player=user.player,
-                                target=target.player,
-                                target_name=target.get_display_name()
-                            )
-
-            # Show damage numbers for all affected enemies
-            for target, damage in affected_enemies:
-                # Flash the target
-                if hasattr(ui, 'asset_manager'):
-                    tile_ids = [ui.asset_manager.get_unit_tile(target.type)] * 4
-                    color_ids = [10, 3 if target.player == 1 else 4] * 2  # Alternate red background with player color
-                    durations = [0.1] * 4
-                    
-                    ui.renderer.flash_tile(target.y, target.x, tile_ids, color_ids, durations)
-                
-                # Show damage number
-                damage_text = f"-{damage}"
-                
-                # Make damage text visible
-                for i in range(3):
-                    ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
-                    attrs = curses.A_BOLD if i % 2 == 0 else 0
-                    ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.1)
-            
-            # Redraw board after all animations
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-        else:
-            # No UI - just apply the effects
-            for position in area_positions:
-                y, x = position
-                
-                # Check if there's an enemy at this position
-                target = game.get_unit_at(y, x)
-                if target and target.player != user.player:
-                    # Enemy found - apply damage and effect
-                    # Calculate damage (accounting for defense)
-                    damage = max(1, self.damage - target.defense)
-                    
-                    # Apply damage
-                    previous_hp = target.hp
-                    target.hp = max(0, target.hp - damage)
-                    
-                    # Log damage
-                    message_log.add_combat_message(
-                        attacker_name=user.get_display_name(),
-                        target_name=target.get_display_name(),
-                        damage=damage,
-                        ability="Jawline",
-                        attacker_player=user.player,
-                        target_player=target.player
-                    )
-                    
-                    # Check if target was defeated and handle death properly
-                    if target.hp <= 0:
-                        # Use centralized death handling to ensure all systems (like DOMINION) are notified
-                        game.handle_unit_death(target, user, cause="discharge", ui=ui)
-                    # If not defeated, check for critical health and apply Jawline effect if not immune
-                    else:
-                        # Check for critical health (retching) using centralized logic
-                        game.check_critical_health(target, user, previous_hp, ui)
-                        
-                        # Check if target is immune to status effects (GRAYMAN with Stasiality)
-                        if target.is_immune_to_effects():
-                            message_log.add_message(
-                                f"{target.get_display_name()} is immune to Jawline's immobilization due to Stasiality",
-                                MessageType.ABILITY,
-                                player=target.player,  # Use target's player color for immunity message
-                                target_name=target.get_display_name()
-                            )
-                        else:
-                            # Apply Jawline effect if not immune
-                            target.jawline_affected = True
-                            target.jawline_duration = self.effect_duration
-                            # Store the penalty amount for proper restoration
-                            jawline_penalty = target.move_range + target.move_range_bonus
-                            target.jawline_original_move = jawline_penalty
-                            target.move_range_bonus -= jawline_penalty
-
-                            message_log.add_message(
-                                f"{target.get_display_name()} is immobilized by the Jawline tether",
-                                MessageType.WARNING,
-                                player=user.player,
-                                target=target.player,
-                                target_name=target.get_display_name()
-                            )
+                        message_log.add_message(
+                            f"{target.get_display_name()} is immobilized by the Jawline tether",
+                            MessageType.WARNING,
+                            player=user.player,
+                            target=target.player,
+                            target_name=target.get_display_name()
+                        )
 
         return True
