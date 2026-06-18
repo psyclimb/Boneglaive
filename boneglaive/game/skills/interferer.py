@@ -4,13 +4,9 @@ Skills specific to the INTERFERER unit type.
 This module contains all passive and active abilities for INTERFERER units.
 """
 
-import time
 
-# Text-mode bold attribute (_A_BOLD) — avoids importing curses in game layer
-_A_BOLD = 2097152
 import random
 from typing import Optional, TYPE_CHECKING
-from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
@@ -54,32 +50,6 @@ class NeutronIlluminant(PassiveSkill):
     
     def trigger_flash_effect(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> None:
         """Trigger the neutron flash animation effect that always plays on INTERFERER attacks."""
-        # Always show the flash effect regardless of radiation burn application
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get interferer attack animation sequence
-            flash_animation = ui.asset_manager.get_skill_animation_sequence('interferer_attack')
-            if not flash_animation:
-                flash_animation = ['*', '+', 'x', '*']  # ASCII fallback
-
-            ui.renderer.animate_attack_sequence(
-                user.y, user.x,
-                flash_animation,
-                7,  # White/bright color for the flash
-                0.04  # Faster flash duration
-            )
-
-            # Additional radiating flash effect around the INTERFERER
-            radiation_positions = self._get_radiation_positions(user, target_pos)
-            flash_radiation_animation = ['*', '+', '.']
-            for pos in radiation_positions:
-                y, x = pos
-                if game.is_valid_position(y, x):
-                    ui.renderer.animate_attack_sequence(
-                        y, x,
-                        flash_radiation_animation,
-                        6,  # Yellow color for radiation flash
-                        0.03  # Faster radiating flash
-                    )
 
     def _get_radiation_positions(self, user: 'Unit', target_pos: tuple) -> list:
         """Get radiation positions based on attack direction."""
@@ -257,93 +227,6 @@ class NeuralShuntSkill(ActiveSkill):
             return False
         
         
-        # Show complex neural shunt animation
-        if ui and hasattr(ui, 'renderer'):
-            # Stage 1: Three radio wave streams converge on target from different directions
-            # Get three positions around the target (avoiding the INTERFERER's position)
-            convergence_positions = []
-            directions = [(-1, -1), (-1, 1), (1, 0), (0, -1), (0, 1), (1, -1), (1, 1)]  # All 8 directions except up
-            
-            # Pick 3 directions that don't have the INTERFERER
-            for dy, dx in directions:
-                wave_y = target.y + dy * 2  # Position 2 tiles away from target
-                wave_x = target.x + dx * 2
-                # Skip if this would be the INTERFERER's position or invalid
-                if ((wave_y, wave_x) != (user.y, user.x) and 
-                    game.is_valid_position(wave_y, wave_x) and 
-                    len(convergence_positions) < 3):
-                    convergence_positions.append((wave_y, wave_x, dy, dx))
-            
-            # Stage 1: Show radio waves building at the three positions
-            wave_buildup = ['~', '≈', '∼']
-            for i, frame in enumerate(wave_buildup):
-                for pos_y, pos_x, _, _ in convergence_positions:
-                    ui.renderer.draw_tile(pos_y, pos_x, frame, 6)  # Yellow for radio waves
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.08)
-                
-                # Clear the wave positions
-                for pos_y, pos_x, _, _ in convergence_positions:
-                    # Restore original terrain
-                    terrain_type = game.map.get_terrain_at(pos_y, pos_x)
-                    terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
-                    if hasattr(ui, 'asset_manager'):
-                        terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
-                        terrain_color = 1 if terrain_name == 'empty' else 11  # Simple color scheme
-                        ui.renderer.draw_tile(pos_y, pos_x, terrain_tile, terrain_color)
-            
-            # Stage 2: Waves converge toward target
-            convergence_frames = ['*', '+', '>', '<', '^', 'v']
-            for i, frame_char in enumerate(convergence_frames):
-                for pos_y, pos_x, dy, dx in convergence_positions:
-                    # Calculate intermediate position closer to target
-                    progress = (i + 1) / len(convergence_frames)
-                    inter_y = int(pos_y + dy * progress)
-                    inter_x = int(pos_x + dx * progress)
-                    
-                    if game.is_valid_position(inter_y, inter_x) and (inter_y, inter_x) != (target.y, target.x):
-                        ui.renderer.draw_tile(inter_y, inter_x, frame_char, 6)  # Yellow
-                
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.05)
-                
-                # Clear intermediate positions
-                for pos_y, pos_x, dy, dx in convergence_positions:
-                    progress = (i + 1) / len(convergence_frames)
-                    inter_y = int(pos_y + dy * progress)
-                    inter_x = int(pos_x + dx * progress)
-                    
-                    if game.is_valid_position(inter_y, inter_x) and (inter_y, inter_x) != (target.y, target.x):
-                        terrain_type = game.map.get_terrain_at(inter_y, inter_x)
-                        terrain_name = terrain_type.name.lower() if hasattr(terrain_type, 'name') else 'empty'
-                        if hasattr(ui, 'asset_manager'):
-                            terrain_tile = ui.asset_manager.get_terrain_tile(terrain_name)
-                            terrain_color = 1 if terrain_name == 'empty' else 11
-                            ui.renderer.draw_tile(inter_y, inter_x, terrain_tile, terrain_color)
-            
-            # Stage 3: Neural surge flash down nervous system
-            if hasattr(ui, 'asset_manager'):
-                original_unit_tile = ui.asset_manager.get_unit_tile(target.type)
-                
-                # Neural surge effect - rapid flashing through the nervous system
-                surge_frames = ['|', '\\', '/', '-', '|', '\\', '/', '-']
-                surge_colors = [1, 10, 6, 7, 1, 10, 6, 7]  # Red, red background, yellow, white alternating
-                
-                for i, (frame, color) in enumerate(zip(surge_frames, surge_colors)):
-                    ui.renderer.draw_tile(target.y, target.x, frame, color)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.03)  # Very fast neural surge
-            
-            # Stage 4: Confusion flashing
-            confusion_frames = ['?', original_unit_tile, '?', original_unit_tile, '?']
-            confusion_colors = [6, 3 if target.player == 1 else 4, 6, 3 if target.player == 1 else 4, 6]
-            confusion_durations = [0.1, 0.1, 0.1, 0.1, 0.1]
-            
-            ui.renderer.flash_tile(target.y, target.x, confusion_frames, confusion_colors, confusion_durations)
-            
-            # Final restoration
-            ui.renderer.draw_tile(target.y, target.x, original_unit_tile, 3 if target.player == 1 else 4)
-            ui.renderer.refresh()
         
         # Apply damage (increased by 2 if upgraded)
         from boneglaive.game.upgrades import UpgradeManager
@@ -362,15 +245,6 @@ class NeuralShuntSkill(ActiveSkill):
             target_player=target.player
         )
         
-        # Show damage number
-        if ui and hasattr(ui, 'renderer'):
-            damage_text = f"-{damage}"
-            for i in range(3):
-                ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(damage_text), 7)
-                attrs = _A_BOLD if i % 2 == 0 else 0
-                ui.renderer.draw_damage_text(target.y-1, target.x*2, damage_text, 7, attrs)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.1)
         
         if target.hp <= 0:
             # Use centralized death handling to ensure all systems (like DOMINION) are notified
@@ -457,15 +331,6 @@ class KarrierRaveSkill(ActiveSkill):
             player=user.player
         )
         
-        # Show animation
-        if ui and hasattr(ui, 'renderer'):
-            phase_animation = ['o', '~', '*', '.', ' ']
-            ui.renderer.animate_attack_sequence(
-                user.y, user.x,
-                phase_animation,
-                7,  # White color
-                0.2
-            )
         
         # Apply karrier rave effect
         user.carrier_rave_active = True

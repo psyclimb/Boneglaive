@@ -7,10 +7,7 @@ The DERELICTIONIST is a support/healer unit focused on psychological abandonment
 trauma processing, and distance-based healing mechanics.
 """
 
-import time
 
-# Text-mode bold attribute (_A_BOLD) — avoids importing curses in game layer
-_A_BOLD = 2097152
 import random
 import math
 from typing import Optional, TYPE_CHECKING
@@ -103,18 +100,6 @@ def _place_derelict_building(target, user, game, ui):
                 MessageType.WARNING,
                 player=user.player
             )
-        if ui and hasattr(ui, 'renderer'):
-            building_frames = ['.', ':', '|', '+', '&']
-            building_tile_positions = [
-                (pos_y, pos_x) for pos_y, pos_x in building_positions
-                if (pos_y, pos_x) in game.derelict_building_tiles
-            ]
-            for frame in building_frames:
-                for pos_y, pos_x in building_tile_positions:
-                    color_id = 3 if target.player == 1 else 4
-                    ui.renderer.draw_damage_text(pos_y, pos_x * 2, frame, color_id)
-                ui.renderer.refresh()
-                time.sleep(0.08)
 
 
 class Severance(PassiveSkill):
@@ -280,27 +265,6 @@ class VagalRunSkill(ActiveSkill):
                         player=target.player
                     )
                     
-                    # Show healing effect on map if UI is available
-                    if ui and hasattr(ui, 'renderer'):
-                        import time
-                        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                        
-                        healing_text = f"+{actual_heal}"
-                        
-                        # Make healing text prominent with flashing effect (green color)
-                        for i in range(3):
-                            # First clear the area
-                            ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(healing_text), 7)
-                            # Draw with alternating bold/normal for a flashing effect
-                            attrs = _A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, attrs)  # Green color
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.1)
-                        
-                        # Final healing display (stays on screen slightly longer)
-                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, _A_BOLD)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
             
         elif piercing_damage > 0:
             # At close range: Damage now and store damage amount for future abreaction damage
@@ -333,30 +297,11 @@ class VagalRunSkill(ActiveSkill):
                 player=target.player
             )
 
-            # Show dereliction animation - becoming anchored/bolted down
-            if ui and hasattr(ui, 'renderer'):
-                derelict_animation = ['|', 'T', '+', '#', '#', '+', '*', 'H', 'X', '&']  # Structure forming, then anchored abandonment
-                ui.renderer.animate_attack_sequence(
-                    target.y, target.x,
-                    derelict_animation,
-                    1,  # Red color for abandonment trauma
-                    0.6  # Slower for heavy, deliberate immobilization
-                )
 
             from boneglaive.game.upgrades import UpgradeManager
             if UpgradeManager.is_skill_upgraded(user, "Derelict"):
                 _place_derelict_building(target, user, game, ui)
 
-        # Show execution animation if UI available
-        if ui and hasattr(ui, 'renderer'):
-            # Vagal run animation - trauma cracking through the nerve pathway
-            vagal_animation = ['|', '|', '|', '|', '|', '/', '\\', '~', '~', '~']  # Nerve pathway fracturing
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                vagal_animation,
-                6,  # Yellow color for trauma processing
-                0.4  # Much slower for visibility
-            )
         
         # Generate message about cleared effects
         if cleared_effects:
@@ -852,27 +797,6 @@ class DerelictSkill(ActiveSkill):
                         player=target.player
                     )
 
-                    # Show healing effect on map if UI is available
-                    if ui and hasattr(ui, 'renderer'):
-                        import time
-                        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-
-                        healing_text = f"+{actual_heal}"
-
-                        # Make healing text prominent with flashing effect (green color)
-                        for i in range(3):
-                            # First clear the area
-                            ui.renderer.draw_damage_text(target.y-1, target.x*2, " " * len(healing_text), 7)
-                            # Draw with alternating bold/normal for a flashing effect
-                            attrs = _A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, attrs)  # Green color
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.1)
-
-                        # Final healing display (stays on screen slightly longer)
-                        ui.renderer.draw_damage_text(target.y-1, target.x*2, healing_text, 3, _A_BOLD)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in other healing
         
         # Apply Derelicted status (immobilization for 1 turn) - only if not immune
         if target.is_immune_to_effects():
@@ -891,15 +815,6 @@ class DerelictSkill(ActiveSkill):
                 player=user.player
             )
 
-            # Show dereliction animation - becoming anchored/bolted down
-            if ui and hasattr(ui, 'renderer'):
-                derelict_animation = ['|', 'T', '+', '#', '#', '+', '*', 'H', 'X', '&']  # Structure forming, then anchored abandonment
-                ui.renderer.animate_attack_sequence(
-                    target.y, target.x,
-                    derelict_animation,
-                    1,  # Red color for abandonment trauma
-                    0.6  # Slower for heavy, deliberate immobilization
-                )
 
             from boneglaive.game.upgrades import UpgradeManager
             if UpgradeManager.is_skill_upgraded(user, "Derelict"):
@@ -1018,16 +933,6 @@ class PartitionSkill(ActiveSkill):
             )
             return
             
-        # Show partition animation if UI available
-        if ui and hasattr(ui, 'renderer'):
-            # Partition animation - mental barriers forming around the mind
-            partition_animation = ['(', '[', '{', '|', '||', '#', 'W', ',', ')', ']']  # Mental barriers solidifying
-            ui.renderer.animate_attack_sequence(
-                target_pos[0], target_pos[1],
-                partition_animation,
-                4,  # Blue color for protection
-                0.4  # Slow, deliberate barrier formation
-            )
         
         # Apply new partition shield system
         target.partition_shield_active = True
