@@ -6,8 +6,6 @@ This module contains all passive and active abilities for MARROW CONDENSER units
 
 from typing import Optional, TYPE_CHECKING
 import random
-# Text-mode bold attribute (_A_BOLD) — avoids importing curses in game layer
-_A_BOLD = 2097152
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
@@ -132,7 +130,6 @@ class OssifySkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Ossify skill during turn resolution."""
         import time
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
 
 
         # Check for Dominion auto-upgrade (from kills in Marrow Dike)
@@ -168,43 +165,6 @@ class OssifySkill(ActiveSkill):
             player=user.player
         )
         
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get the animation sequence
-            ossify_animation = ui.asset_manager.get_skill_animation_sequence('ossify')
-            if not ossify_animation:
-                ossify_animation = ['|', '#', '#', '+', '.']  # Fallback animation
-                
-            # Show animation at user's position
-            ui.renderer.animate_attack_sequence(
-                user.y, user.x,
-                ossify_animation,
-                7 if self.upgraded else 3,  # White for upgraded, player color for normal
-                0.15  # Duration
-            )
-            
-            # Flash the unit to show effect
-            if hasattr(ui, 'asset_manager'):
-                tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
-                color_ids = [7, 3 if user.player == 1 else 4] * 2  # Alternate white with player color
-                durations = [0.1] * 4
-                
-                ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
-                
-            # If upgraded, show a more permanent effect
-            if self.upgraded:
-                # Additional visual effect for permanent upgrade
-                ui.renderer.draw_tile(
-                    user.y, user.x,
-                    ui.asset_manager.get_unit_tile(user.type),
-                    7  # White to indicate permanent hardening
-                )
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.3)
-                
-                # Redraw board to reset colors
-                if hasattr(ui, 'draw_board'):
-                    ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
         return True
 
@@ -347,7 +307,6 @@ class MarrowDikeSkill(ActiveSkill):
         """Execute the Marrow Dike skill during turn resolution."""
         from boneglaive.game.map import TerrainType
         import time
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
         
         # Clear the indicator since we're executing
         user.marrow_dike_indicator = None
@@ -594,99 +553,6 @@ class MarrowDikeSkill(ActiveSkill):
                 player=user.player
             )
         
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer'):
-            # First visualize any unit movement animations
-            for movement in unit_movements:
-                if hasattr(ui, 'renderer'):
-                    unit = movement['unit']
-                    orig_y, orig_x = movement['from']
-                    new_y, new_x = movement['to']
-                    dy, dx = movement['dy'], movement['dx']
-                    
-                    # Show animation of unit being pulled in
-                    pull_animation = ['>', 'v', '<', '^']  # Direction indicators
-
-                    # Choose the right direction indicator based on direction
-                    direction_idx = 0
-                    if dx > 0:
-                        direction_idx = 0  # >
-                    elif dy > 0:
-                        direction_idx = 1  # v
-                    elif dx < 0:
-                        direction_idx = 2  # <
-                    elif dy < 0:
-                        direction_idx = 3  # ^
-                        
-                    # Draw directional indicator
-                    ui.renderer.draw_tile(
-                        orig_y, orig_x,
-                        pull_animation[direction_idx],
-                        6  # Yellow color for movement
-                    )
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.2)
-                    
-                    # Show unit at new position
-                    unit_symbol = ui.asset_manager.get_unit_tile(unit.type)
-                    ui.renderer.draw_tile(
-                        new_y, new_x,
-                        unit_symbol,
-                        3 if unit.player == 1 else 4  # Player color
-                    )
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.2)
-            
-            # Now show the walls being created
-            # Get wall animation from asset manager
-            wall_animation = ui.asset_manager.get_skill_animation_sequence('marrow_dike')
-            if not wall_animation:
-                # Fallback animation if not defined in asset manager
-                wall_animation = ['╎', '╏', '┃', '┆', '┇', '┊', '┋', '#']
-            
-            # Draw animation for each tile in sequence
-            for i, (tile_y, tile_x) in enumerate(dike_tiles):
-                # Check if there's still a unit at this position after moves
-                unit_at_tile = game.get_unit_at(tile_y, tile_x)
-                
-                if not unit_at_tile:
-                    # Animate the wall creation with player's color
-                    ui.renderer.animate_attack_sequence(
-                        tile_y, tile_x,
-                        wall_animation,
-                        3 if user.player == 1 else 4,  # Player color (3 for Player 1, 4 for Player 2)
-                        0.05  # Quick animation
-                    )
-                    
-                    # If upgraded, add a reinforced wall effect
-                    if self.upgraded:
-                        prison_animation = ['#', '=', '#', '=', '#']
-                        # Draw upgraded walls with reinforced elements
-                        ui.renderer.animate_attack_sequence(
-                            tile_y, tile_x,
-                            prison_animation,
-                            7,  # White color for bone structures
-                            0.05  # Quick animation
-                        )
-                    
-                    # Draw final wall symbol in player's color
-                    ui.renderer.draw_tile(
-                        tile_y, tile_x,
-                        '#',  # Hash symbol for walls
-                        3 if user.player == 1 else 4  # Player color (3 for Player 1, 4 for Player 2)
-                    )
-                
-                # If it's the 10th tile or last tile, pause briefly to avoid overwhelming rendering
-                if i % 10 == 9 or i == len(dike_tiles) - 1:
-                    sleep_with_animation_speed(0.1)
-                    
-                    # Redraw to show progress
-                    if hasattr(ui, 'draw_board'):
-                        ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-                        
-            # Draw final state
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
         return True
 
@@ -827,7 +693,6 @@ class BoneTitheSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Bone Tithe skill during turn resolution."""
         import time
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
         from boneglaive.utils.debug import logger
         
         # Log that we're executing this skill
@@ -943,24 +808,6 @@ class BoneTitheSkill(ActiveSkill):
                 # Track total HP gained through Bone Tithe for the UP upgrade effect
                 user.bone_tithe_hp_gained = getattr(user, 'bone_tithe_hp_gained', 0) + hp_gained
                 
-                # Show healing number if UI is available (ASCII mode only)
-                if ui and hasattr(ui, 'renderer') and hasattr(ui.renderer, 'draw_damage_text') and hp_gained > 0:
-                    healing_text = f"+{hp_gained}"
-                    
-                    # Make healing text prominent with flashing effect (green color)
-                    for i in range(3):
-                        # First clear the area
-                        ui.renderer.draw_damage_text(user.y-1, user.x*2, " " * len(healing_text), 7)
-                        # Draw with alternating bold/normal for a flashing effect
-                        attrs = _A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, attrs)  # Green color
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-                    
-                    # Final healing display (stays on screen slightly longer)
-                    ui.renderer.draw_damage_text(user.y-1, user.x*2, healing_text, 3, _A_BOLD)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.3)
                 
                 message_log.add_message(
                     f"{user.get_display_name()} compacts bone marrow into himself, gaining {hp_gained} max HP.",
@@ -970,108 +817,6 @@ class BoneTitheSkill(ActiveSkill):
         
         # No ally buff messaging needed with the new upgrade
         
-        # Play animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get bone tithe animation from asset manager
-            bone_tithe_animation = ui.asset_manager.get_skill_animation_sequence('slough')  # Still using 'slough' key for animation compatibility with existing assets
-            if not bone_tithe_animation:
-                # ASCII-only animation showing bone shards flying outward
-                bone_tithe_animation = ['#', '*', '+', 'X', '*', '.']
-            
-            # First flash the user to show bone shards being expelled
-            if hasattr(ui, 'asset_manager'):
-                tile_ids = [ui.asset_manager.get_unit_tile(user.type)] * 4
-                color_ids = [6, 3 if user.player == 1 else 4] * 2  # Alternate yellow with player color
-                durations = [0.1] * 4
-                
-                ui.renderer.flash_tile(user.y, user.x, tile_ids, color_ids, durations)
-            
-            # Animate bone shards flying outward in all 8 directions
-            directions = [
-                (-1, 0),   # North
-                (-1, 1),   # Northeast
-                (0, 1),    # East
-                (1, 1),    # Southeast
-                (1, 0),    # South
-                (1, -1),   # Southwest
-                (0, -1),   # West
-                (-1, -1)   # Northwest
-            ]
-            
-            # For each direction, create an animation path
-            for dy, dx in directions:
-                # Start from user position
-                y, x = user.y, user.x
-
-                # Calculate steps outward (always 3 for 5x5)
-                max_steps = 3
-                for step in range(1, max_steps + 1):
-                    next_y = y + dy
-                    next_x = x + dx
-
-                    # Skip if position is invalid
-                    if not game.is_valid_position(next_y, next_x):
-                        break
-
-                    # Animate at this position
-                    for frame in bone_tithe_animation:
-                        # Determine color based on what's at this position
-                        target = game.get_unit_at(next_y, next_x)
-                        if target:
-                            # Enemy hit (red)
-                            if target.player != user.player:
-                                color = 1  # Red for damage 
-                            # Ally buffed (green if upgraded)
-                            elif self.upgraded:
-                                color = 2  # Green for buff
-                            # Default
-                            else:
-                                color = 7  # White for neutral
-                        else:
-                            # No target, use white for bone fragments
-                            color = 7
-                        
-                        # Draw animation frame
-                        ui.renderer.draw_tile(next_y, next_x, frame, color)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.03)  # Quick animation
-                    
-                    # Move to next position for next step
-                    y, x = next_y, next_x
-            
-            # Pause briefly after animation
-            sleep_with_animation_speed(0.1)
-            
-            # Show damage numbers and flash affected enemies
-            for enemy_data in enemies_hit:
-                enemy = enemy_data['unit']
-                damage = enemy_data['damage']
-                
-                # Show damage number
-                if hasattr(ui, 'renderer'):
-                    damage_text = f"-{damage}"
-                    ui.renderer.draw_damage_text(enemy.y - 1, enemy.x * 2, damage_text, 1, _A_BOLD)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.1)
-                
-                # Flash the enemy to show damage
-                tile_ids = [ui.asset_manager.get_unit_tile(enemy.type)] * 3
-                color_ids = [1, 7, 1]  # Red, white, red for damage effect
-                durations = [0.08] * 3
-                ui.renderer.flash_tile(enemy.y, enemy.x, tile_ids, color_ids, durations)
-            
-            # Show buff effect on allies if upgraded
-            if self.upgraded and allies_buffed:
-                for ally in allies_buffed:
-                    # Flash allies with green to show defense buff
-                    tile_ids = [ui.asset_manager.get_unit_tile(ally.type)] * 3
-                    color_ids = [2, 7, 2]  # Green, white, green for buff
-                    durations = [0.08] * 3
-                    ui.renderer.flash_tile(ally.y, ally.x, tile_ids, color_ids, durations)
-            
-            # Redraw the board after all animations
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
         # Clean up skill state after execution
         user.skill_target = None
