@@ -9,11 +9,6 @@ units into topiary sculptures, and shattering terrain and furniture for piercing
 shrapnel damage.
 """
 
-try:
-    import curses
-except ImportError:
-    curses = None
-import time
 from typing import Optional, List, Tuple, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
@@ -360,28 +355,6 @@ class HornswoggleSkill(ActiveSkill):
         if unit_at_grab and hasattr(unit_at_grab, 'is_topiary') and unit_at_grab.is_topiary:
             grabbed_topiary_unit = unit_at_grab
 
-        # Show wave animation (text mode)
-        if ui and hasattr(ui, 'renderer'):
-            from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-            dy, dx = DIRECTION_VECTORS[direction]
-            wave_frames = ['~', '=', '>']
-            for dist in range(1, self.WAVE_RANGE + 1):
-                wave_y = source_y + dy * dist
-                wave_x = source_x + dx * dist
-                if not game.is_valid_position(wave_y, wave_x):
-                    break
-                if (wave_y, wave_x) == grab_pos:
-                    # Grab impact
-                    for frame in ['*', '#', '!']:
-                        ui.renderer.draw_damage_text(wave_y, wave_x * 2, frame, 6)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.06)
-                    break
-                frame = wave_frames[dist % len(wave_frames)]
-                ui.renderer.draw_damage_text(wave_y, wave_x * 2, frame, 6)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.08)
-
         # Remove terrain from original position
         game.map.set_terrain_at(grab_y, grab_x, TerrainType.EMPTY)
 
@@ -458,14 +431,6 @@ class HornswoggleSkill(ActiveSkill):
                 'original_terrain': original_terrain
             }
             slag_positions.append((slag_y, slag_x))
-
-            # Show slag forming animation
-            if ui and hasattr(ui, 'renderer'):
-                from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                for frame in ['~', '=', '#']:
-                    ui.renderer.draw_damage_text(slag_y, slag_x * 2, frame, 1)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.04)
 
         # Process deposit tile — displace any unit there too
         _displace_unit_at(game, deposit_y, deposit_x, user, "falling terrain",
@@ -611,16 +576,6 @@ class HornswoggleSkill(ActiveSkill):
                     MessageType.ABILITY,
                     player=user.player
                 )
-
-                # Text mode animation for sympathetic drags
-                if ui and hasattr(ui, 'renderer'):
-                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                    for drag_info in sympathetic_drags:
-                        dy, dx = drag_info['to']
-                        for frame in ['~', '>', '#']:
-                            ui.renderer.draw_damage_text(dy, dx * 2, frame, 6)
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.03)
 
                 logger.info(f"SYMPATHETIC RESONANCE: {len(sympathetic_drags)} tiles shifted")
 
@@ -838,12 +793,6 @@ class TopiaryBreathSkill(ActiveSkill):
                     player=user.player
                 )
 
-                if ui and hasattr(ui, 'renderer'):
-                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                    for frame in ['@', '%', '&', '&']:
-                        ui.renderer.draw_damage_text(unit.y, unit.x * 2, frame, 2)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.06)
 
             if units_transformed > 0:
                 message_log.add_message(
@@ -940,14 +889,6 @@ class TopiaryBreathSkill(ActiveSkill):
                     player=user.player
                 )
 
-            # Text mode animation for new topiaries
-            if ui and hasattr(ui, 'renderer'):
-                from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                for ny, nx in terrain_topiary_positions + generated_topiary_positions:
-                    for frame in ['~', '%', '&']:
-                        ui.renderer.draw_damage_text(ny, nx * 2, frame, 2)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.03)
 
         else:
             # NON-UPGRADED: only transform caught units, no terrain fill
@@ -999,12 +940,6 @@ class TopiaryBreathSkill(ActiveSkill):
                     player=user.player
                 )
 
-                if ui and hasattr(ui, 'renderer'):
-                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                    for frame in ['@', '%', '&', '&']:
-                        ui.renderer.draw_damage_text(unit.y, unit.x * 2, frame, 2)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.06)
 
             if units_transformed > 0:
                 message_log.add_message(
@@ -1154,13 +1089,6 @@ class DissonanceSkill(ActiveSkill):
             del game.teleport_anchors[(ty, tx)]
             game.update_anchor_status_effects()
 
-        # Text mode shatter animation — forks strike then terrain explodes
-        if ui and hasattr(ui, 'renderer'):
-            from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-            for frame in ['Y', 'Y', '!', '#', 'X', '*', '+', '.']:
-                ui.renderer.draw_damage_text(ty, tx * 2, frame, 1)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.05)
 
         shattered_name = terrain_at.name.replace('_', ' ').lower()
         message_log.add_message(
@@ -1218,13 +1146,6 @@ class DissonanceSkill(ActiveSkill):
                         player=hit_unit.player
                     )
 
-                    # Text mode shrapnel hit animation
-                    if ui and hasattr(ui, 'renderer'):
-                        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                        for frame in ['*', '+', str(actual_damage)]:
-                            ui.renderer.draw_damage_text(shrap_y, shrap_x * 2, frame, 1)
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.04)
 
                     # Check for death
                     if hit_unit.hp <= 0 and old_hp > 0:
@@ -1373,15 +1294,6 @@ class DissonanceSkill(ActiveSkill):
                     player=user.player
                 )
 
-                # Text mode whirl animation
-                if ui and hasattr(ui, 'renderer'):
-                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                    for tile_info in rotated_tiles:
-                        ry, rx = tile_info['to']
-                        for frame in ['~', '>', '=']:
-                            ui.renderer.draw_damage_text(ry, rx * 2, frame, 2)
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.03)
 
         # Store execution data for graphical animation to read
         user.last_dissonance_data = {
