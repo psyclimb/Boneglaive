@@ -92,34 +92,77 @@ def test_basic_attacks():
             record(f"basic_attack:{ut.name}", False, repr(e))
 
 
+def _candidate_targets(g, caster, enemies, allies):
+    """Build a broad set of candidate target tiles to satisfy diverse skill ranges."""
+    cands = []
+    # every enemy and ally position (skills that target units)
+    for u in enemies + allies:
+        cands.append((u.y, u.x))
+    cands.append((caster.y, caster.x))  # self
+    # all 8 tiles adjacent to caster (directional/cone/adjacent skills)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            if dy == 0 and dx == 0:
+                continue
+            cands.append((caster.y + dy, caster.x + dx))
+    # tiles at range 2-4 along cardinals (ranged placement skills)
+    for d in (2, 3, 4):
+        cands.append((caster.y, caster.x + d))
+        cands.append((caster.y, caster.x - d))
+        cands.append((caster.y + d, caster.x))
+        cands.append((caster.y - d, caster.x))
+    # any free tiles + every furniture tile on the map (furniture-targeted skills)
+    cands += free_tiles(g, 4)
+    for y in range(HEIGHT):
+        for x in range(WIDTH):
+            t = g.map.get_terrain_at(y, x) if hasattr(g.map, 'get_terrain_at') else None
+            if t is not None:
+                cands.append((y, x))
+    # de-dup, keep in-bounds
+    seen = set()
+    out = []
+    for (y, x) in cands:
+        if 0 <= y < HEIGHT and 0 <= x < WIDTH and (y, x) not in seen:
+            seen.add((y, x))
+            out.append((y, x))
+    return out
+
+
 def test_all_active_skills():
-    """Every active skill of every unit executes through ui=None without error."""
+    """Every active skill of every unit executes through ui=None without error.
+
+    Uses a furniture-rich map and an arena with both adjacent and ranged enemies
+    so that as many skills as possible reach their execute() path (the place the
+    inline-ASCII animation code lives)."""
     for ut in PLAYABLE:
-        # Build a small arena: caster + an enemy + an ally, spread out
-        g = fresh_game()
-        ts = free_tiles(g, 6)
-        if len(ts) < 4:
+        # stained_stones is furniture-rich (helps Delphic furniture skills)
+        g = fresh_game(map_name="stained_stones")
+        ts = free_tiles(g, 8)
+        if len(ts) < 5:
             record(f"skills:{ut.name}", False, "not enough tiles")
             continue
         caster = place(g, ut, 1, *ts[0])
+        # an adjacent enemy (for Pry/Granite Geas/Neural Shunt), if a neighbour tile is free
+        adj_enemy = None
+        for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1)):
+            ny, nx = caster.y + dy, caster.x + dx
+            if 0 <= ny < HEIGHT and 0 <= nx < WIDTH and g.map.can_place_unit(ny, nx) and g.get_unit_at(ny, nx) is None:
+                adj_enemy = place(g, UnitType.MANDIBLE_FOREMAN, 2, ny, nx)
+                break
         ally = place(g, UnitType.POTPOURRIST, 1, *ts[1])
-        enemy1 = place(g, UnitType.MANDIBLE_FOREMAN, 2, *ts[2])
-        enemy2 = place(g, UnitType.GRAYMAN, 2, *ts[3])
+        enemy2 = place(g, UnitType.GRAYMAN, 2, *ts[2])
+        enemy3 = place(g, UnitType.GLAIVEMAN, 2, *ts[3])
+        enemies = [e for e in (adj_enemy, enemy2, enemy3) if e]
+        allies = [ally]
         skills = list(getattr(caster, 'active_skills', []) or [])
         if not skills:
             record(f"skills:{ut.name}", False, "no active_skills")
             continue
         ok_all = True
         notes = []
+        executed_count = 0
         for skill in skills:
-            # try a few candidate targets: enemy, ally, self, empty tile, adjacent tile
-            candidates = [
-                (enemy1.y, enemy1.x), (enemy2.y, enemy2.x), (ally.y, ally.x),
-                (caster.y, caster.x),
-            ]
-            candidates += free_tiles(g, 2)
-            # also a tile adjacent to caster (for directional/cone skills)
-            candidates.append((caster.y, min(caster.x + 1, WIDTH - 1)))
+            candidates = _candidate_targets(g, caster, enemies, allies)
             used = False
             for tgt in candidates:
                 try:
@@ -129,6 +172,7 @@ def test_all_active_skills():
                         g.current_player = 1
                         g.execute_turn(ui=None)
                         used = True
+                        executed_count += 1
                         notes.append(f"{skill.name}=OK")
                         break
                 except Exception as e:
@@ -139,14 +183,14 @@ def test_all_active_skills():
                     used = True
                     break
             if not used:
-                # can_use was False everywhere — not a failure, skill just had no valid target here
                 notes.append(f"{skill.name}=no-target")
-            # reset action state for next skill on a fresh caster turn
+            # reset action state for next skill
             caster.selected_skill = None
             caster.skill_target = None
-            caster.skill_used = False if hasattr(caster, 'skill_used') else None
-            caster.took_action = False if hasattr(caster, 'took_action') else None
-        record(f"skills:{ut.name}", ok_all, "; ".join(notes))
+            for attr in ('skill_used', 'took_action', 'attacked', 'moved'):
+                if hasattr(caster, attr):
+                    setattr(caster, attr, False)
+        record(f"skills:{ut.name}", ok_all, f"{executed_count}/{len(skills)} executed | " + "; ".join(notes))
 
 
 def test_turn_cycle_and_respawn():
