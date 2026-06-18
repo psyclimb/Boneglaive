@@ -734,19 +734,6 @@ class Unit:
                 self.partition_shield_caster = None
                 self.partition_shield_emergency_active = False
                 
-                # Show dissociation animation - eyes rolling back, complete mental separation
-                # (ASCII version only - graphical version uses PartitionDissociationAnimation)
-                if (self._game and hasattr(self._game, 'ui') and self._game.ui and
-                    hasattr(self._game.ui, 'renderer') and
-                    hasattr(self._game.ui.renderer, 'animate_attack_sequence')):
-                    dissociation_animation = ['o', 'O', '0', '^', '_', '-', '=', '=', 'O', '1']  # Eyes rolling back into skull
-                    self._game.ui.renderer.animate_attack_sequence(
-                        self.y, self.x,
-                        dissociation_animation,
-                        7,  # White/bright for dissociation
-                        0.8  # Much slower for dramatic eye rolling effect
-                    )
-                
                 from boneglaive.utils.message_log import message_log, MessageType
                 message_log.add_message(
                     f"{self.get_display_name()} dissociates from battle",
@@ -801,14 +788,8 @@ class Unit:
                         logger.info(f"PRT AUTO: {self.get_display_name()}'s partition absorbed {prt_absorbed} damage")
 
                         # Signal for renderers to show partition hit animation
-                        # Graphical mode: detected by game_state.py and dispatched as AnimationEvent
-                        # Text mode: rendered inline via curses animate_attack_sequence
+                        # Animation: detected by game_state.py and dispatched as AnimationEvent
                         self.partition_hit_for_animation = True
-                        if self._game and hasattr(self._game, 'ui') and self._game.ui and hasattr(self._game.ui, 'renderer'):
-                            renderer = self._game.ui.renderer
-                            if not hasattr(renderer, 'camera'):
-                                partition_reverberation = [')', ']', '|', '#', '|', ']', ')', '(', '[', '|']
-                                renderer.animate_attack_sequence(self.y, self.x, partition_reverberation, 4, 0.6)
                     else:
                         # HEINOUS VAPOR units silently absorb damage as gas entities
                         logger.debug(f"HEINOUS VAPOR: {self.get_display_name()} silently absorbed {prt_absorbed} damage")
@@ -1192,11 +1173,6 @@ class Unit:
         """
         from boneglaive.utils.debug import logger
         from boneglaive.utils.message_log import message_log, MessageType
-        try:
-            import curses
-        except ImportError:
-            curses = None
-        from boneglaive.utils.animation_helpers import sleep_with_animation_speed
         
         # Only process if this is a HEINOUS_VAPOR
         if self.type != UnitType.HEINOUS_VAPOR or not hasattr(self, 'vapor_type') or not self.vapor_type:
@@ -1219,64 +1195,6 @@ class Unit:
             # Graphical mode - queue AOE tick animation
             ui.game_adapter.queue_vapor_aoe_tick(self)
 
-        # Play visual effect if UI is available (for ASCII mode)
-        if ui and hasattr(ui, 'renderer'):
-            # Get appropriate animation based on vapor type
-            animation_name = f"vapor_{self.vapor_type.lower()}"
-            vapor_animation = ui.asset_manager.get_skill_animation_sequence(animation_name)
-            if not vapor_animation:
-                # Fallback animations based on vapor type
-                if self.vapor_type == "BROACHING":
-                    vapor_animation = ['~', '*', '+']
-                elif self.vapor_type == "SAFETY":
-                    vapor_animation = ['~', 'o', 'O']
-                elif self.vapor_type == "COOLANT":
-                    vapor_animation = ['~', '*', '+']
-                elif self.vapor_type == "CUTTING":
-                    vapor_animation = ['~', '%', '#']
-                elif self.vapor_type == "CALIBRATION":
-                    vapor_animation = ['~', '=', '≡']
-                elif self.vapor_type == "LIVING_AEROSOL":
-                    vapor_animation = ['5', '†', '‡']
-                else:
-                    vapor_animation = ['~', 'o', 'O']
-            
-            # Show visual effect in the area
-            for pos in affected_area:
-                y, x = pos
-                
-                # Use a subset of the animation for surrounding tiles
-                if y == self.y and x == self.x:
-                    # Center tile gets full animation
-                    anim_sequence = vapor_animation
-                    color = 7  # White for center
-                else:
-                    # Surrounding tiles get shorter animation
-                    anim_sequence = vapor_animation[:2]
-                    
-                    # Choose color based on vapor type
-                    if self.vapor_type == "BROACHING":
-                        color = 5  # Purple
-                    elif self.vapor_type == "SAFETY":
-                        color = 3  # Yellow
-                    elif self.vapor_type == "COOLANT":
-                        color = 6  # Cyan/blue
-                    elif self.vapor_type == "CUTTING":
-                        color = 1  # Red
-                    elif self.vapor_type == "CALIBRATION":
-                        color = 2  # Green
-                    elif self.vapor_type == "LIVING_AEROSOL":
-                        color = 7  # White
-                    else:
-                        color = 7  # White default
-                
-                # Animate this position
-                ui.renderer.animate_attack_sequence(
-                    y, x,
-                    anim_sequence,
-                    color,
-                    0.05  # Quick animation
-                )
         
         # Find units in the affected area
         affected_units = []
@@ -1319,24 +1237,6 @@ class Unit:
                         target_player=unit.player
                     )
                     
-                    # Show damage number if UI is available
-                    if ui and hasattr(ui, 'renderer'):
-                        damage_text = f"-{damage}"
-                        
-                        # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
-                        for i in range(3):
-                            # First clear the area
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                            # Draw with alternating bold/normal for a flashing effect
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.1)
-                        
-                        # Final damage display (stays on screen slightly longer)
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
                         
                     # Check if unit was defeated
                     if unit.hp <= 0:
@@ -1529,26 +1429,6 @@ class Unit:
                             player=self.player
                         )
 
-                        # Show cleansing effect if UI is available
-                        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-                            cleanse_animation = ui.asset_manager.get_skill_animation_sequence('cleanse')
-                            if not cleanse_animation:
-                                cleanse_animation = ['*', '+', 'o', '.']
-
-                            ui.renderer.animate_attack_sequence(
-                                unit.y, unit.x,
-                                cleanse_animation,
-                                6,  # Cyan/blue
-                                0.1
-                            )
-
-                            # Flash the unit to show cleansing
-                            if hasattr(ui, 'asset_manager'):
-                                tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
-                                color_ids = [6, 3 if unit.player == 1 else 4] * 2  # Alternate cyan with player color
-                                durations = [0.1] * 4
-
-                                ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
                     
         elif self.vapor_type == "SAFETY":
             # Saft-E-Gas performs two functions:
@@ -1632,32 +1512,6 @@ class Unit:
                         player=self.player
                     )
                     
-                    # Show healing effect if UI is available
-                    if ui and hasattr(ui, 'renderer'):
-                        healing_text = f"+{healing}"
-                        
-                        # Make healing text prominent with flashing effect (green color)
-                        for i in range(3):
-                            # First clear the area
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
-                            # Draw with alternating bold/normal for a flashing effect
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.1)
-                        
-                        # Final healing display (stays on screen slightly longer)
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.3)
-                        
-                        # Flash the unit to show healing
-                        if hasattr(ui, 'asset_manager'):
-                            tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
-                            color_ids = [3, 3 if unit.player == 1 else 4] * 2  # Alternate green with player color
-                            durations = [0.1] * 4
-                            
-                            ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
                             
         elif self.vapor_type == "COOLANT":
             # Coolant Gas: Heals allies by 3 HP
@@ -1675,32 +1529,6 @@ class Unit:
                         player=self.player
                     )
                     
-                    # Show healing effect if UI is available
-                    if ui and hasattr(ui, 'renderer'):
-                        healing_text = f"+{healing}"
-                        
-                        # Make healing text prominent with flashing effect (green color)
-                        for i in range(3):
-                            # First clear the area
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(healing_text), 7)
-                            # Draw with alternating bold/normal for a flashing effect
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, attrs)  # Green color
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.1)
-                        
-                        # Final healing display (stays on screen slightly longer)
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, healing_text, 3, curses.A_BOLD)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.3)
-                        
-                        # Flash the unit to show healing
-                        if hasattr(ui, 'asset_manager'):
-                            tile_ids = [ui.asset_manager.get_unit_tile(unit.type)] * 4
-                            color_ids = [3, 3 if unit.player == 1 else 4] * 2  # Alternate green with player color
-                            durations = [0.1] * 4
-                            
-                            ui.renderer.flash_tile(unit.y, unit.x, tile_ids, color_ids, durations)
                             
         elif self.vapor_type == "CUTTING":
             # Cutting Gas: Deals 3 pierce damage to enemies (bypasses defense)
@@ -1727,24 +1555,6 @@ class Unit:
                         target_player=unit.player
                     )
                     
-                    # Show damage number if UI is available
-                    if ui and hasattr(ui, 'renderer'):
-                        damage_text = f"-{damage}"
-                        
-                        # Make damage text more prominent with flashing effect (like FOWL_CONTRIVANCE)
-                        for i in range(3):
-                            # First clear the area
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                            # Draw with alternating bold/normal for a flashing effect
-                            attrs = curses.A_BOLD if i % 2 == 0 else 0
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)  # White color
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.1)
-                        
-                        # Final damage display (stays on screen slightly longer)
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, curses.A_BOLD)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.3)  # Match the 0.3s delay used in FOWL_CONTRIVANCE
                         
                     # Check if unit was defeated
                     if unit.hp <= 0:
@@ -1844,9 +1654,6 @@ class Unit:
                             )
                             logger.debug(f"{unit.get_display_name()} normalized by Calibration Gas")
 
-        # Redraw board after effects
-        if ui and hasattr(ui, 'draw_board'):
-            ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
     
     def apply_radiation_damage(self, game: 'Game', ui=None) -> int:
         """
@@ -1877,21 +1684,6 @@ class Unit:
             player=self.player
         )
         
-        # Show damage animation
-        if ui and hasattr(ui, 'renderer'):
-            damage_text = f"-{total_damage}"
-            try:
-                import curses
-            except ImportError:
-                curses = None
-            from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-            
-            for i in range(3):
-                ui.renderer.draw_damage_text(self.y-1, self.x*2, " " * len(damage_text), 7)
-                attrs = curses.A_BOLD if i % 2 == 0 else 0
-                ui.renderer.draw_damage_text(self.y-1, self.x*2, damage_text, 6, attrs)  # Yellow color
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.1)
         
         # Decrement all radiation stack durations
         self.radiation_stacks = [duration - 1 for duration in self.radiation_stacks if duration > 1]
@@ -2008,34 +1800,6 @@ class Unit:
                     MessageType.ABILITY
                 )
             
-            # Show healing effect on map if UI is available (via game reference)
-            if actual_heal > 0 and hasattr(self, '_game') and self._game and hasattr(self._game, 'ui'):
-                ui = self._game.ui
-                if ui and hasattr(ui, 'renderer'):
-                    try:
-                        import curses
-                    except ImportError:
-                        curses = None
-                    import time
-                    from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-                    
-                    healing_text = f"+{actual_heal}"
-                    
-                    # Make healing text prominent with flashing effect (green color)
-                    for i in range(3):
-                        # First clear the area
-                        ui.renderer.draw_damage_text(self.y-1, self.x*2, " " * len(healing_text), 7)
-                        # Draw with alternating bold/normal for a flashing effect
-                        attrs = curses.A_BOLD if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(self.y-1, self.x*2, healing_text, 3, attrs)  # Green color
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-                    
-                    # Final healing display (stays on screen slightly longer)
-                    ui.renderer.draw_damage_text(self.y-1, self.x*2, healing_text, 3, curses.A_BOLD)
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.3)
-        
         # Remove ALL negative status effects (cleanse)
         self._cleanse_all_negative_effects()
         
