@@ -7,13 +7,6 @@ Reworked as a mechanical peacock rail artillery platform.
 
 from typing import Optional, TYPE_CHECKING, List, Dict, Tuple, Set
 import random
-import time
-from boneglaive.utils.animation_helpers import sleep_with_animation_speed
-
-try:
-    import curses
-except ImportError:
-    curses = None
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.game.map import TerrainType
@@ -91,37 +84,6 @@ class RailGenesis(PassiveSkill):
                 units_hit += 1
                 total_damage += damage
                 
-                # Show impact animation and damage number (immediate for death explosion)
-                if ui and hasattr(ui, 'renderer'):
-                    # Play impact animation first
-                    if hasattr(ui, 'asset_manager'):
-                        impact_animation = ui.asset_manager.get_skill_animation_sequence('rail_explosion_impact')
-                        if not impact_animation:
-                            impact_animation = ['!', '@', '#', '*', '+', '.']  # Fallback
-                        
-                        # Animate impact at unit position
-                        ui.renderer.animate_attack_sequence(
-                            unit.y, unit.x,
-                            impact_animation,
-                            4,  # Blue color for rail explosion
-                            0.1  # Quick explosion effect
-                        )
-                    
-                    # Then show damage numbers
-                    damage_text = f"-{damage}"
-                    
-                    # Make damage text more prominent with flashing effect
-                    for i in range(3):
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                        attrs = (curses.A_BOLD if curses else 0) if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-                    
-                    # Final damage display (stays visible a bit longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, (curses.A_BOLD if curses else 0))
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.2)
                 
                 # Log the damage
                 message_log.add_combat_message(
@@ -347,75 +309,7 @@ class GaussianDuskSkill(ActiveSkill):
                 player=user.player
             )
         
-        # Play rail cannon firing animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get charging animation
-            charging_animation = ui.asset_manager.get_skill_animation_sequence('gaussian_dusk_charging')
-            if not charging_animation:
-                charging_animation = ['~', '=', '*', '+']
-            
-            # Show charging effect at user position briefly
-            for frame in charging_animation[:4]:  # Short charging flash
-                ui.renderer.draw_tile(user.y, user.x, frame, 4)  # Blue color
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.03)
-            
-            # Get firing animation
-            firing_animation = ui.asset_manager.get_skill_animation_sequence('gaussian_dusk_firing')
-            if not firing_animation:
-                firing_animation = ['*', '#', '@', '~', '.']
-            
-            # Animate the beam along the entire path
-            for i, (pos_y, pos_x) in enumerate(positions_in_line):
-                frame_idx = min(i, len(firing_animation) - 1)
-                symbol = firing_animation[frame_idx]
-                color = 1 if i % 2 == 0 else 6  # Alternating red/yellow
-                
-                ui.renderer.draw_tile(pos_y, pos_x, symbol, color)
-                if i % 3 == 0:  # Refresh every few tiles for smooth animation
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.01)
-            
-            ui.renderer.refresh()
-            sleep_with_animation_speed(0.1)
-            
-            # Redraw the board after animation
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
-        # Show impact animations and damage numbers after main animation
-        if ui and hasattr(ui, 'renderer') and damaged_units:
-            for unit, damage in damaged_units:
-                if unit.is_alive():  # Only show for living units
-                    # Play impact animation first
-                    if hasattr(ui, 'asset_manager'):
-                        impact_animation = ui.asset_manager.get_skill_animation_sequence('gaussian_dusk_impact')
-                        if not impact_animation:
-                            impact_animation = ['>', '!', '*', '#', '%', '~', '.']  # Fallback
-
-                        # Animate impact at unit position
-                        ui.renderer.animate_attack_sequence(
-                            unit.y, unit.x,
-                            impact_animation,
-                            10,  # Red color for high-energy impact
-                            0.08  # Quick, intense impact
-                        )
-
-                    # Then show damage numbers
-                    damage_text = f"-{damage}"
-
-                    # Make damage text more prominent with flashing effect
-                    for i in range(3):
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                        attrs = (curses.A_BOLD if curses else 0) if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-
-                    # Final damage display (stays visible a bit longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, (curses.A_BOLD if curses else 0))
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.2)
 
         # Apply recharge state - unit cannot take any actions for 1 turn
         user.gaussian_dusk_recharge = self.recharge_duration
@@ -846,125 +740,7 @@ class BigArcSkill(ActiveSkill):
                         player=user.player
                     )
 
-        # Play mortar barrage animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get launch animation
-            launch_animation = ui.asset_manager.get_skill_animation_sequence('parabol_launch')
-            if not launch_animation:
-                launch_animation = ['o', 'O', '0', '*']
-            
-            # Get impact animation
-            impact_animation = ui.asset_manager.get_skill_animation_sequence('parabol_impact')
-            if not impact_animation:
-                impact_animation = ['*', '#', '@', '%', '~', '.']
-            
-            # Show launch from user position
-            for frame in launch_animation:
-                ui.renderer.draw_tile(user.y, user.x, frame, 6)  # Yellow color
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.05)
-            
-            # Show shells arcing overhead (optional visual effect)
-            ui.renderer.draw_tile(user.y, user.x, ' ', 1)  # Clear launch position
-            
-            # Show impact animation on all affected positions
-            for frame in impact_animation:
-                for pos_y, pos_x, is_primary in affected_positions:
-                    color = 1 if is_primary else 3  # Red for primary, yellow for secondary
-                    ui.renderer.draw_tile(pos_y, pos_x, frame, color)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.05)
-            
-            # Redraw the board after animation
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
-        # Show impact animations and damage numbers after main animation
-        if ui and hasattr(ui, 'renderer') and damaged_units:
-            for unit, damage in damaged_units:
-                if unit.is_alive():  # Only show for living units
-                    # Play impact animation first
-                    if hasattr(ui, 'asset_manager'):
-                        impact_animation = ui.asset_manager.get_skill_animation_sequence('parabol_unit_impact')
-                        if not impact_animation:
-                            impact_animation = ['*', '@', '#', '%', '&', '+', '.']  # Fallback
-                        
-                        # Animate impact at unit position
-                        ui.renderer.animate_attack_sequence(
-                            unit.y, unit.x,
-                            impact_animation,
-                            3,  # Yellow color for explosive impact
-                            0.1  # Moderate duration for mortar explosion
-                        )
-                    
-                    # Then show damage numbers
-                    damage_text = f"-{damage}"
-                    
-                    # Make damage text more prominent with flashing effect
-                    for i in range(3):
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                        attrs = (curses.A_BOLD if curses else 0) if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-
-                    # Final damage display (stays visible a bit longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, (curses.A_BOLD if curses else 0))
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.2)
-
-        # UPGRADE: Show second explosion animations
-        if is_upgraded and ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager') and second_affected_positions:
-            # Show underground travel effect (optional brief pause)
-            sleep_with_animation_speed(0.2)
-
-            # Get impact animation
-            impact_animation = ui.asset_manager.get_skill_animation_sequence('parabol_impact')
-            if not impact_animation:
-                impact_animation = ['*', '#', '@', '%', '~', '.']
-
-            # Show impact animation on all second explosion positions
-            for frame in impact_animation:
-                for pos_y, pos_x, is_primary in second_affected_positions:
-                    color = 5 if is_primary else 6  # Magenta/cyan for underground explosion
-                    ui.renderer.draw_tile(pos_y, pos_x, frame, color)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.05)
-
-            # Redraw the board after animation
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-
-            # Show damage numbers for second explosion
-            if second_explosion_damaged:
-                for unit, damage in second_explosion_damaged:
-                    if unit.is_alive():
-                        # Play impact animation
-                        if hasattr(ui, 'asset_manager'):
-                            impact_animation = ui.asset_manager.get_skill_animation_sequence('parabol_unit_impact')
-                            if not impact_animation:
-                                impact_animation = ['*', '@', '#', '%', '&', '+', '.']
-
-                            ui.renderer.animate_attack_sequence(
-                                unit.y, unit.x,
-                                impact_animation,
-                                5,  # Magenta color for underground explosion
-                                0.1
-                            )
-
-                        # Show damage numbers
-                        damage_text = f"-{damage}"
-
-                        for i in range(3):
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                            attrs = (curses.A_BOLD if curses else 0) if i % 2 == 0 else 0
-                            ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
-                            ui.renderer.refresh()
-                            sleep_with_animation_speed(0.1)
-
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, (curses.A_BOLD if curses else 0))
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.2)
 
         return True
 
@@ -1278,79 +1054,7 @@ class FragcrestSkill(ActiveSkill):
                 player=user.player
             )
 
-        # Play fragmentation animation if UI is available
-        if ui and hasattr(ui, 'renderer') and hasattr(ui, 'asset_manager'):
-            # Get fragmentation animation
-            frag_animation = ui.asset_manager.get_skill_animation_sequence('fragcrest_burst')
-            if not frag_animation:
-                frag_animation = ['.', ':', '*', '+', '#', 'x']
-
-            # Show tail unfold at user position
-            if is_upgraded:
-                ui.renderer.draw_tile(user.y, user.x, '@', 6)  # @ for omnidirectional burst
-            else:
-                ui.renderer.draw_tile(user.y, user.x, 'V', 6)  # V for directional cone
-            ui.renderer.refresh()
-            sleep_with_animation_speed(0.1)
-
-            # Show fragmentation burst spreading
-            for frame in frag_animation:
-                for pos_y, pos_x, is_primary in affected_positions:
-                    if is_upgraded:
-                        # Upgraded: uniform color for AOE
-                        color = 1  # Red for all
-                    else:
-                        # Base: primary vs secondary coloring
-                        color = 1 if is_primary else 3  # Red for primary, yellow for others
-                    ui.renderer.draw_tile(pos_y, pos_x, frame, color)
-                ui.renderer.refresh()
-                sleep_with_animation_speed(0.05)
-            
-            # Show knockback effects for pushed units
-            for unit in affected_units:
-                if hasattr(unit, 'old_position'):  # If we tracked old positions
-                    # Show knockback trail
-                    ui.renderer.draw_tile(unit.y, unit.x, '>', 6)  # Direction indicator
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.1)
-            
-            # Redraw the board after animation
-            if hasattr(ui, 'draw_board'):
-                ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
         
-        # Show impact animations and damage numbers after main animation
-        if ui and hasattr(ui, 'renderer') and damaged_units:
-            for unit, damage in damaged_units:
-                if unit.is_alive():  # Only show for living units
-                    # Play impact animation first
-                    if hasattr(ui, 'asset_manager'):
-                        impact_animation = ui.asset_manager.get_skill_animation_sequence('fragcrest_unit_impact')
-                        if not impact_animation:
-                            impact_animation = ['x', '+', '*', '#', '.']  # Fallback
-                        
-                        # Animate impact at unit position
-                        ui.renderer.animate_attack_sequence(
-                            unit.y, unit.x,
-                            impact_animation,
-                            6,  # Cyan color for fragmentation impact
-                            0.12  # Slightly longer for shrapnel effect
-                        )
-                    
-                    # Then show damage numbers
-                    damage_text = f"-{damage}"
-                    
-                    # Make damage text more prominent with flashing effect
-                    for i in range(3):
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, " " * len(damage_text), 7)
-                        attrs = (curses.A_BOLD if curses else 0) if i % 2 == 0 else 0
-                        ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, attrs)
-                        ui.renderer.refresh()
-                        sleep_with_animation_speed(0.1)
-                    
-                    # Final damage display (stays visible a bit longer)
-                    ui.renderer.draw_damage_text(unit.y-1, unit.x*2, damage_text, 7, (curses.A_BOLD if curses else 0))
-                    ui.renderer.refresh()
-                    sleep_with_animation_speed(0.2)
         
         return True
 
