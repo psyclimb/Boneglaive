@@ -247,18 +247,6 @@ class AnimationFactory:
         # Normalize skill name (remove spaces and hyphens, uppercase)
         skill_key = skill_name.upper().replace(" ", "_").replace("-", "_")
 
-        # DEBUG: Log all Gaussian Dusk related calls
-        if "GAUSSIAN" in skill_key or "DUSK" in skill_key:
-            pass
-            if hasattr(caster_unit, 'game_unit'):
-                pass
-                if hasattr(caster_unit.game_unit, 'charging_status'):
-                    pass
-
-        # Check for special variants
-        if skill_key == "DEMILUNE":
-            pass
-
         # Gaussian Dusk animations are now differentiated by skill name at event creation
         # "Gaussian Dusk Charge" -> GAUSSIAN_DUSK_CHARGE
         # "Gaussian Dusk Fire" -> GAUSSIAN_DUSK_FIRE
@@ -266,26 +254,17 @@ class AnimationFactory:
 
         # Check for Fragcrest trap mode (override class before lookup)
         if skill_key == "FRAGCREST" and kwargs.get('is_trap', False):
-            pass
             anim_data = (FragcrestTrapAnimation, {})
         else:
             # Get animation class and kwargs from registry
             anim_data = cls.SKILL_ANIMATIONS.get(skill_key)
 
-        # DEBUG: Log lookup result
-        if "GAUSSIAN" in skill_key or "DUSK" in skill_key:
-            pass
-            if anim_data:
-                pass
-
         if not anim_data:
-            pass
             return None
 
         anim_class, base_kwargs = anim_data
 
         if anim_class is None:
-            pass
             return None
 
         # Play skill sound effect
@@ -372,7 +351,6 @@ class AnimationFactory:
             if anim_class.__name__ == "JudgementAnimation":
                 # Requires: target_pos, game instance, camera, callbacks
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -432,7 +410,6 @@ class AnimationFactory:
                 # PryAnimation - New full animation with ceiling impact and falling debris
                 # Requires: target_pos, game instance, camera, callbacks
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -451,7 +428,6 @@ class AnimationFactory:
             elif anim_class.__name__ == "VaultAnimationController":
                 # VaultAnimationController needs target position
                 if not target_pos:
-                    pass
                     return None
 
                 # Check if vault was displaced (collision with ally move)
@@ -471,7 +447,6 @@ class AnimationFactory:
             elif anim_class.__name__ == "VaultAnimationControllerUpgraded":
                 # VaultAnimationControllerUpgraded needs target position (same signature as regular Vault)
                 if not target_pos:
-                    pass
                     return None
 
                 # Check if vault was displaced (collision with ally move)
@@ -501,7 +476,6 @@ class AnimationFactory:
                 # DeltaConfigAnimation needs caster unit, target position, and particle emitter
                 # Also needs game and units_list for upgraded abduction mechanics
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -514,7 +488,6 @@ class AnimationFactory:
             elif anim_class.__name__ == "GraeExchangeAnimation":
                 # GraeExchangeAnimation needs caster unit, target position, and particle emitter
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -567,7 +540,6 @@ class AnimationFactory:
             elif anim_class.__name__ == "GraniteGeasEffect":
                 # GraniteGeasEffect needs target position and target unit
                 if not target_unit:
-                    pass
                     return None
                 animation = anim_class(
                     target_x=kwargs['target_x'],
@@ -579,7 +551,6 @@ class AnimationFactory:
                 # Melange Eminence passive healing animations
                 # Requires: target_pos (POTPOURRIST position), camera, heal_amount from event
                 if not target_pos:
-                    pass
                     return None
 
                 # Get heal_amount from kwargs (passed from animation event)
@@ -612,7 +583,6 @@ class AnimationFactory:
             elif anim_class.__name__ == "NeuralShuntAnimation":
                 # Neural Shunt needs caster, target positions, and callbacks
                 if not target_unit:
-                    pass
                     return None
                 animation = anim_class(
                     caster_x=caster_screen_x,
@@ -637,7 +607,6 @@ class AnimationFactory:
             elif anim_class.__name__ == "KarrierRaveTripleStrike":
                 # Karrier Rave triple strike (melee attack with Radio Effulgent patterns)
                 if not target_unit:
-                    pass
                     return None
                 animation = anim_class(
                     caster_x=caster_screen_x,
@@ -668,7 +637,6 @@ class AnimationFactory:
                 if anim_class.__name__ == "JawlineNetworkUpgraded":
                     # Upgraded version needs target position for direction
                     if not target_pos:
-                        pass
                         return None
                     # Convert grid to screen: target_pos[1] is grid_x, target_pos[0] is grid_y
                     target_x, target_y = grid_to_screen(target_pos[1], target_pos[0])
@@ -692,7 +660,6 @@ class AnimationFactory:
                 # Expedite rush - needs start, target, and caster unit
                 # NOTE: target_pos is (grid_y, grid_x) format from renderer
                 if not target_pos:
-                    pass
                     return None
 
                 # IMPORTANT: Check if the foreman had a planned move that was cleared
@@ -733,7 +700,6 @@ class AnimationFactory:
                 # Divine Depreciation - reality-warping furniture reappraisal
                 # Requires: target_pos (furniture position), all standard callbacks, game instance
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -753,7 +719,6 @@ class AnimationFactory:
                 # Auction Curse - cursed auction with furniture detection
                 # Requires: target_pos (enemy unit), game instance for furniture within 2 tiles
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -773,7 +738,6 @@ class AnimationFactory:
                 # Market Futures - temporal investment energy infusion
                 # Requires: target_pos (furniture position), all standard callbacks, game instance
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -793,7 +757,6 @@ class AnimationFactory:
                 # Parallax - Market Futures teleportation animation
                 # Requires: target_pos (destination), camera, game instance, standard callbacks
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -866,7 +829,6 @@ class AnimationFactory:
                 heal_amount = kwargs.get('heal_amount', 0)
 
                 if not death_pos or not affected_allies:
-                    pass
                     return None
 
                 animation = anim_class(
@@ -900,7 +862,6 @@ class AnimationFactory:
                 # Marrow Dike Wall Despawn - individual wall crumbling animation
                 # Requires: target_pos (wall position), camera, standard callbacks
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -920,7 +881,6 @@ class AnimationFactory:
                 # Partition - protective barrier around ally
                 # Requires: target_unit (ally), target_pos, camera, standard callbacks
                 if not target_unit:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -940,7 +900,6 @@ class AnimationFactory:
                 # Vagal Run - lightning trauma therapy cascading down vagus nerve
                 # Requires: target_unit (ally), target_pos, camera, standard callbacks
                 if not target_unit:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -962,7 +921,6 @@ class AnimationFactory:
                 # Requires: target_unit, target_pos, camera, standard callbacks
                 # NOTE: caster_unit may be None if DERELICTIONIST died
                 if not target_unit:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,  # May be None
@@ -985,7 +943,6 @@ class AnimationFactory:
                 end_pos = kwargs.get('end_pos')
 
                 if not start_pos or not end_pos:
-                    pass
                     return None
 
                 animation = anim_class(
@@ -999,7 +956,6 @@ class AnimationFactory:
                 building_tiles = kwargs.get('building_tiles')
 
                 if not building_tiles:
-                    pass
                     return None
 
                 animation = anim_class(
@@ -1013,7 +969,6 @@ class AnimationFactory:
                 building_tiles = kwargs.get('building_tiles')
 
                 if not building_tiles:
-                    pass
                     return None
 
                 animation = anim_class(
@@ -1026,7 +981,6 @@ class AnimationFactory:
                 # Check if skill is upgraded (uses underground parabola with second explosion)
                 # Requires: target_pos (center of 3x3 area), camera, callbacks
                 if not target_pos:
-                    pass
                     return None
 
                 # Check for upgrade
@@ -1072,10 +1026,8 @@ class AnimationFactory:
                 # Requires: target_pos (primary target), target_unit, camera, callbacks, game
                 # FragcrestAnimation = normal cast, FragcrestTrapAnimation = trap detonation
                 if not target_pos:
-                    pass
                     return None
                 if not target_unit:
-                    pass
                     return None
 
                 # Both animation classes use the same constructor
@@ -1099,7 +1051,6 @@ class AnimationFactory:
                 # Gaussian Dusk Fire - rail gun beam firing across map
                 # Requires: caster_unit, target_pos (direction vector), camera, callbacks, game
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1146,7 +1097,6 @@ class AnimationFactory:
                 # Check if Diverge is upgraded (creates 3 vapors)
                 # Requires target_pos (position of unit/vapor being split), game instance
                 if not target_pos:
-                    pass
                     return None
 
                 # Check if skill is upgraded
@@ -1189,7 +1139,6 @@ class AnimationFactory:
                 # Aerosolize Arms - disarms target and creates Living Aerosol
                 # Requires: caster_unit, target_unit, target_pos, game, camera, callbacks
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1209,7 +1158,6 @@ class AnimationFactory:
                 # Auction Curse Tick - periodic DOT damage with furniture inflation
                 # Requires: target_pos (cursed unit position), game (for furniture), camera, callbacks
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1229,7 +1177,6 @@ class AnimationFactory:
                 # Auction Curse Soul Collection - death animation for upgraded Auction Curse (perfect timing)
                 # Requires: caster_unit, target_unit (dying), target_pos, game (for furniture), camera, callbacks
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1249,7 +1196,6 @@ class AnimationFactory:
                 # Matador - MASSIVE pelota projectile with multi-bounce ricochet
                 # Requires: caster_unit, target_pos, camera, particle_emitter, game, bounce_count
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1263,7 +1209,6 @@ class AnimationFactory:
                 # Poach - Medium pelota with ricochet and buff stealing
                 # Requires: caster_unit, target_pos, camera, particle_emitter, game, screen shake/flash
                 if not target_pos:
-                    pass
                     return None
 
                 animation = anim_class(
@@ -1314,7 +1259,6 @@ class AnimationFactory:
                 # Derelict Building Formation - Building rising animation
                 # Requires: building_tiles (list of grid positions), camera, game
                 if not building_tiles:
-                    pass
                     return None
 
                 animation = anim_class(
@@ -1326,7 +1270,6 @@ class AnimationFactory:
                 # Derelict Building Tiles - Persistent building tile effect
                 # Requires: building_tiles (list of grid positions), camera, game
                 if not building_tiles:
-                    pass
                     return None
 
                 animation = anim_class(
@@ -1386,7 +1329,6 @@ class AnimationFactory:
                 # Respawn - Unit rises from ground with bone particles
                 # Requires: caster_unit (respawning unit), target_pos, camera, particle_emitter, callbacks
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1406,7 +1348,6 @@ class AnimationFactory:
                 # Autoclave Failure - GLAIVEMAN charges energy but fizzles (no targets)
                 # Requires: caster_unit (GLAIVEMAN), target_pos, camera, particle_emitter, callbacks
                 if not target_pos:
-                    pass
                     return None
                 animation = anim_class(
                     caster_unit=caster_unit,
@@ -1428,7 +1369,6 @@ class AnimationFactory:
 
             return animation
         except Exception as e:
-            pass
             import traceback
             traceback.print_exc()
             return None
