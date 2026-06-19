@@ -414,21 +414,7 @@ class Game:
         
         # Print debug info
         logger.info(f"Game Mode: {config.get('game_mode')}, VS_AI Mode: {is_vs_ai_mode}")
-        
-        # Define available unit types for Player 2 in VS_AI mode (random selection)
-        vs_ai_p2_unit_types = [
-            UnitType.GLAIVEMAN,
-            UnitType.GRAYMAN,
-            UnitType.MANDIBLE_FOREMAN,
-            UnitType.POTPOURRIST,
-            UnitType.MARROW_CONDENSER,
-            UnitType.INTERFERER,
-            UnitType.FOWL_CONTRIVANCE,
-            UnitType.DELPHIC_APPRAISER,
-            UnitType.GAS_MACHINIST,
-            UnitType.DERELICTIONIST
-        ]
-        
+
         # Find valid positions for units that aren't on limestone
         valid_positions = []
         
