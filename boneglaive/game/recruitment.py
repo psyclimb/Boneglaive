@@ -7,24 +7,13 @@ Manages the pool of available units and recruitment mechanics.
 from typing import Dict, List, Optional
 from enum import Enum
 from dataclasses import dataclass, field
-from boneglaive.utils.constants import UnitType
+from boneglaive.utils.constants import UnitType, UNIT_DESCRIPTORS
 from boneglaive.utils.debug import logger
 
 
-# Define recruitment order (excluding HEINOUS_VAPOR which is summoned)
-RECRUITMENT_ORDER = [
-    UnitType.GLAIVEMAN,
-    UnitType.MANDIBLE_FOREMAN,
-    UnitType.GRAYMAN,
-    UnitType.MARROW_CONDENSER,
-    UnitType.FOWL_CONTRIVANCE,
-    UnitType.GAS_MACHINIST,
-    UnitType.DELPHIC_APPRAISER,
-    UnitType.INTERFERER,
-    UnitType.DERELICTIONIST,
-    UnitType.POTPOURRIST,
-    UnitType.LANDSCAPER,
-]
+# Recruitment/selection order, derived from the descriptor table. HEINOUS_VAPOR
+# (a summon) is excluded because it is marked non-recruitable.
+RECRUITMENT_ORDER = [d.unit_type for d in UNIT_DESCRIPTORS if d.recruitable]
 
 
 class RecruitmentPhase(Enum):

@@ -34,51 +34,48 @@ class UnitStats(NamedTuple):
     move_range: int
     attack_range: int
 
-UNIT_STATS = {
-    UnitType.GLAIVEMAN: UnitStats(22, 5, 1, 3, 2),
-    UnitType.MANDIBLE_FOREMAN: UnitStats(22, 3, 1, 3, 1),
-    UnitType.GRAYMAN: UnitStats(18, 4, 0, 4, 5),
-    UnitType.MARROW_CONDENSER: UnitStats(22, 4, 2, 3, 1),
-    UnitType.FOWL_CONTRIVANCE: UnitStats(18, 4, 0, 3, 3),
-    UnitType.GAS_MACHINIST: UnitStats(20, 4, 1, 3, 2),
-    UnitType.HEINOUS_VAPOR: UnitStats(1, 0, 0, 4, 1),
-    UnitType.DELPHIC_APPRAISER: UnitStats(20, 3, 0, 4, 2),
-    UnitType.INTERFERER: UnitStats(18, 4, 0, 4, 1),
-    UnitType.DERELICTIONIST: UnitStats(18, 0, 0, 4, 1),
-    UnitType.POTPOURRIST: UnitStats(24, 5, 0, 3, 1),
-    UnitType.LANDSCAPER: UnitStats(20, 1, 1, 2, 1)
-}
 
-UNIT_SYMBOLS = {
-    UnitType.GLAIVEMAN: 'G',
-    UnitType.MANDIBLE_FOREMAN: 'F',
-    UnitType.GRAYMAN: 'Ψ',  # Greek psi for Psi/anomalous nature
-    UnitType.MARROW_CONDENSER: 'C',  # C for Condenser
-    UnitType.FOWL_CONTRIVANCE: 'T',  # T for Turret/artillery (matches help page)
-    UnitType.GAS_MACHINIST: 'M',  # M for Machinist
-    UnitType.HEINOUS_VAPOR: 'V',  # Generic vapor symbol, actual symbols set in skills
-    UnitType.DELPHIC_APPRAISER: 'A',  # A for Appraiser
-    UnitType.INTERFERER: 'R',  # R for Radioactive interference
-    UnitType.DERELICTIONIST: 'D',  # D for DERELICTIONIST
-    UnitType.POTPOURRIST: 'P',  # P for POTPOURRIST
-    UnitType.LANDSCAPER: 'L'  # L for LANDSCAPER
-}
+class UnitDescriptor(NamedTuple):
+    """Single source of truth for a unit's identity: name, symbol, stats, and flags.
 
-# GP (Game Points) System
-# Units that award GP when killed (main units only, no summons/doppelgangers)
-GP_ELIGIBLE_UNITS = {
-    UnitType.GLAIVEMAN,
-    UnitType.MANDIBLE_FOREMAN,
-    UnitType.POTPOURRIST,
-    UnitType.GRAYMAN,
-    UnitType.INTERFERER,
-    UnitType.DELPHIC_APPRAISER,
-    UnitType.MARROW_CONDENSER,
-    UnitType.DERELICTIONIST,
-    UnitType.FOWL_CONTRIVANCE,
-    UnitType.GAS_MACHINIST,
-    UnitType.LANDSCAPER
-}
+    Skill wiring lives in skills/registry.py (it needs skill-class imports that
+    must not reach down into this low-level module). Everything else about a
+    unit's identity is defined here; the legacy lookup tables below are derived
+    views over UNIT_DESCRIPTORS, so adding a unit means adding one entry here.
+    """
+    unit_type: 'UnitType'
+    display_name: str
+    symbol: str
+    stats: UnitStats
+    recruitable: bool = True   # appears in the setup-phase recruitment roster
+    awards_gp: bool = True     # killing it awards a Game Point (False for summons)
+
+
+# Ordered identity table. Order is the recruitment/selection order.
+UNIT_DESCRIPTORS = (
+    UnitDescriptor(UnitType.GLAIVEMAN, 'GLAIVEMAN', 'G', UnitStats(22, 5, 1, 3, 2)),
+    UnitDescriptor(UnitType.MANDIBLE_FOREMAN, 'MANDIBLE FOREMAN', 'F', UnitStats(22, 3, 1, 3, 1)),
+    UnitDescriptor(UnitType.GRAYMAN, 'GRAYMAN', 'Ψ', UnitStats(18, 4, 0, 4, 5)),
+    UnitDescriptor(UnitType.MARROW_CONDENSER, 'MARROW CONDENSER', 'C', UnitStats(22, 4, 2, 3, 1)),
+    UnitDescriptor(UnitType.FOWL_CONTRIVANCE, 'FOWL CONTRIVANCE', 'T', UnitStats(18, 4, 0, 3, 3)),
+    UnitDescriptor(UnitType.GAS_MACHINIST, 'GAS MACHINIST', 'M', UnitStats(20, 4, 1, 3, 2)),
+    UnitDescriptor(UnitType.DELPHIC_APPRAISER, 'DELPHIC APPRAISER', 'A', UnitStats(20, 3, 0, 4, 2)),
+    UnitDescriptor(UnitType.INTERFERER, 'INTERFERER', 'R', UnitStats(18, 4, 0, 4, 1)),
+    UnitDescriptor(UnitType.DERELICTIONIST, 'DERELICTIONIST', 'D', UnitStats(18, 0, 0, 4, 1)),
+    UnitDescriptor(UnitType.POTPOURRIST, 'POTPOURRIST', 'P', UnitStats(24, 5, 0, 3, 1)),
+    UnitDescriptor(UnitType.LANDSCAPER, 'LANDSCAPER', 'L', UnitStats(20, 1, 1, 2, 1)),
+    # HEINOUS_VAPOR is a GAS_MACHINIST summon: not recruitable, awards no GP.
+    UnitDescriptor(UnitType.HEINOUS_VAPOR, 'HEINOUS VAPOR', 'V', UnitStats(1, 0, 0, 4, 1),
+                   recruitable=False, awards_gp=False),
+)
+
+DESCRIPTORS_BY_TYPE = {d.unit_type: d for d in UNIT_DESCRIPTORS}
+
+# Derived views — kept as the historical names/shapes so existing readers are
+# unchanged. Do not edit these directly; edit UNIT_DESCRIPTORS above.
+UNIT_STATS = {d.unit_type: d.stats for d in UNIT_DESCRIPTORS}
+UNIT_SYMBOLS = {d.unit_type: d.symbol for d in UNIT_DESCRIPTORS}
+GP_ELIGIBLE_UNITS = {d.unit_type for d in UNIT_DESCRIPTORS if d.awards_gp}
 
 # Greek alphabet for unit identification
 UNIT_ID_ALPHABET = [
@@ -108,18 +105,5 @@ UNIT_ID_ALPHABET = [
     'ω'   # omega
 ]
 
-# Unit display names for UI
-UNIT_DISPLAY_NAMES = {
-    UnitType.GLAIVEMAN: 'GLAIVEMAN',
-    UnitType.MANDIBLE_FOREMAN: 'MANDIBLE FOREMAN',
-    UnitType.GRAYMAN: 'GRAYMAN',
-    UnitType.MARROW_CONDENSER: 'MARROW CONDENSER',
-    UnitType.FOWL_CONTRIVANCE: 'FOWL CONTRIVANCE',
-    UnitType.GAS_MACHINIST: 'GAS MACHINIST',
-    UnitType.HEINOUS_VAPOR: 'HEINOUS VAPOR',
-    UnitType.DELPHIC_APPRAISER: 'DELPHIC APPRAISER',
-    UnitType.INTERFERER: 'INTERFERER',
-    UnitType.DERELICTIONIST: 'DERELICTIONIST',
-    UnitType.POTPOURRIST: 'POTPOURRIST',
-    UnitType.LANDSCAPER: 'LANDSCAPER'
-}
+# Unit display names for UI (derived view over UNIT_DESCRIPTORS)
+UNIT_DISPLAY_NAMES = {d.unit_type: d.display_name for d in UNIT_DESCRIPTORS}
