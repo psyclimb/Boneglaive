@@ -43,9 +43,8 @@ class DebugConfig:
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         
-        # Only log to console if not in curses mode
-        # In a curses application, logging to stdout interferes with the UI
-        # If log_to_file is True, we'll log to file instead
+        # Suppress console logging by default; stdout noise is unwanted during
+        # normal play. When log_to_file is True, log to file instead.
         if not self.log_to_file:
             # Set up a null handler - we'll only log to file when explicitly enabled
             logger.addHandler(logging.NullHandler())

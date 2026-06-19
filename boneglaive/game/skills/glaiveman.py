@@ -120,16 +120,8 @@ class Autoclave(PassiveSkill):
             # We need to check if the game has a ui attribute since some tests may not have it
             ui = getattr(game, 'ui', None)
 
-        # Detect if running in graphical mode to avoid blocking sleeps
-        is_graphical = hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'
-
-        if is_graphical:
-            logger.debug("Graphical mode detected - using non-blocking execution path")
-            # In graphical mode, the GameStateAdapter automatically detects passive skill
-            # activation and queues the animation via the event system (game_state.py:723-741).
-            # No need to manually trigger animation here - just skip the blocking ASCII animations.
-        else:
-            logger.debug("ASCII mode detected - using traditional animation path")
+        # The GameStateAdapter automatically detects passive skill activation and queues
+        # the animation via the event system (game_state.py:723-741); nothing to trigger here.
 
         # Define the four directions (up, right, down, left)
         directions = [(-1, 0), (0, 1), (1, 0), (0, -1)]

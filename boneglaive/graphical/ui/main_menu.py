@@ -111,7 +111,7 @@ class MainMenuScreen(MenuScreen):
         # Draw animated background
         self.background.draw(surface)
 
-        # Draw ASCII art title
+        # Draw the title art
         self._draw_title_art(surface)
 
         # Draw version subtitle

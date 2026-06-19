@@ -86,8 +86,8 @@ class MessageLogWindow:
             self.scroll_offset = max(0, self.scroll_offset - 3)
 
     def _get_message_color(self, msg_type: str, player: Optional[int], text: str = "") -> tuple:
-        """Get color for message based on type, player, and content (matching ASCII version)."""
-        # Content-based colors (highest priority - matches ASCII logic from message_log.py)
+        """Get color for message based on type, player, and content (matching message_log.py)."""
+        # Content-based colors (highest priority - matches message_log.py)
         # Check for critical event messages first
         if " perishes!" in text or "perishes from falling debris!" in text:
             return COLOR_TEXT_DEATH  # Dark red for death messages
@@ -119,7 +119,7 @@ class MessageLogWindow:
             return COLOR_TEXT_ERROR  # Red for errors
 
         # Player-specific colors for combat/ability messages
-        # (matches ASCII: use player color for messages with attacker info or ability usage)
+        # (matches message_log.py: use player color for messages with attacker info or ability usage)
         if player is not None and (msg_type == "combat" or msg_type == "ability"):
             if player == 1:
                 return COLOR_TEXT_PLAYER1

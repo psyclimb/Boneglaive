@@ -3046,7 +3046,7 @@ class Game:
             # Start the spinner animation
             ui.start_spinner()
             ui.draw_board(show_cursor=False, show_selection=False, show_attack_targets=False)
-            # Only sleep in ASCII mode - graphical mode doesn't need artificial delays
+            # Graphical mode reconstructs timing from state diffs and needs no artificial delay
             if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
                 time.sleep(0.3)  # Short delay before actions start
         
@@ -3623,7 +3623,7 @@ class Game:
                 # Add a slight pause between actions for a unit and update spinner
                 if ui:
                     ui.advance_spinner()
-                    # Only sleep in ASCII mode - graphical mode doesn't need artificial pauses
+                    # Graphical mode reconstructs timing from state diffs and needs no artificial pause
                     if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
                         time.sleep(0.15)
             
@@ -3692,7 +3692,7 @@ class Game:
                 # Add a slight pause after the skill and update spinner
                 if ui:
                     ui.advance_spinner()
-                    # Only sleep in ASCII mode - graphical mode doesn't need artificial pauses
+                    # Graphical mode reconstructs timing from state diffs and needs no artificial pause
                     if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
                         time.sleep(0.15)
             
@@ -3857,10 +3857,10 @@ class Game:
                 # Clean up the special flag
                 unit.viseroy_trap_action = False
             
-            # Add a slight pause between units' actions and update spinner (ASCII mode only)
+            # Advance the spinner between units' actions
             if ui:
                 ui.advance_spinner()
-                # Only sleep in ASCII mode - graphical mode doesn't need artificial pauses
+                # Graphical mode reconstructs timing from state diffs and needs no artificial pause
                 if not (hasattr(ui, '__class__') and ui.__class__.__name__ == 'GraphicalUIAdapter'):
                     time.sleep(0.2)
         
@@ -5386,8 +5386,6 @@ class Game:
                         # Check if unit died from trap damage
                         if target_unit.hp <= 0:
                             self.handle_unit_death(target_unit, killer_unit=owner, cause="fragcrest_trap", ui=ui)
-
-                    # Show Fragcrest animation at trap position (ASCII version only)
 
                     # Store trap trigger info for graphical mode animation (after all damage/effects applied)
                     self.triggered_fragcrest_traps.append({

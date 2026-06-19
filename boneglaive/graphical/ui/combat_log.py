@@ -100,7 +100,7 @@ class CombatLog:
 
         for msg in new_messages:
             msg_type_str = msg['type'].value if hasattr(msg['type'], 'value') else str(msg['type'])
-            # Process message text to add damage/heal placeholders (matching ASCII version)
+            # Process message text to add damage/heal placeholders (matching message_log.py)
             processed_text = self._process_message_placeholders(msg['text'], msg['type'])
 
             self.add_message(
@@ -120,7 +120,7 @@ class CombatLog:
 
     def _process_message_placeholders(self, text: str, msg_type) -> str:
         """
-        Process message text to add damage/heal placeholders (matching ASCII version).
+        Process message text to add damage/heal placeholders (matching message_log.py).
 
         Args:
             text: Original message text
@@ -310,12 +310,12 @@ class CombatLog:
             messages_drawn += 1
 
     def _get_message_color(self, message: Dict) -> tuple:
-        """Get color for a message based on its type, player, and content (matching ASCII version)."""
+        """Get color for a message based on its type, player, and content (matching message_log.py)."""
         msg_type = message['type']
         player = message.get('player')
         text = message['text']
 
-        # Content-based colors (highest priority - matches ASCII logic from message_log.py)
+        # Content-based colors (highest priority - matches message_log.py)
         # Check for critical event messages first
         if " perishes!" in text or "perishes from falling debris!" in text:
             return COLOR_TEXT_DEATH  # Dark red for death messages
@@ -347,7 +347,7 @@ class CombatLog:
             return COLOR_TEXT_ERROR  # Red for errors
 
         # Player-specific colors for combat/ability messages
-        # (matches ASCII: use player color for messages with attacker info or ability usage)
+        # (matches message_log.py: use player color for messages with attacker info or ability usage)
         if player is not None and (msg_type == 'combat' or msg_type == 'ability'):
             if player == 1:
                 return COLOR_TEXT_PLAYER1

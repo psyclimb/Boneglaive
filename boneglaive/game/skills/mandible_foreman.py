@@ -483,7 +483,7 @@ class SiteInspectionSkill(ActiveSkill):
         from boneglaive.game.upgrades import UpgradeManager
         is_upgraded = UpgradeManager.is_skill_upgraded(user, "Site Inspection")
 
-        # Apply scaled buffs based on terrain count (works in both ASCII and graphical modes)
+        # Apply scaled buffs based on terrain count
         # Upgrade adds +1 defense to all effects and makes 2+ terrain grant +1 defense
         if impassable_count <= 1 or (impassable_count >= 2 and is_upgraded):
             # Find allies in the area and apply the buff
@@ -931,7 +931,6 @@ class JawlineSkill(ActiveSkill):
                     if game.is_valid_position(y, x):
                         area_positions.append((y, x))
 
-        # Play animation if UI is available (ASCII mode only)
         # Apply Jawline damage and immobilization to enemies in all 8 adjacent tiles
         for position in area_positions:
             y, x = position

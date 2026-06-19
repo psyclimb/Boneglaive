@@ -47,7 +47,7 @@ class HelpPage:
         # Scrollbar component
         self.scrollbar = Scrollbar()
 
-        # Load unit help data from ASCII help component
+        # Load unit help data from the shared help-data module
         self.unit_help_data = self._load_unit_help_data()
 
     def _load_unit_help_data(self):

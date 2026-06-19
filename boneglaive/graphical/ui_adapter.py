@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 class GraphicalUIAdapter:
     """
     UI adapter for graphical version.
-    Provides the interface that engine.py expects (like curses GameUI).
+    Provides the interface that engine.py expects.
     """
 
     def __init__(self, renderer: 'GraphicalRenderer'):

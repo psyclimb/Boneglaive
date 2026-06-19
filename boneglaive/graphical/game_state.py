@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Game State Adapter
-Bridges the ASCII game logic with the graphical renderer.
+Bridges the game logic with the graphical renderer.
 """
 import sys
 from pathlib import Path
@@ -180,7 +180,7 @@ def get_unit_status_effects(game_unit):
 
 class GameStateAdapter:
     """
-    Adapter between ASCII game logic and graphical renderer.
+    Adapter between game logic and graphical renderer.
 
     Responsibilities:
     - Maintain connection to game logic

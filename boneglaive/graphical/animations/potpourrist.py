@@ -1167,7 +1167,7 @@ class DemiluneSwing:
         # Track which targets have been hit
         self.targets_hit = set()
 
-        # Calculate arc tiles using grid coordinates (like ASCII version)
+        # Calculate arc tiles using grid coordinates (matching the engine's grid logic)
         # This ensures the animation matches the actual game area of effect
         if caster_grid_pos and target_grid_pos:
             caster_grid_y, caster_grid_x = caster_grid_pos
@@ -1177,7 +1177,7 @@ class DemiluneSwing:
             dy = target_grid_y - caster_grid_y
             dx = target_grid_x - caster_grid_x
 
-            # Calculate arc tiles in grid space (matching ASCII logic)
+            # Calculate arc tiles in grid space (matching the engine's grid logic)
             # Explicitly check cardinal directions for clarity
             arc_grid_tiles = []
 
