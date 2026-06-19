@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Game constants, unit types, stats, and symbols."""
 from enum import Enum
-from typing import Dict
+from typing import Dict, NamedTuple
 
 # Game constants
 WIDTH = 20
@@ -14,8 +14,6 @@ CRITICAL_HEALTH_PERCENT = 0.3  # Percentage of max HP considered "critical"
 
 class UnitType(Enum):
     GLAIVEMAN = 0
-    ARCHER = 1
-    MAGE = 2
     MANDIBLE_FOREMAN = 3  # This stays as MANDIBLE_FOREMAN in the enum (no spaces allowed)
     GRAYMAN = 4  # The Immutable Anomaly
     MARROW_CONDENSER = 5  # The skeletal bone manipulator (displayed as MARROW CONDENSER)
@@ -28,28 +26,31 @@ class UnitType(Enum):
     POTPOURRIST = 12  # The tank with potpourri-enhanced healing
     LANDSCAPER = 13  # The four-armed terrain manipulator with acoustic levitation
 
-# Unit stats: (hp, attack, defense, move_range, attack_range)
+class UnitStats(NamedTuple):
+    """Base stats for a unit type. Tuple order preserved for unpacking compatibility."""
+    hp: int
+    attack: int
+    defense: int
+    move_range: int
+    attack_range: int
+
 UNIT_STATS = {
-    UnitType.GLAIVEMAN: (22, 5, 1, 3, 2),
-    UnitType.ARCHER: (15, 6, 2, 3, 3),
-    UnitType.MAGE: (12, 7, 1, 2, 2),
-    UnitType.MANDIBLE_FOREMAN: (22, 3, 1, 3, 1),
-    UnitType.GRAYMAN: (18, 4, 0, 4, 5),
-    UnitType.MARROW_CONDENSER: (22, 4, 2, 3, 1),
-    UnitType.FOWL_CONTRIVANCE: (18, 4, 0, 3, 3),
-    UnitType.GAS_MACHINIST: (20, 4, 1, 3, 2),
-    UnitType.HEINOUS_VAPOR: (1, 0, 0, 4, 1),
-    UnitType.DELPHIC_APPRAISER: (20, 3, 0, 4, 2),
-    UnitType.INTERFERER: (18, 4, 0, 4, 1),
-    UnitType.DERELICTIONIST: (18, 0, 0, 4, 1),
-    UnitType.POTPOURRIST: (24, 5, 0, 3, 1),
-    UnitType.LANDSCAPER: (20, 1, 1, 2, 1)
+    UnitType.GLAIVEMAN: UnitStats(22, 5, 1, 3, 2),
+    UnitType.MANDIBLE_FOREMAN: UnitStats(22, 3, 1, 3, 1),
+    UnitType.GRAYMAN: UnitStats(18, 4, 0, 4, 5),
+    UnitType.MARROW_CONDENSER: UnitStats(22, 4, 2, 3, 1),
+    UnitType.FOWL_CONTRIVANCE: UnitStats(18, 4, 0, 3, 3),
+    UnitType.GAS_MACHINIST: UnitStats(20, 4, 1, 3, 2),
+    UnitType.HEINOUS_VAPOR: UnitStats(1, 0, 0, 4, 1),
+    UnitType.DELPHIC_APPRAISER: UnitStats(20, 3, 0, 4, 2),
+    UnitType.INTERFERER: UnitStats(18, 4, 0, 4, 1),
+    UnitType.DERELICTIONIST: UnitStats(18, 0, 0, 4, 1),
+    UnitType.POTPOURRIST: UnitStats(24, 5, 0, 3, 1),
+    UnitType.LANDSCAPER: UnitStats(20, 1, 1, 2, 1)
 }
 
 UNIT_SYMBOLS = {
     UnitType.GLAIVEMAN: 'G',
-    UnitType.ARCHER: 'A',
-    UnitType.MAGE: 'M',
     UnitType.MANDIBLE_FOREMAN: 'F',
     UnitType.GRAYMAN: 'Ψ',  # Greek psi for Psi/anomalous nature
     UnitType.MARROW_CONDENSER: 'C',  # C for Condenser
@@ -110,8 +111,6 @@ UNIT_ID_ALPHABET = [
 # Unit display names for UI
 UNIT_DISPLAY_NAMES = {
     UnitType.GLAIVEMAN: 'GLAIVEMAN',
-    UnitType.ARCHER: 'ARCHER',
-    UnitType.MAGE: 'MAGE',
     UnitType.MANDIBLE_FOREMAN: 'MANDIBLE FOREMAN',
     UnitType.GRAYMAN: 'GRAYMAN',
     UnitType.MARROW_CONDENSER: 'MARROW CONDENSER',

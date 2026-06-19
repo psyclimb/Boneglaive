@@ -6,7 +6,7 @@ but can be extended to handle image assets for graphical mode.
 """
 
 from enum import Enum
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 
 from boneglaive.utils.config import ConfigManager
 from boneglaive.utils.constants import UnitType
@@ -102,8 +102,6 @@ class AssetManager:
         # Effect symbols - enhanced ASCII for attacks
         self.effect_tiles = {
             'glaiveman_attack': '⚔',      # Crossed swords for melee
-            'archer_attack': '→',         # Arrow for ranged
-            'mage_attack': '*',           # Star for magic
             'mandible_foreman_attack': '{', # Mandible jaws (melee)
             'grayman_attack': '≈',        # Reality distortion (ranged)
             'marrow_condenser_attack': 'Ø', # Bone symbol for melee
@@ -117,8 +115,6 @@ class AssetManager:
         self.animation_sequences = {
             'glaiveman_attack': ['-', '\\', '|', '/', '\\', '-', '/', '|', '\\', '-'],  # Melee range 1 attack
             'glaiveman_extended_attack': ['-', '=', '>', '>', '|', '|', '*', 'X', 'x'],  # Blade extending progressively further
-            'archer_attack': ['.', '-', '=', '>', '*'],  # Arrow flying progressively
-            'mage_attack': ['.', '*', '*', '*', '*'],
             'mandible_foreman_attack': ['<', '[', '{', '{', '{', '{'],  # Jaws opening and closing animation
             'grayman_attack': ['.', ':', '~', '~', '~', ':', '.'],  # Reality distortion wave
             'autoclave': ['*', '+', 'x', '#', 'X', '#', 'x', '+', '*'],  # Intense cross pattern for Autoclave
@@ -262,52 +258,6 @@ class AssetManager:
     def get_effect_tile(self, effect_type: str) -> str:
         """Get the tile representation for an effect."""
         return self.effect_tiles.get(effect_type, '?')
-    
-    def get_attack_effect(self, unit_type: UnitType) -> str:
-        """Get the attack effect for a unit type."""
-        effect_map = {
-            UnitType.GLAIVEMAN: 'glaiveman_attack',
-            UnitType.ARCHER: 'archer_attack',
-            UnitType.MAGE: 'mage_attack',
-            UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack',
-            UnitType.GRAYMAN: 'grayman_attack',
-            UnitType.MARROW_CONDENSER: 'marrow_condenser_attack',
-            UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack',
-            UnitType.GAS_MACHINIST: 'gas_machinist_attack',
-            UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack',
-            UnitType.DELPHIC_APPRAISER: 'delphic_appraiser_attack',
-            UnitType.INTERFERER: 'interferer_attack',
-            UnitType.POTPOURRIST: 'potpourrist_attack',
-            UnitType.LANDSCAPER: 'landscaper_attack'
-        }
-        effect_type = effect_map.get(unit_type, 'glaiveman_attack')
-        return self.get_effect_tile(effect_type)
-
-    def get_attack_animation_sequence(self, unit_type: UnitType) -> List[str]:
-        """Get the animation sequence for an attack type."""
-        effect_map = {
-            UnitType.GLAIVEMAN: 'glaiveman_attack',
-            UnitType.ARCHER: 'archer_attack',
-            UnitType.MAGE: 'mage_attack',
-            UnitType.MANDIBLE_FOREMAN: 'mandible_foreman_attack',
-            UnitType.GRAYMAN: 'grayman_attack',
-            UnitType.MARROW_CONDENSER: 'marrow_condenser_attack',
-            UnitType.FOWL_CONTRIVANCE: 'fowl_contrivance_attack',
-            UnitType.GAS_MACHINIST: 'gas_machinist_attack',
-            UnitType.HEINOUS_VAPOR: 'heinous_vapor_attack',
-            UnitType.DELPHIC_APPRAISER: 'delphic_appraiser_attack',
-            UnitType.POTPOURRIST: 'potpourrist_attack',
-            UnitType.LANDSCAPER: 'landscaper_attack'
-        }
-        effect_type = effect_map.get(unit_type, 'glaiveman_attack')
-        return self.animation_sequences.get(effect_type, [])
-        
-    def get_skill_animation_sequence(self, skill_name: str) -> List[str]:
-        """Get the animation sequence for a specific skill."""
-        # Convert skill name to lowercase for case-insensitive matching
-        skill_key = skill_name.lower()
-        # Return the animation sequence or an empty list if not found
-        return self.animation_sequences.get(skill_key, [])
     
     def reload_assets(self) -> None:
         """Reload assets, e.g., after changing display mode."""
