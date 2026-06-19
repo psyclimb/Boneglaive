@@ -5,6 +5,7 @@ Defines skill and passive upgrades for all units.
 """
 
 from typing import Optional, Dict, List
+from boneglaive.utils.constants import UnitType
 from boneglaive.utils.message_log import message_log, MessageType
 
 # ============================================================================
@@ -12,7 +13,7 @@ from boneglaive.utils.message_log import message_log, MessageType
 # ============================================================================
 
 SKILL_UPGRADES = {
-    "GLAIVEMAN": {
+    UnitType.GLAIVEMAN: {
         "Autoclave": {
             "name": "Autoclave",
             "description": "After Autoclave triggers, another glaive counter attack is prepared.",
@@ -38,7 +39,7 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
-    "MANDIBLE_FOREMAN": {
+    UnitType.MANDIBLE_FOREMAN: {
         "Viseroy": {
             "name": "Viseroy",
             "description": "Increases initial trap damage by 1. Adds a 1 turn disarm when trap is applied. Disarm has a 3 turn cooldown.",
@@ -64,7 +65,7 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
-    "GRAYMAN": {
+    UnitType.GRAYMAN: {
         "Stasiality": {
             "name": "Stasiality",
             "description": "Enemy unit cooldowns don't decrement when adjacent to the GRAYMAN or one of his GRAYMAN doppelgangers.",
@@ -90,7 +91,7 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
-    "DELPHIC_APPRAISER": {
+    UnitType.DELPHIC_APPRAISER: {
         "Valuation Oracle": {
             "name": "Valuation Oracle",
             "description": "Enemy units are assigned astral values and treated as furniture.",
@@ -116,7 +117,7 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
-    "POTPOURRIST": {
+    UnitType.POTPOURRIST: {
         "Melange Eminence": {
             "name": "Melange Eminence",
             "description": "Heals 4 HP upon upgrading. Increases max HP from 24 to 28.",
@@ -142,7 +143,7 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
-    "INTERFERER": {
+    UnitType.INTERFERER: {
         "Radio Effulgent": {
             "name": "Radio Effulgent",
             "description": "Burns the primary target.",
@@ -168,7 +169,7 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
-    "FOWL_CONTRIVANCE": {
+    UnitType.FOWL_CONTRIVANCE: {
         "Rail Genesis": {
             "name": "Rail Genesis",
             "description": "Rail junctions grant bonuses: Parabol max range +1, attack +1, attack range +2, defense +1.",
@@ -194,7 +195,7 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
-    "GAS_MACHINIST": {
+    UnitType.GAS_MACHINIST: {
         "Effluvium Lathe": {
             "name": "Effluvium Lathe",
             "description": "Unlocks Aerosolize Arms: Disarm target and spawn LIVING AEROSOL controlled by that player.",
@@ -220,7 +221,7 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
-    "DERELICTIONIST": {
+    UnitType.DERELICTIONIST: {
         "Severance": {
             "name": "Severance",
             "description": "Allows passage through furniture and terrain while active.",
@@ -246,7 +247,7 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
-    "MARROW_CONDENSER": {
+    UnitType.MARROW_CONDENSER: {
         "Dominion": {
             "name": "Dominion",
             "description": "Only lose the current Dominion upgrade stage on death.",
@@ -272,7 +273,7 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
-    "LANDSCAPER": {
+    UnitType.LANDSCAPER: {
         "Translative Stroke": {
             "name": "Translative Stroke",
             "description": "Basic attack damage ignores defense.",
@@ -319,20 +320,11 @@ class UpgradeManager:
         Get list of upgrades available for this unit.
         Returns list of dicts with: skill_name, name, description, type, cost
         """
-        from boneglaive.utils.constants import UnitType
-
-        # Get unit type name
-        unit_type_name = None
-        for ut in UnitType:
-            if ut == unit.type:  # Compare enum to enum, not value
-                unit_type_name = ut.name
-                break
-
-        if not unit_type_name or unit_type_name not in SKILL_UPGRADES:
+        if unit.type not in SKILL_UPGRADES:
             return []
 
         upgrades = []
-        for skill_name, upgrade_def in SKILL_UPGRADES[unit_type_name].items():
+        for skill_name, upgrade_def in SKILL_UPGRADES[unit.type].items():
             # Check if not already upgraded
             if hasattr(unit, 'upgraded_skills') and skill_name in unit.upgraded_skills:
                 continue
@@ -376,7 +368,6 @@ class UpgradeManager:
             game.player2_upgrade_points -= upgrade_cost
 
         # Special handling for Rail Genesis upgrade - mark junctions
-        from boneglaive.utils.constants import UnitType
         if unit.type == UnitType.FOWL_CONTRIVANCE and skill_name == "Rail Genesis":
             # Fixed junction coordinates (4x4 grid)
             junction_coords = [
@@ -400,16 +391,9 @@ class UpgradeManager:
             unit.active_skills.append(aerosolize_skill)
 
         # Log upgrade message
-        from boneglaive.utils.constants import UnitType
-        unit_type_name = None
-        for ut in UnitType:
-            if ut == unit.type:  # Compare enum to enum, not value
-                unit_type_name = ut.name
-                break
-
         upgrade_name = "Unknown"
-        if unit_type_name in SKILL_UPGRADES and skill_name in SKILL_UPGRADES[unit_type_name]:
-            upgrade_name = SKILL_UPGRADES[unit_type_name][skill_name]['name']
+        if unit.type in SKILL_UPGRADES and skill_name in SKILL_UPGRADES[unit.type]:
+            upgrade_name = SKILL_UPGRADES[unit.type][skill_name]['name']
 
         message_log.add_message(
             f"Player {unit.player} upgraded {unit.get_display_name()}'s {skill_name} → {upgrade_name}",
