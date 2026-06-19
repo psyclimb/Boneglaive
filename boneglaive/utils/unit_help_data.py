@@ -5,7 +5,7 @@ skills, tips, tactical notes). This is pure data with no UI dependency; the grap
 help screens read it via get_unit_help_data().
 """
 
-from boneglaive.utils.constants import UnitType
+from boneglaive.utils.constants import UnitType, UNIT_STATS
 
 
 def get_unit_help_data():
@@ -13,6 +13,11 @@ def get_unit_help_data():
 
     Keys are UnitType enum members for real units, plus string keys for summon
     variants ('GRAYMAN_ECHO', 'HEINOUS_VAPOR_BROACHING', etc.).
+
+    NOTE: the inline 'stats' lists on real units below are placeholders — they
+    are overwritten from UNIT_STATS at the end of this function so the help page
+    cannot drift from the engine. Edit stats in constants.py, not here. Only the
+    string-keyed pseudo-units keep their hand-authored stats.
     """
     unit_help_dict = {
         UnitType.GLAIVEMAN: {
@@ -1063,5 +1068,18 @@ def get_unit_help_data():
             ]
         }
     }
+
+    # Stat lines for real units are derived from UNIT_STATS so the help page can
+    # never drift from the engine. Pseudo-units (string keys: vapor variants,
+    # GRAYMAN_ECHO) have no UNIT_STATS entry and keep their hardcoded stats.
+    for unit_type, stats in UNIT_STATS.items():
+        if unit_type in unit_help_dict:
+            unit_help_dict[unit_type]['stats'] = [
+                f'HP: {stats.hp}',
+                f'Attack: {stats.attack}',
+                f'Defense: {stats.defense}',
+                f'Movement: {stats.move_range}',
+                f'Range: {stats.attack_range}',
+            ]
 
     return unit_help_dict
