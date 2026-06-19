@@ -352,6 +352,29 @@ class SetupUnitHelp:
                     }
                 ]
             },
+            UnitType.ORDNANCE_GRAFT: {
+                'difficulty': 4,  # Out of 5
+                'role': 'Frontline Diver / Summoner / Burst Damage',
+                'overview': 'A gunner-samurai who grafts clustered spiked bombs onto enemies with his linstock, then touches them off for damage scaled to maximum HP. The roster\'s anti-tank: the bigger the body, the harder he hits. A leashed quadcopter drone fights alongside him.',
+                'passive': {
+                    'name': 'ROTOR GRAFT',
+                    'desc': 'Fields one leashed quadcopter drone that grafts bolas onto enemies it strikes. It regenerates a few turns after being destroyed, and falls and returns with its owner.'
+                },
+                'skills': [
+                    {
+                        'name': 'INOCULANT',
+                        'desc': 'Strikes an adjacent enemy for normal damage and grafts a bola bomb (stacks up to 3, arms after one turn).'
+                    },
+                    {
+                        'name': 'MERIDIAN CUT',
+                        'desc': 'Dashes to an empty tile within range, cutting and grafting a bola onto an enemy on arrival. Its cooldown is refunded whenever bolas detonate.'
+                    },
+                    {
+                        'name': 'HARVEST',
+                        'desc': 'Touches off every armed bola on the field. Each stack deals a percent of the target\'s maximum HP (more against healthy targets), ignoring defense.'
+                    }
+                ]
+            },
             "AETHERIC_CURLER": {
                 'difficulty': 5,  # Out of 5
                 'role': '??? / ??? / ???',

@@ -762,6 +762,64 @@ def get_unit_help_data():
                 '- Best positioning: Mid-line near terrain or furniture, in melee range for Translative Stroke cooldown cycling'
             ]
         },
+        UnitType.ORDNANCE_GRAFT: {
+            'title': 'ORDNANCE GRAFT',
+            'overview': [
+                'ORDNANCE GRAFT is a gunner-samurai who fights with a linstock — a match-staff for firing cannon. He grafts clustered spiked bombs ("bolas") onto enemies with his strikes, then touches them off for damage scaled to the target\'s maximum HP. This makes him the roster\'s dedicated anti-tank: the bigger the body, the harder he hits it. A leashed quadcopter drone fights at his side, grafting bolas of its own.',
+                '',
+                'Role: Frontline Diver / Summoner / Burst Damage'
+            ],
+            'stats': [
+                'HP: 20',
+                'Attack: 4',
+                'Defense: 1',
+                'Movement: 3',
+                'Range: 1'
+            ],
+            'skills': [
+                {
+                    'name': 'ROTOR GRAFT (Passive)',
+                    'description': 'Fields one leashed ORDNANCE DRONE that fights autonomously and grafts a bola onto enemies it strikes. The drone is bound to its owner: if destroyed it regenerates after a few turns; if the owner dies it falls with him and returns when he respawns. The drone may never stray far from its owner.',
+                    'details': []
+                },
+                {
+                    'name': 'INOCULANT (Active)',
+                    'description': 'Strike an adjacent enemy for normal attack damage and graft a bola bomb onto them. Bolas stack up to 3 on one target and arm one turn after being planted.',
+                    'details': [
+                        'Range: 1, Cooldown: 1 turn',
+                        'Bolas cap at 3 per target; cleansable'
+                    ]
+                },
+                {
+                    'name': 'MERIDIAN CUT (Active)',
+                    'description': 'Dash along a line to any empty position within range, ignoring pathing, and cut an enemy adjacent to the landing point — dealing damage and grafting a bola. Its cooldown is refunded whenever bolas detonate, so a big Harvest sends him knifing back in.',
+                    'details': [
+                        'Range: 3, Cooldown: 4 turns',
+                        'Refunds 2 cooldown per stack detonated'
+                    ]
+                },
+                {
+                    'name': 'HARVEST (Active)',
+                    'description': 'Touch off every armed bola on the field at once. Each stack deals a percent of the target\'s maximum HP (more against targets above 75% HP), ignoring defense. Stacked bolas multiply against a single tank; spread bolas sweep the board.',
+                    'details': [
+                        'Cooldown: 3 turns',
+                        'Damage: 12% max HP per stack (+6% vs healthy targets), ignores DEF'
+                    ]
+                }
+            ],
+            'tips': [
+                '- Plant bolas across two turns (Inoculant + the drone), then Harvest the cluster for a tank-melting burst',
+                '- A full 3-stack Harvest on a healthy tank takes off roughly half its health',
+                '- Detonations refund Meridian Cut — chain a Harvest into a dash to the next target',
+                '- He is weak into low-HP units; save him for the big bodies',
+                '- Protect the drone: losing it removes a planter and a detonator until it regenerates'
+            ],
+            'tactical': [
+                '- Strong against: High-HP tanks and bruisers (POTPOURRIST, MARROW CONDENSER, GLAIVEMAN, MANDIBLE FOREMAN)',
+                '- Vulnerable to: Cleanses (Vagal Run removes bolas), PRT, low-HP squishies, focus fire on his 20 HP',
+                '- Best positioning: Dive range of a tank, with the drone planting alongside; retreat on the Meridian Cut refund'
+            ]
+        },
         'HEINOUS_VAPOR_BROACHING': {
             'title': 'BROACHING GAS (1)',
             'overview': [

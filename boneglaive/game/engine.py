@@ -1477,6 +1477,13 @@ class Game:
                 logger.debug(f"LIVING_AEROSOL cannot move to ({y},{x}): would be {leash_distance} away from leash target (max 1)")
                 return False
 
+        # ORDNANCE_DRONE leash: cannot stray past its leash radius from its owner.
+        if (getattr(unit, 'is_drone', False) and getattr(unit, 'creator', None)
+                and unit.creator.is_alive()):
+            from boneglaive.utils.constants import ORDNANCE_DRONE_LEASH
+            if self.chess_distance(y, x, unit.creator.y, unit.creator.x) > ORDNANCE_DRONE_LEASH:
+                return False
+
         # Check if path passes through any units (both enemy and allied)
         # We only need to check this for moves that aren't adjacent
         if distance > 1:
@@ -2091,6 +2098,28 @@ class Game:
             if dying_unit in self.units:
                 self.units.remove(dying_unit)
             self._remove_from_unit_grid(dying_unit)
+
+        # ORDNANCE_DRONE death: start the owner's regen timer and remove the drone.
+        if getattr(dying_unit, 'is_drone', False):
+            from boneglaive.utils.constants import ORDNANCE_DRONE_REGEN
+            owner = getattr(dying_unit, 'creator', None)
+            if owner is not None:
+                owner.drone = None
+                owner.drone_regen_timer = ORDNANCE_DRONE_REGEN
+            if dying_unit in self.units:
+                self.units.remove(dying_unit)
+            self._remove_from_unit_grid(dying_unit)
+
+        # ORDNANCE_GRAFT death: its drone falls with it (returns when the owner respawns).
+        if dying_unit.type == UnitType.ORDNANCE_GRAFT:
+            drone = getattr(dying_unit, 'drone', None)
+            if drone is not None and drone.is_alive():
+                drone.creator = None  # detach so the drone's own death doesn't set a timer
+                if drone in self.units:
+                    self.units.remove(drone)
+                self._remove_from_unit_grid(drone)
+            dying_unit.drone = None
+            dying_unit.drone_regen_timer = 0
 
         # Clean up scalar nodes owned by the dying INTERFERER
         if dying_unit.type == UnitType.INTERFERER:
@@ -3176,6 +3205,8 @@ class Game:
 
                     # After unit moves, check if any LIVING_AEROSOL needs to follow
                     self._move_leashed_aerosols(unit, start_y, start_x, ui)
+                    # And any ORDNANCE_DRONE leashed to an ORDNANCE_GRAFT
+                    self._move_leashed_drones(unit, start_y, start_x, ui)
                 else:
                     logger.warning(f"Invalid move target ({y},{x}) for unit at ({unit.y},{unit.x})")
 
@@ -4544,6 +4575,9 @@ class Game:
         # Get UI reference if available
         ui = getattr(self, 'ui', None)
 
+        # ORDNANCE GRAFT: arm fused bolas and reconcile/regenerate drones.
+        self._process_ordnance_graft_upkeep()
+
         # Apply passive skills for the current player's units at the start of their turn
         # Also initialize the took_no_actions flag for health regeneration
         for unit in self.units:
@@ -5110,6 +5144,91 @@ class Game:
 
                     else:
                         logger.warning(f"No valid position for LIVING_AEROSOL to follow {unit.get_display_name()}")
+
+    def _spawn_ordnance_drone(self, owner, ui=None):
+        """Spawn an ORDNANCE_DRONE adjacent to its owner and link the two."""
+        from boneglaive.game.units import Unit
+        from boneglaive.utils.coordinates import get_adjacent_positions
+
+        spawn_pos = None
+        for ay, ax in get_adjacent_positions(owner.y, owner.x):
+            if (self.is_valid_position(ay, ax) and self.map.is_passable(ay, ax)
+                    and self.get_unit_at(ay, ax) is None):
+                spawn_pos = (ay, ax)
+                break
+        if spawn_pos is None:
+            return None  # no room; try again next turn
+
+        drone = Unit(UnitType.ORDNANCE_DRONE, owner.player, spawn_pos[0], spawn_pos[1])
+        drone.initialize_skills()
+        drone.set_game_reference(self)
+        drone.is_drone = True
+        drone.creator = owner
+        if hasattr(owner, 'greek_id') and owner.greek_id:
+            drone.greek_id = owner.greek_id.lower()
+
+        self.units.append(drone)
+        self._update_unit_grid(drone)
+
+        owner.drone = drone
+        owner.drone_regen_timer = 0
+        message_log.add_message(
+            f"{owner.get_display_name()}'s drone takes to the air",
+            MessageType.ABILITY,
+            player=owner.player
+        )
+        return drone
+
+    def _move_leashed_drones(self, unit, old_y, old_x, ui=None):
+        """Snap an ORDNANCE_DRONE back within leash range when its owner moves."""
+        from boneglaive.utils.constants import ORDNANCE_DRONE_LEASH
+        from boneglaive.utils.coordinates import get_adjacent_positions
+
+        if unit.type != UnitType.ORDNANCE_GRAFT:
+            return
+        drone = getattr(unit, 'drone', None)
+        if not (drone and drone.is_alive()):
+            return
+        if self.chess_distance(drone.y, drone.x, unit.y, unit.x) <= ORDNANCE_DRONE_LEASH:
+            return
+
+        valid = [(y, x) for (y, x) in get_adjacent_positions(unit.y, unit.x)
+                 if self.is_valid_position(y, x) and self.map.is_passable(y, x)
+                 and self.get_unit_at(y, x) is None]
+        if not valid:
+            return
+        best = min(valid, key=lambda p: self.chess_distance(drone.y, drone.x, p[0], p[1]))
+        self._remove_from_unit_grid(drone)
+        drone.y, drone.x = best
+        self._update_unit_grid(drone)
+        message_log.add_message(
+            f"{drone.get_display_name()} follows {unit.get_display_name()}",
+            MessageType.MOVEMENT,
+            player=drone.player
+        )
+
+    def _process_ordnance_graft_upkeep(self):
+        """Turn-start upkeep: arm fused bolas and reconcile/regenerate drones."""
+        from boneglaive.utils.constants import ORDNANCE_DRONE_REGEN
+
+        # Arm bolas planted on the enemies of the current player (their graft can now
+        # detonate them). A bola arms one turn after being planted.
+        for unit in self.units:
+            if unit.is_alive() and unit.player != self.current_player:
+                unit.bola_unfused = 0
+
+        # Reconcile each current-player ORDNANCE_GRAFT's drone.
+        for owner in list(self.units):
+            if not (owner.is_alive() and owner.type == UnitType.ORDNANCE_GRAFT):
+                continue
+            drone = getattr(owner, 'drone', None)
+            if drone and drone.is_alive():
+                continue  # drone present — nothing to do
+            owner.drone = None
+            if owner.drone_regen_timer > 0:
+                owner.drone_regen_timer -= 1
+            else:
+                self._spawn_ordnance_drone(owner)
 
     def _check_scalar_node_traps(self, ui=None):
         """

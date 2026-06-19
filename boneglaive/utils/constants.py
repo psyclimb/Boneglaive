@@ -11,6 +11,9 @@ RESPAWN_TIMER = 3  # Turns until dead unit can respawn
 UPGRADE_POINT_THRESHOLDS = [2, 4, 6]  # GP thresholds that award upgrade points
 INVULNERABLE_PRT = 999  # PRT value for effectively invulnerable units (Heinous Vapor, Topiary)
 CRITICAL_HEALTH_PERCENT = 0.3  # Percentage of max HP considered "critical"
+BOLA_MAX_STACKS = 3  # ORDNANCE GRAFT: max bola bombs on one target
+ORDNANCE_DRONE_REGEN = 4  # ORDNANCE GRAFT: turns to regenerate a destroyed drone
+ORDNANCE_DRONE_LEASH = 3  # ORDNANCE GRAFT: max tiles the drone may stray from its owner
 
 class UnitType(Enum):
     GLAIVEMAN = 0
@@ -25,6 +28,8 @@ class UnitType(Enum):
     DERELICTIONIST = 11  # The psychological abandonment therapist
     POTPOURRIST = 12  # The tank with potpourri-enhanced healing
     LANDSCAPER = 13  # The four-armed terrain manipulator with acoustic levitation
+    ORDNANCE_GRAFT = 14  # The gunner-samurai who grafts %HP bombs and touches them off
+    ORDNANCE_DRONE = 15  # ORDNANCE_GRAFT's leashed quadcopter summon
 
 class UnitStats(NamedTuple):
     """Base stats for a unit type. Tuple order preserved for unpacking compatibility."""
@@ -64,8 +69,12 @@ UNIT_DESCRIPTORS = (
     UnitDescriptor(UnitType.DERELICTIONIST, 'DERELICTIONIST', 'D', UnitStats(18, 0, 0, 4, 1)),
     UnitDescriptor(UnitType.POTPOURRIST, 'POTPOURRIST', 'P', UnitStats(24, 5, 0, 3, 1)),
     UnitDescriptor(UnitType.LANDSCAPER, 'LANDSCAPER', 'L', UnitStats(20, 1, 1, 2, 1)),
+    UnitDescriptor(UnitType.ORDNANCE_GRAFT, 'ORDNANCE GRAFT', 'Ø', UnitStats(20, 4, 1, 3, 1)),
     # HEINOUS_VAPOR is a GAS_MACHINIST summon: not recruitable, awards no GP.
     UnitDescriptor(UnitType.HEINOUS_VAPOR, 'HEINOUS VAPOR', 'V', UnitStats(1, 0, 0, 4, 1),
+                   recruitable=False, awards_gp=False),
+    # ORDNANCE_DRONE is an ORDNANCE_GRAFT summon: not recruitable, awards no GP.
+    UnitDescriptor(UnitType.ORDNANCE_DRONE, 'ORDNANCE DRONE', 'q', UnitStats(6, 3, 0, 4, 1),
                    recruitable=False, awards_gp=False),
 )
 

@@ -321,7 +321,13 @@ class VagalRunSkill(ActiveSkill):
         cleared_effects = []
 
         # DON'T clear vagal_run_active - that would remove itself!
-        
+
+        # Clear ORDNANCE GRAFT bolas (defuse all grafted bombs).
+        if getattr(target, 'bola_stacks', 0) > 0:
+            target.bola_stacks = 0
+            target.bola_unfused = 0
+            cleared_effects.append("Bola")
+
         # Clear negative status effects (based on UI renderer attribute names)
         if hasattr(target, 'derelicted') and target.derelicted:
             target.derelicted = False

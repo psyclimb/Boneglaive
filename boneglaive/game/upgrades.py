@@ -299,6 +299,32 @@ SKILL_UPGRADES = {
             "cost": 1
         }
     },
+    UnitType.ORDNANCE_GRAFT: {
+        "Rotor Graft": {
+            "name": "Rotor Graft",
+            "description": "The drone regenerates faster after being destroyed.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Inoculant": {
+            "name": "Inoculant",
+            "description": "Inoculant grafts an extra bola when striking an already-bola'd target.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Meridian Cut": {
+            "name": "Meridian Cut",
+            "description": "Meridian Cut passes through enemies along its path, grafting a bola onto each.",
+            "type": "buff",
+            "cost": 1
+        },
+        "Harvest": {
+            "name": "Harvest",
+            "description": "Harvest deals increased percent damage per stack against full-health targets.",
+            "type": "buff",
+            "cost": 1
+        }
+    },
 }
 
 # ============================================================================

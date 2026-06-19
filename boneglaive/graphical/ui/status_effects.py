@@ -123,6 +123,14 @@ STATUS_EFFECTS = {
         "duration_key": "topiary_duration",
         "check": lambda u: getattr(u, 'is_topiary', False)
     },
+    "bola": {
+        "name": "Bola",
+        "type": "debuff",
+        "icon": "Ø",
+        "description": "Grafted bombs; detonate for percent-max-HP damage",
+        "duration_key": "bola_stacks",  # shows the stack count, not a turn timer
+        "check": lambda u: getattr(u, 'bola_stacks', 0) > 0
+    },
     "selenic_backdraft": {
         "name": "Selenic Backdraft",
         "type": "debuff",

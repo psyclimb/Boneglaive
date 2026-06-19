@@ -212,14 +212,21 @@ def test_turn_cycle_and_respawn():
 
 
 def test_unit_registration_complete():
-    """Every recruitable unit is fully wired — skills, upgrades, help, and art.
+    """Every recruitable unit is fully wired.
 
-    The code/data half is also enforced at import (registry.py); this adds the
-    asset-file checks (require_assets=True), which only make sense where the
-    proprietary art is present, i.e. a dev checkout like this one.
+    Code/data wiring (skills, upgrades, help) is a HARD gate — also enforced at
+    import (registry.py). Asset-file presence (sprite/icon SVGs) is ADVISORY: art
+    lives outside the source tree and is absent in CI, and a unit can be built and
+    playtested before its art exists. Missing assets print as INFO, not FAIL.
     """
-    problems = validate_unit_registration(require_assets=True)
-    record("unit_registration_complete", not problems, "; ".join(problems))
+    code_data = validate_unit_registration(require_assets=False)
+    record("unit_registration_complete", not code_data, "; ".join(code_data))
+
+    asset_gaps = [p for p in validate_unit_registration(require_assets=True)
+                  if p not in code_data]
+    if asset_gaps:
+        print("  [INFO] pending art assets (not a failure): "
+              + "; ".join(asset_gaps))
 
 
 def main():

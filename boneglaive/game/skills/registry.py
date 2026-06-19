@@ -51,6 +51,10 @@ from boneglaive.game.skills.landscaper import (
     TranslativeStroke, HornswoggleSkill, TopiaryBreathSkill, DissonanceSkill
 )
 
+from boneglaive.game.skills.ordnance_graft import (
+    RotorGraft, InoculantSkill, MeridianCutSkill, HarvestSkill, ScuttleSkill
+)
+
 # Define the skills available for each unit type
 UNIT_SKILLS = {
     UnitType.GLAIVEMAN: {
@@ -96,6 +100,13 @@ UNIT_SKILLS = {
     UnitType.LANDSCAPER: {
         "passive": TranslativeStroke(),
         "active": [HornswoggleSkill(), TopiaryBreathSkill(), DissonanceSkill()]
+    },
+    UnitType.ORDNANCE_GRAFT: {
+        "passive": RotorGraft(),
+        "active": [InoculantSkill(), MeridianCutSkill(), HarvestSkill()]
+    },
+    UnitType.ORDNANCE_DRONE: {
+        "active": [ScuttleSkill()]
     }
 }
 

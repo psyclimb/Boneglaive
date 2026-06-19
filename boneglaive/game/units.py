@@ -191,6 +191,18 @@ class Unit:
         self.is_topiary = False
         self.topiary_duration = 0
 
+        # ORDNANCE GRAFT — bola bombs (a target carries these; detonated by Harvest/Scuttle).
+        # bola_stacks = total armed-or-fusing stacks; bola_unfused = planted this cycle
+        # (one-turn fuse: a stack can only detonate once it has fused). Detonatable
+        # count = bola_stacks - bola_unfused. Capped at BOLA_MAX_STACKS.
+        self.bola_stacks = 0
+        self.bola_unfused = 0
+        # ORDNANCE GRAFT — the leashed drone summon (set on the graft unit).
+        self.is_drone = False          # True on an ORDNANCE_DRONE
+        self.creator = None            # back-ref: drone -> its ORDNANCE_GRAFT owner
+        self.drone = None              # forward-ref: graft -> its living drone (or None)
+        self.drone_regen_timer = 0     # turns until a missing drone regenerates
+
         # Skills (will be initialized after import to avoid circular imports)
         self.passive_skill = None
         self.active_skills = []
