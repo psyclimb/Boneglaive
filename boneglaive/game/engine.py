@@ -5,6 +5,7 @@ import time
 from boneglaive.utils.constants import (UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT, UNIT_SYMBOLS,
                                         MAX_UNITS, RESPAWN_TIMER, UPGRADE_POINT_THRESHOLDS)
 from boneglaive.game.units import Unit
+from boneglaive.game.recruitment import RECRUITMENT_ORDER
 from boneglaive.game.map import GameMap, MapFactory, TerrainType
 from boneglaive.utils.coordinates import Position
 from boneglaive.utils.debug import debug_config, measure_perf, game_assert, logger
@@ -198,19 +199,7 @@ class Game:
             # Make sure we have the expected number of positions
             if len(valid_positions) >= 3:
                 # Available unit types for random selection
-                available_types = [
-                    UnitType.GLAIVEMAN,
-                    UnitType.GRAYMAN,
-                    UnitType.MANDIBLE_FOREMAN,
-                    UnitType.POTPOURRIST,
-                    UnitType.MARROW_CONDENSER,
-                    UnitType.INTERFERER,
-                    UnitType.FOWL_CONTRIVANCE,
-                    UnitType.DELPHIC_APPRAISER,
-                    UnitType.GAS_MACHINIST,
-                    UnitType.DERELICTIONIST,
-                    UnitType.LANDSCAPER
-                ]
+                available_types = list(RECRUITMENT_ORDER)
 
                 # Track unit counts to enforce max 1 of each type (no duplicates)
                 unit_counts = {}
@@ -489,19 +478,7 @@ class Game:
             # First create units for player 2 (AI) with random selection
             if len(p2_positions) >= 3:
                 # Available unit types for random selection
-                available_types = [
-                    UnitType.GLAIVEMAN,
-                    UnitType.GRAYMAN,
-                    UnitType.MANDIBLE_FOREMAN,
-                    UnitType.POTPOURRIST,
-                    UnitType.MARROW_CONDENSER,
-                    UnitType.INTERFERER,
-                    UnitType.FOWL_CONTRIVANCE,
-                    UnitType.DELPHIC_APPRAISER,
-                    UnitType.GAS_MACHINIST,
-                    UnitType.DERELICTIONIST,
-                    UnitType.LANDSCAPER
-                ]
+                available_types = list(RECRUITMENT_ORDER)
                 
                 # Track unit counts to enforce max 1 of each type (no duplicates)
                 unit_counts = {}
@@ -566,18 +543,7 @@ class Game:
                         unit_type = valid_types[0]
                 else:  # player 2
                     # For player 2, use random selection from all available unit types
-                    available_types = [
-                        UnitType.GLAIVEMAN,
-                        UnitType.GRAYMAN,
-                        UnitType.MANDIBLE_FOREMAN,
-                        UnitType.POTPOURRIST,
-                        UnitType.MARROW_CONDENSER,
-                        UnitType.INTERFERER,
-                        UnitType.FOWL_CONTRIVANCE,
-                        UnitType.DELPHIC_APPRAISER,
-                        UnitType.GAS_MACHINIST,
-                        UnitType.DERELICTIONIST
-                    ]
+                    available_types = list(RECRUITMENT_ORDER)
 
                     # Filter to types with count < 1 (no duplicates)
                     valid_types = [t for t in available_types
@@ -625,19 +591,7 @@ class Game:
                 logger.warning("Adding emergency units for VS_AI mode with random selection")
 
                 # Available unit types for random selection
-                available_types = [
-                    UnitType.GLAIVEMAN,
-                    UnitType.GRAYMAN,
-                    UnitType.MANDIBLE_FOREMAN,
-                    UnitType.POTPOURRIST,
-                    UnitType.MARROW_CONDENSER,
-                    UnitType.INTERFERER,
-                    UnitType.FOWL_CONTRIVANCE,
-                    UnitType.DELPHIC_APPRAISER,
-                    UnitType.GAS_MACHINIST,
-                    UnitType.DERELICTIONIST,
-                    UnitType.LANDSCAPER
-                ]
+                available_types = list(RECRUITMENT_ORDER)
                 
                 # Count existing units for player 2
                 existing_counts = {}
