@@ -10,6 +10,8 @@ jobs:
   build-linux:
     name: Linux (Ubuntu)
     runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
@@ -49,6 +51,10 @@ jobs:
           pip install pygame cairosvg cairocffi pyinstaller
           pip install -e .
 
+      - name: Get version
+        id: version
+        run: echo "version=$(python -c 'from boneglaive import __version__; print(__version__)')" >> "$GITHUB_OUTPUT"
+
       - name: Build with PyInstaller
         run: pyinstaller boneglaive.spec --distpath dist/linux
 
@@ -60,17 +66,19 @@ jobs:
       - name: Package artifact
         run: |
           cd dist/linux
-          zip -r ../../boneglaive-v1.3a-linux.zip boneglaive/
+          zip -r ../../boneglaive-v${{ steps.version.outputs.version }}-linux.zip boneglaive/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: boneglaive-linux
-          path: boneglaive-v1.3a-linux.zip
+          path: boneglaive-v${{ steps.version.outputs.version }}-linux.zip
 
   build-windows:
     name: Windows
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     env:
       # Make mingw64 DLLs visible to every step in this job
       MINGW64_BIN: C:\msys64\mingw64\bin
@@ -130,6 +138,10 @@ jobs:
           # Confirm packages are visible to the exact Python being used
           python -m pip show cairocffi cairosvg pygame pyinstaller
 
+      - name: Get version
+        id: version
+        run: echo "version=$(python -c 'from boneglaive import __version__; print(__version__)')" >> "$env:GITHUB_OUTPUT"
+
       - name: Verify cairocffi can load Cairo
         run: |
           $env:PATH = "$env:PATH;${{ env.MINGW64_BIN }}"
@@ -175,13 +187,13 @@ jobs:
 
       - name: Package artifact
         run: |
-          Compress-Archive -Path dist\windows\boneglaive\* -DestinationPath boneglaive-v1.3a-windows.zip
+          Compress-Archive -Path dist\windows\boneglaive\* -DestinationPath boneglaive-v${{ steps.version.outputs.version }}-windows.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: boneglaive-windows
-          path: boneglaive-v1.3a-windows.zip
+          path: boneglaive-v${{ steps.version.outputs.version }}-windows.zip
 
   release:
     name: Attach to Release
@@ -196,5 +208,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            boneglaive-linux/boneglaive-v1.3a-linux.zip
-            boneglaive-windows/boneglaive-v1.3a-windows.zip
+            boneglaive-linux/boneglaive-v${{ needs.build-linux.outputs.version }}-linux.zip
+            boneglaive-windows/boneglaive-v${{ needs.build-windows.outputs.version }}-windows.zip
