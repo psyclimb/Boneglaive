@@ -4,7 +4,7 @@ Registry for unit skills and abilities.
 This module maps each unit type to its available skills.
 """
 
-from boneglaive.utils.constants import UnitType, UNIT_DESCRIPTORS
+from boneglaive.utils.constants import UnitType
 
 # Import all skill classes
 from boneglaive.game.skills.glaiveman import (
@@ -99,10 +99,9 @@ UNIT_SKILLS = {
     }
 }
 
-# Every recruitable unit must have a skill set. Fail loudly at import time if a
-# new descriptor was added without wiring its skills here (was previously a
-# silent "unit with no skills").
-_missing = [d.unit_type.name for d in UNIT_DESCRIPTORS
-            if d.recruitable and d.unit_type not in UNIT_SKILLS]
-if _missing:
-    raise RuntimeError(f"UNIT_SKILLS missing skill sets for recruitable units: {_missing}")
+# Fail loudly at import time if a newly added unit is incompletely wired —
+# missing skills, upgrades, or help. This catches the silent gaps that otherwise
+# only surface during playtest. Asset-file checks are excluded here (assets live
+# outside the source tree); the test harness runs those with require_assets=True.
+from boneglaive.game.unit_validation import require_complete_unit_registration
+require_complete_unit_registration()

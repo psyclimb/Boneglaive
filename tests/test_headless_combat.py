@@ -24,6 +24,8 @@ logging.disable(logging.CRITICAL)
 
 from boneglaive.game.engine import Game
 from boneglaive.utils.constants import UnitType, HEIGHT, WIDTH
+from boneglaive.game.recruitment import RECRUITMENT_ORDER
+from boneglaive.game.unit_validation import validate_unit_registration
 
 
 def fresh_game(map_name="lime_foyer"):
@@ -58,12 +60,9 @@ def place(g, utype, player, y, x):
     return g.get_unit_at(y, x)
 
 
-PLAYABLE = [
-    UnitType.GLAIVEMAN, UnitType.MANDIBLE_FOREMAN, UnitType.GRAYMAN,
-    UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE, UnitType.GAS_MACHINIST,
-    UnitType.DELPHIC_APPRAISER, UnitType.INTERFERER, UnitType.DERELICTIONIST,
-    UnitType.POTPOURRIST, UnitType.LANDSCAPER,
-]
+# Derived from the recruitment roster so a newly added unit is exercised
+# automatically (no hand-maintained list to forget to update).
+PLAYABLE = list(RECRUITMENT_ORDER)
 
 results = []
 
@@ -212,7 +211,19 @@ def test_turn_cycle_and_respawn():
         record("turn_cycle_x3", False, repr(e))
 
 
+def test_unit_registration_complete():
+    """Every recruitable unit is fully wired — skills, upgrades, help, and art.
+
+    The code/data half is also enforced at import (registry.py); this adds the
+    asset-file checks (require_assets=True), which only make sense where the
+    proprietary art is present, i.e. a dev checkout like this one.
+    """
+    problems = validate_unit_registration(require_assets=True)
+    record("unit_registration_complete", not problems, "; ".join(problems))
+
+
 def main():
+    test_unit_registration_complete()
     test_basic_attacks()
     test_all_active_skills()
     test_turn_cycle_and_respawn()
