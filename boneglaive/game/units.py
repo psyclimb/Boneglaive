@@ -7,7 +7,7 @@ from boneglaive.utils.constants import UNIT_STATS, UnitType, INVULNERABLE_PRT
 from boneglaive.utils.debug import logger
 
 if TYPE_CHECKING:
-    from boneglaive.game.skills.core import Skill, PassiveSkill, ActiveSkill
+    from boneglaive.game.skills.core import Skill, ActiveSkill
     from boneglaive.game.engine import Game
 
 class Unit:

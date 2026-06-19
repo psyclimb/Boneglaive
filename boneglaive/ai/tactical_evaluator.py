@@ -4,7 +4,7 @@ Tactical Evaluator for Smart AI.
 Scores individual unit actions to find optimal choices.
 """
 
-from typing import TYPE_CHECKING, List, Tuple, Optional, Dict
+from typing import TYPE_CHECKING, List, Tuple
 from boneglaive.utils.debug import logger
 from boneglaive.game.skills import TargetType
 from boneglaive.game.units import UnitType

@@ -21,7 +21,7 @@ from .animations import (
     AnimationFactory, LightningBolt
 )
 from .animations.core import (
-    TILE_SIZE, COLOR_PLAYER1, COLOR_PLAYER2, COLOR_DAMAGE, COLOR_HEAL, COLOR_SKILL
+    TILE_SIZE, COLOR_PLAYER1, COLOR_PLAYER2, COLOR_DAMAGE, COLOR_HEAL
 )
 
 from .game_state import GameStateAdapter, AnimationEvent
@@ -497,19 +497,6 @@ class GraphicalRenderer:
         surface = load_svg(svg_path, TILE_SIZE, TILE_SIZE)
         if surface:
             self.rail_junction_overlay = surface
-
-    # ASCII renderer compatibility stubs
-    def animate_attack_sequence(self, y, x, sequence, color, duration):
-        """Stub for ASCII renderer compatibility. Graphical mode uses AnimationFactory instead."""
-        pass
-
-    def draw_damage_text(self, y, x, text, color, attrs=None):
-        """Stub for ASCII renderer compatibility. Graphical mode uses FloatingText instead."""
-        pass
-
-    def refresh(self):
-        """Stub for ASCII renderer compatibility. Graphical mode handles rendering differently."""
-        pass
 
     def sync_units_from_game(self):
         """

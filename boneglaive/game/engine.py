@@ -2,13 +2,13 @@
 """Core game engine — state machine, combat resolution, and turn flow."""
 import logging
 import time
-from boneglaive.utils.constants import (UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT, UNIT_SYMBOLS,
+from boneglaive.utils.constants import (UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT,
                                         MAX_UNITS, RESPAWN_TIMER, UPGRADE_POINT_THRESHOLDS)
 from boneglaive.game.units import Unit
 from boneglaive.game.recruitment import RECRUITMENT_ORDER
 from boneglaive.game.map import GameMap, MapFactory, TerrainType
 from boneglaive.utils.coordinates import Position
-from boneglaive.utils.debug import debug_config, measure_perf, game_assert, logger
+from boneglaive.utils.debug import debug_config, measure_perf, logger
 from boneglaive.utils.message_log import message_log, MessageType
 
 # Set up module logger if not already set up
@@ -2178,12 +2178,6 @@ class Game:
                         unit.demilune_debuff_duration = 0
 
 
-    def process_buff_durations(self, ui=None):
-        """
-        Backward compatibility method - redirects to process_status_effects.
-        """
-        return self.process_status_effects(ui)
-        
     def process_status_effects(self, ui=None):
         """
         Process status effect durations for all units of the current player.
@@ -2996,7 +2990,7 @@ class Game:
         logger.info(f"Executing turn {self.turn} for player {self.current_player}")
         
         # Process status effects for the current player's units
-        self.process_buff_durations(ui)
+        self.process_status_effects(ui)
         
         # Process Neural Shunt random actions for affected units
         # (may already have been called by the graphical renderer for animation detection)
@@ -4013,7 +4007,7 @@ class Game:
                             target_name=unit.get_display_name()
                         )
 
-                    # NOTE: Ossify duration is now handled in process_buff_durations() at line 2597-2639
+                    # NOTE: Ossify duration is now handled in process_status_effects()
                     # The old duplicate code that was here has been removed to prevent double-removal bugs
 
                     # Clean up expired Investment effects that weren't cleaned up during attack
