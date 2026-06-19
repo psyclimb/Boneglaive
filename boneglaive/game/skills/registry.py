@@ -4,6 +4,8 @@ Registry for unit skills and abilities.
 This module maps each unit type to its available skills.
 """
 
+from boneglaive.utils.constants import UnitType
+
 # Import all skill classes
 from boneglaive.game.skills.glaiveman import (
     Autoclave, PrySkill, VaultSkill, JudgementSkill
@@ -51,47 +53,47 @@ from boneglaive.game.skills.landscaper import (
 
 # Define the skills available for each unit type
 UNIT_SKILLS = {
-    "GLAIVEMAN": {
+    UnitType.GLAIVEMAN: {
         "passive": Autoclave(),
         "active": [PrySkill(), VaultSkill(), JudgementSkill()]
     },
-    "MANDIBLE_FOREMAN": {
+    UnitType.MANDIBLE_FOREMAN: {
         "passive": Viseroy(),
         "active": [DischargeSkill(), SiteInspectionSkill(), JawlineSkill()]
     },
-    "GRAYMAN": {
+    UnitType.GRAYMAN: {
         "passive": Stasiality(),
         "active": [DeltaConfigSkill(), EstrangeSkill(), GraeExchangeSkill()]
     },
-    "MARROW_CONDENSER": {  # Displayed as "MARROW CONDENSER" in-game
+    UnitType.MARROW_CONDENSER: {
         "passive": Dominion(),
         "active": [OssifySkill(), MarrowDikeSkill(), BoneTitheSkill()]
     },
-    "FOWL_CONTRIVANCE": {
+    UnitType.FOWL_CONTRIVANCE: {
         "passive": RailGenesis(),
         "active": [GaussianDuskSkill(), BigArcSkill(), FragcrestSkill()]
     },
-    "GAS_MACHINIST": {
+    UnitType.GAS_MACHINIST: {
         "passive": EffluviumLathe(),
         "active": [EnbroachmentGasSkill(), SaftEGasSkill(), DivergeSkill()]
     },
-    "DELPHIC_APPRAISER": {
+    UnitType.DELPHIC_APPRAISER: {
         "passive": ValuationOracle(),
         "active": [MarketFuturesSkill(), AuctionCurseSkill(), DivineDrepreciationSkill()]
     },
-    "INTERFERER": {
+    UnitType.INTERFERER: {
         "passive": NeutronIlluminant(),
         "active": [NeuralShuntSkill(), KarrierRaveSkill(), ScalarNodeSkill()]
     },
-    "DERELICTIONIST": {
+    UnitType.DERELICTIONIST: {
         "passive": Severance(),
         "active": [VagalRunSkill(), DerelictSkill(), PartitionSkill()]
     },
-    "POTPOURRIST": {
+    UnitType.POTPOURRIST: {
         "passive": MelangeEminence(),
         "active": [InfuseSkill(), DemiluneSkill(), GraniteGeasSkill()]
     },
-    "LANDSCAPER": {
+    UnitType.LANDSCAPER: {
         "passive": TranslativeStroke(),
         "active": [HornswoggleSkill(), TopiaryBreathSkill(), DissonanceSkill()]
     }

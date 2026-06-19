@@ -199,11 +199,10 @@ class Unit:
         """Initialize skills for this unit based on its type."""
         # Avoid circular imports
         from boneglaive.game.skills.registry import UNIT_SKILLS
-        unit_type_name = self.get_type_name()
 
         # Get skills from registry if available
-        if unit_type_name in UNIT_SKILLS:
-            skill_set = UNIT_SKILLS[unit_type_name]
+        if self.type in UNIT_SKILLS:
+            skill_set = UNIT_SKILLS[self.type]
 
             # Set passive skill - create new instance for each unit
             if 'passive' in skill_set:
