@@ -142,96 +142,197 @@ class InoculantAnimation:
 
 
 # ============================================================================
-# SKYHOOK — drone cable drops, hauls him over, then an amber arrival slam
+# SKYHOOK — the drone yanks him up by a cable, hauls him over swinging, drops him
+# in an arrival slam. Theatric, Vault-style: it MOVES the graft's actual sprite
+# (caster.x/y + wind_up_rotation) while drawing the cable/hook/drone overlay.
 # ============================================================================
 
-class SkyhookAnimation:
-    """Cable + hook drops to the landing; lift dust; then an amber shockwave + bomb
-    burst slam grafting the surrounding tiles."""
+class SkyhookAnimationController:
+    """Aerial extraction: a sharp upward YANK, a high suspended CARRY (the body swings
+    like a pendulum on the cable, a drone silhouette leading above), then a DROP + slam.
+    Drives the caster AnimatedUnit's position/rotation like VaultAnimationController."""
 
-    def __init__(self, caster_unit, target_unit=None, target_pos=None,
-                 is_crit=False, is_infused=False,
-                 particle_emitter=None, debris_list=None,
-                 screen_shake_callback=None, screen_flash_callback=None,
-                 units_list=None, camera=None, game=None, **kwargs):
+    # phase boundaries (fractions of total_duration)
+    YANK_END = 0.18
+    CARRY_END = 0.74
+    TOTAL = 0.95
+
+    def __init__(self, caster_unit, target_pos, particle_emitter, screen_shake_callback, camera=None):
+        self.caster = caster_unit
+        self.particle_emitter = particle_emitter
+        self.screen_shake = screen_shake_callback or (lambda i, d: None)
+        self.camera = camera
         self.active = True
         self.elapsed = 0.0
-        self.total_duration = 0.9
-        self.particle_emitter = particle_emitter
-        self.screen_shake = screen_shake_callback
-        self.screen_flash = screen_flash_callback
 
-        # The landing point is where the graft now is (factory prefers post-move pos).
-        gu = caster_unit.game_unit
-        self.lx, self.ly = _grid_center(camera, gu.y, gu.x)
+        # Origin = where the sprite currently is (the visual hasn't moved yet).
+        self.ox, self.oy = caster_unit.x, caster_unit.y
+        # Destination screen pos. target_pos is (grid_y, grid_x) from the renderer.
+        tgy, tgx = target_pos
+        if camera:
+            self.dx, self.dy = camera.grid_to_screen(tgx, tgy, centered=True)
+        else:
+            self.dx = 100 + tgx * TILE_SIZE + TILE_SIZE // 2
+            self.dy = 50 + tgy * TILE_SIZE + TILE_SIZE // 2
+        self.dest_grid = (tgx, tgy)
 
+        self.arc_height = 150          # how high the lift carries him (he's hauled UP)
         self.slam_done = False
-        self.slam_t0 = 0.45  # when the slam fires
+        self.launch_done = False
+
+        # set up sprite-rotation state (the renderer reads wind_up_rotation)
+        self.caster.wind_up_rotation = 0
+
+        # Launch beat: cable snaps taut, dust kicks up at the origin.
+        if self.particle_emitter:
+            for _ in range(14):
+                a = random.uniform(0, math.tau)
+                sp = random.uniform(40, 110)
+                p = Particle(self.ox, self.oy + 14, math.cos(a) * sp, math.sin(a) * sp - 40,
+                             random.choice((SMOKE, TAN)), random.uniform(3, 6), random.uniform(0.4, 0.7))
+                p.gravity = 120
+                self.particle_emitter.particles.append(p)
 
     def update(self, delta_time):
+        if not self.active:
+            return False
         self.elapsed += delta_time
+        t = min(1.0, self.elapsed / self.TOTAL)
 
-        # (Skyhook's primary sound is played by the factory via SKILL_SOUNDS on creation.)
+        if t < self.YANK_END:
+            # YANK: snatched sharply upward, almost no horizontal travel yet.
+            yt = t / self.YANK_END
+            ease = yt * yt  # accelerate up
+            self.caster.x = self.ox
+            self.caster.y = self.oy - self.arc_height * 0.55 * ease
+            self.caster.wind_up_rotation = math.sin(yt * math.pi) * 8  # tiny destabilized tilt
 
-        # Trail of rotor-wash / lift dust during the haul.
-        if self.elapsed < self.slam_t0 and self.particle_emitter and random.random() < 0.5:
-            self.particle_emitter.emit_trail(
-                self.lx + random.uniform(-10, 10),
-                self.ly + random.uniform(-6, 6),
-                SMOKE, count=1)
+        elif t < self.CARRY_END:
+            # CARRY: hauled across, suspended high, swinging like a pendulum on the line.
+            ct = (t - self.YANK_END) / (self.CARRY_END - self.YANK_END)
+            ease = 1 - (1 - ct) * (1 - ct)  # ease-out horizontal glide
+            self.caster.x = self.ox + (self.dx - self.ox) * ease
+            # stays high: blend the yank height into a lifted arc that dips toward the end
+            lift = self.arc_height * (0.55 + 0.45 * math.sin(min(1.0, ct * 1.1) * math.pi))
+            self.caster.y = (self.oy + (self.dy - self.oy) * ease) - lift
+            # damped pendulum sway (dangling on the cable), NOT a flip
+            self.caster.wind_up_rotation = math.sin(ct * math.pi * 3) * 18 * (1 - ct * 0.5)
+            # rotor-wash trail from the drone above
+            if self.particle_emitter and random.random() < 0.4:
+                self.particle_emitter.emit_trail(self.caster.x + random.uniform(-6, 6),
+                                                 self.caster.y - 30, GUNMETAL_LIGHT, count=1)
 
-        # The arrival slam.
-        if not self.slam_done and self.elapsed >= self.slam_t0:
-            self.slam_done = True
-            if self.particle_emitter:
-                self.particle_emitter.emit_burst(self.lx, self.ly, AMBER, count=18)
-                self.particle_emitter.emit_burst(self.lx, self.ly, AMBER_BRIGHT, count=8)
-                self.particle_emitter.emit_burst(self.lx, self.ly, BOMB_BLACK, count=10)
-                self.particle_emitter.emit_burst(self.lx, self.ly, SMOKE, count=8)
-            if self.screen_shake:
-                self.screen_shake(7, 0.22)
-            # No full-screen flash — the local shockwave ring carries the impact.
+        elif not self.slam_done:
+            # DROP + SLAM: cable releases, he falls the last bit and hits the tile hard.
+            dt = (t - self.CARRY_END) / (1.0 - self.CARRY_END)
+            fall = dt * dt  # accelerate down
+            # final descent from carry height to the ground
+            self.caster.x = self.dx
+            self.caster.y = (self.dy - self.arc_height * 0.25) + (self.arc_height * 0.25) * fall
+            self.caster.wind_up_rotation = (1 - dt) * 10  # straighten on landing
 
-        if self.elapsed >= self.total_duration:
+            if dt >= 0.85:
+                # touchdown — fire the slam
+                self.slam_done = True
+                self.caster.x, self.caster.y = self.dx, self.dy
+                self.caster.wind_up_rotation = 0
+                self._slam()
+
+        if self.elapsed >= self.TOTAL:
+            self.caster.x, self.caster.y = self.dx, self.dy
+            self.caster.wind_up_rotation = 0
             self.active = False
         return self.active
+
+    def _slam(self):
+        play_sound("skyhook_land")
+        self.screen_shake(8, 0.25)
+        pe = self.particle_emitter
+        if not pe:
+            return
+        lx, ly = self.dx, self.dy
+        pe.emit_burst(lx, ly, AMBER, count=20)
+        pe.emit_burst(lx, ly, AMBER_BRIGHT, count=10)
+        pe.emit_burst(lx, ly, BOMB_BLACK, count=10)
+        # outward dust ring on the slam
+        for _ in range(18):
+            a = random.uniform(0, math.tau)
+            sp = random.uniform(70, 150)
+            p = Particle(lx, ly + 10, math.cos(a) * sp, math.sin(a) * sp - 20,
+                         random.choice((SMOKE, TAN, (70, 70, 66))), random.uniform(4, 8), random.uniform(0.5, 0.9))
+            p.gravity = 140
+            pe.particles.append(p)
+        # a few amber graft-pops on the 8 surrounding tiles (the AoE arrival graft)
+        for k in range(8):
+            ang = math.radians(k * 45)
+            gx = lx + math.cos(ang) * TILE_SIZE
+            gy = ly + math.sin(ang) * TILE_SIZE
+            pe.emit_burst(gx, gy, AMBER, count=3)
 
     def draw(self, surface):
         if not self.active:
             return
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        t = min(1.0, self.elapsed / self.TOTAL)
 
-        # Phase 1: cable + hook descending from above the landing.
-        if self.elapsed < self.slam_t0:
-            t = self.elapsed / self.slam_t0
-            top_y = self.ly - TILE_SIZE * 2.2
-            hook_y = top_y + (self.ly - top_y) * min(1.0, t * 1.3)
-            # cable
-            pygame.draw.line(overlay, (*GUNMETAL_DARK, 220), (int(self.lx), int(top_y)),
-                             (int(self.lx), int(hook_y)), 3)
-            pygame.draw.line(overlay, (*GUNMETAL_LIGHT, 160), (int(self.lx), int(top_y)),
-                             (int(self.lx), int(hook_y)), 1)
-            # hook flukes
-            pygame.draw.line(overlay, (*GUNMETAL, 230), (int(self.lx), int(hook_y)),
-                             (int(self.lx - 5), int(hook_y + 6)), 3)
-            pygame.draw.line(overlay, (*GUNMETAL, 230), (int(self.lx), int(hook_y)),
-                             (int(self.lx + 5), int(hook_y + 6)), 3)
+        # While airborne (yank + carry + drop, before the slam), draw the cable + hook
+        # attached to the graft trailing up to a drone silhouette leading above.
+        if not self.slam_done:
+            cx, cy = self.caster.x, self.caster.y
+            # the drone hovers above and slightly ahead of him along the travel direction
+            lead = 0.0
+            if t > self.YANK_END:
+                lead = TILE_SIZE * 0.5  # leads forward during the carry
+            dir_x = 1 if self.dx >= self.ox else -1
+            drone_x = cx + dir_x * lead * (1 if t < self.CARRY_END else 0)
+            drone_y = cy - TILE_SIZE * 1.7
 
-        # Phase 2: expanding amber shockwave ring + lingering scorch.
-        if self.elapsed >= self.slam_t0:
-            st = min(1.0, (self.elapsed - self.slam_t0) / (self.total_duration - self.slam_t0))
-            ring_r = int(TILE_SIZE * 0.4 + st * TILE_SIZE * 1.6)
-            ring_alpha = max(0, int(200 * (1 - st)))
-            if ring_alpha > 0:
-                pygame.draw.circle(overlay, (*AMBER_BRIGHT, ring_alpha), (int(self.lx), int(self.ly)), ring_r, 3)
-                pygame.draw.circle(overlay, (*AMBER, max(0, ring_alpha - 60)),
-                                   (int(self.lx), int(self.ly)), int(ring_r * 0.7), 2)
-            # central flash
-            core_alpha = max(0, int(170 * (1 - st)))
-            if core_alpha > 0:
-                pygame.draw.circle(overlay, (*AMBER, core_alpha), (int(self.lx), int(self.ly)), int(10 * (1 - st) + 4))
+            # cable (gunmetal, taut) from the drone down to a hook on his harness
+            hook_x, hook_y = cx, cy - 8
+            pygame.draw.line(overlay, (*GUNMETAL_DARK, 230), (int(drone_x), int(drone_y)),
+                             (int(hook_x), int(hook_y)), 3)
+            pygame.draw.line(overlay, (*GUNMETAL_LIGHT, 150), (int(drone_x), int(drone_y)),
+                             (int(hook_x), int(hook_y)), 1)
+            # grappling hook flukes at his harness
+            pygame.draw.line(overlay, (*GUNMETAL, 235), (int(hook_x), int(hook_y)),
+                             (int(hook_x - 5), int(hook_y + 6)), 3)
+            pygame.draw.line(overlay, (*GUNMETAL, 235), (int(hook_x), int(hook_y)),
+                             (int(hook_x + 5), int(hook_y + 6)), 3)
+
+            # stylized drone silhouette (X-frame quad) above, leading the haul
+            self._draw_drone(overlay, drone_x, drone_y, t)
+
+        # The slam shockwave ring at the landing.
+        if self.slam_done:
+            st = min(1.0, (self.elapsed - self.CARRY_END) / (self.TOTAL - self.CARRY_END))
+            ring_r = int(TILE_SIZE * 0.4 + st * TILE_SIZE * 1.7)
+            ring_a = max(0, int(210 * (1 - st)))
+            if ring_a > 0:
+                pygame.draw.circle(overlay, (*AMBER_BRIGHT, ring_a), (int(self.dx), int(self.dy)), ring_r, 3)
+                pygame.draw.circle(overlay, (*AMBER, max(0, ring_a - 70)),
+                                   (int(self.dx), int(self.dy)), int(ring_r * 0.65), 2)
+            core_a = max(0, int(180 * (1 - st)))
+            if core_a > 0:
+                pygame.draw.circle(overlay, (*AMBER, core_a), (int(self.dx), int(self.dy)), int(10 * (1 - st) + 3))
 
         surface.blit(overlay, (0, 0))
+
+    def _draw_drone(self, overlay, dx, dy, t):
+        """A small top-down X-frame quad silhouette with spinning-rotor blur."""
+        r = TILE_SIZE * 0.30
+        # body
+        pygame.draw.circle(overlay, (*OLIVE, 235), (int(dx), int(dy)), int(r * 0.5))
+        pygame.draw.circle(overlay, (*GUNMETAL_DARK, 235), (int(dx), int(dy)), int(r * 0.3))
+        # 4 arms to rotor blurs
+        for ang in (45, 135, 225, 315):
+            a = math.radians(ang)
+            rx, ry = dx + math.cos(a) * r, dy + math.sin(a) * r
+            pygame.draw.line(overlay, (*OLIVE_DARK, 230), (int(dx), int(dy)), (int(rx), int(ry)), 3)
+            # rotor disc (translucent blur, brighter alpha flicker)
+            blur_a = 90 + int(40 * math.sin(self.elapsed * 50 + ang))
+            pygame.draw.circle(overlay, (*GUNMETAL_LIGHT, blur_a), (int(rx), int(ry)), int(r * 0.42), 1)
+        # amber sensor nub (front)
+        pygame.draw.circle(overlay, (*AMBER, 235), (int(dx), int(dy - r * 0.5)), 2)
 
 
 # ============================================================================

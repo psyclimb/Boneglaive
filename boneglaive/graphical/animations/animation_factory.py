@@ -91,7 +91,7 @@ from boneglaive.graphical.animations.landscaper import (
 
 from boneglaive.graphical.animations.ordnance_graft import (
     InoculantAnimation,
-    SkyhookAnimation,
+    SkyhookAnimationController,
     HarvestAnimation,
 )
 
@@ -216,7 +216,7 @@ class AnimationFactory:
 
         # ORDNANCE GRAFT skills
         "INOCULANT": (InoculantAnimation, {}),
-        "SKYHOOK": (SkyhookAnimation, {}),
+        "SKYHOOK": (SkyhookAnimationController, {}),  # Vault-style: moves the caster sprite
         "HARVEST": (HarvestAnimation, {}),
 
         # Core game events
@@ -451,6 +451,18 @@ class AnimationFactory:
                 animation = anim_class(
                     caster_unit=caster_unit,
                     target_pos=actual_target_pos,
+                    particle_emitter=particle_emitter,
+                    screen_shake_callback=screen_shake_callback,
+                    camera=camera
+                )
+            elif anim_class.__name__ == "SkyhookAnimationController":
+                # ORDNANCE GRAFT Skyhook - Vault-style: moves the caster sprite along the
+                # extraction arc. Needs the landing position.
+                if not target_pos:
+                    return None
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_pos=target_pos,
                     particle_emitter=particle_emitter,
                     screen_shake_callback=screen_shake_callback,
                     camera=camera
@@ -1288,7 +1300,7 @@ class AnimationFactory:
                     camera=camera,
                     game=game
                 )
-            elif anim_class.__name__ in ["InoculantAnimation", "SkyhookAnimation", "HarvestAnimation"]:
+            elif anim_class.__name__ in ["InoculantAnimation", "HarvestAnimation"]:
                 # ORDNANCE GRAFT skills - full signature; Harvest reads bola'd units off game
                 animation = anim_class(
                     caster_unit=caster_unit,

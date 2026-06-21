@@ -286,8 +286,8 @@ class SkyhookSkill(ActiveSkill):
         )
 
         # Arrival slam: strike + graft a bola onto EVERY enemy in the 8 adjacent tiles
-        # around the landing point; the drone mirrors each. Snapshot the unit list since
-        # the strikes/echo can change board state.
+        # around the landing point. Snapshot the unit list since the strikes can change
+        # board state.
         for enemy in list(game.units):
             if (enemy.is_alive() and enemy.player != user.player
                     and game.chess_distance(user.y, user.x, enemy.y, enemy.x) <= 1
