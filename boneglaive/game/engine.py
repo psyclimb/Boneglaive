@@ -5214,6 +5214,40 @@ class Game:
         )
         return drone
 
+    def _snap_drone_adjacent(self, owner, ui=None):
+        """Place the owner's drone on a tile ADJACENT to the owner (it carried him, so it
+        arrives right next to him). Used by Skyhook. Prefers the free adjacent tile closest
+        to the drone's current position; if none is free, falls back to the leash-pull so
+        the drone at least comes within range."""
+        from boneglaive.utils.coordinates import get_adjacent_positions
+
+        if owner.type != UnitType.ORDNANCE_GRAFT:
+            return
+        drone = getattr(owner, 'drone', None)
+        if not (drone and drone.is_alive()):
+            return
+        valid = [(y, x) for (y, x) in get_adjacent_positions(owner.y, owner.x)
+                 if self.is_valid_position(y, x) and self.map.is_passable(y, x)
+                 and self.get_unit_at(y, x) is None]
+        if not valid:
+            # No free adjacent tile — at least keep it within leash range.
+            self._move_leashed_drones(owner, owner.y, owner.x, ui)
+            return
+        best = min(valid, key=lambda p: self.chess_distance(drone.y, drone.x, p[0], p[1]))
+        self._remove_from_unit_grid(drone)
+        drone.y, drone.x = best
+        self._update_unit_grid(drone)
+        # Flag for the graphical layer: this relocation is part of Skyhook — snap the
+        # drone INSTANTLY (no walk cycle) and the Skyhook animation hides it until the
+        # graft lands. Without this the drone visibly slides to its spot before the
+        # carry plays.
+        drone.skyhook_relocated = True
+        message_log.add_message(
+            f"{drone.get_display_name()} sets {owner.get_display_name()} down and holds station",
+            MessageType.MOVEMENT,
+            player=drone.player
+        )
+
     def _move_leashed_drones(self, unit, old_y, old_x, ui=None):
         """When the owner's move would leave the drone outside leash range, pull the
         drone the MINIMUM distance needed to be back within range — it stays as close to

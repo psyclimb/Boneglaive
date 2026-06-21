@@ -776,6 +776,12 @@ class GameStateAdapter:
                     # Treat as teleport to prevent walk cycle
                     is_teleport = True
 
+                # ORDNANCE_DRONE relocated by Skyhook (carried with the graft): snap it
+                # instantly, no walk cycle. The Skyhook animation hides it until landing.
+                if getattr(game_unit, 'skyhook_relocated', False):
+                    game_unit.skyhook_relocated = False
+                    is_teleport = True
+
                 # Check if this is a DERELICTIONIST defection teleport (partition dissociation)
                 is_defection_teleport = (hasattr(game_unit, 'pending_teleport_defection') and
                                         game_unit.pending_teleport_defection)

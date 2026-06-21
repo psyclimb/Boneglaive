@@ -457,7 +457,8 @@ class AnimationFactory:
                 )
             elif anim_class.__name__ == "SkyhookAnimationController":
                 # ORDNANCE GRAFT Skyhook - Vault-style: moves the caster sprite along the
-                # extraction arc. Needs the landing position.
+                # extraction arc. Needs the landing position + units_list so it can hide
+                # the drone (it's carrying him) and reveal it at the landing.
                 if not target_pos:
                     return None
                 animation = anim_class(
@@ -465,7 +466,8 @@ class AnimationFactory:
                     target_pos=target_pos,
                     particle_emitter=particle_emitter,
                     screen_shake_callback=screen_shake_callback,
-                    camera=camera
+                    camera=camera,
+                    units_list=units_list
                 )
             elif anim_class.__name__ == "VaultAnimationControllerUpgraded":
                 # VaultAnimationControllerUpgraded needs target position (same signature as regular Vault)

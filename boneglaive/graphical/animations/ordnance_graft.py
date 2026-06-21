@@ -157,13 +157,29 @@ class SkyhookAnimationController:
     CARRY_END = 0.74
     TOTAL = 0.95
 
-    def __init__(self, caster_unit, target_pos, particle_emitter, screen_shake_callback, camera=None):
+    def __init__(self, caster_unit, target_pos, particle_emitter, screen_shake_callback,
+                 camera=None, units_list=None):
         self.caster = caster_unit
         self.particle_emitter = particle_emitter
         self.screen_shake = screen_shake_callback or (lambda i, d: None)
         self.camera = camera
         self.active = True
         self.elapsed = 0.0
+
+        # Hide the REAL drone sprite for the duration — the drone is carrying him
+        # (represented by the silhouette on the cable in this animation's overlay). It
+        # reappears at its new leashed position when he lands. Same `teleport_hidden`
+        # flag the renderer's draw loop honors (see Derelictionist defection anim).
+        self.drone_animated = None
+        graft_gu = getattr(caster_unit, 'game_unit', None)
+        drone_gu = getattr(graft_gu, 'drone', None) if graft_gu else None
+        if drone_gu is not None and units_list:
+            for au in units_list:
+                if getattr(au, 'game_unit', None) is drone_gu:
+                    self.drone_animated = au
+                    break
+        if self.drone_animated is not None:
+            self.drone_animated.teleport_hidden = True
 
         # Origin = where the sprite currently is (the visual hasn't moved yet).
         self.ox, self.oy = caster_unit.x, caster_unit.y
@@ -241,10 +257,30 @@ class SkyhookAnimationController:
         if self.elapsed >= self.TOTAL:
             self.caster.x, self.caster.y = self.dx, self.dy
             self.caster.wind_up_rotation = 0
+            self._reveal_drone()  # defensive: ensure the drone is never left hidden
             self.active = False
         return self.active
 
+    def _reveal_drone(self):
+        """Un-hide the real drone sprite and snap it to its NEW grid position. The
+        teleport branch synced its grid_x/grid_y but not its screen x/y (the anim is
+        meant to handle that), so we place the sprite now — it reappears at the landing."""
+        d = self.drone_animated
+        if d is None:
+            return
+        # snap screen position to its current grid cell (it was relocated adjacent)
+        from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+        nx = d.grid_x * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
+        ny = d.grid_y * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
+        d.x, d.y = nx, ny
+        d.target_x, d.target_y = nx, ny
+        d.is_moving = False
+        if getattr(d, 'teleport_hidden', False):
+            d.teleport_hidden = False
+
     def _slam(self):
+        # He's been dropped off — the real drone reappears at its new spot beside him.
+        self._reveal_drone()
         play_sound("skyhook_land")
         self.screen_shake(8, 0.25)
         pe = self.particle_emitter

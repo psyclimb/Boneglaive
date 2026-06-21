@@ -276,8 +276,8 @@ class SkyhookSkill(ActiveSkill):
         game._remove_from_unit_grid(user)
         user.y, user.x = ty, tx
         game._update_unit_grid(user)
-        # The drone carried him, so bring it along to the new position.
-        game._move_leashed_drones(user, ty, tx, ui)
+        # The drone carried him here, so it lands ADJACENT to him at the new position.
+        game._snap_drone_adjacent(user, ui)
 
         message_log.add_message(
             f"{user.get_display_name()} is lifted across the field by the drone",
