@@ -204,6 +204,28 @@ class InoculantSkill(ActiveSkill):
         return True
 
 
+class DroneInoculantSkill(InoculantSkill):
+    """The ORDNANCE DRONE's own copy of Inoculant. Behaves identically to the graft's for
+    now, but is a SEPARATE class so its numbers can be balanced independently later. Shown
+    as "Inoculant" on the front end, but uses its own drone-fitting skill icon."""
+
+    def __init__(self):
+        # Re-run the ActiveSkill constructor with the same parameters as InoculantSkill,
+        # but with the drone's own icon. (Bypasses InoculantSkill.__init__, which would
+        # hardcode the graft's icon.) Override range/cooldown/etc here in the future to
+        # diverge the drone's Inoculant from the graft's.
+        ActiveSkill.__init__(
+            self,
+            name="Inoculant",
+            key="I",
+            description="Strike an enemy within 2 tiles for normal damage and graft a bola bomb onto them (up to 4).",
+            target_type=TargetType.ENEMY,
+            cooldown=1,
+            range_=2,
+            icon_name="drone_inoculant",
+        )
+
+
 class SkyhookSkill(ActiveSkill):
     """The drone hauls him to a new position (aerial extraction), slamming down to strike
     and graft a bola onto every adjacent enemy. Requires a living drone; refunded by detonations."""

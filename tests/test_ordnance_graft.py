@@ -505,12 +505,9 @@ def test_inoculant_plants_one_bola():
           f"damage={hp0 - enemy.hp} expected={STRIKE_DAMAGE}")
 
 
-def test_drone_basic_attack_plants_bola():
-    """The PLAYER pilots the drone; its basic attack grafts a bola and deals flat damage.
-    Driven through execute_turn (the drone is a player-1 unit with a queued attack).
-    Uses an INTERFERER target (DEF 0, no Potpourrist-style damage reduction) so the flat
-    STRIKE_DAMAGE shows cleanly."""
-    g = fresh_game()
+def _drone_next_to_enemy(g):
+    """Set up a graft+drone with an INTERFERER (DEF 0) adjacent to the drone, in leash.
+    Returns (graft, drone, enemy) or (None, None, None) if no valid layout."""
     ts = free_tiles(g, 40)
     gy, gx = ts[0]
     ey, ex = next((y, x) for (y, x) in ts if abs(y - gy) <= 1 and abs(x - gx) <= 1 and (y, x) != (gy, gx))
@@ -520,34 +517,63 @@ def test_drone_basic_attack_plants_bola():
     g._process_ordnance_graft_upkeep()
     drone = getattr(graft, 'drone', None)
     if drone is None:
-        check("drone_attack_plants", False, "no drone")
-        return
-    # Put the drone adjacent to the enemy (within leash) and queue its basic attack.
-    target_adj = None
+        return None, None, None
+    # park the drone adjacent to the enemy (within leash)
     for dy in (-1, 0, 1):
         for dx in (-1, 0, 1):
             ny, nx = enemy.y + dy, enemy.x + dx
             if ((dy or dx) and g.is_valid_position(ny, nx) and g.map.is_passable(ny, nx)
                     and g.get_unit_at(ny, nx) is None
                     and g.chess_distance(ny, nx, graft.y, graft.x) <= 3):
-                target_adj = (ny, nx)
-                break
-        if target_adj:
-            break
-    if target_adj is None:
-        check("drone_attack_plants", False, "no adjacent-to-enemy tile within leash")
+                g._remove_from_unit_grid(drone)
+                drone.y, drone.x = ny, nx
+                g._update_unit_grid(drone)
+                return graft, drone, enemy
+    return None, None, None
+
+
+def test_drone_basic_attack_is_plain_hit():
+    """The drone's basic attack is now a PLAIN hit: its real ATK (3), and it plants NO
+    bola (planting moved to the drone's own Inoculant skill)."""
+    g = fresh_game()
+    graft, drone, enemy = _drone_next_to_enemy(g)
+    if drone is None:
+        check("drone_plain_attack", False, "no valid drone/enemy layout")
         return
-    g._remove_from_unit_grid(drone)
-    drone.y, drone.x = target_adj
-    g._update_unit_grid(drone)
+    atk = drone.get_effective_stats()['attack']
     hp0 = enemy.hp
     drone.attack_target = (enemy.y, enemy.x)
     g.current_player = 1
     g.execute_turn(ui=None)
-    check("drone_attack_plants_bola", len(enemy.bolas) == 1,
-          f"bolas={len(enemy.bolas)} (drone basic attack should graft 1)")
-    check("drone_attack_flat_damage", (hp0 - enemy.hp) == STRIKE_DAMAGE,
-          f"damage={hp0 - enemy.hp} expected={STRIKE_DAMAGE} (drone uses flat STRIKE_DAMAGE, not ATK 3)")
+    check("drone_basic_no_bola", len(enemy.bolas) == 0,
+          f"bolas={len(enemy.bolas)} (basic attack should plant NOTHING now)")
+    check("drone_basic_uses_atk", (hp0 - enemy.hp) == atk,
+          f"damage={hp0 - enemy.hp} expected ATK {atk} (no longer flat {STRIKE_DAMAGE})")
+
+
+def test_drone_has_inoculant_and_plants():
+    """The drone now has its OWN Inoculant skill — using it grafts a bola (flat 2)."""
+    g = fresh_game()
+    graft, drone, enemy = _drone_next_to_enemy(g)
+    if drone is None:
+        check("drone_inoculant", False, "no valid drone/enemy layout")
+        return
+    inoc = next((s for s in drone.active_skills if s.name == "Inoculant"), None)
+    check("drone_has_inoculant", inoc is not None, "drone should have an Inoculant skill")
+    if inoc is None:
+        return
+    inoc.current_cooldown = 0
+    hp0 = enemy.hp
+    check("drone_inoculant_can_use", inoc.can_use(drone, (enemy.y, enemy.x), g) is True,
+          "drone Inoculant should be usable on the adjacent enemy")
+    drone.selected_skill = inoc
+    drone.skill_target = (enemy.y, enemy.x)
+    g.current_player = 1
+    g.execute_turn(ui=None)
+    check("drone_inoculant_plants", len(enemy.bolas) == 1,
+          f"bolas={len(enemy.bolas)} (drone Inoculant should graft 1)")
+    check("drone_inoculant_flat_damage", (hp0 - enemy.hp) == STRIKE_DAMAGE,
+          f"damage={hp0 - enemy.hp} expected flat {STRIKE_DAMAGE}")
 
 
 def test_drone_leash_bounds_player_moves():
@@ -729,7 +755,8 @@ def main():
     test_broaching_gas_peels_one_bomb()
     test_vagal_run_clears_bolas()
     test_inoculant_plants_one_bola()
-    test_drone_basic_attack_plants_bola()
+    test_drone_basic_attack_is_plain_hit()
+    test_drone_has_inoculant_and_plants()
     test_drone_leash_bounds_player_moves()
     test_drone_leash_pull_is_minimal()
     test_drone_spawns_on_upkeep()

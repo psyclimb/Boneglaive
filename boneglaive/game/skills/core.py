@@ -36,7 +36,8 @@ class Skill:
                  target_type: TargetType,
                  cooldown: int = 0,
                  range_: int = 0,
-                 area: int = 0):
+                 area: int = 0,
+                 icon_name: Optional[str] = None):
         self.name = name
         self.key = key
         self.description = description
@@ -46,8 +47,19 @@ class Skill:
         self.current_cooldown = 0
         self.range = range_  # How far the skill can be used
         self.area = area     # Area of effect (0 for single target)
-        
+        # Optional override for the skill-icon filename stem. Lets two skills share a
+        # display name but use different icons (e.g. the drone's own Inoculant). When
+        # None, the icon is derived from the display name.
+        self.icon_name = icon_name
+
         self.id = f"{name}-{random.randint(1000, 9999)}"
+
+    def get_icon_name(self) -> str:
+        """The skill-icon filename stem (without extension). Uses icon_name if set,
+        otherwise derives it from the display name."""
+        if self.icon_name:
+            return self.icon_name
+        return self.name.lower().replace(' ', '_')
         
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         """
@@ -125,8 +137,8 @@ class PassiveSkill(Skill):
 class ActiveSkill(Skill):
     """Base class for active skills that the player can use."""
     
-    def __init__(self, name: str, key: str, description: str, target_type: TargetType, 
-                 cooldown: int, range_: int, area: int = 0):
+    def __init__(self, name: str, key: str, description: str, target_type: TargetType,
+                 cooldown: int, range_: int, area: int = 0, icon_name: Optional[str] = None):
         super().__init__(
             name=name,
             key=key,
@@ -135,5 +147,6 @@ class ActiveSkill(Skill):
             target_type=target_type,
             cooldown=cooldown,
             range_=range_,
-            area=area
+            area=area,
+            icon_name=icon_name
         )

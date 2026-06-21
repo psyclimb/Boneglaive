@@ -631,19 +631,19 @@ class OrdnanceGraftLinstockAttack:
 
 
 # ============================================================================
-# ORDNANCE DRONE basic attack — rotor buzz + amber tracer that plants a spiked bola
+# ORDNANCE DRONE basic attack — a plain ranged shot (rotor buzz + amber tracer).
+# It no longer plants a bola; the drone grafts via its own Inoculant skill.
 # ============================================================================
 
-class OrdnanceDroneBolaAttack:
-    """The drone's basic attack: a downward rotor-buzz tracer toward the target, then a
-    spiked bomb thunks on with a spark (the drone is a mobile planter). Uses AnimatedUnit
-    screen positions (attacker_unit.x/.y are pixels)."""
+class OrdnanceDroneShotAttack:
+    """The drone's basic attack: a rotor-buzz tracer fired at the target with an impact
+    spark. A plain hit — no bomb. Uses AnimatedUnit screen positions (attacker.x/.y are px)."""
 
     def __init__(self, attacker_unit, target_unit=None,
                  particle_emitter=None, screen_shake_callback=None, **kwargs):
         self.active = True
         self.elapsed = 0.0
-        self.total_duration = 0.5
+        self.total_duration = 0.4
         self.particle_emitter = particle_emitter
         self.screen_shake = screen_shake_callback or (lambda i, d: None)
 
@@ -655,7 +655,6 @@ class OrdnanceDroneBolaAttack:
 
         self.fired = False
         self.impact_done = False
-        self.bomb_rot = random.uniform(0, 60)
 
     def update(self, delta_time):
         self.elapsed += delta_time
@@ -671,7 +670,7 @@ class OrdnanceDroneBolaAttack:
             self.impact_done = True
             if self.particle_emitter:
                 self.particle_emitter.emit_burst(self.tx, self.ty, AMBER, count=8)
-                self.particle_emitter.emit_burst(self.tx, self.ty, BOMB_BLACK, count=4)
+                self.particle_emitter.emit_burst(self.tx, self.ty, GUNMETAL_LIGHT, count=5)
             self.screen_shake(2, 0.1)
 
         if self.elapsed >= self.total_duration:
@@ -683,7 +682,7 @@ class OrdnanceDroneBolaAttack:
             return
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
-        # Amber tracer from drone to target (during flight), with a faint twin rotor blur.
+        # Amber tracer from drone to target (during flight), with a faint rotor blur.
         if self.elapsed < 0.18:
             t = self.elapsed / 0.18
             hx = self.sx + (self.tx - self.sx) * t
@@ -696,13 +695,12 @@ class OrdnanceDroneBolaAttack:
                 pygame.draw.ellipse(overlay, (*GUNMETAL_LIGHT, blur_a),
                                     (int(self.sx - 9), int(self.sy - 3), 18, 6), 1)
 
-        # Planted bomb settles in.
-        if self.elapsed > 0.18:
-            bt = min(1.0, (self.elapsed - 0.18) / 0.2)
-            ease = 1 - (1 - bt) * (1 - bt)
-            size = 4.5 * ease
-            bomb_alpha = int(255 * min(1.0, (self.elapsed - 0.18) / 0.15))
-            if size > 0.5:
-                _draw_spiked_bomb(overlay, self.tx, self.ty, size, bomb_alpha, self.bomb_rot)
+        # Impact spark on the target (no bomb).
+        if self.impact_done:
+            it = min(1.0, (self.elapsed - 0.18) / 0.18)
+            fa = max(0, int(190 * (1 - it)))
+            if fa > 0:
+                pygame.draw.circle(overlay, (*AMBER, fa), (int(self.tx), int(self.ty)), int(4 + it * 6))
+                pygame.draw.circle(overlay, (*AMBER_BRIGHT, fa), (int(self.tx), int(self.ty)), int(2 + it * 3))
 
         surface.blit(overlay, (0, 0))

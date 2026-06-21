@@ -52,7 +52,7 @@ from boneglaive.game.skills.landscaper import (
 )
 
 from boneglaive.game.skills.ordnance_graft import (
-    RotorGraft, InoculantSkill, SkyhookSkill, HarvestSkill
+    RotorGraft, InoculantSkill, DroneInoculantSkill, SkyhookSkill, HarvestSkill
 )
 
 # Define the skills available for each unit type
@@ -105,9 +105,13 @@ UNIT_SKILLS = {
         "passive": RotorGraft(),
         "active": [InoculantSkill(), SkyhookSkill(), HarvestSkill()]
     },
-    # ORDNANCE_DRONE has no skills of its own — the player pilots it (leashed within
-    # ORDNANCE_DRONE_LEASH of the graft) and its basic attack grafts a bola (handled in
-    # the engine's attack resolution). Like HEINOUS_VAPOR, it has no UNIT_SKILLS entry.
+    # ORDNANCE_DRONE is player-piloted (leashed within ORDNANCE_DRONE_LEASH of the graft).
+    # Its basic attack is a plain hit (its ATK stat); it grafts bolas via its OWN Inoculant
+    # (DroneInoculantSkill — a separate class for independent balance, shown as "Inoculant"
+    # with a drone-specific icon). Not recruitable, so the completeness guard exempts it.
+    UnitType.ORDNANCE_DRONE: {
+        "active": [DroneInoculantSkill()]
+    },
 }
 
 # Fail loudly at import time if a newly added unit is incompletely wired —

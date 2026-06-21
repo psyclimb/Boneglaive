@@ -765,7 +765,7 @@ def get_unit_help_data():
         UnitType.ORDNANCE_GRAFT: {
             'title': 'ORDNANCE GRAFT',
             'overview': [
-                'ORDNANCE GRAFT is a gunner who fights with a linstock — a match-staff for firing cannon. He grafts clustered spiked bombs ("bolas") onto enemies with his strikes, then touches them off for damage scaled to the target\'s maximum HP. This makes him the roster\'s dedicated anti-tank: the bigger the body, the harder he hits it. He also pilots a leashed quadcopter drone — a second body whose attacks graft bolas of their own.',
+                'ORDNANCE GRAFT is a gunner who fights with a linstock — a match-staff for firing cannon. He grafts clustered spiked bombs ("bolas") onto enemies with his strikes, then touches them off for damage scaled to the target\'s maximum HP. This makes him the roster\'s dedicated anti-tank: the bigger the body, the harder he hits it. He also pilots a leashed quadcopter drone — a second body with its own Inoculant to graft bolas of its own.',
                 '',
                 'Role: Burst Damage / Summoner / Escape Artist'
             ],
@@ -779,7 +779,7 @@ def get_unit_help_data():
             'skills': [
                 {
                     'name': 'ROTOR GRAFT (Passive)',
-                    'description': 'Fields one leashed ORDNANCE DRONE — a second body you pilot yourself. It moves and attacks on its own orders each turn, and its basic attack grafts a bola (so it is a mobile second planter). It may never stray beyond a few tiles of its owner; when he moves it follows. The drone is bound to its owner: if destroyed it regenerates after a few turns; if the owner dies it falls with him and returns when he respawns. Killing it removes your second planter — and grounds Skyhook.',
+                    'description': 'Fields one leashed ORDNANCE DRONE — a second body you pilot yourself. It moves and acts on its own orders each turn and carries its own copy of Inoculant, so it is a mobile second planter. It may never stray beyond a few tiles of its owner; when he moves it follows. The drone is bound to its owner: if destroyed it regenerates after a few turns; if the owner dies it falls with him and returns when he respawns. Killing it removes your second planter — and grounds Skyhook.',
                     'details': []
                 },
                 {

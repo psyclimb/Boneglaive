@@ -3394,13 +3394,6 @@ class Game:
                             # Attacker's attack is treated as 2 when attacking this POTPOURRIST
                             effective_attack = 2
 
-                        # ORDNANCE_DRONE: its basic attack deals flat STRIKE_DAMAGE (not its
-                        # ATK stat), matching the graft's strikes — its damage identity is the
-                        # bola it plants, not the hit.
-                        if unit.type == UnitType.ORDNANCE_DRONE:
-                            from boneglaive.game.skills.ordnance_graft import STRIKE_DAMAGE
-                            effective_attack = STRIKE_DAMAGE
-
                         # Get effective defense
                         effective_defense = target.get_effective_stats()['defense']
 
@@ -3471,19 +3464,6 @@ class Game:
                             # Show attack animation with actual damage
                             if ui:
                                 ui.show_attack_animation(unit, target, actual_damage)
-
-                            # ORDNANCE_DRONE: its basic attack grafts a bola onto the target
-                            # (the player pilots the drone to plant). Stasiality/cap handled
-                            # inside plant_bola.
-                            if unit.type == UnitType.ORDNANCE_DRONE:
-                                from boneglaive.game.skills.ordnance_graft import plant_bola
-                                if target.player != unit.player and target.is_alive():
-                                    if plant_bola(target, 1) > 0:
-                                        message_log.add_message(
-                                            f"{unit.get_display_name()} grafts a bola onto {target.get_display_name()} ({len(target.bolas)})",
-                                            MessageType.ABILITY,
-                                            player=unit.player
-                                        )
 
                         # Check for upgraded Ossify reflect damage (MARROW_CONDENSER)
                         if (target.type == UnitType.MARROW_CONDENSER and

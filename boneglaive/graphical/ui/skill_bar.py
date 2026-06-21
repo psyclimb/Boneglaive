@@ -53,7 +53,9 @@ class SkillSlot:
 
     def _load_icon(self) -> Optional[pygame.Surface]:
         """Load skill icon from file."""
-        skill_name = self.skill.name.lower().replace(' ', '_')
+        # get_icon_name() honors a per-skill icon override (e.g. the drone's own
+        # Inoculant), else derives from the display name.
+        skill_name = self.skill.get_icon_name()
         # Strip characters that are illegal in filenames on Windows, plus parentheses
         skill_name = ''.join(c for c in skill_name if c not in r'\/:*?"<>|()')
 

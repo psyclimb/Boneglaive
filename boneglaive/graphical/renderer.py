@@ -3196,9 +3196,9 @@ class GraphicalRenderer:
                     self.active_animations.append(linstock_attack)
 
             elif attacker.type == UnitType.ORDNANCE_DRONE and attack_target and target_unit:
-                from boneglaive.graphical.animations.ordnance_graft import OrdnanceDroneBolaAttack
+                from boneglaive.graphical.animations.ordnance_graft import OrdnanceDroneShotAttack
 
-                drone_attack = OrdnanceDroneBolaAttack(
+                drone_attack = OrdnanceDroneShotAttack(
                     attacker_unit=attacker_animated,
                     target_unit=target_unit,
                     particle_emitter=self.particle_emitter,
