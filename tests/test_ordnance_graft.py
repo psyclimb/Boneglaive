@@ -219,6 +219,96 @@ def test_meridian_cut_refund():
 
 
 # ---------------------------------------------------------------------------
+# Meridian Cut skewer (hits every enemy on the dash line)
+# ---------------------------------------------------------------------------
+
+def _passable_corridor(g, length):
+    """Find a row with `length` consecutive passable, empty columns. Returns (row, c0)."""
+    for r in range(HEIGHT):
+        cs = [c for c in range(WIDTH)
+              if g.map.is_passable(r, c) and g.get_unit_at(r, c) is None]
+        for i in range(len(cs) - (length - 1)):
+            if all(cs[i + k] == cs[i] + k for k in range(length)):
+                return r, cs[i]
+    return None, None
+
+
+def test_meridian_cut_skewers_line():
+    """The dash hits and grafts EVERY enemy standing on its line. With a drone, each
+    skewered enemy takes two strikes and two bolas."""
+    g = fresh_game()
+    r, c0 = _passable_corridor(g, 4)
+    if r is None:
+        check("skewer_line", False, "no 4-wide corridor")
+        return
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, r, c0)
+    e1 = place(g, UnitType.POTPOURRIST, 2, r, c0 + 1)   # DEF 0 -> takes 2/strike
+    e2 = place(g, UnitType.POTPOURRIST, 2, r, c0 + 2)   # DEF 0
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()  # spawn drone
+    drone_alive = graft.drone is not None and graft.drone.is_alive()
+    cut = next(s for s in graft.active_skills if s.name == "Meridian Cut")
+    e1_hp0, e2_hp0 = e1.hp, e2.hp
+    cut.execute(graft, (r, c0 + 3), g)
+    # Both line enemies hit; with a drone each has 2 bolas and took 2*2 damage.
+    check("skewer_both_get_bolas", len(e1.bolas) == 2 and len(e2.bolas) == 2,
+          f"e1 bolas={len(e1.bolas)} e2 bolas={len(e2.bolas)} (drone_alive={drone_alive})")
+    check("skewer_both_take_damage", (e1_hp0 - e1.hp) == 4 and (e2_hp0 - e2.hp) == 4,
+          f"e1 dmg={e1_hp0 - e1.hp} e2 dmg={e2_hp0 - e2.hp} (2 strikes x flat 2, DEF 0)")
+
+
+def test_meridian_cut_misses_off_line_enemy():
+    """An enemy beside the landing tile but NOT on the dash line is not hit
+    (the 'on the dash line only' rule). Uses get_line to verify the off tile really
+    is off the line, so the assertion is meaningful regardless of map geometry."""
+    from boneglaive.utils.coordinates import get_line, Position
+    g = fresh_game()
+    r, c0 = _passable_corridor(g, 4)
+    if r is None:
+        check("skewer_misses_off_line", False, "no corridor")
+        return
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, r, c0)
+    dest = (r, c0 + 3)
+    line = {(p.y, p.x) for p in get_line(Position(r, c0), Position(*dest))}
+    # Find any passable, empty tile adjacent to the landing that is NOT on the line.
+    off = None
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            oy, ox = dest[0] + dy, dest[1] + dx
+            if (0 <= oy < HEIGHT and 0 <= ox < WIDTH and (oy, ox) not in line
+                    and g.map.is_passable(oy, ox) and g.get_unit_at(oy, ox) is None):
+                off = place(g, UnitType.POTPOURRIST, 2, oy, ox)
+                break
+        if off:
+            break
+    if off is None:
+        check("skewer_misses_off_line", False, "no off-line tile available")
+        return
+    graft.drone = None  # isolate the graft's own hit rule
+    cut = next(s for s in graft.active_skills if s.name == "Meridian Cut")
+    cut.execute(graft, dest, g)
+    check("skewer_misses_off_line", len(off.bolas) == 0 and off.hp == off.max_hp,
+          f"off-line enemy bolas={len(off.bolas)} hp={off.hp}/{off.max_hp} (should be untouched)")
+
+
+def test_meridian_cut_skewer_no_drone():
+    """Without a drone, each line enemy gets exactly one bola (no mirror)."""
+    g = fresh_game()
+    r, c0 = _passable_corridor(g, 4)
+    if r is None:
+        check("skewer_no_drone", False, "no corridor")
+        return
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, r, c0)
+    e1 = place(g, UnitType.POTPOURRIST, 2, r, c0 + 1)
+    e2 = place(g, UnitType.POTPOURRIST, 2, r, c0 + 2)
+    graft.drone = None  # no upkeep -> no drone
+    cut = next(s for s in graft.active_skills if s.name == "Meridian Cut")
+    cut.execute(graft, (r, c0 + 3), g)
+    check("skewer_no_drone_one_each", len(e1.bolas) == 1 and len(e2.bolas) == 1,
+          f"e1 bolas={len(e1.bolas)} e2 bolas={len(e2.bolas)} (no drone -> 1 each)")
+
+
+# ---------------------------------------------------------------------------
 # Cleanse: partial (Broaching) vs full (Vagal Run)
 # ---------------------------------------------------------------------------
 
@@ -457,6 +547,9 @@ def main():
     test_detonation_ignores_def_respects_prt()
     test_only_fused_detonate()
     test_meridian_cut_refund()
+    test_meridian_cut_skewers_line()
+    test_meridian_cut_misses_off_line_enemy()
+    test_meridian_cut_skewer_no_drone()
     test_partial_cleanse_removes_one()
     test_partial_cleanse_prefers_unfused()
     test_full_cleanse_removes_all()

@@ -194,13 +194,14 @@ class InoculantSkill(ActiveSkill):
 
 
 class MeridianCutSkill(ActiveSkill):
-    """Dash along a line to an empty tile; cut and graft a bola onto an enemy on arrival."""
+    """Dash along a line to an empty tile, cutting and grafting a bola onto EVERY enemy
+    the dash passes through (and the drone mirrors the sweep)."""
 
     def __init__(self):
         super().__init__(
             name="Meridian Cut",
             key="M",
-            description="Dash to any empty position within range, ignoring pathing. Strike and graft a bola onto an adjacent enemy on arrival. Cooldown is refunded when bolas detonate.",
+            description="Dash to any empty position within range, ignoring pathing. Cut and graft a bola onto every enemy along the dash line. Cooldown is refunded when bolas detonate.",
             target_type=TargetType.AREA,
             cooldown=4,
             range_=3
@@ -243,8 +244,14 @@ class MeridianCutSkill(ActiveSkill):
         return True
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        from boneglaive.utils.coordinates import get_line, Position
+
         ty, tx = target_pos
         user.vault_target_indicator = None
+
+        # Capture the dash ORIGIN before we move — the sweep hits enemies on the line
+        # from here to the destination.
+        oy, ox = user.y, user.x
 
         # Land the dash (bypass the grid setter like Vault — it's a teleport).
         if game.get_unit_at(ty, tx) is not None:
@@ -265,23 +272,27 @@ class MeridianCutSkill(ActiveSkill):
             player=user.player
         )
 
-        # Strike + graft an adjacent enemy on arrival (one).
-        for enemy in game.units:
-            if (enemy.is_alive() and enemy.player != user.player
-                    and game.chess_distance(user.y, user.x, enemy.y, enemy.x) <= 1
+        # Cut + graft every enemy on the dash line (origin->destination). The origin
+        # holds the graft and the destination is required-empty, so only the enemies
+        # the dash physically passed THROUGH are hit. The drone mirrors each cut.
+        for pos in get_line(Position(oy, ox), Position(ty, tx)):
+            enemy = game.get_unit_at(pos.y, pos.x)
+            if enemy is None or enemy is user:
+                continue
+            if not (enemy.is_alive() and enemy.player != user.player
                     and game.can_target_unit(user, enemy)):
-                target_def = enemy.get_effective_stats()['defense']
-                damage = max(1, STRIKE_DAMAGE - target_def)
-                dealt = enemy.deal_damage(damage)
-                plant_bola(enemy, 1)
-                message_log.add_message(
-                    f"{user.get_display_name()} cuts {enemy.get_display_name()} for {dealt} and grafts a bola ({len(enemy.bolas)})",
-                    MessageType.ABILITY,
-                    player=user.player
-                )
-                # The autonomous drone mirrors the cut on the same target.
-                game._drone_echo_strike(user, enemy, ui)
-                break
+                continue
+            target_def = enemy.get_effective_stats()['defense']
+            damage = max(1, STRIKE_DAMAGE - target_def)
+            dealt = enemy.deal_damage(damage)
+            plant_bola(enemy, 1)
+            message_log.add_message(
+                f"{user.get_display_name()} cuts {enemy.get_display_name()} for {dealt} and grafts a bola ({len(enemy.bolas)})",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            # The autonomous drone mirrors the cut on this enemy.
+            game._drone_echo_strike(user, enemy, ui)
         return True
 
 

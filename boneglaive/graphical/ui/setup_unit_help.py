@@ -367,7 +367,7 @@ class SetupUnitHelp:
                     },
                     {
                         'name': 'MERIDIAN CUT',
-                        'desc': 'Dashes to an empty tile within range, cutting and grafting a bola onto an enemy on arrival. Its cooldown is refunded whenever bolas detonate.'
+                        'desc': 'Dashes to an empty tile within range, cutting and grafting a bola onto every enemy along the dash line (the drone mirrors it). Its cooldown is refunded whenever bolas detonate.'
                     },
                     {
                         'name': 'HARVEST',

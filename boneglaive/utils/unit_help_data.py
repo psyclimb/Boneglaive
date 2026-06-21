@@ -792,7 +792,7 @@ def get_unit_help_data():
                 },
                 {
                     'name': 'MERIDIAN CUT (Active)',
-                    'description': 'Dash along a line to any empty position within range, ignoring pathing, and cut an enemy adjacent to the landing point — dealing damage and grafting a bola. Its cooldown is refunded whenever bolas detonate, so a big Harvest sends him knifing back in.',
+                    'description': 'Dash along a line to any empty position within range, ignoring pathing, cutting and grafting a bola onto every enemy the dash passes through. The drone mirrors the sweep, so each skewered enemy takes two cuts and two bolas. Its cooldown is refunded whenever bolas detonate, so a big Harvest sends him knifing back in.',
                     'details': [
                         'Range: 3, Cooldown: 4 turns',
                         'Refunds 2 cooldown per stack detonated'

@@ -314,7 +314,7 @@ SKILL_UPGRADES = {
         },
         "Meridian Cut": {
             "name": "Meridian Cut",
-            "description": "Meridian Cut passes through enemies along its path, grafting a bola onto each.",
+            "description": "Meridian Cut refunds additional cooldown per bola detonated, knifing him back into the fray faster.",
             "type": "buff",
             "cost": 1
         },
