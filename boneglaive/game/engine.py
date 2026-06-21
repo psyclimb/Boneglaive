@@ -665,6 +665,9 @@ class Game:
         # Trigger Valuation Oracle for DELPHIC_APPRAISER units
         self._trigger_valuation_oracle_for_delphic_appraisers()
 
+        # Field ORDNANCE GRAFT drones so they're present from turn one
+        self._spawn_initial_ordnance_drones()
+
         # Skip setup phase when using test setup
         self.setup_phase = False
         self.setup_player = 1
@@ -791,6 +794,8 @@ class Game:
                 self._create_rails_for_fowl_contrivances()
                 # Trigger astral value perception now that setup is complete (prevents info leak during setup)
                 self._trigger_valuation_oracle_for_delphic_appraisers()
+                # Field ORDNANCE GRAFT drones so they're present from turn one
+                self._spawn_initial_ordnance_drones()
                 # Assign Greek identification letters to units
                 self._assign_unit_identifiers()
                 # Move FOWL_CONTRIVANCE units to nearest rails
@@ -823,13 +828,15 @@ class Game:
             self._create_rails_for_fowl_contrivances()
             # Trigger astral value perception now that setup is complete (prevents info leak during setup)
             self._trigger_valuation_oracle_for_delphic_appraisers()
+            # Field ORDNANCE GRAFT drones so they're present from turn one
+            self._spawn_initial_ordnance_drones()
 
             # Move FOWL_CONTRIVANCE units to nearest rails
             self._move_fowl_contrivances_to_rails()
-            
+
             # Add welcome message now that game is starting
             message_log.add_system_message(f"Entering {self.map.name}")
-            
+
             # Game should start
             return True
             
@@ -5165,6 +5172,14 @@ class Game:
                     else:
                         logger.warning(f"No valid position for LIVING_AEROSOL to follow {unit.get_display_name()}")
 
+    def _spawn_initial_ordnance_drones(self):
+        """Field a drone for every ORDNANCE_GRAFT at the moment combat begins, so the
+        drone is present from turn one (rather than appearing after the first upkeep)."""
+        for owner in list(self.units):
+            if (owner.is_alive() and owner.type == UnitType.ORDNANCE_GRAFT
+                    and not (getattr(owner, 'drone', None) and owner.drone.is_alive())):
+                self._spawn_ordnance_drone(owner)
+
     def _spawn_ordnance_drone(self, owner, ui=None):
         """Spawn an ORDNANCE_DRONE adjacent to its owner and link the two."""
         from boneglaive.game.units import Unit
@@ -5200,29 +5215,42 @@ class Game:
         return drone
 
     def _move_leashed_drones(self, unit, old_y, old_x, ui=None):
-        """Snap an ORDNANCE_DRONE back within leash range when its owner moves."""
+        """When the owner's move would leave the drone outside leash range, pull the
+        drone the MINIMUM distance needed to be back within range — it stays as close to
+        where the player left it as possible, NOT snapped adjacent to the owner. The drone
+        otherwise only moves on the player's own orders."""
         from boneglaive.utils.constants import ORDNANCE_DRONE_LEASH
-        from boneglaive.utils.coordinates import get_adjacent_positions
 
         if unit.type != UnitType.ORDNANCE_GRAFT:
             return
         drone = getattr(unit, 'drone', None)
         if not (drone and drone.is_alive()):
             return
+        # In range already — leave the drone exactly where it is.
         if self.chess_distance(drone.y, drone.x, unit.y, unit.x) <= ORDNANCE_DRONE_LEASH:
             return
 
-        valid = [(y, x) for (y, x) in get_adjacent_positions(unit.y, unit.x)
-                 if self.is_valid_position(y, x) and self.map.is_passable(y, x)
-                 and self.get_unit_at(y, x) is None]
-        if not valid:
+        # Find the passable, empty tile within leash of the owner that is CLOSEST to the
+        # drone's current position (minimal pull). Search rings outward from the drone.
+        best = None
+        best_d = None
+        for y in range(HEIGHT):
+            for x in range(WIDTH):
+                if self.chess_distance(y, x, unit.y, unit.x) > ORDNANCE_DRONE_LEASH:
+                    continue
+                if not (self.is_valid_position(y, x) and self.map.is_passable(y, x)
+                        and self.get_unit_at(y, x) is None):
+                    continue
+                d = self.chess_distance(drone.y, drone.x, y, x)
+                if best_d is None or d < best_d:
+                    best_d, best = d, (y, x)
+        if best is None:
             return
-        best = min(valid, key=lambda p: self.chess_distance(drone.y, drone.x, p[0], p[1]))
         self._remove_from_unit_grid(drone)
         drone.y, drone.x = best
         self._update_unit_grid(drone)
         message_log.add_message(
-            f"{drone.get_display_name()} follows {unit.get_display_name()}",
+            f"{drone.get_display_name()} is pulled along by {unit.get_display_name()}'s tether",
             MessageType.MOVEMENT,
             player=drone.player
         )

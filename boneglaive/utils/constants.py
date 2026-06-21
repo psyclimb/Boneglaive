@@ -74,7 +74,7 @@ UNIT_DESCRIPTORS = (
     UnitDescriptor(UnitType.HEINOUS_VAPOR, 'HEINOUS VAPOR', 'V', UnitStats(1, 0, 0, 4, 1),
                    recruitable=False, awards_gp=False),
     # ORDNANCE_DRONE is an ORDNANCE_GRAFT summon: not recruitable, awards no GP.
-    UnitDescriptor(UnitType.ORDNANCE_DRONE, 'ORDNANCE DRONE', 'q', UnitStats(6, 3, 0, 4, 1),
+    UnitDescriptor(UnitType.ORDNANCE_DRONE, 'ORDNANCE DRONE', 'q', UnitStats(6, 3, 2, 4, 2),
                    recruitable=False, awards_gp=False),
 )
 

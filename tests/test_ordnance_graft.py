@@ -600,6 +600,58 @@ def test_drone_leash_bounds_player_moves():
           f"step past leash allowed={out_ok} (tile {outward}, leash={ORDNANCE_DRONE_LEASH})")
 
 
+def test_drone_leash_pull_is_minimal():
+    """When the graft moves out of leash range, the drone is pulled the MINIMUM distance
+    back within range (closest in-leash tile to where it was) — NOT snapped adjacent."""
+    g = fresh_game()
+    graft, enemy, drone = _graft_with_drone_and_enemy(g)
+    if drone is None:
+        check("leash_pull_minimal", False, "no drone")
+        return
+    from boneglaive.utils.constants import ORDNANCE_DRONE_LEASH
+    # Park the drone somewhere, then move the graft far away so the drone is out of leash.
+    # Use the full grid: pick a graft destination > leash from the drone's current spot.
+    drone_y, drone_x = drone.y, drone.x
+    far_graft = None
+    for y in range(HEIGHT):
+        for x in range(WIDTH):
+            if (g.is_valid_position(y, x) and g.map.is_passable(y, x) and g.get_unit_at(y, x) is None
+                    and g.chess_distance(y, x, drone_y, drone_x) > ORDNANCE_DRONE_LEASH + 1):
+                far_graft = (y, x)
+                break
+        if far_graft:
+            break
+    if far_graft is None:
+        check("leash_pull_minimal", False, "no far graft tile")
+        return
+    # Teleport the graft there and run the leash follow.
+    g._remove_from_unit_grid(graft)
+    graft.y, graft.x = far_graft
+    g._update_unit_grid(graft)
+    g._move_leashed_drones(graft, drone_y, drone_x, ui=None)
+
+    new_d_to_graft = g.chess_distance(drone.y, drone.x, graft.y, graft.x)
+    # (1) Back within leash.
+    check("leash_pull_within_range", new_d_to_graft <= ORDNANCE_DRONE_LEASH,
+          f"drone now {new_d_to_graft} from graft (leash={ORDNANCE_DRONE_LEASH})")
+    # (2) Minimal: no other valid in-leash tile is closer to the drone's old position.
+    best_possible = None
+    for y in range(HEIGHT):
+        for x in range(WIDTH):
+            if (g.chess_distance(y, x, graft.y, graft.x) <= ORDNANCE_DRONE_LEASH
+                    and g.is_valid_position(y, x) and g.map.is_passable(y, x)
+                    and (g.get_unit_at(y, x) is None or (y, x) == (drone.y, drone.x))):
+                d = g.chess_distance(drone_y, drone_x, y, x)
+                if best_possible is None or d < best_possible:
+                    best_possible = d
+    actual_pull = g.chess_distance(drone_y, drone_x, drone.y, drone.x)
+    check("leash_pull_is_minimal", actual_pull == best_possible,
+          f"pulled {actual_pull}, minimum possible {best_possible}")
+    # (3) Not snapped adjacent (when the leash boundary is reachable, it should sit out near the edge).
+    check("leash_pull_not_snapped_adjacent", new_d_to_graft > 1 or best_possible is not None,
+          f"drone {new_d_to_graft} from graft (should be near the leash edge, not glued to it)")
+
+
 def test_drone_spawns_on_upkeep():
     g = fresh_game()
     ts = free_tiles(g, 1)
@@ -679,6 +731,7 @@ def main():
     test_inoculant_plants_one_bola()
     test_drone_basic_attack_plants_bola()
     test_drone_leash_bounds_player_moves()
+    test_drone_leash_pull_is_minimal()
     test_drone_spawns_on_upkeep()
     test_drone_leash_rejects_far_move()
     test_drone_regenerates_after_death()
