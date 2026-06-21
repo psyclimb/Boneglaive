@@ -1521,6 +1521,12 @@ class Game:
                         hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active):
                         can_pass_through = True
 
+                    # ORDNANCE_DRONE flies: it passes OVER other units in its path too.
+                    # (It still can't LAND on an occupied tile — the destination occupancy
+                    # check above is unchanged.)
+                    if getattr(unit, 'is_drone', False):
+                        can_pass_through = True
+
                     if not can_pass_through:
                         return False
                     # Otherwise allow passage through units
@@ -1537,6 +1543,12 @@ class Game:
                     if (unit.type == UnitType.DERELICTIONIST and
                         UpgradeManager.is_skill_upgraded(unit, "Severance") and
                         hasattr(unit, 'severance_active') and unit.severance_active):
+                        can_pass_through_terrain = True
+
+                    # ORDNANCE_DRONE flies: it passes OVER terrain and furniture in its
+                    # path. (It still can't LAND on it — the destination passability check
+                    # in Unit.can_move_to is unchanged.)
+                    if getattr(unit, 'is_drone', False):
                         can_pass_through_terrain = True
 
                     if not can_pass_through_terrain:

@@ -300,8 +300,8 @@ SKILL_UPGRADES = {
         }
     },
     UnitType.ORDNANCE_GRAFT: {
-        "Rotor Graft": {
-            "name": "Rotor Graft",
+        "Quadcopter": {
+            "name": "Quadcopter",
             "description": "The drone regenerates faster after being destroyed.",
             "type": "buff",
             "cost": 1

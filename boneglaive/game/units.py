@@ -1884,3 +1884,7 @@ class Unit:
         # Clear radiation stacks
         if hasattr(self, 'radiation_stacks'):
             self.radiation_stacks = []
+
+        # Clear ORDNANCE GRAFT bombs (a full cleanse defuses the whole cluster).
+        if getattr(self, 'bombs', None):
+            self.bombs.clear()

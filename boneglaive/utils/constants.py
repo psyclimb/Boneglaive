@@ -29,7 +29,7 @@ class UnitType(Enum):
     DERELICTIONIST = 11  # The psychological abandonment therapist
     POTPOURRIST = 12  # The tank with potpourri-enhanced healing
     LANDSCAPER = 13  # The four-armed terrain manipulator with acoustic levitation
-    ORDNANCE_GRAFT = 14  # The gunner-samurai who grafts %HP bombs and touches them off
+    ORDNANCE_GRAFT = 14  # The gunner who grafts %HP bombs and touches them off
     ORDNANCE_DRONE = 15  # ORDNANCE_GRAFT's leashed quadcopter summon
 
 class UnitStats(NamedTuple):

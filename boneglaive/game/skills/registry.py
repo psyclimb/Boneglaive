@@ -52,7 +52,7 @@ from boneglaive.game.skills.landscaper import (
 )
 
 from boneglaive.game.skills.ordnance_graft import (
-    RotorGraft, InoculantSkill, DroneInoculantSkill, SkyhookSkill, HarvestSkill
+    Quadcopter, InoculantSkill, DroneInoculantSkill, SkyhookSkill, HarvestSkill
 )
 
 # Define the skills available for each unit type
@@ -102,7 +102,7 @@ UNIT_SKILLS = {
         "active": [HornswoggleSkill(), TopiaryBreathSkill(), DissonanceSkill()]
     },
     UnitType.ORDNANCE_GRAFT: {
-        "passive": RotorGraft(),
+        "passive": Quadcopter(),
         "active": [InoculantSkill(), SkyhookSkill(), HarvestSkill()]
     },
     # ORDNANCE_DRONE is player-piloted (leashed within ORDNANCE_DRONE_LEASH of the graft).

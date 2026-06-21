@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Skills for ORDNANCE GRAFT — the gunner-samurai who grafts %HP bombs and touches them off."""
+"""Skills for ORDNANCE GRAFT — the gunner who grafts %HP bombs and touches them off."""
 
 from typing import Optional, TYPE_CHECKING
 
@@ -133,14 +133,14 @@ def _reduce_skyhook_cooldown(user: 'Unit', stacks_detonated: int) -> None:
             break
 
 
-class RotorGraft(PassiveSkill):
-    """Keeps one leashed quadcopter drone in the field; it mirrors its owner's plants."""
+class Quadcopter(PassiveSkill):
+    """Keeps one leashed quadcopter drone in the field — a second body the player pilots."""
 
     def __init__(self):
         super().__init__(
-            name="Rotor Graft",
+            name="Quadcopter",
             key="R",
-            description="Fields a leashed quadcopter drone whose attacks graft a bomb. The drone regenerates a few turns after it is destroyed."
+            description="Fields a leashed quadcopter drone you pilot as a second body; it carries its own Inoculant to graft bombs. The drone regenerates a few turns after it is destroyed."
         )
 
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
@@ -186,7 +186,7 @@ class InoculantSkill(ActiveSkill):
             user.action_timestamp = game.action_counter
             game.action_counter += 1
         message_log.add_message(
-            f"{user.get_display_name()} prepares to inoculate",
+            f"{user.get_display_name()} readies a spiked cluster",
             MessageType.ABILITY,
             player=user.player
         )
@@ -206,19 +206,24 @@ class InoculantSkill(ActiveSkill):
 
         if immune:
             message_log.add_message(
-                f"{user.get_display_name()} strikes {target.get_display_name()} for {dealt}, but the bomb finds no purchase",
+                f"{user.get_display_name()} grafts a spiked cluster onto {target.get_display_name()} for #DAMAGE_{dealt}# damage",
                 MessageType.ABILITY,
                 player=user.player
             )
+            message_log.add_message(
+                f"{target.get_display_name()} is immune to bomb due to Stasiality",
+                MessageType.ABILITY,
+                player=target.player
+            )
         else:
             message_log.add_message(
-                f"{user.get_display_name()} strikes {target.get_display_name()} for {dealt} and grafts a bomb ({len(target.bombs)})",
+                f"{user.get_display_name()} grafts a spiked cluster onto {target.get_display_name()} for #DAMAGE_{dealt}# damage; it bites home ({len(target.bombs)})",
                 MessageType.ABILITY,
                 player=user.player
             )
             if added == 0:
                 message_log.add_message(
-                    f"{target.get_display_name()} is already saturated with bombs",
+                    f"{target.get_display_name()} is already studded with bombs",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -308,6 +313,18 @@ class SkyhookSkill(ActiveSkill):
         ty, tx = target_pos
         user.vault_target_indicator = None
 
+        # The drone is the carrier: if it died after this was queued (e.g. an enemy killed
+        # it earlier in this turn's resolution), there's nothing to haul him — abort. The
+        # drone-gate in can_use() isn't enough; the state can change before we execute.
+        if not self._has_living_drone(user):
+            message_log.add_message(
+                f"{user.get_display_name()}'s skyhook fails - the drone is gone!",
+                MessageType.WARNING,
+                player=user.player
+            )
+            self.current_cooldown = 0  # refund — the skill did nothing
+            return False
+
         # The drone hauls him to the landing tile (teleport — flies over everything).
         if game.get_unit_at(ty, tx) is not None:
             message_log.add_message(
@@ -315,6 +332,7 @@ class SkyhookSkill(ActiveSkill):
                 MessageType.WARNING,
                 player=user.player
             )
+            self.current_cooldown = 0  # refund — the skill did nothing
             return False
         game._remove_from_unit_grid(user)
         user.y, user.x = ty, tx
@@ -323,7 +341,7 @@ class SkyhookSkill(ActiveSkill):
         game._snap_drone_adjacent(user, ui)
 
         message_log.add_message(
-            f"{user.get_display_name()} is lifted across the field by the drone",
+            f"{user.get_display_name()} is hauled across the field on the drone's line",
             MessageType.ABILITY,
             player=user.player
         )
@@ -342,13 +360,18 @@ class SkyhookSkill(ActiveSkill):
                 plant_bomb(enemy, 1)
                 if immune:
                     message_log.add_message(
-                        f"{user.get_display_name()} strikes {enemy.get_display_name()} on arrival for {dealt}, but the bomb finds no purchase",
+                        f"{user.get_display_name()} comes down hard on {enemy.get_display_name()} for #DAMAGE_{dealt}# damage",
                         MessageType.ABILITY,
                         player=user.player
                     )
+                    message_log.add_message(
+                        f"{enemy.get_display_name()} is immune to bomb due to Stasiality",
+                        MessageType.ABILITY,
+                        player=enemy.player
+                    )
                 else:
                     message_log.add_message(
-                        f"{user.get_display_name()} grafts a bomb onto {enemy.get_display_name()} on arrival for {dealt} ({len(enemy.bombs)})",
+                        f"{user.get_display_name()}'s landing grafts a spiked cluster onto {enemy.get_display_name()} for #DAMAGE_{dealt}# damage ({len(enemy.bombs)})",
                         MessageType.ABILITY,
                         player=user.player
                     )
@@ -356,7 +379,7 @@ class SkyhookSkill(ActiveSkill):
 
 
 class HarvestSkill(ActiveSkill):
-    """Detonate every fused bomb on the field for %max-HP damage; refunds MERIDIAN CUT."""
+    """Detonate every fused bomb on the field for %max-HP damage; refunds Skyhook's cooldown."""
 
     def __init__(self):
         super().__init__(
@@ -388,7 +411,7 @@ class HarvestSkill(ActiveSkill):
             user.action_timestamp = game.action_counter
             game.action_counter += 1
         message_log.add_message(
-            f"{user.get_display_name()} prepares to touch off the bombs",
+            f"{user.get_display_name()} thumbs the firing key",
             MessageType.ABILITY,
             player=user.player
         )
@@ -412,7 +435,7 @@ class HarvestSkill(ActiveSkill):
             dealt = detonate_fused(target, game)
             total_stacks += fused
             message_log.add_message(
-                f"{target.get_display_name()}'s bombs detonate for {dealt}",
+                f"{target.get_display_name()}'s clusters detonate for #DAMAGE_{dealt}# damage",
                 MessageType.ABILITY,
                 player=user.player
             )
@@ -423,7 +446,7 @@ class HarvestSkill(ActiveSkill):
 
         _reduce_skyhook_cooldown(user, total_stacks)
         message_log.add_message(
-            f"{user.get_display_name()} reaps the graft",
+            f"{user.get_display_name()} brings in the harvest",
             MessageType.ABILITY,
             player=user.player
         )

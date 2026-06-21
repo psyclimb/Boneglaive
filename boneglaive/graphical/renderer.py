@@ -2604,6 +2604,13 @@ class GraphicalRenderer:
         # This ensures death animations have access to visual_units before removal
         if not self.pending_animation_events and not self.has_active_animations():
             self.sync_units_from_game()
+            # Self-heal: a teleport/Skyhook animation hides a unit (teleport_hidden) and is
+            # responsible for revealing it when it lands. If such an animation is interrupted
+            # or discarded before it can reveal, the unit would stay invisible forever. With
+            # no animations running, nothing should remain hidden — un-hide any stragglers.
+            for unit in self.units:
+                if getattr(unit, 'teleport_hidden', False):
+                    unit.teleport_hidden = False
 
     def handle_animation_event(self, event: AnimationEvent):
         """

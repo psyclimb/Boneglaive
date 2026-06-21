@@ -428,6 +428,49 @@ def test_skyhook_blocked_after_drone_dies():
           f"before={usable_before} after_death={sky.can_use(graft, dest, g)} (want True then False)")
 
 
+def test_skyhook_aborts_and_refunds_if_drone_dies_after_queue():
+    """If the drone dies AFTER Skyhook is queued (use) but before it resolves (execute),
+    execute must abort (graft does NOT move) and refund the cooldown."""
+    g = fresh_game()
+    ts = free_tiles(g, 40)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()  # drone exists
+    dest = _empty_dest_in_range(g, graft)
+    before = (graft.y, graft.x)
+    sky.use(graft, dest, g)  # queue it (drone alive) -> charges cooldown
+    # the drone dies before the queued Skyhook resolves
+    drone = graft.drone
+    drone.hp = 0
+    g.handle_unit_death(drone, None, cause="test", ui=None)
+    ok = sky.execute(graft, dest, g)
+    check("skyhook_dead_drone_aborts", ok is False and (graft.y, graft.x) == before,
+          f"returned={ok} moved={(graft.y, graft.x) != before} (want abort, no move)")
+    check("skyhook_dead_drone_refunds", sky.current_cooldown == 0,
+          f"cd={sky.current_cooldown} (want refunded to 0)")
+
+
+def test_skyhook_aborts_and_refunds_if_landing_occupied():
+    """If the landing tile becomes occupied between queue and resolve, execute aborts and
+    refunds the cooldown (the player shouldn't eat a 4-turn cd for a no-op)."""
+    g = fresh_game()
+    ts = free_tiles(g, 40)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()  # drone exists
+    dest = _empty_dest_in_range(g, graft)
+    sky.use(graft, dest, g)  # queue it -> charges cooldown
+    place(g, UnitType.INTERFERER, 2, dest[0], dest[1])  # something lands on the target tile
+    before = (graft.y, graft.x)
+    ok = sky.execute(graft, dest, g)
+    check("skyhook_occupied_aborts", ok is False and (graft.y, graft.x) == before,
+          f"returned={ok} moved={(graft.y, graft.x) != before} (want abort, no move)")
+    check("skyhook_occupied_refunds", sky.current_cooldown == 0,
+          f"cd={sky.current_cooldown} (want refunded to 0)")
+
+
 # ---------------------------------------------------------------------------
 # Cleanse: partial (Broaching) vs full (Vagal Run)
 # ---------------------------------------------------------------------------
@@ -781,6 +824,92 @@ def test_drone_regenerates_after_death():
           f"drone={'yes' if graft.drone else 'no'}")
 
 
+def test_drone_flies_over_terrain_but_cannot_land():
+    """The drone flies OVER impassable terrain/furniture in its path, but cannot LAND on it
+    (the destination must still be passable). A non-flying unit is blocked by the same path."""
+    g = fresh_game()
+    # find start(passable,empty) - furniture(impassable) - landing(passable,empty) in a row
+    spot = None
+    for y in range(HEIGHT):
+        for x in range(1, WIDTH - 1):
+            if (not g.map.is_passable(y, x)
+                    and g.map.is_passable(y, x - 1) and g.get_unit_at(y, x - 1) is None
+                    and g.map.is_passable(y, x + 1) and g.get_unit_at(y, x + 1) is None):
+                spot = (y, x)
+                break
+        if spot:
+            break
+    if spot is None:
+        check("drone_flight_setup", False, "no furniture-between-passable spot on this map")
+        return
+    fy, fx = spot          # furniture
+    start, landing = fx - 1, fx + 1
+    # place the graft off the flight row but within leash of both tiles
+    gpos = next(((gy, gx) for (gy, gx) in [(fy + 1, landing), (fy - 1, landing), (fy + 1, fx), (fy - 1, fx)]
+                 if 0 <= gy < HEIGHT and g.map.is_passable(gy, gx) and g.get_unit_at(gy, gx) is None
+                 and g.chess_distance(gy, gx, fy, landing) <= ORDNANCE_DRONE_LEASH
+                 and g.chess_distance(gy, gx, fy, start) <= ORDNANCE_DRONE_LEASH), None)
+    if gpos is None:
+        check("drone_flight_setup", False, "no off-row graft position within leash")
+        return
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *gpos)
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()
+    drone = graft.drone
+    graft.move_target = None
+    g._remove_from_unit_grid(drone)
+    drone.y, drone.x = fy, start
+    g._update_unit_grid(drone)
+
+    check("drone_flies_over_terrain", g.can_move_to(drone, fy, landing) is True,
+          f"can_move_to(landing beyond furniture)={g.can_move_to(drone, fy, landing)} (want True)")
+    check("drone_cannot_land_on_terrain", g.can_move_to(drone, fy, fx) is False,
+          f"can_move_to(furniture tile)={g.can_move_to(drone, fy, fx)} (want False)")
+
+    # a non-flying unit is blocked by the same furniture in its path
+    g2 = fresh_game()
+    gray = place(g2, UnitType.GRAYMAN, 1, fy, start)
+    check("nonflyer_blocked_by_terrain", g2.can_move_to(gray, fy, landing) is False,
+          f"GRAYMAN over furniture={g2.can_move_to(gray, fy, landing)} (want False)")
+
+    # The drone also flies OVER units in its path, but still can't land on an occupied tile.
+    g3 = fresh_game()
+    row = None
+    for yy in range(HEIGHT):
+        cs = [x for x in range(WIDTH) if g3.map.is_passable(yy, x) and g3.get_unit_at(yy, x) is None]
+        for i in range(len(cs) - 2):
+            if cs[i + 1] == cs[i] + 1 and cs[i + 2] == cs[i] + 2:
+                row = (yy, cs[i])
+                break
+        if row:
+            break
+    if row is None:
+        check("drone_unit_flight_setup", False, "no 3-tile passable corridor")
+        return
+    ry, rc = row
+    ustart, umid, uland = rc, rc + 1, rc + 2
+    gp = next(((gy, gx) for (gy, gx) in [(ry + 1, uland), (ry - 1, uland), (ry + 1, umid), (ry - 1, umid)]
+               if 0 <= gy < HEIGHT and g3.map.is_passable(gy, gx) and g3.get_unit_at(gy, gx) is None
+               and g3.chess_distance(gy, gx, ry, uland) <= ORDNANCE_DRONE_LEASH
+               and g3.chess_distance(gy, gx, ry, ustart) <= ORDNANCE_DRONE_LEASH), None)
+    if gp is None:
+        check("drone_unit_flight_setup", False, "no off-row graft position within leash (units)")
+        return
+    graft3 = place(g3, UnitType.ORDNANCE_GRAFT, 1, *gp)
+    g3.current_player = 1
+    g3._process_ordnance_graft_upkeep()
+    drone3 = graft3.drone
+    graft3.move_target = None
+    g3._remove_from_unit_grid(drone3)
+    drone3.y, drone3.x = ry, ustart
+    g3._update_unit_grid(drone3)
+    place(g3, UnitType.INTERFERER, 2, ry, umid)  # a unit blocking the flight path
+    check("drone_flies_over_unit", g3.can_move_to(drone3, ry, uland) is True,
+          f"can_move_to(landing past a unit)={g3.can_move_to(drone3, ry, uland)} (want True)")
+    check("drone_cannot_land_on_unit", g3.can_move_to(drone3, ry, umid) is False,
+          f"can_move_to(occupied tile)={g3.can_move_to(drone3, ry, umid)} (want False)")
+
+
 def main():
     test_plant_and_cap()
     test_fuse_timing()
@@ -797,6 +926,8 @@ def main():
     test_skyhook_arrival_aoe()
     test_skyhook_requires_living_drone()
     test_skyhook_blocked_after_drone_dies()
+    test_skyhook_aborts_and_refunds_if_drone_dies_after_queue()
+    test_skyhook_aborts_and_refunds_if_landing_occupied()
     test_partial_cleanse_removes_one()
     test_partial_cleanse_prefers_unfused()
     test_full_cleanse_removes_all()
@@ -810,6 +941,7 @@ def main():
     test_drone_spawns_on_upkeep()
     test_drone_leash_rejects_far_move()
     test_drone_regenerates_after_death()
+    test_drone_flies_over_terrain_but_cannot_land()
 
     print("\n==== ORDNANCE GRAFT INTEGRATION ====")
     allok = True
