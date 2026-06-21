@@ -353,8 +353,8 @@ class SetupUnitHelp:
                 ]
             },
             UnitType.ORDNANCE_GRAFT: {
-                'difficulty': 4,  # Out of 5
-                'role': 'Frontline Diver / Summoner / Burst Damage',
+                'difficulty': 2,  # Out of 5
+                'role': 'Burst Damage / Summoner / Escape Artist',
                 'overview': 'A gunner-samurai who grafts clustered spiked bombs onto enemies with his linstock, then touches them off for damage scaled to maximum HP. The roster\'s anti-tank: the bigger the body, the harder he hits. A leashed quadcopter drone fights alongside him.',
                 'passive': {
                     'name': 'ROTOR GRAFT',
@@ -367,7 +367,7 @@ class SetupUnitHelp:
                     },
                     {
                         'name': 'SKYHOOK',
-                        'desc': 'The drone hauls him to an empty tile within range, grafting a bola onto an enemy adjacent to the landing (the drone mirrors it). Requires a living drone. Its cooldown is refunded whenever bolas detonate.'
+                        'desc': 'The drone hauls him to an empty tile within range, slamming down to strike and graft a bola onto every adjacent enemy (the drone mirrors each). Requires a living drone. Its cooldown is refunded whenever bolas detonate.'
                     },
                     {
                         'name': 'HARVEST',

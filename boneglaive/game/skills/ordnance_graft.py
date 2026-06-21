@@ -34,7 +34,12 @@ STRIKE_DAMAGE = 2
 def plant_bola(target: 'Unit', amount: int = 1) -> int:
     """Graft `amount` bola bombs onto target (capped at BOLA_MAX_STACKS). Each is a
     distinct, individually-cleansable instance, planted unfused (cannot detonate until
-    it fuses next turn). Returns the number of bombs actually added."""
+    it fuses next turn). Returns the number of bombs actually added.
+
+    Stasiality (or effective stasiality — GRAYMAN, HEINOUS_VAPOR, Topiary form) makes
+    a unit immune to new status effects, so bolas can't be grafted onto it at all."""
+    if target.is_immune_to_effects():
+        return 0
     room = BOLA_MAX_STACKS - len(target.bolas)
     added = max(0, min(amount, room))
     for _ in range(added):
@@ -172,36 +177,44 @@ class InoculantSkill(ActiveSkill):
         if target is None or target.player == user.player:
             return False
 
+        immune = target.is_immune_to_effects()
         target_def = target.get_effective_stats()['defense']
         damage = max(1, STRIKE_DAMAGE - target_def)
         dealt = target.deal_damage(damage)
         added = plant_bola(target, 1)
 
-        message_log.add_message(
-            f"{user.get_display_name()} strikes {target.get_display_name()} for {dealt} and grafts a bola ({len(target.bolas)})",
-            MessageType.ABILITY,
-            player=user.player
-        )
-        if added == 0:
+        if immune:
             message_log.add_message(
-                f"{target.get_display_name()} is already saturated with bolas",
+                f"{user.get_display_name()} strikes {target.get_display_name()} for {dealt}, but the bola finds no purchase",
                 MessageType.ABILITY,
                 player=user.player
             )
+        else:
+            message_log.add_message(
+                f"{user.get_display_name()} strikes {target.get_display_name()} for {dealt} and grafts a bola ({len(target.bolas)})",
+                MessageType.ABILITY,
+                player=user.player
+            )
+            if added == 0:
+                message_log.add_message(
+                    f"{target.get_display_name()} is already saturated with bolas",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
         # The autonomous drone mirrors the strike on the same target.
         game._drone_echo_strike(user, target, ui)
         return True
 
 
 class SkyhookSkill(ActiveSkill):
-    """The drone hauls him to a new position (aerial extraction), grafting a bola onto
-    an enemy adjacent to where he lands. Requires a living drone; refunded by detonations."""
+    """The drone hauls him to a new position (aerial extraction), slamming down to strike
+    and graft a bola onto every adjacent enemy. Requires a living drone; refunded by detonations."""
 
     def __init__(self):
         super().__init__(
             name="Skyhook",
             key="S",
-            description="The drone lifts you to any empty position within range, ignoring pathing, and grafts a bola onto an enemy adjacent to the landing point. Requires a living drone. Cooldown is refunded when bolas detonate.",
+            description="The drone lifts you to any empty position within range, ignoring pathing, then slams down to strike and graft a bola onto every enemy in the surrounding tiles. Requires a living drone. Cooldown is refunded when bolas detonate.",
             target_type=TargetType.AREA,
             cooldown=4,
             range_=4
@@ -274,23 +287,32 @@ class SkyhookSkill(ActiveSkill):
             player=user.player
         )
 
-        # Graft a bola onto one enemy adjacent to the landing point; the drone mirrors it.
-        for enemy in game.units:
+        # Arrival slam: strike + graft a bola onto EVERY enemy in the 8 adjacent tiles
+        # around the landing point; the drone mirrors each. Snapshot the unit list since
+        # the strikes/echo can change board state.
+        for enemy in list(game.units):
             if (enemy.is_alive() and enemy.player != user.player
                     and game.chess_distance(user.y, user.x, enemy.y, enemy.x) <= 1
                     and game.can_target_unit(user, enemy)):
+                immune = enemy.is_immune_to_effects()
                 target_def = enemy.get_effective_stats()['defense']
                 damage = max(1, STRIKE_DAMAGE - target_def)
                 dealt = enemy.deal_damage(damage)
                 plant_bola(enemy, 1)
-                message_log.add_message(
-                    f"{user.get_display_name()} grafts a bola onto {enemy.get_display_name()} on arrival for {dealt} ({len(enemy.bolas)})",
-                    MessageType.ABILITY,
-                    player=user.player
-                )
+                if immune:
+                    message_log.add_message(
+                        f"{user.get_display_name()} strikes {enemy.get_display_name()} on arrival for {dealt}, but the bola finds no purchase",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
+                else:
+                    message_log.add_message(
+                        f"{user.get_display_name()} grafts a bola onto {enemy.get_display_name()} on arrival for {dealt} ({len(enemy.bolas)})",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
                 # The autonomous drone mirrors the graft on this enemy.
                 game._drone_echo_strike(user, enemy, ui)
-                break
         return True
 
 

@@ -69,7 +69,7 @@ UNIT_DESCRIPTORS = (
     UnitDescriptor(UnitType.DERELICTIONIST, 'DERELICTIONIST', 'D', UnitStats(18, 0, 0, 4, 1)),
     UnitDescriptor(UnitType.POTPOURRIST, 'POTPOURRIST', 'P', UnitStats(24, 5, 0, 3, 1)),
     UnitDescriptor(UnitType.LANDSCAPER, 'LANDSCAPER', 'L', UnitStats(20, 1, 1, 2, 1)),
-    UnitDescriptor(UnitType.ORDNANCE_GRAFT, 'ORDNANCE GRAFT', 'Ø', UnitStats(20, 4, 1, 3, 2)),
+    UnitDescriptor(UnitType.ORDNANCE_GRAFT, 'ORDNANCE GRAFT', 'Ø', UnitStats(20, 4, 0, 3, 2)),
     # HEINOUS_VAPOR is a GAS_MACHINIST summon: not recruitable, awards no GP.
     UnitDescriptor(UnitType.HEINOUS_VAPOR, 'HEINOUS VAPOR', 'V', UnitStats(1, 0, 0, 4, 1),
                    recruitable=False, awards_gp=False),

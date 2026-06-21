@@ -5235,15 +5235,23 @@ class Game:
                 drone.y, drone.x = best
                 self._update_unit_grid(drone)
 
+        immune = target.is_immune_to_effects()
         target_def = target.get_effective_stats()['defense']
         damage = max(1, STRIKE_DAMAGE - target_def)
         dealt = target.deal_damage(damage)
         plant_bola(target, 1)
-        message_log.add_message(
-            f"{drone.get_display_name()} strikes {target.get_display_name()} for {dealt} and grafts a bola ({len(target.bolas)})",
-            MessageType.ABILITY,
-            player=drone.player
-        )
+        if immune:
+            message_log.add_message(
+                f"{drone.get_display_name()} strikes {target.get_display_name()} for {dealt}, but the bola finds no purchase",
+                MessageType.ABILITY,
+                player=drone.player
+            )
+        else:
+            message_log.add_message(
+                f"{drone.get_display_name()} strikes {target.get_display_name()} for {dealt} and grafts a bola ({len(target.bolas)})",
+                MessageType.ABILITY,
+                player=drone.player
+            )
 
     def _process_ordnance_graft_upkeep(self):
         """Turn-start upkeep: arm fused bolas and reconcile/regenerate drones."""

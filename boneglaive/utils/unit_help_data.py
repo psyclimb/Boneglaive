@@ -767,7 +767,7 @@ def get_unit_help_data():
             'overview': [
                 'ORDNANCE GRAFT is a gunner-samurai who fights with a linstock — a match-staff for firing cannon. He grafts clustered spiked bombs ("bolas") onto enemies with his strikes, then touches them off for damage scaled to the target\'s maximum HP. This makes him the roster\'s dedicated anti-tank: the bigger the body, the harder he hits it. A leashed quadcopter drone fights at his side, grafting bolas of its own.',
                 '',
-                'Role: Frontline Diver / Summoner / Burst Damage'
+                'Role: Burst Damage / Summoner / Escape Artist'
             ],
             'stats': [
                 'HP: 20',
@@ -792,7 +792,7 @@ def get_unit_help_data():
                 },
                 {
                     'name': 'SKYHOOK (Active)',
-                    'description': 'The drone drops a line and hauls him to any empty position within range, ignoring pathing, then grafts a bola onto an enemy adjacent to the landing point (the drone mirrors it, for two bolas). Requires a living drone — kill the drone and he loses both his second planter AND his only escape. Its cooldown is refunded whenever bolas detonate, so a big Harvest redeploys him at once.',
+                    'description': 'The drone drops a line and hauls him to any empty position within range, ignoring pathing, then slams down to strike and graft a bola onto every enemy in the surrounding tiles (the drone mirrors each, for two bolas apiece). Requires a living drone — kill the drone and he loses both his planter AND his only escape. Its cooldown is refunded whenever bolas detonate, so a big Harvest redeploys him at once.',
                     'details': [
                         'Range: 4, Cooldown: 4 turns',
                         'Requires a living drone; refunds 2 cooldown per stack detonated'

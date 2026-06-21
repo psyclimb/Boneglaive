@@ -96,6 +96,34 @@ def test_fuse_timing():
     check("fused_after_arm", fused_count(tgt) == 2, f"fused={fused_count(tgt)}")
 
 
+def test_stasiality_immune_to_bola():
+    """A unit with stasiality (or effective stasiality) cannot be grafted with bolas.
+    GRAYMAN's Stasiality passive blocks the status; the strike damage still lands."""
+    g = fresh_game()
+    ts = free_tiles(g, 1)
+    gray = place(g, UnitType.GRAYMAN, 2, *ts[0])
+    check("grayman_is_immune", gray.is_immune_to_effects(), "GRAYMAN should be immune")
+    added = plant_bola(gray, 3)
+    check("plant_blocked_by_stasiality", added == 0 and len(gray.bolas) == 0,
+          f"added={added} bolas={len(gray.bolas)} (should be 0)")
+
+    # End-to-end: Inoculant (with drone) damages but plants nothing on the immune unit.
+    g2 = fresh_game()
+    ts2 = free_tiles(g2, 40)
+    gy, gx = ts2[0]
+    ey, ex = next((y, x) for (y, x) in ts2 if abs(y - gy) <= 1 and abs(x - gx) <= 1 and (y, x) != (gy, gx))
+    graft = place(g2, UnitType.ORDNANCE_GRAFT, 1, gy, gx)
+    gray2 = place(g2, UnitType.GRAYMAN, 2, ey, ex)
+    g2.current_player = 1
+    g2._process_ordnance_graft_upkeep()  # drone (its echo must also be blocked)
+    inoc = next(s for s in graft.active_skills if s.name == "Inoculant")
+    hp0 = gray2.hp
+    inoc.execute(graft, (gray2.y, gray2.x), g2)
+    check("inoculant_damages_immune", (hp0 - gray2.hp) > 0, f"damage={hp0 - gray2.hp} (strike still lands)")
+    check("inoculant_plants_nothing_on_immune", len(gray2.bolas) == 0,
+          f"bolas={len(gray2.bolas)} (graft AND drone echo blocked by stasiality)")
+
+
 # ---------------------------------------------------------------------------
 # Detonation math
 # ---------------------------------------------------------------------------
@@ -259,6 +287,52 @@ def test_skyhook_repositions_and_plants():
           f"arrival enemy bolas={len(enemy.bolas)} (graft + drone mirror)")
     check("skyhook_arrival_damage", (e_hp0 - enemy.hp) == 4,
           f"dmg={e_hp0 - enemy.hp} (2 strikes x flat 2, DEF 0)")
+
+
+def test_skyhook_arrival_aoe():
+    """Skyhook's arrival slam hits EVERY enemy in the 8 tiles around the landing —
+    each is struck and grafted (and the drone mirrors each, for two bolas apiece)."""
+    g = fresh_game()
+    # Find a landing tile (empty, in range) with >=2 free neighbours for enemies.
+    graft = None
+    landing = None
+    nbrs = []
+    for y in range(1, HEIGHT - 1):
+        for x in range(1, WIDTH - 1):
+            if not (g.map.is_passable(y, x) and g.get_unit_at(y, x) is None):
+                continue
+            free_n = [(y + dy, x + dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1)
+                      if (dy or dx) and g.map.is_passable(y + dy, x + dx)
+                      and g.get_unit_at(y + dy, x + dx) is None]
+            if len(free_n) >= 3:  # 1 for the graft's start, 2 for enemies
+                landing = (y, x)
+                nbrs = free_n
+                break
+        if landing:
+            break
+    if landing is None:
+        check("skyhook_aoe", False, "no suitable landing tile")
+        return
+    # Put the graft on one neighbour (so the landing tile stays empty + in range 1).
+    gstart = nbrs[0]
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *gstart)
+    e1 = place(g, UnitType.POTPOURRIST, 2, *nbrs[1])  # DEF 0
+    e2 = place(g, UnitType.POTPOURRIST, 2, *nbrs[2])  # DEF 0
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()  # drone
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    # Landing must be empty (drone may have taken a tile) and adjacent to both enemies.
+    if g.get_unit_at(*landing) is not None:
+        check("skyhook_aoe", False, "landing tile got occupied by drone")
+        return
+    e1_hp0, e2_hp0 = e1.hp, e2.hp
+    sky.execute(graft, landing, g)
+    both_grafted = len(e1.bolas) == 2 and len(e2.bolas) == 2
+    both_hit = (e1_hp0 - e1.hp) == 4 and (e2_hp0 - e2.hp) == 4
+    check("skyhook_aoe_grafts_all_adjacent", both_grafted,
+          f"e1 bolas={len(e1.bolas)} e2 bolas={len(e2.bolas)} (both should be 2)")
+    check("skyhook_aoe_strikes_all_adjacent", both_hit,
+          f"e1 dmg={e1_hp0 - e1.hp} e2 dmg={e2_hp0 - e2.hp} (both 4)")
 
 
 def _empty_dest_in_range(g, graft, rng=4):
@@ -543,12 +617,14 @@ def test_drone_regenerates_after_death():
 def main():
     test_plant_and_cap()
     test_fuse_timing()
+    test_stasiality_immune_to_bola()
     test_detonation_tank_math()
     test_detonation_curve_favours_big_bodies()
     test_detonation_ignores_def_respects_prt()
     test_only_fused_detonate()
     test_skyhook_refund()
     test_skyhook_repositions_and_plants()
+    test_skyhook_arrival_aoe()
     test_skyhook_requires_living_drone()
     test_skyhook_blocked_after_drone_dies()
     test_partial_cleanse_removes_one()
