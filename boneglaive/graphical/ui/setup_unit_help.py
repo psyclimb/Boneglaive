@@ -358,12 +358,12 @@ class SetupUnitHelp:
                 'overview': 'A gunner-samurai who grafts clustered spiked bombs onto enemies with his linstock, then touches them off for damage scaled to maximum HP. The roster\'s anti-tank: the bigger the body, the harder he hits. A leashed quadcopter drone fights alongside him.',
                 'passive': {
                     'name': 'ROTOR GRAFT',
-                    'desc': 'Fields one leashed quadcopter drone that grafts bolas onto enemies it strikes. It regenerates a few turns after being destroyed, and falls and returns with its owner.'
+                    'desc': 'Fields one leashed quadcopter drone. When its owner grafts a bola, the drone mirrors him on the same target for a second bola — so a planting turn lands two stacks. It regenerates a few turns after being destroyed, and falls and returns with its owner.'
                 },
                 'skills': [
                     {
                         'name': 'INOCULANT',
-                        'desc': 'Strikes an adjacent enemy for normal damage and grafts a bola bomb (stacks up to 3, arms after one turn).'
+                        'desc': 'Strikes an adjacent enemy for normal damage and grafts a bola bomb (stacks up to 4, arms after one turn).'
                     },
                     {
                         'name': 'MERIDIAN CUT',
@@ -371,7 +371,7 @@ class SetupUnitHelp:
                     },
                     {
                         'name': 'HARVEST',
-                        'desc': 'Touches off every armed bola on the field. Each stack deals a percent of the target\'s maximum HP (more against healthy targets), ignoring defense.'
+                        'desc': 'Touches off every armed bola on the field. Each stack deals a percent of the target\'s maximum HP that scales up with the size of the body, ignoring defense — devastating on tanks, slight on small units.'
                     }
                 ]
             },

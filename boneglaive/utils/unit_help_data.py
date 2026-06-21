@@ -779,15 +779,15 @@ def get_unit_help_data():
             'skills': [
                 {
                     'name': 'ROTOR GRAFT (Passive)',
-                    'description': 'Fields one leashed ORDNANCE DRONE that fights autonomously and grafts a bola onto enemies it strikes. The drone is bound to its owner: if destroyed it regenerates after a few turns; if the owner dies it falls with him and returns when he respawns. The drone may never stray far from its owner.',
+                    'description': 'Fields one leashed ORDNANCE DRONE that fights autonomously. Whenever its owner grafts a bola with a strike, the drone mirrors him — flying to the same target to strike and graft a second bola, so a planting turn lands two stacks at once. The drone is bound to its owner: if destroyed it regenerates after a few turns; if the owner dies it falls with him and returns when he respawns. The drone may never stray far from its owner — and killing it shuts off the second bola.',
                     'details': []
                 },
                 {
                     'name': 'INOCULANT (Active)',
-                    'description': 'Strike an adjacent enemy for normal attack damage and graft a bola bomb onto them. Bolas stack up to 3 on one target and arm one turn after being planted.',
+                    'description': 'Strike an adjacent enemy for normal attack damage and graft a bola bomb onto them. Bolas stack up to 4 on one target and arm one turn after being planted. Each bomb is its own: a full cleanse clears them all, but a drip-cleanse only peels one at a time.',
                     'details': [
                         'Range: 1, Cooldown: 1 turn',
-                        'Bolas cap at 3 per target; cleansable'
+                        'Bolas cap at 4 per target; individually cleansable'
                     ]
                 },
                 {
@@ -800,19 +800,19 @@ def get_unit_help_data():
                 },
                 {
                     'name': 'HARVEST (Active)',
-                    'description': 'Touch off every armed bola on the field at once. Each stack deals a percent of the target\'s maximum HP (more against targets above 75% HP), ignoring defense. Stacked bolas multiply against a single tank; spread bolas sweep the board.',
+                    'description': 'Touch off every armed bola on the field at once. Each stack deals a percent of the target\'s maximum HP that scales up with the size of the body, ignoring defense — devastating against high-HP tanks, slight against small units. Stacked bolas multiply against a single tank; spread bolas sweep the board.',
                     'details': [
                         'Cooldown: 3 turns',
-                        'Damage: 12% max HP per stack (+6% vs healthy targets), ignores DEF'
+                        'Damage per stack scales with the target\'s max HP (~8% on the smallest bodies up to ~30% on the largest), ignores DEF'
                     ]
                 }
             ],
             'tips': [
-                '- Plant bolas across two turns (Inoculant + the drone), then Harvest the cluster for a tank-melting burst',
-                '- A full 3-stack Harvest on a healthy tank takes off roughly half its health',
+                '- Plant bolas across two turns (Inoculant + the mirroring drone reach 4 fast), then Harvest the cluster for a tank-melting burst',
+                '- A full 4-stack Harvest on a big-bodied tank can take off nearly its whole health bar',
                 '- Detonations refund Meridian Cut — chain a Harvest into a dash to the next target',
                 '- He is weak into low-HP units; save him for the big bodies',
-                '- Protect the drone: losing it removes a planter and a detonator until it regenerates'
+                '- Protect the drone: losing it removes the second planter, so the cluster builds half as fast until it regenerates'
             ],
             'tactical': [
                 '- Strong against: High-HP tanks and bruisers (POTPOURRIST, MARROW CONDENSER, GLAIVEMAN, MANDIBLE FOREMAN)',

@@ -136,7 +136,7 @@ def get_unit_status_effects(game_unit):
                 effects['disarmed'] = True
     if hasattr(game_unit, 'is_topiary') and game_unit.is_topiary:
         effects['topiary'] = True
-    if getattr(game_unit, 'bola_stacks', 0) > 0:
+    if len(getattr(game_unit, 'bolas', []) or []) > 0:
         effects['bola'] = True
     if hasattr(game_unit, 'partition_shield_active') and game_unit.partition_shield_active:
         effects['partition'] = True

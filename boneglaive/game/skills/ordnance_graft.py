@@ -13,42 +13,84 @@ if TYPE_CHECKING:
     from boneglaive.game.engine import Game
 
 
-# Bola detonation: % of the target's max HP per fused stack, with a bonus against
-# healthy targets (the anti-tank sharpener — he punishes full-HP big bodies hardest).
-BOLA_PCT_BASE = 0.12
-BOLA_PCT_HEALTHY_BONUS = 0.06
-BOLA_HEALTHY_THRESHOLD = 0.75
+# Bola detonation: % of the target's MAX HP per fused stack, scaling UP with the
+# target's max HP — the anti-tank curve. A small body takes a small slice; a big
+# body takes a much larger PERCENTAGE, so he prefers the tank and is weak into
+# squishies. pct = floor + max(0, max_hp - ref) * per_hp.
+#   ref 18 HP -> 8%/stack (squishy floor); 24 HP -> 30%/stack (tank).
+# At cap 4 that is ~22% of a squishy's bar vs a tank one-shot. These three are the
+# primary balance levers.
+BOLA_PCT_FLOOR = 0.08        # per-stack % at (and below) the reference HP
+BOLA_PCT_REF_HP = 18         # reference max HP the floor applies to (roster's squishy)
+BOLA_PCT_PER_HP = 0.22 / 6   # extra per-stack % for each max-HP point above the reference
 # MERIDIAN CUT cooldown refunded per stack detonated.
 CUT_REFUND_PER_STACK = 2
 CUT_SKILL_NAME = "Meridian Cut"
+# Flat base damage for his strikes (Inoculant / Meridian Cut). NOT ATK-scaled — his
+# damage identity is the bombs, not the sword. DEF/PRT still reduce it via deal_damage.
+STRIKE_DAMAGE = 2
 
 
 def plant_bola(target: 'Unit', amount: int = 1) -> int:
-    """Graft `amount` bola stacks onto target (capped). Newly planted stacks are
-    unfused (cannot detonate until they fuse next turn). Returns stacks added."""
-    before = target.bola_stacks
-    target.bola_stacks = min(BOLA_MAX_STACKS, target.bola_stacks + amount)
-    added = target.bola_stacks - before
-    target.bola_unfused += added
+    """Graft `amount` bola bombs onto target (capped at BOLA_MAX_STACKS). Each is a
+    distinct, individually-cleansable instance, planted unfused (cannot detonate until
+    it fuses next turn). Returns the number of bombs actually added."""
+    room = BOLA_MAX_STACKS - len(target.bolas)
+    added = max(0, min(amount, room))
+    for _ in range(added):
+        target.bolas.append({'fused': False})
     return added
 
 
+def fused_count(target: 'Unit') -> int:
+    """Number of fused (detonatable) bolas on target."""
+    return sum(1 for b in target.bolas if b['fused'])
+
+
+def arm_bolas(target: 'Unit') -> None:
+    """Fuse every unfused bomb on target (it becomes detonatable). Called at the
+    owner's turn-start, one fuse-step after a bomb is planted."""
+    for bomb in target.bolas:
+        bomb['fused'] = True
+
+
+def remove_one_bola(target: 'Unit') -> bool:
+    """Defuse a single bomb (drip-cleanse, e.g. Broaching Gas). Prefers removing an
+    UNFUSED bomb first so a partial cleanse delays the burst rather than eating an
+    already-armed stack. Returns True if a bomb was removed."""
+    if not target.bolas:
+        return False
+    for i, bomb in enumerate(target.bolas):
+        if not bomb['fused']:
+            del target.bolas[i]
+            return True
+    target.bolas.pop()
+    return True
+
+
+def clear_bolas(target: 'Unit') -> int:
+    """Remove every bomb from target (full cleanse, e.g. Vagal Run). Returns count removed."""
+    n = len(target.bolas)
+    target.bolas.clear()
+    return n
+
+
 def bola_pct(target: 'Unit') -> float:
-    """Per-stack max-HP fraction for a detonation against this target."""
-    pct = BOLA_PCT_BASE
-    if target.hp > target.max_hp * BOLA_HEALTHY_THRESHOLD:
-        pct += BOLA_PCT_HEALTHY_BONUS
-    return pct
+    """Per-stack max-HP fraction for a detonation against this target. Scales up with
+    the target's max HP (the anti-tank curve): bigger body -> bigger percentage."""
+    return BOLA_PCT_FLOOR + max(0, target.max_hp - BOLA_PCT_REF_HP) * BOLA_PCT_PER_HP
 
 
-def detonate_bola(target: 'Unit', game: 'Game', stacks: int) -> int:
-    """Detonate `stacks` fused bolas on target for %max-HP damage (ignores DEF;
-    PRT still applies via deal_damage). Returns damage dealt."""
+def detonate_fused(target: 'Unit', game: 'Game') -> int:
+    """Detonate and remove all FUSED bolas on target for %max-HP damage (ignores DEF;
+    PRT still applies via deal_damage). Unfused bombs remain. Returns damage dealt."""
+    stacks = fused_count(target)
     if stacks <= 0:
         return 0
     per_stack = int(round(target.max_hp * bola_pct(target)))
     total = max(1, per_stack) * stacks
     dealt = target.deal_damage(total)
+    target.bolas = [b for b in target.bolas if not b['fused']]
     logger.debug(f"Bola detonation: {stacks} stacks on {target.get_display_name()} for {dealt}")
     return dealt
 
@@ -66,7 +108,7 @@ def _reduce_cut_cooldown(user: 'Unit', stacks_detonated: int) -> None:
 
 
 class RotorGraft(PassiveSkill):
-    """Keeps one leashed quadcopter drone in the field; it plants bolas and can scuttle."""
+    """Keeps one leashed quadcopter drone in the field; it mirrors its owner's plants."""
 
     def __init__(self):
         super().__init__(
@@ -88,7 +130,7 @@ class InoculantSkill(ActiveSkill):
         super().__init__(
             name="Inoculant",
             key="I",
-            description="Strike an adjacent enemy for normal damage and graft a bola bomb onto them (up to 3).",
+            description="Strike an adjacent enemy for normal damage and graft a bola bomb onto them (up to 4).",
             target_type=TargetType.ENEMY,
             cooldown=1,
             range_=1
@@ -130,14 +172,13 @@ class InoculantSkill(ActiveSkill):
         if target is None or target.player == user.player:
             return False
 
-        attacker_atk = user.get_effective_stats()['attack']
         target_def = target.get_effective_stats()['defense']
-        damage = max(1, attacker_atk - target_def)
+        damage = max(1, STRIKE_DAMAGE - target_def)
         dealt = target.deal_damage(damage)
         added = plant_bola(target, 1)
 
         message_log.add_message(
-            f"{user.get_display_name()} strikes {target.get_display_name()} for {dealt} and grafts a bola ({target.bola_stacks})",
+            f"{user.get_display_name()} strikes {target.get_display_name()} for {dealt} and grafts a bola ({len(target.bolas)})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -147,6 +188,8 @@ class InoculantSkill(ActiveSkill):
                 MessageType.ABILITY,
                 player=user.player
             )
+        # The autonomous drone mirrors the strike on the same target.
+        game._drone_echo_strike(user, target, ui)
         return True
 
 
@@ -227,16 +270,17 @@ class MeridianCutSkill(ActiveSkill):
             if (enemy.is_alive() and enemy.player != user.player
                     and game.chess_distance(user.y, user.x, enemy.y, enemy.x) <= 1
                     and game.can_target_unit(user, enemy)):
-                attacker_atk = user.get_effective_stats()['attack']
                 target_def = enemy.get_effective_stats()['defense']
-                damage = max(1, attacker_atk - target_def)
+                damage = max(1, STRIKE_DAMAGE - target_def)
                 dealt = enemy.deal_damage(damage)
                 plant_bola(enemy, 1)
                 message_log.add_message(
-                    f"{user.get_display_name()} cuts {enemy.get_display_name()} for {dealt} and grafts a bola ({enemy.bola_stacks})",
+                    f"{user.get_display_name()} cuts {enemy.get_display_name()} for {dealt} and grafts a bola ({len(enemy.bolas)})",
                     MessageType.ABILITY,
                     player=user.player
                 )
+                # The autonomous drone mirrors the cut on the same target.
+                game._drone_echo_strike(user, enemy, ui)
                 break
         return True
 
@@ -248,7 +292,7 @@ class HarvestSkill(ActiveSkill):
         super().__init__(
             name="Harvest",
             key="H",
-            description="Detonate all fused bolas on the field. Each stack deals a percent of the target's max HP (more against healthy targets). Refunds Meridian Cut's cooldown per stack.",
+            description="Detonate all fused bolas on the field. Each stack deals a percent of the target's max HP that scales up with the size of the body — devastating against tanks, weak against small units. Refunds Meridian Cut's cooldown per stack.",
             target_type=TargetType.SELF,
             cooldown=3,
             range_=0
@@ -261,7 +305,7 @@ class HarvestSkill(ActiveSkill):
             return False
         # Usable only if at least one fused bola exists on an enemy.
         return any(
-            u.is_alive() and u.player != user.player and (u.bola_stacks - u.bola_unfused) > 0
+            u.is_alive() and u.player != user.player and fused_count(u) > 0
             for u in game.units
         )
 
@@ -286,13 +330,12 @@ class HarvestSkill(ActiveSkill):
         for target in list(game.units):
             if not (target.is_alive() and target.player != user.player):
                 continue
-            fused = target.bola_stacks - target.bola_unfused
+            fused = fused_count(target)
             if fused <= 0:
                 continue
-            dealt = detonate_bola(target, game, fused)
+            # Detonate consumes the fused bombs; any unfused remain on the target.
+            dealt = detonate_fused(target, game)
             total_stacks += fused
-            # Consume only the fused stacks; any unfused remain on the target.
-            target.bola_stacks = target.bola_unfused
             message_log.add_message(
                 f"{target.get_display_name()}'s bolas detonate for {dealt}",
                 MessageType.ABILITY,
@@ -308,70 +351,4 @@ class HarvestSkill(ActiveSkill):
             MessageType.ABILITY,
             player=user.player
         )
-        return True
-
-
-class ScuttleSkill(ActiveSkill):
-    """Drone self-destructs: detonate bolas in its blast and explode for flat damage."""
-
-    BLAST_RADIUS = 1
-    BLAST_DAMAGE = 6
-
-    def __init__(self):
-        super().__init__(
-            name="Scuttle",
-            key="S",
-            description="The drone self-destructs: detonates bolas within 1 tile and deals 6 damage to units in the blast. The drone regenerates a few turns later.",
-            target_type=TargetType.SELF,
-            cooldown=0,
-            range_=0
-        )
-
-    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        if not super().can_use(user, target_pos, game):
-            return False
-        return bool(game) and getattr(user, 'is_drone', False)
-
-    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
-        if not self.can_use(user, target_pos, game):
-            return False
-        user.skill_target = (user.y, user.x)
-        user.selected_skill = self
-        if game:
-            user.action_timestamp = game.action_counter
-            game.action_counter += 1
-        message_log.add_message(
-            f"{user.get_display_name()} prepares to scuttle",
-            MessageType.ABILITY,
-            player=user.player
-        )
-        self.current_cooldown = self.cooldown
-        return True
-
-    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        cy, cx = user.y, user.x
-        owner_player = user.player
-
-        for target in list(game.units):
-            if not target.is_alive() or target is user:
-                continue
-            if game.chess_distance(cy, cx, target.y, target.x) > self.BLAST_RADIUS:
-                continue
-            if target.player == owner_player:
-                continue  # no friendly fire
-            # Detonate any fused bolas on this target first.
-            fused = target.bola_stacks - target.bola_unfused
-            if fused > 0:
-                detonate_bola(target, game, fused)
-                target.bola_stacks = target.bola_unfused
-            # Flat blast (bomb damage: ignores DEF, deal_damage still applies PRT).
-            target.deal_damage(self.BLAST_DAMAGE)
-
-        message_log.add_message(
-            f"{user.get_display_name()} scuttles in a burst of shrapnel",
-            MessageType.ABILITY,
-            player=owner_player
-        )
-        # Consume the drone; the engine's death handling starts the regen timer.
-        user.hp = 0
         return True

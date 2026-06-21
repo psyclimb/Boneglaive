@@ -128,8 +128,8 @@ STATUS_EFFECTS = {
         "type": "debuff",
         "icon": "Ø",
         "description": "Grafted bombs; detonate for percent-max-HP damage",
-        "duration_key": "bola_stacks",  # shows the stack count, not a turn timer
-        "check": lambda u: getattr(u, 'bola_stacks', 0) > 0
+        "duration_key": None,  # Special: shows number of bombs (see len(bolas) below)
+        "check": lambda u: len(getattr(u, 'bolas', []) or []) > 0
     },
     "selenic_backdraft": {
         "name": "Selenic Backdraft",
@@ -345,6 +345,10 @@ class StatusEffectIcon:
         # Special case: radiation stacks
         if effect_key == "radiation_stacks":
             self.duration = len(unit.radiation_stacks)
+
+        # Special case: bola bombs (shows the bomb count, not a turn timer)
+        if effect_key == "bola":
+            self.duration = len(getattr(unit, "bolas", []))
 
         # Special case: partition shield strength
         if effect_key == "partition_shield_active":

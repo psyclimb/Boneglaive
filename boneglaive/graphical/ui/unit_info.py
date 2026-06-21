@@ -529,6 +529,10 @@ class UnitInfoPanel:
                         if hasattr(self.game_unit, 'radiation_stacks'):
                             effect_info["duration"] = len(self.game_unit.radiation_stacks)
 
+                    # Special case: bola bombs (shows the bomb count, not a turn timer)
+                    if effect_key == "bola":
+                        effect_info["duration"] = len(getattr(self.game_unit, "bolas", []))
+
                     active_effects.append(effect_info)
             except AttributeError:
                 # Unit doesn't have this property
