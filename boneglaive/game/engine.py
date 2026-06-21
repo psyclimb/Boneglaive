@@ -1485,10 +1485,14 @@ class Game:
                 return False
 
         # ORDNANCE_DRONE leash: cannot stray past its leash radius from its owner.
+        # Anchor to the owner's PENDING move destination if he has a move queued, so the
+        # player can stage them together — queue the graft's move first, then order the
+        # drone to a tile within leash of where the graft will end up (not where he is now).
         if (getattr(unit, 'is_drone', False) and getattr(unit, 'creator', None)
                 and unit.creator.is_alive()):
             from boneglaive.utils.constants import ORDNANCE_DRONE_LEASH
-            if self.chess_distance(y, x, unit.creator.y, unit.creator.x) > ORDNANCE_DRONE_LEASH:
+            anchor_y, anchor_x = unit.creator.move_target if unit.creator.move_target else (unit.creator.y, unit.creator.x)
+            if self.chess_distance(y, x, anchor_y, anchor_x) > ORDNANCE_DRONE_LEASH:
                 return False
 
         # Check if path passes through any units (both enemy and allied)

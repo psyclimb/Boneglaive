@@ -67,11 +67,48 @@ def _grid_center(camera, gy, gx):
 
 
 # ============================================================================
-# INOCULANT — linstock strike that plants a single spiked bola, amber spark
+# Shared "graft-in" flair: particles converging INWARD onto the bomb, suggesting it
+# is being driven into the target's body (used by both Inoculant variants).
+# ============================================================================
+
+def _emit_graft_inward(emitter, tx, ty, n=8, color=BOMB_BLACK):
+    """Spawn particles that start on a ring and rush IN toward (tx,ty) — the bomb being
+    grafted into the body."""
+    if not emitter:
+        return
+    for _ in range(n):
+        a = random.uniform(0, math.tau)
+        dist = random.uniform(10, 18)
+        px, py = tx + math.cos(a) * dist, ty + math.sin(a) * dist
+        sp = random.uniform(60, 120)
+        # velocity points back toward the center
+        p = Particle(px, py, -math.cos(a) * sp, -math.sin(a) * sp,
+                     color, random.uniform(1.5, 3.0), random.uniform(0.18, 0.32))
+        emitter.particles.append(p)
+
+
+def _draw_target_pos(camera, target_unit, target_pos, caster_unit):
+    """Resolve the target's screen position from the available references."""
+    if target_pos is not None:
+        return _grid_center(camera, target_pos[0], target_pos[1])
+    if target_unit is not None:
+        gu = getattr(target_unit, 'game_unit', target_unit)
+        return _grid_center(camera, gu.y, gu.x)
+    return _grid_center(camera, caster_unit.game_unit.y, caster_unit.game_unit.x)
+
+
+# ============================================================================
+# INOCULANT (GRAFT) — he sweeps the linstock into the enemy; bombs graft in.
 # ============================================================================
 
 class InoculantAnimation:
-    """A quick linstock jab: amber spark on the target, then a spiked bomb thunks on."""
+    """The graft's Inoculant: the linstock winds back, sweeps into the target with a
+    motion-blur swipe and amber ember, then a spiked bomb thunks in and grafts (inward
+    particles), with an impact spark + slash mark. Body stays put; the weapon does the work."""
+
+    WINDUP = 0.12
+    STRIKE = 0.24   # weapon connects here
+    TOTAL = 0.6
 
     def __init__(self, caster_unit, target_unit=None, target_pos=None,
                  is_crit=False, is_infused=False,
@@ -80,38 +117,34 @@ class InoculantAnimation:
                  units_list=None, camera=None, game=None, **kwargs):
         self.active = True
         self.elapsed = 0.0
-        self.total_duration = 0.55
         self.particle_emitter = particle_emitter
         self.screen_shake = screen_shake_callback
-        self.screen_flash = screen_flash_callback
 
-        # Resolve target screen position (the unit that got grafted).
-        if target_pos is not None:
-            self.tx, self.ty = _grid_center(camera, target_pos[0], target_pos[1])
-        elif target_unit is not None:
-            gu = getattr(target_unit, 'game_unit', target_unit)
-            self.tx, self.ty = _grid_center(camera, gu.y, gu.x)
-        else:
-            self.tx, self.ty = _grid_center(camera, caster_unit.game_unit.y, caster_unit.game_unit.x)
-
-        self.spark_done = False
+        self.cx, self.cy = caster_unit.x, caster_unit.y          # graft screen pos
+        self.tx, self.ty = _draw_target_pos(camera, target_unit, target_pos, caster_unit)
+        # aim direction graft -> target
+        dx, dy = self.tx - self.cx, self.ty - self.cy
+        dist = max(1.0, math.hypot(dx, dy))
+        self.ux, self.uy = dx / dist, dy / dist
+        self.px, self.py = -self.uy, self.ux                      # perpendicular (swing plane)
         self.bomb_rot = random.uniform(0, 60)
+        self.connected = False
 
     def update(self, delta_time):
         self.elapsed += delta_time
 
-        # Impact spark at ~0.1s. (The skill's primary sound is played by the factory
-        # via SKILL_SOUNDS when this animation is created — don't double it here.)
-        if not self.spark_done and self.elapsed > 0.1:
-            self.spark_done = True
+        # Connection beat — spark + graft + shake when the linstock lands.
+        if not self.connected and self.elapsed >= self.STRIKE:
+            self.connected = True
             if self.particle_emitter:
-                self.particle_emitter.emit_burst(self.tx, self.ty, AMBER, count=10)
-                self.particle_emitter.emit_burst(self.tx, self.ty, AMBER_BRIGHT, count=5)
-                self.particle_emitter.emit_burst(self.tx, self.ty, BOMB_BLACK, count=4)
+                self.particle_emitter.emit_burst(self.tx, self.ty, AMBER, count=12)
+                self.particle_emitter.emit_burst(self.tx, self.ty, AMBER_BRIGHT, count=6)
+                self.particle_emitter.emit_burst(self.tx, self.ty, GUNMETAL_LIGHT, count=5)
+                _emit_graft_inward(self.particle_emitter, self.tx, self.ty, n=9)
             if self.screen_shake:
-                self.screen_shake(3, 0.12)
+                self.screen_shake(4, 0.14)
 
-        if self.elapsed >= self.total_duration:
+        if self.elapsed >= self.TOTAL:
             self.active = False
         return self.active
 
@@ -120,23 +153,169 @@ class InoculantAnimation:
             return
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
-        # Amber spark flash (fades fast).
-        if self.elapsed > 0.1:
-            st = min(1.0, (self.elapsed - 0.1) / 0.18)
-            flash_alpha = max(0, int(180 * (1 - st)))
-            if flash_alpha > 0:
-                pygame.draw.circle(overlay, (*AMBER, flash_alpha), (int(self.tx), int(self.ty)), int(6 + st * 8))
-                pygame.draw.circle(overlay, (*AMBER_BRIGHT, flash_alpha), (int(self.tx), int(self.ty)), int(3 + st * 4))
+        # ---- the linstock: winds back, then sweeps into the target ----
+        if self.elapsed < self.STRIKE + 0.06:
+            if self.elapsed < self.WINDUP:
+                # windup: tip pulled back behind the graft, off the swing plane
+                wt = self.elapsed / self.WINDUP
+                reach = TILE_SIZE * 0.5
+                tipx = self.cx - self.ux * reach * 0.3 + self.px * reach * (0.6 + 0.4 * wt)
+                tipy = self.cy - self.uy * reach * 0.3 + self.py * reach * (0.6 + 0.4 * wt)
+            else:
+                # strike: tip races along an arc from the windup side to the target
+                st = min(1.0, (self.elapsed - self.WINDUP) / (self.STRIKE - self.WINDUP))
+                ease = 1 - (1 - st) * (1 - st)
+                reach = TILE_SIZE * 0.95
+                # blend from perpendicular windup to the aim line
+                swing = (1 - ease)
+                tipx = self.cx + self.ux * reach * ease + self.px * reach * 0.7 * swing
+                tipy = self.cy + self.uy * reach * ease + self.py * reach * 0.7 * swing
+            buttx = self.cx - self.ux * (TILE_SIZE * 0.22)
+            butty = self.cy - self.uy * (TILE_SIZE * 0.22)
+            a = 235
+            # motion-blur swipe arc during the strike
+            if self.elapsed >= self.WINDUP:
+                st = min(1.0, (self.elapsed - self.WINDUP) / (self.STRIKE - self.WINDUP))
+                blur_a = int(120 * (1 - abs(st - 0.7)))
+                if blur_a > 0:
+                    pygame.draw.line(overlay, (*AMBER_BRIGHT, blur_a),
+                                     (int(self.cx + self.ux * TILE_SIZE * 0.4 + self.px * 8),
+                                      int(self.cy + self.uy * TILE_SIZE * 0.4 + self.py * 8)),
+                                     (int(tipx), int(tipy)), 4)
+            # tan shaft + grain
+            pygame.draw.line(overlay, (*TAN, a), (int(buttx), int(butty)), (int(tipx), int(tipy)), 4)
+            pygame.draw.line(overlay, (*OLIVE_DARK, max(0, a - 60)), (int(buttx), int(butty)), (int(tipx), int(tipy)), 1)
+            # gunmetal head + amber slow-match ember at the tip
+            pygame.draw.circle(overlay, (*GUNMETAL, a), (int(tipx), int(tipy)), 4)
+            pygame.draw.circle(overlay, (*GUNMETAL_LIGHT, a), (int(tipx), int(tipy)), 4, 1)
+            ember_r = 2 + int(abs(math.sin(self.elapsed * 30)))
+            pygame.draw.circle(overlay, (*AMBER, a), (int(tipx + self.px * 4), int(tipy + self.py * 4)), ember_r)
 
-        # The planted bomb settles in (scales up + slight jiggle).
-        if self.elapsed > 0.12:
-            bt = min(1.0, (self.elapsed - 0.12) / 0.25)
+        # ---- impact: spark flash + a short slash mark across the target ----
+        if self.connected:
+            it = min(1.0, (self.elapsed - self.STRIKE) / 0.18)
+            fa = max(0, int(190 * (1 - it)))
+            if fa > 0:
+                pygame.draw.circle(overlay, (*AMBER, fa), (int(self.tx), int(self.ty)), int(7 + it * 9))
+                pygame.draw.circle(overlay, (*AMBER_BRIGHT, fa), (int(self.tx), int(self.ty)), int(3 + it * 4))
+                # slash mark along the swing direction
+                sl = TILE_SIZE * 0.5
+                pygame.draw.line(overlay, (*AMBER_BRIGHT, fa),
+                                 (int(self.tx - self.px * sl - self.ux * sl * 0.3),
+                                  int(self.ty - self.py * sl - self.uy * sl * 0.3)),
+                                 (int(self.tx + self.px * sl + self.ux * sl * 0.3),
+                                  int(self.ty + self.py * sl + self.uy * sl * 0.3)), 2)
+
+        # ---- the planted bomb thunks in and settles ----
+        if self.elapsed > self.STRIKE:
+            bt = min(1.0, (self.elapsed - self.STRIKE) / 0.28)
             ease = 1 - (1 - bt) * (1 - bt)
-            size = 5 * ease
-            jiggle = math.sin(self.elapsed * 40) * (1 - bt) * 2
-            bomb_alpha = int(255 * min(1.0, self.elapsed / 0.2))
+            size = 5.5 * ease
+            jiggle = math.sin(self.elapsed * 45) * (1 - bt) * 2
+            bomb_alpha = int(255 * min(1.0, (self.elapsed - self.STRIKE) / 0.18))
             if size > 0.5:
                 _draw_spiked_bomb(overlay, self.tx + jiggle, self.ty, size, bomb_alpha, self.bomb_rot)
+
+        surface.blit(overlay, (0, 0))
+
+
+# ============================================================================
+# INOCULANT (DRONE) — it fires a spiked-bomb projectile that grafts into the target.
+# ============================================================================
+
+class DroneInoculantAnimation:
+    """The drone's Inoculant: a muzzle flash + rotor blur at the drone, a spiked-bomb
+    projectile spins across to the target trailing amber, then grafts in (inward particles)
+    with an impact spark. Reads as the drone shooting a bomb that embeds in the enemy."""
+
+    FIRE = 0.04
+    HIT = 0.26       # projectile reaches the target
+    TOTAL = 0.6
+
+    def __init__(self, caster_unit, target_unit=None, target_pos=None,
+                 is_crit=False, is_infused=False,
+                 particle_emitter=None, debris_list=None,
+                 screen_shake_callback=None, screen_flash_callback=None,
+                 units_list=None, camera=None, game=None, **kwargs):
+        self.active = True
+        self.elapsed = 0.0
+        self.particle_emitter = particle_emitter
+        self.screen_shake = screen_shake_callback
+
+        self.sx, self.sy = caster_unit.x, caster_unit.y          # drone screen pos
+        self.tx, self.ty = _draw_target_pos(camera, target_unit, target_pos, caster_unit)
+        self.bomb_rot = random.uniform(0, 60)
+        self.fired = False
+        self.hit = False
+
+    def update(self, delta_time):
+        self.elapsed += delta_time
+
+        if not self.fired and self.elapsed >= self.FIRE:
+            self.fired = True
+            # muzzle flash / rotor wash at the drone
+            if self.particle_emitter:
+                self.particle_emitter.emit_burst(self.sx, self.sy, AMBER, count=6)
+                self.particle_emitter.emit_trail(self.sx, self.sy, GUNMETAL_LIGHT, count=3)
+
+        if not self.hit and self.elapsed >= self.HIT:
+            self.hit = True
+            if self.particle_emitter:
+                self.particle_emitter.emit_burst(self.tx, self.ty, AMBER, count=12)
+                self.particle_emitter.emit_burst(self.tx, self.ty, AMBER_BRIGHT, count=6)
+                _emit_graft_inward(self.particle_emitter, self.tx, self.ty, n=9)
+            if self.screen_shake:
+                self.screen_shake(3, 0.12)
+
+        if self.elapsed >= self.TOTAL:
+            self.active = False
+        return self.active
+
+    def draw(self, surface):
+        if not self.active:
+            return
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+
+        # ---- muzzle flash + rotor blur at the drone on fire ----
+        if self.fired and self.elapsed < self.FIRE + 0.14:
+            mt = (self.elapsed - self.FIRE) / 0.14
+            ma = max(0, int(200 * (1 - mt)))
+            if ma > 0:
+                pygame.draw.circle(overlay, (*AMBER_BRIGHT, ma), (int(self.sx), int(self.sy)), int(4 + mt * 4))
+                pygame.draw.ellipse(overlay, (*GUNMETAL_LIGHT, ma),
+                                    (int(self.sx - 9), int(self.sy - 3), 18, 6), 1)
+
+        # ---- the spiked-bomb projectile spins from drone to target ----
+        if self.fired and not self.hit:
+            t = (self.elapsed - self.FIRE) / (self.HIT - self.FIRE)
+            t = max(0.0, min(1.0, t))
+            bx = self.sx + (self.tx - self.sx) * t
+            by = self.sy + (self.ty - self.sy) * t
+            # amber tracer trailing behind the projectile
+            trail_t = max(0.0, t - 0.18)
+            trx = self.sx + (self.tx - self.sx) * trail_t
+            try_ = self.sy + (self.ty - self.sy) * trail_t
+            pygame.draw.line(overlay, (*AMBER, 150), (int(trx), int(try_)), (int(bx), int(by)), 2)
+            pygame.draw.line(overlay, (*AMBER_BRIGHT, 200), (int(trx), int(try_)), (int(bx), int(by)), 1)
+            # the tumbling spiked bomb
+            _draw_spiked_bomb(overlay, bx, by, 4.0, 255, self.bomb_rot + t * 360)
+
+        # ---- impact spark on the target ----
+        if self.hit:
+            it = min(1.0, (self.elapsed - self.HIT) / 0.18)
+            fa = max(0, int(190 * (1 - it)))
+            if fa > 0:
+                pygame.draw.circle(overlay, (*AMBER, fa), (int(self.tx), int(self.ty)), int(6 + it * 8))
+                pygame.draw.circle(overlay, (*AMBER_BRIGHT, fa), (int(self.tx), int(self.ty)), int(3 + it * 4))
+
+        # ---- the planted bomb settles in ----
+        if self.hit:
+            bt = min(1.0, (self.elapsed - self.HIT) / 0.26)
+            ease = 1 - (1 - bt) * (1 - bt)
+            size = 5.0 * ease
+            bomb_alpha = int(255 * min(1.0, (self.elapsed - self.HIT) / 0.15))
+            if size > 0.5:
+                _draw_spiked_bomb(overlay, self.tx, self.ty, size, bomb_alpha, self.bomb_rot)
 
         surface.blit(overlay, (0, 0))
 
@@ -183,14 +362,21 @@ class SkyhookAnimationController:
 
         # Origin = where the sprite currently is (the visual hasn't moved yet).
         self.ox, self.oy = caster_unit.x, caster_unit.y
-        # Destination screen pos. target_pos is (grid_y, grid_x) from the renderer.
+        # Destination screen pos. Use the caster's ACTUAL landed grid cell (execute() has
+        # already moved the game unit and the teleport branch synced grid_x/grid_y) so the
+        # sprite always ends exactly on its tile. Fall back to target_pos if grid isn't set.
+        # IMPORTANT: compute SHAKE-FREE (raw GRID_OFFSET + grid*TILE), NOT camera.grid_to_screen
+        # — that bakes in the live screen-shake offset, which would freeze the sprite off its
+        # tile if a shake was active when the cast fired (the intermittent desync bug).
         tgy, tgx = target_pos
-        if camera:
-            self.dx, self.dy = camera.grid_to_screen(tgx, tgy, centered=True)
-        else:
-            self.dx = 100 + tgx * TILE_SIZE + TILE_SIZE // 2
-            self.dy = 50 + tgy * TILE_SIZE + TILE_SIZE // 2
-        self.dest_grid = (tgx, tgy)
+        dest_gx = getattr(caster_unit, 'grid_x', None)
+        dest_gy = getattr(caster_unit, 'grid_y', None)
+        if dest_gx is None or dest_gy is None:
+            dest_gx, dest_gy = tgx, tgy
+        from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+        self.dx = dest_gx * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
+        self.dy = dest_gy * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
+        self.dest_grid = (dest_gx, dest_gy)
 
         self.arc_height = 150          # how high the lift carries him (he's hauled UP)
         self.slam_done = False
@@ -250,16 +436,22 @@ class SkyhookAnimationController:
             if dt >= 0.85:
                 # touchdown — fire the slam
                 self.slam_done = True
-                self.caster.x, self.caster.y = self.dx, self.dy
-                self.caster.wind_up_rotation = 0
+                self._land_caster()
                 self._slam()
 
         if self.elapsed >= self.TOTAL:
-            self.caster.x, self.caster.y = self.dx, self.dy
-            self.caster.wind_up_rotation = 0
+            self._land_caster()
             self._reveal_drone()  # defensive: ensure the drone is never left hidden
             self.active = False
         return self.active
+
+    def _land_caster(self):
+        """Snap the graft sprite onto its tile and clear any movement state, so nothing
+        (a residual walk-lerp, a stale target) can drag it off its actual grid cell."""
+        self.caster.x, self.caster.y = self.dx, self.dy
+        self.caster.target_x, self.caster.target_y = self.dx, self.dy
+        self.caster.is_moving = False
+        self.caster.wind_up_rotation = 0
 
     def _reveal_drone(self):
         """Un-hide the real drone sprite and snap it to its NEW grid position. The

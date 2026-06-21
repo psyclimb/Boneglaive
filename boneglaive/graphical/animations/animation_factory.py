@@ -91,6 +91,7 @@ from boneglaive.graphical.animations.landscaper import (
 
 from boneglaive.graphical.animations.ordnance_graft import (
     InoculantAnimation,
+    DroneInoculantAnimation,
     SkyhookAnimationController,
     HarvestAnimation,
 )
@@ -1303,8 +1304,17 @@ class AnimationFactory:
                     game=game
                 )
             elif anim_class.__name__ in ["InoculantAnimation", "HarvestAnimation"]:
-                # ORDNANCE GRAFT skills - full signature; Harvest reads bola'd units off game
-                animation = anim_class(
+                # ORDNANCE GRAFT skills - full signature; Harvest reads bola'd units off game.
+                # Inoculant is shared by the graft and the drone (same display name) but they
+                # get DIFFERENT animations: the graft sweeps the linstock, the drone shoots a
+                # bomb projectile. Pick the variant by the caster's unit type.
+                build_cls = anim_class
+                if anim_class.__name__ == "InoculantAnimation":
+                    from boneglaive.utils.constants import UnitType
+                    caster_gu = getattr(caster_unit, 'game_unit', None)
+                    if getattr(caster_gu, 'type', None) == UnitType.ORDNANCE_DRONE:
+                        build_cls = DroneInoculantAnimation
+                animation = build_cls(
                     caster_unit=caster_unit,
                     target_unit=target_unit,
                     target_pos=target_pos,
