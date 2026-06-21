@@ -308,13 +308,13 @@ SKILL_UPGRADES = {
         },
         "Inoculant": {
             "name": "Inoculant",
-            "description": "Inoculant grafts an extra bola when striking an already-bola'd target.",
+            "description": "Inoculant grafts an extra bomb when striking a target that already carries a bomb.",
             "type": "buff",
             "cost": 1
         },
         "Skyhook": {
             "name": "Skyhook",
-            "description": "Skyhook refunds additional cooldown per bola detonated, redeploying him faster.",
+            "description": "Skyhook refunds additional cooldown per bomb detonated, redeploying him faster.",
             "type": "buff",
             "cost": 1
         },

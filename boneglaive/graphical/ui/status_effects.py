@@ -123,13 +123,13 @@ STATUS_EFFECTS = {
         "duration_key": "topiary_duration",
         "check": lambda u: getattr(u, 'is_topiary', False)
     },
-    "bola": {
-        "name": "Bola",
+    "bomb": {
+        "name": "Bomb",
         "type": "debuff",
         "icon": "Ø",
         "description": "Grafted bombs; detonate for percent-max-HP damage",
-        "duration_key": None,  # Special: shows number of bombs (see len(bolas) below)
-        "check": lambda u: len(getattr(u, 'bolas', []) or []) > 0
+        "duration_key": None,  # Special: shows number of bombs (see len(bombs) below)
+        "check": lambda u: len(getattr(u, 'bombs', []) or []) > 0
     },
     "selenic_backdraft": {
         "name": "Selenic Backdraft",
@@ -346,9 +346,9 @@ class StatusEffectIcon:
         if effect_key == "radiation_stacks":
             self.duration = len(unit.radiation_stacks)
 
-        # Special case: bola bombs (shows the bomb count, not a turn timer)
-        if effect_key == "bola":
-            self.duration = len(getattr(unit, "bolas", []))
+        # Special case: bombs (shows the bomb count, not a turn timer)
+        if effect_key == "bomb":
+            self.duration = len(getattr(unit, "bombs", []))
 
         # Special case: partition shield strength
         if effect_key == "partition_shield_active":

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Integration tests for ORDNANCE GRAFT — the bola mechanics and the drone.
+"""Integration tests for ORDNANCE GRAFT — the bomb mechanics and the drone.
 
 Drives the engine directly (ui=None) and asserts behaviour, not just absence of
-crashes: bola plant/cap/fuse timing, detonation %max-HP math, the Skyhook
+crashes: bomb plant/cap/fuse timing, detonation %max-HP math, the Skyhook
 cooldown refund, partial vs. full cleanse, and drone spawn/leash/regen.
 
 Run with: SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python tests/test_ordnance_graft.py
@@ -19,13 +19,13 @@ logging.disable(logging.CRITICAL)
 
 from boneglaive.game.engine import Game
 from boneglaive.utils.constants import (
-    UnitType, HEIGHT, WIDTH, BOLA_MAX_STACKS,
+    UnitType, HEIGHT, WIDTH, BOMB_MAX_STACKS,
     ORDNANCE_DRONE_REGEN, ORDNANCE_DRONE_LEASH,
 )
 from boneglaive.game.skills.ordnance_graft import (
-    plant_bola, fused_count, arm_bolas, detonate_fused,
-    remove_one_bola, clear_bolas, bola_pct,
-    BOLA_PCT_FLOOR, BOLA_PCT_REF_HP, BOLA_PCT_PER_HP, STRIKE_DAMAGE,
+    plant_bomb, fused_count, arm_bombs, detonate_fused,
+    remove_one_bomb, clear_bombs, bomb_pct,
+    BOMB_PCT_FLOOR, BOMB_PCT_REF_HP, BOMB_PCT_PER_HP, STRIKE_DAMAGE,
 )
 
 results = []
@@ -60,13 +60,13 @@ def place(g, utype, player, y, x):
 
 def expected_detonation(target, stacks):
     """Mirror the production formula independently (HP-scaling %, round, floor-1, x stacks)."""
-    pct = BOLA_PCT_FLOOR + max(0, target.max_hp - BOLA_PCT_REF_HP) * BOLA_PCT_PER_HP
+    pct = BOMB_PCT_FLOOR + max(0, target.max_hp - BOMB_PCT_REF_HP) * BOMB_PCT_PER_HP
     per = max(1, round(target.max_hp * pct))
     return per * stacks
 
 
 # ---------------------------------------------------------------------------
-# Bola plant / cap / fuse
+# Bomb plant / cap / fuse
 # ---------------------------------------------------------------------------
 
 def test_plant_and_cap():
@@ -74,15 +74,15 @@ def test_plant_and_cap():
     ts = free_tiles(g, 1)
     tgt = place(g, UnitType.POTPOURRIST, 2, *ts[0])
 
-    added = plant_bola(tgt, 1)
-    check("plant_adds_one", added == 1 and len(tgt.bolas) == 1, f"added={added} n={len(tgt.bolas)}")
+    added = plant_bomb(tgt, 1)
+    check("plant_adds_one", added == 1 and len(tgt.bombs) == 1, f"added={added} n={len(tgt.bombs)}")
     check("plant_starts_unfused", fused_count(tgt) == 0, f"fused={fused_count(tgt)}")
 
     # Over-plant past the cap is clamped.
-    plant_bola(tgt, 10)
-    check("cap_clamps", len(tgt.bolas) == BOLA_MAX_STACKS, f"n={len(tgt.bolas)} cap={BOLA_MAX_STACKS}")
-    added_when_full = plant_bola(tgt, 1)
-    check("no_add_when_full", added_when_full == 0 and len(tgt.bolas) == BOLA_MAX_STACKS,
+    plant_bomb(tgt, 10)
+    check("cap_clamps", len(tgt.bombs) == BOMB_MAX_STACKS, f"n={len(tgt.bombs)} cap={BOMB_MAX_STACKS}")
+    added_when_full = plant_bomb(tgt, 1)
+    check("no_add_when_full", added_when_full == 0 and len(tgt.bombs) == BOMB_MAX_STACKS,
           f"added={added_when_full}")
 
 
@@ -90,22 +90,22 @@ def test_fuse_timing():
     g = fresh_game()
     ts = free_tiles(g, 1)
     tgt = place(g, UnitType.POTPOURRIST, 2, *ts[0])
-    plant_bola(tgt, 2)
+    plant_bomb(tgt, 2)
     check("unfused_on_plant", fused_count(tgt) == 0, f"fused={fused_count(tgt)}")
-    arm_bolas(tgt)
+    arm_bombs(tgt)
     check("fused_after_arm", fused_count(tgt) == 2, f"fused={fused_count(tgt)}")
 
 
-def test_stasiality_immune_to_bola():
-    """A unit with stasiality (or effective stasiality) cannot be grafted with bolas.
+def test_stasiality_immune_to_bomb():
+    """A unit with stasiality (or effective stasiality) cannot be grafted with bombs.
     GRAYMAN's Stasiality passive blocks the status; the strike damage still lands."""
     g = fresh_game()
     ts = free_tiles(g, 1)
     gray = place(g, UnitType.GRAYMAN, 2, *ts[0])
     check("grayman_is_immune", gray.is_immune_to_effects(), "GRAYMAN should be immune")
-    added = plant_bola(gray, 3)
-    check("plant_blocked_by_stasiality", added == 0 and len(gray.bolas) == 0,
-          f"added={added} bolas={len(gray.bolas)} (should be 0)")
+    added = plant_bomb(gray, 3)
+    check("plant_blocked_by_stasiality", added == 0 and len(gray.bombs) == 0,
+          f"added={added} bombs={len(gray.bombs)} (should be 0)")
 
     # End-to-end: Inoculant (with drone) damages but plants nothing on the immune unit.
     g2 = fresh_game()
@@ -120,8 +120,8 @@ def test_stasiality_immune_to_bola():
     hp0 = gray2.hp
     inoc.execute(graft, (gray2.y, gray2.x), g2)
     check("inoculant_damages_immune", (hp0 - gray2.hp) > 0, f"damage={hp0 - gray2.hp} (strike still lands)")
-    check("inoculant_plants_nothing_on_immune", len(gray2.bolas) == 0,
-          f"bolas={len(gray2.bolas)} (graft AND drone echo blocked by stasiality)")
+    check("inoculant_plants_nothing_on_immune", len(gray2.bombs) == 0,
+          f"bombs={len(gray2.bombs)} (graft AND drone echo blocked by stasiality)")
 
 
 # ---------------------------------------------------------------------------
@@ -133,8 +133,8 @@ def test_detonation_tank_math():
     g = fresh_game()
     ts = free_tiles(g, 1)
     tank = place(g, UnitType.POTPOURRIST, 2, *ts[0])  # 24 HP, the roster tank
-    plant_bola(tank, 4)
-    arm_bolas(tank)
+    plant_bomb(tank, 4)
+    arm_bombs(tank)
     raw = expected_detonation(tank, 4)            # raw formula damage (may overkill)
     hp0 = tank.hp
     dealt = detonate_fused(tank, g)
@@ -144,7 +144,7 @@ def test_detonation_tank_math():
           f"dealt={dealt} expected={exp} (raw={raw} capped at {hp0} HP; 24-HP tank, 4 stacks)")
     check("tank_burst_is_lethal_tier", raw >= tank.max_hp,
           f"4-stack raw {raw} vs {tank.max_hp} HP (should ~one-shot)")
-    check("detonation_consumes_fused", len(tank.bolas) == 0, f"remaining={len(tank.bolas)}")
+    check("detonation_consumes_fused", len(tank.bombs) == 0, f"remaining={len(tank.bombs)}")
 
 
 def test_detonation_curve_favours_big_bodies():
@@ -155,8 +155,8 @@ def test_detonation_curve_favours_big_bodies():
     tank = place(g, UnitType.POTPOURRIST, 2, *ts[0])      # 24 HP
     squishy = place(g, UnitType.GRAYMAN, 2, *ts[1])       # 18 HP
     for u in (tank, squishy):
-        plant_bola(u, 4)
-        arm_bolas(u)
+        plant_bomb(u, 4)
+        arm_bombs(u)
     tank_max, squ_max = tank.max_hp, squishy.max_hp
     tank_dmg = detonate_fused(tank, g)
     squ_dmg = detonate_fused(squishy, g)
@@ -175,8 +175,8 @@ def test_detonation_ignores_def_respects_prt():
     tgt = place(g, UnitType.POTPOURRIST, 2, *ts[0])
     base = tgt.defense
     tgt.defense = base + 5  # raise DEF; %HP must ignore it
-    plant_bola(tgt, 2)
-    arm_bolas(tgt)
+    plant_bomb(tgt, 2)
+    arm_bombs(tgt)
     exp = expected_detonation(tgt, 2)
     hp0 = tgt.hp
     dealt = detonate_fused(tgt, g)
@@ -186,8 +186,8 @@ def test_detonation_ignores_def_respects_prt():
     g2 = fresh_game()
     ts2 = free_tiles(g2, 1)
     p = place(g2, UnitType.POTPOURRIST, 2, *ts2[0])
-    plant_bola(p, 2)
-    arm_bolas(p)
+    plant_bomb(p, 2)
+    arm_bombs(p)
     raw = expected_detonation(p, 2)
     p.prt = 2
     hp0b = p.hp
@@ -200,14 +200,14 @@ def test_only_fused_detonate():
     g = fresh_game()
     ts = free_tiles(g, 1)
     tgt = place(g, UnitType.POTPOURRIST, 2, *ts[0])
-    plant_bola(tgt, 2)
-    arm_bolas(tgt)          # these 2 fuse
-    plant_bola(tgt, 1)      # a fresh unfused one (total 3)
-    check("mixed_fuse_state", fused_count(tgt) == 2 and len(tgt.bolas) == 3,
-          f"fused={fused_count(tgt)} total={len(tgt.bolas)}")
+    plant_bomb(tgt, 2)
+    arm_bombs(tgt)          # these 2 fuse
+    plant_bomb(tgt, 1)      # a fresh unfused one (total 3)
+    check("mixed_fuse_state", fused_count(tgt) == 2 and len(tgt.bombs) == 3,
+          f"fused={fused_count(tgt)} total={len(tgt.bombs)}")
     detonate_fused(tgt, g)
-    check("unfused_survives_detonation", len(tgt.bolas) == 1 and fused_count(tgt) == 0,
-          f"remaining={len(tgt.bolas)} fused={fused_count(tgt)}")
+    check("unfused_survives_detonation", len(tgt.bombs) == 1 and fused_count(tgt) == 0,
+          f"remaining={len(tgt.bombs)} fused={fused_count(tgt)}")
 
 
 # ---------------------------------------------------------------------------
@@ -224,8 +224,8 @@ def test_skyhook_refund():
     harvest = next(s for s in graft.active_skills if s.name == "Harvest")
     sky.current_cooldown = sky.cooldown  # 4
 
-    plant_bola(tank, 3)
-    arm_bolas(tank)
+    plant_bomb(tank, 3)
+    arm_bombs(tank)
     harvest.execute(graft, (graft.y, graft.x), g)
     # 3 stacks detonated -> refund 2*3 = 6, clamped to 0 from a base of 4.
     check("refund_clamps_to_zero", sky.current_cooldown == 0,
@@ -239,8 +239,8 @@ def test_skyhook_refund():
     sky2 = next(s for s in graft2.active_skills if s.name == "Skyhook")
     harvest2 = next(s for s in graft2.active_skills if s.name == "Harvest")
     sky2.current_cooldown = 4
-    plant_bola(tank2, 1)
-    arm_bolas(tank2)
+    plant_bomb(tank2, 1)
+    arm_bombs(tank2)
     harvest2.execute(graft2, (graft2.y, graft2.x), g2)
     check("refund_one_stack", sky2.current_cooldown == 2,
           f"cd={sky2.current_cooldown} (1 stack -> -2 from 4)")
@@ -262,8 +262,8 @@ def _passable_corridor(g, length):
 
 
 def test_skyhook_repositions_and_plants():
-    """Skyhook lifts the graft to the destination and grafts a bola onto an enemy
-    adjacent to the landing; the drone mirrors it (two bolas)."""
+    """Skyhook lifts the graft to the destination and grafts a bomb onto an enemy
+    adjacent to the landing; the drone mirrors it (two bombs)."""
     g = fresh_game()
     r, c0 = _passable_corridor(g, 4)
     if r is None:
@@ -283,15 +283,15 @@ def test_skyhook_repositions_and_plants():
     ok = sky.execute(graft, dest, g)
     check("skyhook_moves_graft", (graft.y, graft.x) == dest,
           f"graft@({graft.y},{graft.x}) expected {dest}")
-    check("skyhook_plants_one_bola", len(enemy.bolas) == 1,
-          f"arrival enemy bolas={len(enemy.bolas)} (graft slams alone, no mirror)")
+    check("skyhook_plants_one_bomb", len(enemy.bombs) == 1,
+          f"arrival enemy bombs={len(enemy.bombs)} (graft slams alone, no mirror)")
     check("skyhook_arrival_damage", (e_hp0 - enemy.hp) == STRIKE_DAMAGE,
           f"dmg={e_hp0 - enemy.hp} (flat strike, DEF 0)")
 
 
 def test_skyhook_arrival_aoe():
     """Skyhook's arrival slam hits EVERY enemy in the 8 tiles around the landing —
-    each is struck once and grafted one bola (the graft slams alone; no drone mirror)."""
+    each is struck once and grafted one bomb (the graft slams alone; no drone mirror)."""
     g = fresh_game()
     # Find a landing tile (empty, in range) with >=2 free neighbours for enemies.
     graft = None
@@ -327,10 +327,10 @@ def test_skyhook_arrival_aoe():
         return
     e1_hp0, e2_hp0 = e1.hp, e2.hp
     sky.execute(graft, landing, g)
-    both_grafted = len(e1.bolas) == 1 and len(e2.bolas) == 1
+    both_grafted = len(e1.bombs) == 1 and len(e2.bombs) == 1
     both_hit = (e1_hp0 - e1.hp) == STRIKE_DAMAGE and (e2_hp0 - e2.hp) == STRIKE_DAMAGE
     check("skyhook_aoe_grafts_all_adjacent", both_grafted,
-          f"e1 bolas={len(e1.bolas)} e2 bolas={len(e2.bolas)} (both should be 1)")
+          f"e1 bombs={len(e1.bombs)} e2 bombs={len(e2.bombs)} (both should be 1)")
     check("skyhook_aoe_strikes_all_adjacent", both_hit,
           f"e1 dmg={e1_hp0 - e1.hp} e2 dmg={e2_hp0 - e2.hp} (both flat strike)")
 
@@ -391,50 +391,50 @@ def test_partial_cleanse_removes_one():
     g = fresh_game()
     ts = free_tiles(g, 1)
     tgt = place(g, UnitType.POTPOURRIST, 2, *ts[0])
-    plant_bola(tgt, 3)
-    removed = remove_one_bola(tgt)
-    check("partial_removes_one", removed and len(tgt.bolas) == 2,
-          f"removed={removed} remaining={len(tgt.bolas)}")
+    plant_bomb(tgt, 3)
+    removed = remove_one_bomb(tgt)
+    check("partial_removes_one", removed and len(tgt.bombs) == 2,
+          f"removed={removed} remaining={len(tgt.bombs)}")
 
 
 def test_partial_cleanse_prefers_unfused():
     g = fresh_game()
     ts = free_tiles(g, 1)
     tgt = place(g, UnitType.POTPOURRIST, 2, *ts[0])
-    plant_bola(tgt, 1)
-    arm_bolas(tgt)          # 1 fused
-    plant_bola(tgt, 1)      # 1 unfused (total 2)
-    remove_one_bola(tgt)
+    plant_bomb(tgt, 1)
+    arm_bombs(tgt)          # 1 fused
+    plant_bomb(tgt, 1)      # 1 unfused (total 2)
+    remove_one_bomb(tgt)
     # Should peel the UNFUSED one, leaving the fused stack intact.
-    check("partial_prefers_unfused", len(tgt.bolas) == 1 and fused_count(tgt) == 1,
-          f"remaining={len(tgt.bolas)} fused={fused_count(tgt)}")
+    check("partial_prefers_unfused", len(tgt.bombs) == 1 and fused_count(tgt) == 1,
+          f"remaining={len(tgt.bombs)} fused={fused_count(tgt)}")
 
 
 def test_full_cleanse_removes_all():
     g = fresh_game()
     ts = free_tiles(g, 1)
     tgt = place(g, UnitType.POTPOURRIST, 2, *ts[0])
-    plant_bola(tgt, 3)
-    arm_bolas(tgt)
-    n = clear_bolas(tgt)
-    check("full_cleanse_clears_all", n == 3 and len(tgt.bolas) == 0,
-          f"removed={n} remaining={len(tgt.bolas)}")
+    plant_bomb(tgt, 3)
+    arm_bombs(tgt)
+    n = clear_bombs(tgt)
+    check("full_cleanse_clears_all", n == 3 and len(tgt.bombs) == 0,
+          f"removed={n} remaining={len(tgt.bombs)}")
 
 
 def test_broaching_gas_peels_one_bomb():
     """End-to-end through the REAL drip-cleanse path: a BROACHING vapor strips ONE
     bomb per tick from an ally, never the whole cluster. This is the interaction the
-    multi-instance model exists for. The ally carries only bolas, so the random
-    cleanse always lands on bola — and even then only one bomb comes off."""
+    multi-instance model exists for. The ally carries only bombs, so the random
+    cleanse always lands on bomb — and even then only one bomb comes off."""
     g = fresh_game()
     ts = free_tiles(g, 3)
-    # The Gas Machinist's own ally got bola'd by an enemy graft; his vapor peels it.
+    # The Gas Machinist's own ally got bombed by an enemy graft; his vapor peels it.
     gas = place(g, UnitType.GAS_MACHINIST, 1, *ts[0])
     vy, vx = ts[1]
     vapor = place(g, UnitType.HEINOUS_VAPOR, 1, vy, vx)
     vapor.vapor_type = "BROACHING"
     vapor.vapor_creator = gas
-    # Ally adjacent to the vapor (inside its 3x3), carrying a full bola stack.
+    # Ally adjacent to the vapor (inside its 3x3), carrying a full bomb stack.
     ally_pos = None
     for dy, dx in ((0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1)):
         ny, nx = vy + dy, vx + dx
@@ -445,35 +445,35 @@ def test_broaching_gas_peels_one_bomb():
         check("broaching_peels_one_bomb", False, "no adjacent tile for ally")
         return
     ally = place(g, UnitType.POTPOURRIST, 1, *ally_pos)  # same player as vapor
-    plant_bola(ally, 3)
-    arm_bolas(ally)
+    plant_bomb(ally, 3)
+    arm_bombs(ally)
     try:
         vapor.apply_vapor_effects(g, ui=None)
         # Exactly one bomb removed — the cluster degrades, it isn't wiped.
-        check("broaching_peels_one_bomb", len(ally.bolas) == 2,
-              f"remaining={len(ally.bolas)} (started 3, drip-cleanse should take 1)")
+        check("broaching_peels_one_bomb", len(ally.bombs) == 2,
+              f"remaining={len(ally.bombs)} (started 3, drip-cleanse should take 1)")
     except Exception as e:
         import traceback
         traceback.print_exc()
         check("broaching_peels_one_bomb", False, repr(e))
 
 
-def test_vagal_run_clears_bolas():
+def test_vagal_run_clears_bombs():
     """End-to-end: Derelictionist's Vagal Run defuses the whole cluster."""
     g = fresh_game()
     ts = free_tiles(g, 2)
     derel = place(g, UnitType.DERELICTIONIST, 1, *ts[0])
     tgt = place(g, UnitType.POTPOURRIST, 1, *ts[1])  # ally target (Vagal Run cleanses allies)
-    plant_bola(tgt, 3)
-    arm_bolas(tgt)
+    plant_bomb(tgt, 3)
+    arm_bombs(tgt)
     vagal = next(s for s in derel.active_skills if s.name == "Vagal Run")
     try:
         vagal.execute(derel, (tgt.y, tgt.x), g)
-        check("vagal_run_clears_bolas", len(tgt.bolas) == 0, f"remaining={len(tgt.bolas)}")
+        check("vagal_run_clears_bombs", len(tgt.bombs) == 0, f"remaining={len(tgt.bombs)}")
     except Exception as e:
         import traceback
         traceback.print_exc()
-        check("vagal_run_clears_bolas", False, repr(e))
+        check("vagal_run_clears_bombs", False, repr(e))
 
 
 # ---------------------------------------------------------------------------
@@ -493,14 +493,14 @@ def _graft_with_drone_and_enemy(g, map_name="lime_foyer"):
     return graft, enemy, getattr(graft, 'drone', None)
 
 
-def test_inoculant_plants_one_bola():
-    """Inoculant is a single strike + 1 bola (the drone no longer auto-mirrors)."""
+def test_inoculant_plants_one_bomb():
+    """Inoculant is a single strike + 1 bomb (the drone no longer auto-mirrors)."""
     g = fresh_game()
     graft, enemy, drone = _graft_with_drone_and_enemy(g)
     inoc = next(s for s in graft.active_skills if s.name == "Inoculant")
     hp0 = enemy.hp
     inoc.execute(graft, (enemy.y, enemy.x), g)
-    check("inoculant_one_bola", len(enemy.bolas) == 1, f"bolas={len(enemy.bolas)} (graft alone)")
+    check("inoculant_one_bomb", len(enemy.bombs) == 1, f"bombs={len(enemy.bombs)} (graft alone)")
     check("inoculant_flat_damage", (hp0 - enemy.hp) == STRIKE_DAMAGE,
           f"damage={hp0 - enemy.hp} expected={STRIKE_DAMAGE}")
 
@@ -534,7 +534,7 @@ def _drone_next_to_enemy(g):
 
 def test_drone_basic_attack_is_plain_hit():
     """The drone's basic attack is now a PLAIN hit: its real ATK (3), and it plants NO
-    bola (planting moved to the drone's own Inoculant skill)."""
+    bomb (planting moved to the drone's own Inoculant skill)."""
     g = fresh_game()
     graft, drone, enemy = _drone_next_to_enemy(g)
     if drone is None:
@@ -545,14 +545,14 @@ def test_drone_basic_attack_is_plain_hit():
     drone.attack_target = (enemy.y, enemy.x)
     g.current_player = 1
     g.execute_turn(ui=None)
-    check("drone_basic_no_bola", len(enemy.bolas) == 0,
-          f"bolas={len(enemy.bolas)} (basic attack should plant NOTHING now)")
+    check("drone_basic_no_bomb", len(enemy.bombs) == 0,
+          f"bombs={len(enemy.bombs)} (basic attack should plant NOTHING now)")
     check("drone_basic_uses_atk", (hp0 - enemy.hp) == atk,
           f"damage={hp0 - enemy.hp} expected ATK {atk} (no longer flat {STRIKE_DAMAGE})")
 
 
 def test_drone_has_inoculant_and_plants():
-    """The drone now has its OWN Inoculant skill — using it grafts a bola (flat 2)."""
+    """The drone now has its OWN Inoculant skill — using it grafts a bomb (flat 2)."""
     g = fresh_game()
     graft, drone, enemy = _drone_next_to_enemy(g)
     if drone is None:
@@ -570,8 +570,8 @@ def test_drone_has_inoculant_and_plants():
     drone.skill_target = (enemy.y, enemy.x)
     g.current_player = 1
     g.execute_turn(ui=None)
-    check("drone_inoculant_plants", len(enemy.bolas) == 1,
-          f"bolas={len(enemy.bolas)} (drone Inoculant should graft 1)")
+    check("drone_inoculant_plants", len(enemy.bombs) == 1,
+          f"bombs={len(enemy.bombs)} (drone Inoculant should graft 1)")
     check("drone_inoculant_flat_damage", (hp0 - enemy.hp) == STRIKE_DAMAGE,
           f"damage={hp0 - enemy.hp} expected flat {STRIKE_DAMAGE}")
 
@@ -739,7 +739,7 @@ def test_drone_regenerates_after_death():
 def main():
     test_plant_and_cap()
     test_fuse_timing()
-    test_stasiality_immune_to_bola()
+    test_stasiality_immune_to_bomb()
     test_detonation_tank_math()
     test_detonation_curve_favours_big_bodies()
     test_detonation_ignores_def_respects_prt()
@@ -753,8 +753,8 @@ def main():
     test_partial_cleanse_prefers_unfused()
     test_full_cleanse_removes_all()
     test_broaching_gas_peels_one_bomb()
-    test_vagal_run_clears_bolas()
-    test_inoculant_plants_one_bola()
+    test_vagal_run_clears_bombs()
+    test_inoculant_plants_one_bomb()
     test_drone_basic_attack_is_plain_hit()
     test_drone_has_inoculant_and_plants()
     test_drone_leash_bounds_player_moves()

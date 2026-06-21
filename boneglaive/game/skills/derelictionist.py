@@ -322,10 +322,10 @@ class VagalRunSkill(ActiveSkill):
 
         # DON'T clear vagal_run_active - that would remove itself!
 
-        # Clear ORDNANCE GRAFT bolas (defuse ALL grafted bombs — Vagal Run is a full cleanse).
-        if getattr(target, 'bolas', None):
-            target.bolas.clear()
-            cleared_effects.append("Bola")
+        # Clear ORDNANCE GRAFT bombs (defuse ALL grafted bombs — Vagal Run is a full cleanse).
+        if getattr(target, 'bombs', None):
+            target.bombs.clear()
+            cleared_effects.append("Bomb")
 
         # Clear negative status effects (based on UI renderer attribute names)
         if hasattr(target, 'derelicted') and target.derelicted:

@@ -1304,7 +1304,7 @@ class AnimationFactory:
                     game=game
                 )
             elif anim_class.__name__ in ["InoculantAnimation", "HarvestAnimation"]:
-                # ORDNANCE GRAFT skills - full signature; Harvest reads bola'd units off game.
+                # ORDNANCE GRAFT skills - full signature; Harvest reads bombed units off game.
                 # Inoculant is shared by the graft and the drone (same display name) but they
                 # get DIFFERENT animations: the graft sweeps the linstock, the drone shoots a
                 # bomb projectile. Pick the variant by the caster's unit type.

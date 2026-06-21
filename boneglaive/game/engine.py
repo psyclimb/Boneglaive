@@ -4586,7 +4586,7 @@ class Game:
         # Get UI reference if available
         ui = getattr(self, 'ui', None)
 
-        # ORDNANCE GRAFT: arm fused bolas and reconcile/regenerate drones.
+        # ORDNANCE GRAFT: arm fused bombs and reconcile/regenerate drones.
         self._process_ordnance_graft_upkeep()
 
         # Apply passive skills for the current player's units at the start of their turn
@@ -5274,15 +5274,15 @@ class Game:
         )
 
     def _process_ordnance_graft_upkeep(self):
-        """Turn-start upkeep: arm fused bolas and reconcile/regenerate drones."""
+        """Turn-start upkeep: arm fused bombs and reconcile/regenerate drones."""
         from boneglaive.utils.constants import ORDNANCE_DRONE_REGEN
-        from boneglaive.game.skills.ordnance_graft import arm_bolas
+        from boneglaive.game.skills.ordnance_graft import arm_bombs
 
-        # Arm bolas planted on the enemies of the current player (their graft can now
-        # detonate them). A bola arms one turn after being planted.
+        # Arm bombs planted on the enemies of the current player (their graft can now
+        # detonate them). A bomb arms one turn after being planted.
         for unit in self.units:
             if unit.is_alive() and unit.player != self.current_player:
-                arm_bolas(unit)
+                arm_bombs(unit)
 
         # Reconcile each current-player ORDNANCE_GRAFT's drone.
         for owner in list(self.units):

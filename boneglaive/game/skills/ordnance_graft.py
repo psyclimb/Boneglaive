@@ -4,7 +4,7 @@
 from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import ActiveSkill, PassiveSkill, TargetType
-from boneglaive.utils.constants import BOLA_MAX_STACKS
+from boneglaive.utils.constants import BOMB_MAX_STACKS
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
 
@@ -13,16 +13,16 @@ if TYPE_CHECKING:
     from boneglaive.game.engine import Game
 
 
-# Bola detonation: % of the target's MAX HP per fused stack, scaling UP with the
+# Bomb detonation: % of the target's MAX HP per fused stack, scaling UP with the
 # target's max HP — the anti-tank curve. A small body takes a small slice; a big
 # body takes a much larger PERCENTAGE, so he prefers the tank and is weak into
 # squishies. pct = floor + max(0, max_hp - ref) * per_hp.
 #   ref 18 HP -> 8%/stack (squishy floor); 24 HP -> 30%/stack (tank).
 # At cap 4 that is ~22% of a squishy's bar vs a tank one-shot. These three are the
 # primary balance levers.
-BOLA_PCT_FLOOR = 0.08        # per-stack % at (and below) the reference HP
-BOLA_PCT_REF_HP = 18         # reference max HP the floor applies to (roster's squishy)
-BOLA_PCT_PER_HP = 0.22 / 6   # extra per-stack % for each max-HP point above the reference
+BOMB_PCT_FLOOR = 0.08        # per-stack % at (and below) the reference HP
+BOMB_PCT_REF_HP = 18         # reference max HP the floor applies to (roster's squishy)
+BOMB_PCT_PER_HP = 0.22 / 6   # extra per-stack % for each max-HP point above the reference
 # SKYHOOK cooldown refunded per stack detonated (the flow engine).
 SKYHOOK_REFUND_PER_STACK = 2
 SKYHOOK_SKILL_NAME = "Skyhook"
@@ -31,72 +31,72 @@ SKYHOOK_SKILL_NAME = "Skyhook"
 STRIKE_DAMAGE = 2
 
 
-def plant_bola(target: 'Unit', amount: int = 1) -> int:
-    """Graft `amount` bola bombs onto target (capped at BOLA_MAX_STACKS). Each is a
+def plant_bomb(target: 'Unit', amount: int = 1) -> int:
+    """Graft `amount` bombs onto target (capped at BOMB_MAX_STACKS). Each is a
     distinct, individually-cleansable instance, planted unfused (cannot detonate until
     it fuses next turn). Returns the number of bombs actually added.
 
     Stasiality (or effective stasiality — GRAYMAN, HEINOUS_VAPOR, Topiary form) makes
-    a unit immune to new status effects, so bolas can't be grafted onto it at all."""
+    a unit immune to new status effects, so bombs can't be grafted onto it at all."""
     if target.is_immune_to_effects():
         return 0
-    room = BOLA_MAX_STACKS - len(target.bolas)
+    room = BOMB_MAX_STACKS - len(target.bombs)
     added = max(0, min(amount, room))
     for _ in range(added):
-        target.bolas.append({'fused': False})
+        target.bombs.append({'fused': False})
     return added
 
 
 def fused_count(target: 'Unit') -> int:
-    """Number of fused (detonatable) bolas on target."""
-    return sum(1 for b in target.bolas if b['fused'])
+    """Number of fused (detonatable) bombs on target."""
+    return sum(1 for b in target.bombs if b['fused'])
 
 
-def arm_bolas(target: 'Unit') -> None:
+def arm_bombs(target: 'Unit') -> None:
     """Fuse every unfused bomb on target (it becomes detonatable). Called at the
     owner's turn-start, one fuse-step after a bomb is planted."""
-    for bomb in target.bolas:
+    for bomb in target.bombs:
         bomb['fused'] = True
 
 
-def remove_one_bola(target: 'Unit') -> bool:
+def remove_one_bomb(target: 'Unit') -> bool:
     """Defuse a single bomb (drip-cleanse, e.g. Broaching Gas). Prefers removing an
     UNFUSED bomb first so a partial cleanse delays the burst rather than eating an
     already-armed stack. Returns True if a bomb was removed."""
-    if not target.bolas:
+    if not target.bombs:
         return False
-    for i, bomb in enumerate(target.bolas):
+    for i, bomb in enumerate(target.bombs):
         if not bomb['fused']:
-            del target.bolas[i]
+            del target.bombs[i]
             return True
-    target.bolas.pop()
+    target.bombs.pop()
     return True
 
 
-def clear_bolas(target: 'Unit') -> int:
+def clear_bombs(target: 'Unit') -> int:
     """Remove every bomb from target (full cleanse, e.g. Vagal Run). Returns count removed."""
-    n = len(target.bolas)
-    target.bolas.clear()
+    n = len(target.bombs)
+    target.bombs.clear()
     return n
 
 
-def bola_pct(target: 'Unit') -> float:
+def bomb_pct(target: 'Unit') -> float:
     """Per-stack max-HP fraction for a detonation against this target. Scales up with
     the target's max HP (the anti-tank curve): bigger body -> bigger percentage."""
-    return BOLA_PCT_FLOOR + max(0, target.max_hp - BOLA_PCT_REF_HP) * BOLA_PCT_PER_HP
+    return BOMB_PCT_FLOOR + max(0, target.max_hp - BOMB_PCT_REF_HP) * BOMB_PCT_PER_HP
 
 
 def detonate_fused(target: 'Unit', game: 'Game') -> int:
-    """Detonate and remove all FUSED bolas on target for %max-HP damage (ignores DEF;
+    """Detonate and remove all FUSED bombs on target for %max-HP damage (ignores DEF;
     PRT still applies via deal_damage). Unfused bombs remain. Returns damage dealt."""
     stacks = fused_count(target)
     if stacks <= 0:
         return 0
-    per_stack = int(round(target.max_hp * bola_pct(target)))
+    per_stack = int(round(target.max_hp * bomb_pct(target)))
     total = max(1, per_stack) * stacks
     dealt = target.deal_damage(total)
-    target.bolas = [b for b in target.bolas if not b['fused']]
-    logger.debug(f"Bola detonation: {stacks} stacks on {target.get_display_name()} for {dealt}")
+    target.bombs = [b for b in target.bombs if not b['fused']]
+    logger.debug(f"Bomb detonation: {stacks} stacks on {target.get_display_name()} for {dealt}")
     return dealt
 
 
@@ -119,7 +119,7 @@ class RotorGraft(PassiveSkill):
         super().__init__(
             name="Rotor Graft",
             key="R",
-            description="Fields a leashed quadcopter drone whose attacks graft a bola. The drone regenerates a few turns after it is destroyed."
+            description="Fields a leashed quadcopter drone whose attacks graft a bomb. The drone regenerates a few turns after it is destroyed."
         )
 
     def apply_passive(self, user: 'Unit', game: Optional['Game'] = None, ui=None) -> None:
@@ -129,13 +129,13 @@ class RotorGraft(PassiveSkill):
 
 
 class InoculantSkill(ActiveSkill):
-    """Strike that deals flat damage and grafts a bola onto a nearby enemy (range 2)."""
+    """Strike that deals flat damage and grafts a bomb onto a nearby enemy (range 2)."""
 
     def __init__(self):
         super().__init__(
             name="Inoculant",
             key="I",
-            description="Strike an enemy within 2 tiles for normal damage and graft a bola bomb onto them (up to 4).",
+            description="Strike an enemy within 2 tiles for normal damage and graft a bomb onto them (up to 4).",
             target_type=TargetType.ENEMY,
             cooldown=1,
             range_=2
@@ -181,23 +181,23 @@ class InoculantSkill(ActiveSkill):
         target_def = target.get_effective_stats()['defense']
         damage = max(1, STRIKE_DAMAGE - target_def)
         dealt = target.deal_damage(damage)
-        added = plant_bola(target, 1)
+        added = plant_bomb(target, 1)
 
         if immune:
             message_log.add_message(
-                f"{user.get_display_name()} strikes {target.get_display_name()} for {dealt}, but the bola finds no purchase",
+                f"{user.get_display_name()} strikes {target.get_display_name()} for {dealt}, but the bomb finds no purchase",
                 MessageType.ABILITY,
                 player=user.player
             )
         else:
             message_log.add_message(
-                f"{user.get_display_name()} strikes {target.get_display_name()} for {dealt} and grafts a bola ({len(target.bolas)})",
+                f"{user.get_display_name()} strikes {target.get_display_name()} for {dealt} and grafts a bomb ({len(target.bombs)})",
                 MessageType.ABILITY,
                 player=user.player
             )
             if added == 0:
                 message_log.add_message(
-                    f"{target.get_display_name()} is already saturated with bolas",
+                    f"{target.get_display_name()} is already saturated with bombs",
                     MessageType.ABILITY,
                     player=user.player
                 )
@@ -218,7 +218,7 @@ class DroneInoculantSkill(InoculantSkill):
             self,
             name="Inoculant",
             key="I",
-            description="Strike an enemy within 2 tiles for normal damage and graft a bola bomb onto them (up to 4).",
+            description="Strike an enemy within 2 tiles for normal damage and graft a bomb onto them (up to 4).",
             target_type=TargetType.ENEMY,
             cooldown=1,
             range_=2,
@@ -228,13 +228,13 @@ class DroneInoculantSkill(InoculantSkill):
 
 class SkyhookSkill(ActiveSkill):
     """The drone hauls him to a new position (aerial extraction), slamming down to strike
-    and graft a bola onto every adjacent enemy. Requires a living drone; refunded by detonations."""
+    and graft a bomb onto every adjacent enemy. Requires a living drone; refunded by detonations."""
 
     def __init__(self):
         super().__init__(
             name="Skyhook",
             key="S",
-            description="The drone lifts you to any empty position within range, ignoring pathing, then slams down to strike and graft a bola onto every enemy in the surrounding tiles. Requires a living drone. Cooldown is refunded when bolas detonate.",
+            description="The drone lifts you to any empty position within range, ignoring pathing, then slams down to strike and graft a bomb onto every enemy in the surrounding tiles. Requires a living drone. Cooldown is refunded when bombs detonate.",
             target_type=TargetType.AREA,
             cooldown=4,
             range_=4
@@ -307,7 +307,7 @@ class SkyhookSkill(ActiveSkill):
             player=user.player
         )
 
-        # Arrival slam: strike + graft a bola onto EVERY enemy in the 8 adjacent tiles
+        # Arrival slam: strike + graft a bomb onto EVERY enemy in the 8 adjacent tiles
         # around the landing point. Snapshot the unit list since the strikes can change
         # board state.
         for enemy in list(game.units):
@@ -318,16 +318,16 @@ class SkyhookSkill(ActiveSkill):
                 target_def = enemy.get_effective_stats()['defense']
                 damage = max(1, STRIKE_DAMAGE - target_def)
                 dealt = enemy.deal_damage(damage)
-                plant_bola(enemy, 1)
+                plant_bomb(enemy, 1)
                 if immune:
                     message_log.add_message(
-                        f"{user.get_display_name()} strikes {enemy.get_display_name()} on arrival for {dealt}, but the bola finds no purchase",
+                        f"{user.get_display_name()} strikes {enemy.get_display_name()} on arrival for {dealt}, but the bomb finds no purchase",
                         MessageType.ABILITY,
                         player=user.player
                     )
                 else:
                     message_log.add_message(
-                        f"{user.get_display_name()} grafts a bola onto {enemy.get_display_name()} on arrival for {dealt} ({len(enemy.bolas)})",
+                        f"{user.get_display_name()} grafts a bomb onto {enemy.get_display_name()} on arrival for {dealt} ({len(enemy.bombs)})",
                         MessageType.ABILITY,
                         player=user.player
                     )
@@ -335,13 +335,13 @@ class SkyhookSkill(ActiveSkill):
 
 
 class HarvestSkill(ActiveSkill):
-    """Detonate every fused bola on the field for %max-HP damage; refunds MERIDIAN CUT."""
+    """Detonate every fused bomb on the field for %max-HP damage; refunds MERIDIAN CUT."""
 
     def __init__(self):
         super().__init__(
             name="Harvest",
             key="H",
-            description="Detonate all fused bolas on the field. Each stack deals a percent of the target's max HP that scales up with the size of the body — devastating against tanks, weak against small units. Refunds Skyhook's cooldown per stack.",
+            description="Detonate all fused bombs on the field. Each stack deals a percent of the target's max HP that scales up with the size of the body — devastating against tanks, weak against small units. Refunds Skyhook's cooldown per stack.",
             target_type=TargetType.SELF,
             cooldown=3,
             range_=0
@@ -352,7 +352,7 @@ class HarvestSkill(ActiveSkill):
             return False
         if not game:
             return False
-        # Usable only if at least one fused bola exists on an enemy.
+        # Usable only if at least one fused bomb exists on an enemy.
         return any(
             u.is_alive() and u.player != user.player and fused_count(u) > 0
             for u in game.units
@@ -367,7 +367,7 @@ class HarvestSkill(ActiveSkill):
             user.action_timestamp = game.action_counter
             game.action_counter += 1
         message_log.add_message(
-            f"{user.get_display_name()} prepares to touch off the bolas",
+            f"{user.get_display_name()} prepares to touch off the bombs",
             MessageType.ABILITY,
             player=user.player
         )
@@ -376,9 +376,9 @@ class HarvestSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         total_stacks = 0
-        # Record where the bolas go off BEFORE detonation consumes them, so the
+        # Record where the bombs go off BEFORE detonation consumes them, so the
         # graphical layer can fire its explosions on the right tiles (the animation
-        # runs after execute(), when the bolas have already been cleared).
+        # runs after execute(), when the bombs have already been cleared).
         detonations = []  # list of (y, x, stacks)
         for target in list(game.units):
             if not (target.is_alive() and target.player != user.player):
@@ -391,7 +391,7 @@ class HarvestSkill(ActiveSkill):
             dealt = detonate_fused(target, game)
             total_stacks += fused
             message_log.add_message(
-                f"{target.get_display_name()}'s bolas detonate for {dealt}",
+                f"{target.get_display_name()}'s bombs detonate for {dealt}",
                 MessageType.ABILITY,
                 player=user.player
             )

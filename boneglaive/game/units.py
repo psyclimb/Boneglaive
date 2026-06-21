@@ -191,12 +191,12 @@ class Unit:
         self.is_topiary = False
         self.topiary_duration = 0
 
-        # ORDNANCE GRAFT — bola bombs (a target carries these; detonated by Harvest).
+        # ORDNANCE GRAFT — bombs (a target carries these; detonated by Harvest).
         # Each bomb is a distinct, individually-cleansable instance: {'fused': bool}.
         # A bomb arms (fuses) one turn after being planted and can only detonate once
-        # fused. len(bolas) is the stack count (capped at BOLA_MAX_STACKS); drip-cleanse
+        # fused. len(bombs) is the stack count (capped at BOMB_MAX_STACKS); drip-cleanse
         # (Broaching Gas) removes ONE bomb, a full cleanse (Vagal Run) removes all.
-        self.bolas = []
+        self.bombs = []
         # ORDNANCE GRAFT — the leashed drone summon (set on the graft unit).
         self.is_drone = False          # True on an ORDNANCE_DRONE
         self.creator = None            # back-ref: drone -> its ORDNANCE_GRAFT owner
@@ -1428,14 +1428,14 @@ class Unit:
                                     del game.map.cosmic_values[player_id][(unit.y, unit.x)]
                         available_effects.append(("Topiary", clear_topiary))
 
-                    # Bola bombs (ORDNANCE GRAFT). Drip-cleanse peels ONE bomb, not the
-                    # whole cluster — Bola counts as a single peelable category here, so
+                    # Bombs (ORDNANCE GRAFT). Drip-cleanse peels ONE bomb, not the
+                    # whole cluster — Bomb counts as a single peelable category here, so
                     # a stacked target is no likelier to be hit than any other debuff.
-                    if getattr(unit, 'bolas', None):
-                        def clear_one_bola():
-                            from boneglaive.game.skills.ordnance_graft import remove_one_bola
-                            remove_one_bola(unit)
-                        available_effects.append(("a bola", clear_one_bola))
+                    if getattr(unit, 'bombs', None):
+                        def clear_one_bomb():
+                            from boneglaive.game.skills.ordnance_graft import remove_one_bomb
+                            remove_one_bomb(unit)
+                        available_effects.append(("a bomb", clear_one_bomb))
 
                     # If any effects are available, randomly pick ONE to cleanse
                     if available_effects:

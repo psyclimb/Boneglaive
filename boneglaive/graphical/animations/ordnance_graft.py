@@ -4,7 +4,7 @@ Graphical animations for the ORDNANCE GRAFT unit type and its ORDNANCE DRONE sum
 Skill animations with particles, screen effects, and phased sequencing.
 
 Color scheme matches the ORDNANCE GRAFT sprite: olive drab, gunmetal, black spiked
-bombs ("bolas"), and an amber fuse/ember accent.
+bombs, and an amber fuse/ember accent.
 """
 
 import pygame
@@ -42,7 +42,7 @@ SMOKE = (90, 90, 86)
 # ============================================================================
 
 def _spiked_ball_points(cx, cy, outer, rot=0.0, pts=11, inner_ratio=0.6):
-    """Return the polygon points of a spiked ball (his bola motif) for pygame.draw."""
+    """Return the polygon points of a spiked ball (his bomb motif) for pygame.draw."""
     P = []
     for k in range(pts * 2):
         r = outer if k % 2 == 0 else outer * inner_ratio
@@ -564,12 +564,12 @@ class SkyhookAnimationController:
 
 
 # ============================================================================
-# HARVEST — field-wide bola detonation. The showpiece.
+# HARVEST — field-wide bomb detonation. The showpiece.
 # ============================================================================
 
 class HarvestAnimation:
-    """He touches off every fused bola at once: amber detonation bursts and gunmetal
-    shrapnel radiate from each bola'd enemy, with a heavy shake + flash."""
+    """He touches off every fused bomb at once: amber detonation bursts and gunmetal
+    shrapnel radiate from each bombed enemy, with a heavy shake + flash."""
 
     # Per-blast detonation timing: each point ignites briefly then erupts. Points are
     # staggered slightly so multiple bombs read as a chaotic chain, not one blip.
@@ -588,8 +588,8 @@ class HarvestAnimation:
         # NOTE: deliberately no screen_flash — no full-screen flashes on this unit.
 
         # The detonation tiles are recorded by HarvestSkill.execute() into
-        # last_harvest_data BEFORE the bolas are consumed — read them from there (the
-        # live bolas lists are already cleared by the time this animation runs).
+        # last_harvest_data BEFORE the bombs are consumed — read them from there (the
+        # live bombs lists are already cleared by the time this animation runs).
         self.blasts = []  # list of dicts: {x, y, t0, fired, seed}
         caster_gu = caster_unit.game_unit
         harvest_data = getattr(caster_gu, 'last_harvest_data', None)
@@ -630,7 +630,7 @@ class HarvestAnimation:
                          random.uniform(2.0, 4.0), random.uniform(0.4, 0.9))
             p.gravity = 320
             pe.particles.append(p)
-        # Dark spiked-bomb fragments blown apart (bola motif shattering).
+        # Dark spiked-bomb fragments blown apart (bomb motif shattering).
         for _ in range(12):
             a = random.uniform(0, math.tau)
             sp = random.uniform(90, 200)
@@ -747,7 +747,7 @@ class HarvestAnimation:
 
 class OrdnanceGraftLinstockAttack:
     """His basic attack: a long linstock (match-staff) sweep from attacker toward the
-    target, capped with an amber flick from the lit slow-match. Plants no bola — his
+    target, capped with an amber flick from the lit slow-match. Plants no bomb — his
     basic attack is just a hit. Uses the AnimatedUnit screen positions like the other
     basic attacks (attacker_unit.x/.y are pixels)."""
 
@@ -824,7 +824,7 @@ class OrdnanceGraftLinstockAttack:
 
 # ============================================================================
 # ORDNANCE DRONE basic attack — a plain ranged shot (rotor buzz + amber tracer).
-# It no longer plants a bola; the drone grafts via its own Inoculant skill.
+# It no longer plants a bomb; the drone grafts via its own Inoculant skill.
 # ============================================================================
 
 class OrdnanceDroneShotAttack:

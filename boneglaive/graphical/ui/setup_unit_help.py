@@ -358,20 +358,20 @@ class SetupUnitHelp:
                 'overview': 'A gunner who grafts clustered spiked bombs onto enemies with his linstock, then touches them off for damage scaled to maximum HP. The roster\'s anti-tank: the bigger the body, the harder he hits. He also pilots a leashed quadcopter drone as a second body.',
                 'passive': {
                     'name': 'ROTOR GRAFT',
-                    'desc': 'Fields one leashed quadcopter drone you pilot yourself — a second body that acts on its own orders and carries its own Inoculant to graft bolas. It stays within a few tiles of its owner. Regenerates a few turns after being destroyed; falls and returns with its owner.'
+                    'desc': 'Fields one leashed quadcopter drone you pilot yourself — a second body that acts on its own orders and carries its own Inoculant to graft bombs. It stays within a few tiles of its owner. Regenerates a few turns after being destroyed; falls and returns with its owner.'
                 },
                 'skills': [
                     {
                         'name': 'INOCULANT',
-                        'desc': 'Strikes an enemy within 2 tiles for normal damage and grafts a bola bomb (stacks up to 4, arms after one turn).'
+                        'desc': 'Strikes an enemy within 2 tiles for normal damage and grafts a bomb (stacks up to 4, arms after one turn).'
                     },
                     {
                         'name': 'SKYHOOK',
-                        'desc': 'The drone hauls him to an empty tile within range, then he slams down to strike and graft a bola onto every adjacent enemy. Requires a living drone. Its cooldown is refunded whenever bolas detonate.'
+                        'desc': 'The drone hauls him to an empty tile within range, then he slams down to strike and graft a bomb onto every adjacent enemy. Requires a living drone. Its cooldown is refunded whenever bombs detonate.'
                     },
                     {
                         'name': 'HARVEST',
-                        'desc': 'Touches off every armed bola on the field. Each stack deals a percent of the target\'s maximum HP that scales up with the size of the body, ignoring defense — devastating on tanks, slight on small units.'
+                        'desc': 'Touches off every armed bomb on the field. Each stack deals a percent of the target\'s maximum HP that scales up with the size of the body, ignoring defense — devastating on tanks, slight on small units.'
                     }
                 ]
             },

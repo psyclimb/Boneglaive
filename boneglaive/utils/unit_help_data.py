@@ -765,7 +765,7 @@ def get_unit_help_data():
         UnitType.ORDNANCE_GRAFT: {
             'title': 'ORDNANCE GRAFT',
             'overview': [
-                'ORDNANCE GRAFT is a gunner who fights with a linstock — a match-staff for firing cannon. He grafts clustered spiked bombs ("bolas") onto enemies with his strikes, then touches them off for damage scaled to the target\'s maximum HP. This makes him the roster\'s dedicated anti-tank: the bigger the body, the harder he hits it. He also pilots a leashed quadcopter drone — a second body with its own Inoculant to graft bolas of its own.',
+                'ORDNANCE GRAFT is a gunner who fights with a linstock — a match-staff for firing cannon. He grafts clustered spiked bombs onto enemies with his strikes, then touches them off for damage scaled to the target\'s maximum HP. This makes him the roster\'s dedicated anti-tank: the bigger the body, the harder he hits it. He also pilots a leashed quadcopter drone — a second body with its own Inoculant to graft bombs of its own.',
                 '',
                 'Role: Burst Damage / Summoner / Escape Artist'
             ],
@@ -784,15 +784,15 @@ def get_unit_help_data():
                 },
                 {
                     'name': 'INOCULANT (Active)',
-                    'description': 'Strike an enemy within 2 tiles for normal attack damage and graft a bola bomb onto them. Bolas stack up to 4 on one target and arm one turn after being planted. Each bomb is its own: a full cleanse clears them all, but a drip-cleanse only peels one at a time.',
+                    'description': 'Strike an enemy within 2 tiles for normal attack damage and graft a bomb onto them. Bombs stack up to 4 on one target and arm one turn after being planted. Each bomb is its own: a full cleanse clears them all, but a drip-cleanse only peels one at a time.',
                     'details': [
                         'Range: 2, Cooldown: 1 turn',
-                        'Bolas cap at 4 per target; individually cleansable'
+                        'Bombs cap at 4 per target; individually cleansable'
                     ]
                 },
                 {
                     'name': 'SKYHOOK (Active)',
-                    'description': 'The drone drops a line and hauls him to any empty position within range, ignoring pathing, then he slams down to strike and graft a bola onto every enemy in the surrounding tiles. Requires a living drone — kill the drone and he loses both his second planter AND his only escape. Its cooldown is refunded whenever bolas detonate, so a big Harvest redeploys him at once.',
+                    'description': 'The drone drops a line and hauls him to any empty position within range, ignoring pathing, then he slams down to strike and graft a bomb onto every enemy in the surrounding tiles. Requires a living drone — kill the drone and he loses both his second planter AND his only escape. Its cooldown is refunded whenever bombs detonate, so a big Harvest redeploys him at once.',
                     'details': [
                         'Range: 4, Cooldown: 4 turns',
                         'Requires a living drone; refunds 2 cooldown per stack detonated'
@@ -800,7 +800,7 @@ def get_unit_help_data():
                 },
                 {
                     'name': 'HARVEST (Active)',
-                    'description': 'Touch off every armed bola on the field at once. Each stack deals a percent of the target\'s maximum HP that scales up with the size of the body, ignoring defense — devastating against high-HP tanks, slight against small units. Stacked bolas multiply against a single tank; spread bolas sweep the board.',
+                    'description': 'Touch off every armed bomb on the field at once. Each stack deals a percent of the target\'s maximum HP that scales up with the size of the body, ignoring defense — devastating against high-HP tanks, slight against small units. Stacked bombs multiply against a single tank; spread bombs sweep the board.',
                     'details': [
                         'Cooldown: 3 turns',
                         'Damage per stack scales with the target\'s max HP (~8% on the smallest bodies up to ~30% on the largest), ignores DEF'
@@ -808,7 +808,7 @@ def get_unit_help_data():
                 }
             ],
             'tips': [
-                '- Stack bolas fast with two bodies: Inoculant plus the drone\'s own attack can land two per turn — then Harvest the cluster for a tank-melting burst',
+                '- Stack bombs fast with two bodies: Inoculant plus the drone\'s own attack can land two per turn — then Harvest the cluster for a tank-melting burst',
                 '- A full 4-stack Harvest on a big-bodied tank can take off nearly its whole health bar',
                 '- Detonations refund Skyhook — chain a Harvest into a redeploy to the next target',
                 '- He is weak into low-HP units; save him for the big bodies',
@@ -816,7 +816,7 @@ def get_unit_help_data():
             ],
             'tactical': [
                 '- Strong against: High-HP tanks and bruisers (POTPOURRIST, MARROW CONDENSER, GLAIVEMAN, MANDIBLE FOREMAN)',
-                '- Vulnerable to: Cleanses (Vagal Run removes bolas), killing the drone (no echo, no Skyhook), PRT, focus fire on his 20 HP',
+                '- Vulnerable to: Cleanses (Vagal Run removes bombs), killing the drone (no echo, no Skyhook), PRT, focus fire on his 20 HP',
                 '- Best positioning: Engage range of a tank with the drone planting alongside; retreat on the Skyhook refund (while the drone lives)'
             ]
         },
