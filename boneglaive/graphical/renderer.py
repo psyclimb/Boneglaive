@@ -3183,10 +3183,35 @@ class GraphicalRenderer:
                 if translative_attack:
                     self.active_animations.append(translative_attack)
 
+            elif attacker.type == UnitType.ORDNANCE_GRAFT and attack_target and target_unit:
+                from boneglaive.graphical.animations.ordnance_graft import OrdnanceGraftLinstockAttack
+
+                linstock_attack = OrdnanceGraftLinstockAttack(
+                    attacker_unit=attacker_animated,
+                    target_unit=target_unit,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake
+                )
+                if linstock_attack:
+                    self.active_animations.append(linstock_attack)
+
+            elif attacker.type == UnitType.ORDNANCE_DRONE and attack_target and target_unit:
+                from boneglaive.graphical.animations.ordnance_graft import OrdnanceDroneBolaAttack
+
+                drone_attack = OrdnanceDroneBolaAttack(
+                    attacker_unit=attacker_animated,
+                    target_unit=target_unit,
+                    particle_emitter=self.particle_emitter,
+                    screen_shake_callback=self.trigger_screen_shake
+                )
+                if drone_attack:
+                    self.active_animations.append(drone_attack)
+
             if attacker.type not in [UnitType.INTERFERER, UnitType.MANDIBLE_FOREMAN, UnitType.GLAIVEMAN,
                                       UnitType.GRAYMAN, UnitType.MARROW_CONDENSER, UnitType.FOWL_CONTRIVANCE,
                                       UnitType.DELPHIC_APPRAISER, UnitType.GAS_MACHINIST, UnitType.DERELICTIONIST,
-                                      UnitType.POTPOURRIST, UnitType.LANDSCAPER] or not attack_target:
+                                      UnitType.POTPOURRIST, UnitType.LANDSCAPER,
+                                      UnitType.ORDNANCE_GRAFT, UnitType.ORDNANCE_DRONE] or not attack_target:
                 pass
 
     def _create_skill_animation(self, event):

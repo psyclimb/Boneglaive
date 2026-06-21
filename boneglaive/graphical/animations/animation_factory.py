@@ -89,6 +89,12 @@ from boneglaive.graphical.animations.landscaper import (
     TopiaryRevertAnimation,
 )
 
+from boneglaive.graphical.animations.ordnance_graft import (
+    InoculantAnimation,
+    SkyhookAnimation,
+    HarvestAnimation,
+)
+
 # Import sound system
 from boneglaive.graphical.sound_registry import get_sound_for_skill
 from boneglaive.graphical.sound_manager import get_sound_manager
@@ -207,6 +213,11 @@ class AnimationFactory:
         "DISSONANCE": (DissonanceAnimation, {}),
         "SLAG_WALL_DESPAWN": (SlagWallDespawnAnimation, {}),
         "TOPIARY_REVERT": (TopiaryRevertAnimation, {}),
+
+        # ORDNANCE GRAFT skills
+        "INOCULANT": (InoculantAnimation, {}),
+        "SKYHOOK": (SkyhookAnimation, {}),
+        "HARVEST": (HarvestAnimation, {}),
 
         # Core game events
         "RESPAWN": (RespawnAnimation, {}),
@@ -1276,6 +1287,22 @@ class AnimationFactory:
                     building_tiles=building_tiles,
                     camera=camera,
                     game=game
+                )
+            elif anim_class.__name__ in ["InoculantAnimation", "SkyhookAnimation", "HarvestAnimation"]:
+                # ORDNANCE GRAFT skills - full signature; Harvest reads bola'd units off game
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_unit=target_unit,
+                    target_pos=target_pos,
+                    is_crit=is_crit,
+                    is_infused=is_infused,
+                    particle_emitter=particle_emitter,
+                    debris_list=[],
+                    screen_shake_callback=screen_shake_callback,
+                    screen_flash_callback=screen_flash_callback,
+                    units_list=units_list if units_list else [],
+                    camera=camera,
+                    game=kwargs.get('game')
                 )
             elif anim_class.__name__ in ["HornswoggleAnimation", "TopiaryBreathAnimation"]:
                 # Landscaper directional skills - read data from game unit

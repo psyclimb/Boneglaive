@@ -98,6 +98,11 @@ SKILL_SOUNDS = {
     "HORNSWOGGLE": "hornswoggle",
     "TOPIARY_BREATH": "topiary_breath",
     "DISSONANCE": "dissonance",
+
+    # ORDNANCE GRAFT skills
+    "INOCULANT": "inoculant",
+    "SKYHOOK": "skyhook",
+    "HARVEST": "harvest",
 }
 
 # Impact sounds (hit effects, explosions, etc.)
