@@ -363,7 +363,7 @@ class SetupUnitHelp:
                 'skills': [
                     {
                         'name': 'INOCULANT',
-                        'desc': 'Strikes an adjacent enemy for normal damage and grafts a bola bomb (stacks up to 4, arms after one turn).'
+                        'desc': 'Strikes an enemy within 2 tiles for normal damage and grafts a bola bomb (stacks up to 4, arms after one turn).'
                     },
                     {
                         'name': 'MERIDIAN CUT',

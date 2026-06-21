@@ -124,16 +124,16 @@ class RotorGraft(PassiveSkill):
 
 
 class InoculantSkill(ActiveSkill):
-    """Melee strike that deals ATK damage and grafts a bola onto the target."""
+    """Strike that deals flat damage and grafts a bola onto a nearby enemy (range 2)."""
 
     def __init__(self):
         super().__init__(
             name="Inoculant",
             key="I",
-            description="Strike an adjacent enemy for normal damage and graft a bola bomb onto them (up to 4).",
+            description="Strike an enemy within 2 tiles for normal damage and graft a bola bomb onto them (up to 4).",
             target_type=TargetType.ENEMY,
             cooldown=1,
-            range_=1
+            range_=2
         )
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
@@ -204,7 +204,7 @@ class MeridianCutSkill(ActiveSkill):
             description="Dash to any empty position within range, ignoring pathing. Cut and graft a bola onto every enemy along the dash line. Cooldown is refunded when bolas detonate.",
             target_type=TargetType.AREA,
             cooldown=4,
-            range_=3
+            range_=4
         )
 
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
