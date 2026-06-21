@@ -354,12 +354,17 @@ class HarvestSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         total_stacks = 0
+        # Record where the bolas go off BEFORE detonation consumes them, so the
+        # graphical layer can fire its explosions on the right tiles (the animation
+        # runs after execute(), when the bolas have already been cleared).
+        detonations = []  # list of (y, x, stacks)
         for target in list(game.units):
             if not (target.is_alive() and target.player != user.player):
                 continue
             fused = fused_count(target)
             if fused <= 0:
                 continue
+            detonations.append((target.y, target.x, fused))
             # Detonate consumes the fused bombs; any unfused remain on the target.
             dealt = detonate_fused(target, game)
             total_stacks += fused
@@ -368,6 +373,7 @@ class HarvestSkill(ActiveSkill):
                 MessageType.ABILITY,
                 player=user.player
             )
+        user.last_harvest_data = {'detonations': detonations}
 
         if total_stacks == 0:
             return False

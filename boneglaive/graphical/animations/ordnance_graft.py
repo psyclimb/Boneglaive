@@ -190,8 +190,7 @@ class SkyhookAnimation:
                 self.particle_emitter.emit_burst(self.lx, self.ly, SMOKE, count=8)
             if self.screen_shake:
                 self.screen_shake(7, 0.22)
-            if self.screen_flash:
-                self.screen_flash(AMBER, 0.08)
+            # No full-screen flash — the local shockwave ring carries the impact.
 
         if self.elapsed >= self.total_duration:
             self.active = False
@@ -243,6 +242,11 @@ class HarvestAnimation:
     """He touches off every fused bola at once: amber detonation bursts and gunmetal
     shrapnel radiate from each bola'd enemy, with a heavy shake + flash."""
 
+    # Per-blast detonation timing: each point ignites briefly then erupts. Points are
+    # staggered slightly so multiple bombs read as a chaotic chain, not one blip.
+    IGNITE_AT = 0.18          # when the warm-up glow peaks / blast fires (base)
+    BLAST_DUR = 0.70          # how long a single fireball lives after it fires
+
     def __init__(self, caster_unit, target_unit=None, target_pos=None,
                  is_crit=False, is_infused=False,
                  particle_emitter=None, debris_list=None,
@@ -250,96 +254,160 @@ class HarvestAnimation:
                  units_list=None, camera=None, game=None, **kwargs):
         self.active = True
         self.elapsed = 0.0
-        self.total_duration = 0.85
         self.particle_emitter = particle_emitter
         self.screen_shake = screen_shake_callback
-        self.screen_flash = screen_flash_callback
-        self.camera = camera
+        # NOTE: deliberately no screen_flash — no full-screen flashes on this unit.
 
-        # Find every enemy carrying bolas — those are the detonation points.
-        self.blast_points: List[Tuple[float, float]] = []
+        # The detonation tiles are recorded by HarvestSkill.execute() into
+        # last_harvest_data BEFORE the bolas are consumed — read them from there (the
+        # live bolas lists are already cleared by the time this animation runs).
+        self.blasts = []  # list of dicts: {x, y, t0, fired, seed}
         caster_gu = caster_unit.game_unit
-        if game is not None:
-            for u in getattr(game, 'units', []):
-                if (u.is_alive() and u.player != caster_gu.player
-                        and len(getattr(u, 'bolas', []) or []) > 0):
-                    self.blast_points.append(_grid_center(camera, u.y, u.x))
-        if not self.blast_points:
-            # Fallback: detonate at the caster so something always shows.
-            self.blast_points.append(_grid_center(camera, caster_gu.y, caster_gu.x))
+        harvest_data = getattr(caster_gu, 'last_harvest_data', None)
+        targets = []
+        if harvest_data and harvest_data.get('detonations'):
+            targets = [(y, x) for (y, x, _stacks) in harvest_data['detonations']]
+        if not targets:
+            targets.append((caster_gu.y, caster_gu.x))  # fallback so something shows
+        for i, (gy, gx) in enumerate(targets):
+            bx, by = _grid_center(camera, gy, gx)
+            self.blasts.append({
+                'x': bx, 'y': by,
+                't0': self.IGNITE_AT + random.uniform(0.0, 0.10),  # stagger
+                'fired': False,
+                'seed': random.uniform(0, math.tau),
+            })
 
-        self.ignite_done = False
-        self.detonate_done = False
+        # Total duration = the last blast's fire time + its lifetime.
+        self.total_duration = max(b['t0'] for b in self.blasts) + self.BLAST_DUR
+        self.shake_done = False
+
+    def _erupt(self, b):
+        """Spawn the heavy layered particle burst for one blast point."""
+        bx, by = b['x'], b['y']
+        pe = self.particle_emitter
+        if not pe:
+            return
+        # Fast spark layers (amber + white-hot) — the bright outward flash debris.
+        pe.emit_burst(bx, by, AMBER_BRIGHT, count=22)
+        pe.emit_burst(bx, by, AMBER, count=26)
+        pe.emit_burst(bx, by, (255, 255, 255), count=10)
+        # Heavy high-velocity gunmetal shrapnel (hand-rolled: fast, gravity, bigger).
+        for _ in range(18):
+            a = random.uniform(0, math.tau)
+            sp = random.uniform(140, 280)
+            p = Particle(bx, by, math.cos(a) * sp, math.sin(a) * sp,
+                         random.choice((GUNMETAL_LIGHT, GUNMETAL)),
+                         random.uniform(2.0, 4.0), random.uniform(0.4, 0.9))
+            p.gravity = 320
+            pe.particles.append(p)
+        # Dark spiked-bomb fragments blown apart (bola motif shattering).
+        for _ in range(12):
+            a = random.uniform(0, math.tau)
+            sp = random.uniform(90, 200)
+            p = Particle(bx, by, math.cos(a) * sp, math.sin(a) * sp,
+                         BOMB_BLACK, random.uniform(2.0, 4.5), random.uniform(0.5, 1.0))
+            p.gravity = 280
+            pe.particles.append(p)
+        # Rising smoke that lingers (upward drift, long-lived, no gravity).
+        for _ in range(14):
+            a = random.uniform(0, math.tau)
+            sp = random.uniform(20, 60)
+            p = Particle(bx + random.uniform(-8, 8), by + random.uniform(-8, 8),
+                         math.cos(a) * sp, math.sin(a) * sp - random.uniform(30, 70),
+                         random.choice((SMOKE, (70, 70, 66))),
+                         random.uniform(4.0, 7.0), random.uniform(0.9, 1.6))
+            p.gravity = -10
+            pe.particles.append(p)
 
     def update(self, delta_time):
         self.elapsed += delta_time
 
-        # Ignite: a brief warm-up flicker at each point. (Harvest's primary sound is
-        # played by the factory via SKILL_SOUNDS on creation.)
-        if not self.ignite_done and self.elapsed > 0.02:
-            self.ignite_done = True
-            if self.particle_emitter:
-                for (bx, by) in self.blast_points:
-                    self.particle_emitter.emit_burst(bx, by, AMBER, count=4)
+        any_fired_now = False
+        for b in self.blasts:
+            if not b['fired'] and self.elapsed >= b['t0']:
+                b['fired'] = True
+                any_fired_now = True
+                self._erupt(b)
 
-        # Detonate: the big multi-point pop.
-        if not self.detonate_done and self.elapsed >= 0.22:
-            self.detonate_done = True
-            if self.particle_emitter:
-                for (bx, by) in self.blast_points:
-                    self.particle_emitter.emit_burst(bx, by, AMBER, count=16)
-                    self.particle_emitter.emit_burst(bx, by, AMBER_BRIGHT, count=8)
-                    self.particle_emitter.emit_burst(bx, by, BOMB_BLACK, count=10)
-                    self.particle_emitter.emit_burst(bx, by, GUNMETAL_LIGHT, count=6)
-                    self.particle_emitter.emit_burst(bx, by, SMOKE, count=6)
-            if self.screen_shake:
-                self.screen_shake(9, 0.3)
-            if self.screen_flash:
-                self.screen_flash(AMBER, 0.12)
+        # Screen shake scales with how many bombs are going off (more = bigger).
+        if any_fired_now and self.screen_shake:
+            n = len(self.blasts)
+            self.screen_shake(min(14, 7 + n * 2), 0.35)
 
         if self.elapsed >= self.total_duration:
             self.active = False
         return self.active
+
+    def _draw_fireball(self, overlay, bx, by, t, seed):
+        """A billowing, expanding fireball: layered filled circles from white-hot core
+        out to dark smoke, punching out fast (ease-out) then dissipating."""
+        # Expansion eases out fast; the visible blast is biggest early then fades.
+        ease = 1 - (1 - t) * (1 - t) * (1 - t)         # cubic ease-out for radius
+        fade = max(0.0, 1.0 - t)                        # overall opacity falloff
+        base_r = TILE_SIZE * (0.35 + ease * 1.15)       # grows up to ~1.5 tiles
+
+        # Layers: (radius_factor, color, base_alpha). Outer/cooler first, hot core last.
+        layers = [
+            (1.00, SMOKE, 70),
+            (0.85, AMBER_DARK, 150),
+            (0.65, AMBER, 210),
+            (0.45, AMBER_BRIGHT, 235),
+            (0.26, (255, 255, 255), 250),
+        ]
+        for j, (rf, col, a0) in enumerate(layers):
+            alpha = int(a0 * fade)
+            if alpha <= 0:
+                continue
+            # a little per-layer jitter so the ball reads as billowing, not concentric.
+            jx = math.cos(seed + j * 1.3) * base_r * 0.10 * (1 - t)
+            jy = math.sin(seed + j * 1.7) * base_r * 0.10 * (1 - t)
+            r = int(base_r * rf)
+            if r > 0:
+                pygame.draw.circle(overlay, (*col, alpha), (int(bx + jx), int(by + jy)), r)
+
+        # Bright shockwave ring racing ahead of the fireball.
+        ring_r = int(TILE_SIZE * 0.3 + ease * TILE_SIZE * 1.9)
+        ring_a = int(200 * max(0.0, 1.0 - t * 1.3))
+        if ring_a > 0:
+            pygame.draw.circle(overlay, (*AMBER_BRIGHT, ring_a), (int(bx), int(by)), ring_r, 3)
+
+    def _draw_local_flash(self, overlay, bx, by, t):
+        """A LOCAL white-hot bloom on the unit at the instant of the blast (not a
+        full-screen flash) — blooms in the first ~0.12s then collapses."""
+        ft = t / 0.18
+        if ft > 1.0:
+            return
+        a = int(255 * (1 - ft))
+        if a <= 0:
+            return
+        r = int(TILE_SIZE * (0.5 + ft * 0.6))
+        pygame.draw.circle(overlay, (255, 255, 255, a), (int(bx), int(by)), r)
+        pygame.draw.circle(overlay, (*AMBER_BRIGHT, a), (int(bx), int(by)), int(r * 1.3), 4)
 
     def draw(self, surface):
         if not self.active:
             return
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
-        for (bx, by) in self.blast_points:
-            # Ignite glow before the pop.
-            if not self.detonate_done and self.elapsed > 0.02:
-                it = min(1.0, self.elapsed / 0.22)
-                glow_alpha = int(120 * it)
-                pygame.draw.circle(overlay, (*AMBER, glow_alpha), (int(bx), int(by)), int(6 + it * 4))
+        for b in self.blasts:
+            bx, by = b['x'], b['y']
+            # Pre-ignition warm-up glow building at the bomb.
+            if not b['fired']:
+                it = min(1.0, self.elapsed / max(0.001, b['t0']))
+                ga = int(140 * it)
+                pygame.draw.circle(overlay, (*AMBER, ga), (int(bx), int(by)), int(5 + it * 6))
+                # a flickering hot pinpoint
+                pygame.draw.circle(overlay, (*AMBER_BRIGHT, int(ga * 1.2)),
+                                   (int(bx), int(by)), int(2 + it * 2))
+                continue
 
-            # Detonation: expanding shockwave + shrapnel streaks + hot core.
-            if self.detonate_done:
-                dt = min(1.0, (self.elapsed - 0.22) / (self.total_duration - 0.22))
-                # shockwave rings
-                ring_r = int(TILE_SIZE * 0.3 + dt * TILE_SIZE * 1.7)
-                ring_alpha = max(0, int(210 * (1 - dt)))
-                if ring_alpha > 0:
-                    pygame.draw.circle(overlay, (*AMBER_BRIGHT, ring_alpha), (int(bx), int(by)), ring_r, 3)
-                    pygame.draw.circle(overlay, (*AMBER, max(0, ring_alpha - 70)),
-                                       (int(bx), int(by)), int(ring_r * 0.65), 2)
-                # radial shrapnel streaks
-                streak_alpha = max(0, int(220 * (1 - dt)))
-                if streak_alpha > 0:
-                    for k in range(8):
-                        a = math.radians(k * 45 + 10)
-                        r0 = TILE_SIZE * 0.4 + dt * TILE_SIZE * 0.6
-                        r1 = r0 + TILE_SIZE * 0.5
-                        x0, y0 = bx + math.cos(a) * r0, by + math.sin(a) * r0
-                        x1, y1 = bx + math.cos(a) * r1, by + math.sin(a) * r1
-                        pygame.draw.line(overlay, (*GUNMETAL_LIGHT, streak_alpha),
-                                         (int(x0), int(y0)), (int(x1), int(y1)), 2)
-                # hot core
-                core_alpha = max(0, int(230 * (1 - dt)))
-                if core_alpha > 0:
-                    pygame.draw.circle(overlay, (*AMBER, core_alpha), (int(bx), int(by)), int(12 * (1 - dt) + 3))
-                    pygame.draw.circle(overlay, (255, 255, 255, max(0, int(200 * (1 - dt)))),
-                                       (int(bx), int(by)), int(6 * (1 - dt) + 1))
+            # Post-blast: local flash bloom + billowing fireball.
+            bt = (self.elapsed - b['t0']) / self.BLAST_DUR
+            if bt > 1.0:
+                continue
+            self._draw_fireball(overlay, bx, by, bt, b['seed'])
+            self._draw_local_flash(overlay, bx, by, bt)
 
         surface.blit(overlay, (0, 0))
 
