@@ -201,8 +201,6 @@ class InoculantSkill(ActiveSkill):
                     MessageType.ABILITY,
                     player=user.player
                 )
-        # The autonomous drone mirrors the strike on the same target.
-        game._drone_echo_strike(user, target, ui)
         return True
 
 
@@ -311,8 +309,6 @@ class SkyhookSkill(ActiveSkill):
                         MessageType.ABILITY,
                         player=user.player
                     )
-                # The autonomous drone mirrors the graft on this enemy.
-                game._drone_echo_strike(user, enemy, ui)
         return True
 
 

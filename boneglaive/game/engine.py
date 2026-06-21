@@ -3387,12 +3387,19 @@ class Game:
                             # Attacker's attack is treated as 2 when attacking this POTPOURRIST
                             effective_attack = 2
 
+                        # ORDNANCE_DRONE: its basic attack deals flat STRIKE_DAMAGE (not its
+                        # ATK stat), matching the graft's strikes — its damage identity is the
+                        # bola it plants, not the hit.
+                        if unit.type == UnitType.ORDNANCE_DRONE:
+                            from boneglaive.game.skills.ordnance_graft import STRIKE_DAMAGE
+                            effective_attack = STRIKE_DAMAGE
+
                         # Get effective defense
                         effective_defense = target.get_effective_stats()['defense']
 
                         # Calculate damage with defense (PRT handled automatically by HP setter)
                         raw_damage = effective_attack
-                        
+
                         # Apply defense to damage
                         # DERELICTIONIST's attacks bypass defense
                         # LANDSCAPER with upgraded Translative Stroke bypasses defense
@@ -3457,6 +3464,19 @@ class Game:
                             # Show attack animation with actual damage
                             if ui:
                                 ui.show_attack_animation(unit, target, actual_damage)
+
+                            # ORDNANCE_DRONE: its basic attack grafts a bola onto the target
+                            # (the player pilots the drone to plant). Stasiality/cap handled
+                            # inside plant_bola.
+                            if unit.type == UnitType.ORDNANCE_DRONE:
+                                from boneglaive.game.skills.ordnance_graft import plant_bola
+                                if target.player != unit.player and target.is_alive():
+                                    if plant_bola(target, 1) > 0:
+                                        message_log.add_message(
+                                            f"{unit.get_display_name()} grafts a bola onto {target.get_display_name()} ({len(target.bolas)})",
+                                            MessageType.ABILITY,
+                                            player=unit.player
+                                        )
 
                         # Check for upgraded Ossify reflect damage (MARROW_CONDENSER)
                         if (target.type == UnitType.MARROW_CONDENSER and
@@ -5206,52 +5226,6 @@ class Game:
             MessageType.MOVEMENT,
             player=drone.player
         )
-
-    def _drone_echo_strike(self, graft, target, ui=None):
-        """The autonomous drone mirrors its owner's bola-planting strike: it attacks
-        the SAME target for flat STRIKE_DAMAGE and grafts a bola. Called from the
-        graft's planting skills (Inoculant, Skyhook) so graft + drone = 2 stacks
-        per turn. Does nothing if the drone is dead/absent — killing it is the
-        counterplay. A post-execute death sweep handles any kill (see execute_turn)."""
-        from boneglaive.game.skills.ordnance_graft import plant_bola, STRIKE_DAMAGE
-        from boneglaive.utils.coordinates import get_adjacent_positions
-
-        drone = getattr(graft, 'drone', None)
-        if not (drone and drone.is_alive()):
-            return
-        if target is None or not target.is_alive() or target.player == drone.player:
-            return
-
-        # Cosmetically fly adjacent to the target if not already in range. The leash
-        # (radius 3 from the graft, who is adjacent to the target) guarantees a legal
-        # tile almost always; if none is free, the drone still fires from where it is.
-        if self.chess_distance(drone.y, drone.x, target.y, target.x) > 1:
-            spots = [(y, x) for (y, x) in get_adjacent_positions(target.y, target.x)
-                     if self.is_valid_position(y, x) and self.map.is_passable(y, x)
-                     and self.get_unit_at(y, x) is None]
-            if spots:
-                best = min(spots, key=lambda p: self.chess_distance(drone.y, drone.x, p[0], p[1]))
-                self._remove_from_unit_grid(drone)
-                drone.y, drone.x = best
-                self._update_unit_grid(drone)
-
-        immune = target.is_immune_to_effects()
-        target_def = target.get_effective_stats()['defense']
-        damage = max(1, STRIKE_DAMAGE - target_def)
-        dealt = target.deal_damage(damage)
-        plant_bola(target, 1)
-        if immune:
-            message_log.add_message(
-                f"{drone.get_display_name()} strikes {target.get_display_name()} for {dealt}, but the bola finds no purchase",
-                MessageType.ABILITY,
-                player=drone.player
-            )
-        else:
-            message_log.add_message(
-                f"{drone.get_display_name()} strikes {target.get_display_name()} for {dealt} and grafts a bola ({len(target.bolas)})",
-                MessageType.ABILITY,
-                player=drone.player
-            )
 
     def _process_ordnance_graft_upkeep(self):
         """Turn-start upkeep: arm fused bolas and reconcile/regenerate drones."""

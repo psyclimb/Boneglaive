@@ -105,9 +105,9 @@ UNIT_SKILLS = {
         "passive": RotorGraft(),
         "active": [InoculantSkill(), SkyhookSkill(), HarvestSkill()]
     },
-    # ORDNANCE_DRONE has no skills of its own — it acts autonomously (mirrors its
-    # owner's plants via _drone_echo_strike) and otherwise basic-attacks. Like
-    # HEINOUS_VAPOR, it has no UNIT_SKILLS entry.
+    # ORDNANCE_DRONE has no skills of its own — the player pilots it (leashed within
+    # ORDNANCE_DRONE_LEASH of the graft) and its basic attack grafts a bola (handled in
+    # the engine's attack resolution). Like HEINOUS_VAPOR, it has no UNIT_SKILLS entry.
 }
 
 # Fail loudly at import time if a newly added unit is incompletely wired —

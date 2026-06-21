@@ -355,10 +355,10 @@ class SetupUnitHelp:
             UnitType.ORDNANCE_GRAFT: {
                 'difficulty': 2,  # Out of 5
                 'role': 'Burst Damage / Summoner / Escape Artist',
-                'overview': 'A gunner-samurai who grafts clustered spiked bombs onto enemies with his linstock, then touches them off for damage scaled to maximum HP. The roster\'s anti-tank: the bigger the body, the harder he hits. A leashed quadcopter drone fights alongside him.',
+                'overview': 'A gunner who grafts clustered spiked bombs onto enemies with his linstock, then touches them off for damage scaled to maximum HP. The roster\'s anti-tank: the bigger the body, the harder he hits. He also pilots a leashed quadcopter drone as a second body.',
                 'passive': {
                     'name': 'ROTOR GRAFT',
-                    'desc': 'Fields one leashed quadcopter drone. When its owner grafts a bola, the drone mirrors him on the same target for a second bola — so a planting turn lands two stacks. It regenerates a few turns after being destroyed, and falls and returns with its owner.'
+                    'desc': 'Fields one leashed quadcopter drone you pilot yourself — a second body that moves and attacks on its own orders, and whose basic attack grafts a bola. It stays within a few tiles of its owner. Regenerates a few turns after being destroyed; falls and returns with its owner.'
                 },
                 'skills': [
                     {
@@ -367,7 +367,7 @@ class SetupUnitHelp:
                     },
                     {
                         'name': 'SKYHOOK',
-                        'desc': 'The drone hauls him to an empty tile within range, slamming down to strike and graft a bola onto every adjacent enemy (the drone mirrors each). Requires a living drone. Its cooldown is refunded whenever bolas detonate.'
+                        'desc': 'The drone hauls him to an empty tile within range, then he slams down to strike and graft a bola onto every adjacent enemy. Requires a living drone. Its cooldown is refunded whenever bolas detonate.'
                     },
                     {
                         'name': 'HARVEST',

@@ -765,7 +765,7 @@ def get_unit_help_data():
         UnitType.ORDNANCE_GRAFT: {
             'title': 'ORDNANCE GRAFT',
             'overview': [
-                'ORDNANCE GRAFT is a gunner-samurai who fights with a linstock — a match-staff for firing cannon. He grafts clustered spiked bombs ("bolas") onto enemies with his strikes, then touches them off for damage scaled to the target\'s maximum HP. This makes him the roster\'s dedicated anti-tank: the bigger the body, the harder he hits it. A leashed quadcopter drone fights at his side, grafting bolas of its own.',
+                'ORDNANCE GRAFT is a gunner who fights with a linstock — a match-staff for firing cannon. He grafts clustered spiked bombs ("bolas") onto enemies with his strikes, then touches them off for damage scaled to the target\'s maximum HP. This makes him the roster\'s dedicated anti-tank: the bigger the body, the harder he hits it. He also pilots a leashed quadcopter drone — a second body whose attacks graft bolas of their own.',
                 '',
                 'Role: Burst Damage / Summoner / Escape Artist'
             ],
@@ -779,7 +779,7 @@ def get_unit_help_data():
             'skills': [
                 {
                     'name': 'ROTOR GRAFT (Passive)',
-                    'description': 'Fields one leashed ORDNANCE DRONE that fights autonomously. Whenever its owner grafts a bola with a strike, the drone mirrors him — flying to the same target to strike and graft a second bola, so a planting turn lands two stacks at once. The drone is bound to its owner: if destroyed it regenerates after a few turns; if the owner dies it falls with him and returns when he respawns. The drone may never stray far from its owner — and killing it shuts off the second bola.',
+                    'description': 'Fields one leashed ORDNANCE DRONE — a second body you pilot yourself. It moves and attacks on its own orders each turn, and its basic attack grafts a bola (so it is a mobile second planter). It may never stray beyond a few tiles of its owner; when he moves it follows. The drone is bound to its owner: if destroyed it regenerates after a few turns; if the owner dies it falls with him and returns when he respawns. Killing it removes your second planter — and grounds Skyhook.',
                     'details': []
                 },
                 {
@@ -792,7 +792,7 @@ def get_unit_help_data():
                 },
                 {
                     'name': 'SKYHOOK (Active)',
-                    'description': 'The drone drops a line and hauls him to any empty position within range, ignoring pathing, then slams down to strike and graft a bola onto every enemy in the surrounding tiles (the drone mirrors each, for two bolas apiece). Requires a living drone — kill the drone and he loses both his planter AND his only escape. Its cooldown is refunded whenever bolas detonate, so a big Harvest redeploys him at once.',
+                    'description': 'The drone drops a line and hauls him to any empty position within range, ignoring pathing, then he slams down to strike and graft a bola onto every enemy in the surrounding tiles. Requires a living drone — kill the drone and he loses both his second planter AND his only escape. Its cooldown is refunded whenever bolas detonate, so a big Harvest redeploys him at once.',
                     'details': [
                         'Range: 4, Cooldown: 4 turns',
                         'Requires a living drone; refunds 2 cooldown per stack detonated'
@@ -808,7 +808,7 @@ def get_unit_help_data():
                 }
             ],
             'tips': [
-                '- Plant bolas across two turns (Inoculant + the mirroring drone reach 4 fast), then Harvest the cluster for a tank-melting burst',
+                '- Stack bolas fast with two bodies: Inoculant plus the drone\'s own attack can land two per turn — then Harvest the cluster for a tank-melting burst',
                 '- A full 4-stack Harvest on a big-bodied tank can take off nearly its whole health bar',
                 '- Detonations refund Skyhook — chain a Harvest into a redeploy to the next target',
                 '- He is weak into low-HP units; save him for the big bodies',

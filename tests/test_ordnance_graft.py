@@ -283,15 +283,15 @@ def test_skyhook_repositions_and_plants():
     ok = sky.execute(graft, dest, g)
     check("skyhook_moves_graft", (graft.y, graft.x) == dest,
           f"graft@({graft.y},{graft.x}) expected {dest}")
-    check("skyhook_plants_two_bolas", len(enemy.bolas) == 2,
-          f"arrival enemy bolas={len(enemy.bolas)} (graft + drone mirror)")
-    check("skyhook_arrival_damage", (e_hp0 - enemy.hp) == 4,
-          f"dmg={e_hp0 - enemy.hp} (2 strikes x flat 2, DEF 0)")
+    check("skyhook_plants_one_bola", len(enemy.bolas) == 1,
+          f"arrival enemy bolas={len(enemy.bolas)} (graft slams alone, no mirror)")
+    check("skyhook_arrival_damage", (e_hp0 - enemy.hp) == STRIKE_DAMAGE,
+          f"dmg={e_hp0 - enemy.hp} (flat strike, DEF 0)")
 
 
 def test_skyhook_arrival_aoe():
     """Skyhook's arrival slam hits EVERY enemy in the 8 tiles around the landing —
-    each is struck and grafted (and the drone mirrors each, for two bolas apiece)."""
+    each is struck once and grafted one bola (the graft slams alone; no drone mirror)."""
     g = fresh_game()
     # Find a landing tile (empty, in range) with >=2 free neighbours for enemies.
     graft = None
@@ -327,12 +327,12 @@ def test_skyhook_arrival_aoe():
         return
     e1_hp0, e2_hp0 = e1.hp, e2.hp
     sky.execute(graft, landing, g)
-    both_grafted = len(e1.bolas) == 2 and len(e2.bolas) == 2
-    both_hit = (e1_hp0 - e1.hp) == 4 and (e2_hp0 - e2.hp) == 4
+    both_grafted = len(e1.bolas) == 1 and len(e2.bolas) == 1
+    both_hit = (e1_hp0 - e1.hp) == STRIKE_DAMAGE and (e2_hp0 - e2.hp) == STRIKE_DAMAGE
     check("skyhook_aoe_grafts_all_adjacent", both_grafted,
-          f"e1 bolas={len(e1.bolas)} e2 bolas={len(e2.bolas)} (both should be 2)")
+          f"e1 bolas={len(e1.bolas)} e2 bolas={len(e2.bolas)} (both should be 1)")
     check("skyhook_aoe_strikes_all_adjacent", both_hit,
-          f"e1 dmg={e1_hp0 - e1.hp} e2 dmg={e2_hp0 - e2.hp} (both 4)")
+          f"e1 dmg={e1_hp0 - e1.hp} e2 dmg={e2_hp0 - e2.hp} (both flat strike)")
 
 
 def _empty_dest_in_range(g, graft, rng=4):
@@ -493,67 +493,111 @@ def _graft_with_drone_and_enemy(g, map_name="lime_foyer"):
     return graft, enemy, getattr(graft, 'drone', None)
 
 
-def test_drone_echo_doubles_inoculant():
+def test_inoculant_plants_one_bola():
+    """Inoculant is a single strike + 1 bola (the drone no longer auto-mirrors)."""
     g = fresh_game()
     graft, enemy, drone = _graft_with_drone_and_enemy(g)
     inoc = next(s for s in graft.active_skills if s.name == "Inoculant")
     hp0 = enemy.hp
     inoc.execute(graft, (enemy.y, enemy.x), g)
-    # Graft plant + drone echo = 2 bolas, and damage from both bodies.
-    check("echo_inoculant_two_bolas", drone is not None and len(enemy.bolas) == 2,
-          f"drone={'yes' if drone else 'no'} bolas={len(enemy.bolas)}")
-    # Both strikes are flat STRIKE_DAMAGE (2) on a 0-DEF target -> 2 + 2 = 4.
-    check("echo_inoculant_two_hits", (hp0 - enemy.hp) == 2 * STRIKE_DAMAGE,
-          f"damage={hp0 - enemy.hp} expected={2 * STRIKE_DAMAGE}")
+    check("inoculant_one_bola", len(enemy.bolas) == 1, f"bolas={len(enemy.bolas)} (graft alone)")
+    check("inoculant_flat_damage", (hp0 - enemy.hp) == STRIKE_DAMAGE,
+          f"damage={hp0 - enemy.hp} expected={STRIKE_DAMAGE}")
 
 
-def test_no_drone_no_echo():
+def test_drone_basic_attack_plants_bola():
+    """The PLAYER pilots the drone; its basic attack grafts a bola and deals flat damage.
+    Driven through execute_turn (the drone is a player-1 unit with a queued attack).
+    Uses an INTERFERER target (DEF 0, no Potpourrist-style damage reduction) so the flat
+    STRIKE_DAMAGE shows cleanly."""
     g = fresh_game()
     ts = free_tiles(g, 40)
     gy, gx = ts[0]
     ey, ex = next((y, x) for (y, x) in ts if abs(y - gy) <= 1 and abs(x - gx) <= 1 and (y, x) != (gy, gx))
     graft = place(g, UnitType.ORDNANCE_GRAFT, 1, gy, gx)
-    enemy = place(g, UnitType.POTPOURRIST, 2, ey, ex)
-    # Do NOT run upkeep — no drone exists.
-    graft.drone = None
-    inoc = next(s for s in graft.active_skills if s.name == "Inoculant")
-    inoc.execute(graft, (enemy.y, enemy.x), g)
-    check("no_drone_single_bola", len(enemy.bolas) == 1, f"bolas={len(enemy.bolas)} (no drone -> no echo)")
+    enemy = place(g, UnitType.INTERFERER, 2, ey, ex)
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()
+    drone = getattr(graft, 'drone', None)
+    if drone is None:
+        check("drone_attack_plants", False, "no drone")
+        return
+    # Put the drone adjacent to the enemy (within leash) and queue its basic attack.
+    target_adj = None
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            ny, nx = enemy.y + dy, enemy.x + dx
+            if ((dy or dx) and g.is_valid_position(ny, nx) and g.map.is_passable(ny, nx)
+                    and g.get_unit_at(ny, nx) is None
+                    and g.chess_distance(ny, nx, graft.y, graft.x) <= 3):
+                target_adj = (ny, nx)
+                break
+        if target_adj:
+            break
+    if target_adj is None:
+        check("drone_attack_plants", False, "no adjacent-to-enemy tile within leash")
+        return
+    g._remove_from_unit_grid(drone)
+    drone.y, drone.x = target_adj
+    g._update_unit_grid(drone)
+    hp0 = enemy.hp
+    drone.attack_target = (enemy.y, enemy.x)
+    g.current_player = 1
+    g.execute_turn(ui=None)
+    check("drone_attack_plants_bola", len(enemy.bolas) == 1,
+          f"bolas={len(enemy.bolas)} (drone basic attack should graft 1)")
+    check("drone_attack_flat_damage", (hp0 - enemy.hp) == STRIKE_DAMAGE,
+          f"damage={hp0 - enemy.hp} expected={STRIKE_DAMAGE} (drone uses flat STRIKE_DAMAGE, not ATK 3)")
 
 
-def test_drone_echo_respects_cap():
+def test_drone_leash_bounds_player_moves():
+    """The player can move the drone within the leash radius but not past it.
+    A 'near' tile is within both the leash AND the drone's move range; a 'far' tile is
+    beyond the leash (so it must be rejected regardless of move range)."""
     g = fresh_game()
     graft, enemy, drone = _graft_with_drone_and_enemy(g)
-    # Pre-load to one below cap so graft+drone (2 plants) genuinely overflow and clamp.
-    plant_bola(enemy, BOLA_MAX_STACKS - 1)
-    inoc = next(s for s in graft.active_skills if s.name == "Inoculant")
-    inoc.execute(graft, (enemy.y, enemy.x), g)
-    check("echo_respects_cap", len(enemy.bolas) == BOLA_MAX_STACKS,
-          f"bolas={len(enemy.bolas)} cap={BOLA_MAX_STACKS}")
-
-
-def test_drone_echo_repositions_to_target():
-    g = fresh_game()
-    graft, enemy, drone = _graft_with_drone_and_enemy(g)
-    inoc = next(s for s in graft.active_skills if s.name == "Inoculant")
-    inoc.execute(graft, (enemy.y, enemy.x), g)
-    # After echoing, the drone should be adjacent to (or on range of) the struck target.
-    check("echo_repositions", drone is not None
-          and g.chess_distance(drone.y, drone.x, enemy.y, enemy.x) <= 1,
-          f"drone_dist_to_target={g.chess_distance(drone.y, drone.x, enemy.y, enemy.x) if drone else 'n/a'}")
-
-
-def test_two_turns_reach_cap():
-    """The headline combo: with a drone, two planting turns reach the 3-cap."""
-    g = fresh_game()
-    graft, enemy, drone = _graft_with_drone_and_enemy(g)
-    inoc = next(s for s in graft.active_skills if s.name == "Inoculant")
-    inoc.execute(graft, (enemy.y, enemy.x), g)
-    after1 = len(enemy.bolas)
-    inoc.execute(graft, (enemy.y, enemy.x), g)
-    after2 = len(enemy.bolas)
-    check("two_turns_to_cap", after1 == 2 and after2 == BOLA_MAX_STACKS,
-          f"after_turn1={after1} after_turn2={after2}")
+    if drone is None:
+        check("drone_leash_bounds", False, "no drone")
+        return
+    from boneglaive.utils.constants import ORDNANCE_DRONE_LEASH
+    # Park the drone exactly at the leash edge (clear tile), then test single-step
+    # (adjacent) moves so path-through-units never interferes: one step that keeps it
+    # within leash, and one step outward that would exceed leash.
+    edge = None
+    for x in range(WIDTH):
+        for y in range(HEIGHT):
+            if (g.is_valid_position(y, x) and g.map.is_passable(y, x) and g.get_unit_at(y, x) is None
+                    and g.chess_distance(y, x, graft.y, graft.x) == ORDNANCE_DRONE_LEASH):
+                edge = (y, x)
+                break
+        if edge:
+            break
+    if edge is None:
+        check("drone_leash_bounds", False, "no leash-edge tile")
+        return
+    g._remove_from_unit_grid(drone)
+    drone.y, drone.x = edge
+    g._update_unit_grid(drone)
+    # Adjacent steps from the edge: classify by resulting leash distance.
+    inward = outward = None
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            if not (dy or dx):
+                continue
+            ny, nx = drone.y + dy, drone.x + dx
+            if not (g.is_valid_position(ny, nx) and g.map.is_passable(ny, nx) and g.get_unit_at(ny, nx) is None):
+                continue
+            d = g.chess_distance(ny, nx, graft.y, graft.x)
+            if inward is None and d <= ORDNANCE_DRONE_LEASH:
+                inward = (ny, nx)
+            if outward is None and d > ORDNANCE_DRONE_LEASH:
+                outward = (ny, nx)
+    in_ok = g.can_move_to(drone, *inward) if inward else None
+    out_ok = g.can_move_to(drone, *outward) if outward else None
+    check("drone_move_within_leash", inward is None or in_ok is True,
+          f"step within leash allowed={in_ok} (tile {inward})")
+    check("drone_move_beyond_leash_blocked", outward is None or out_ok is False,
+          f"step past leash allowed={out_ok} (tile {outward}, leash={ORDNANCE_DRONE_LEASH})")
 
 
 def test_drone_spawns_on_upkeep():
@@ -632,11 +676,9 @@ def main():
     test_full_cleanse_removes_all()
     test_broaching_gas_peels_one_bomb()
     test_vagal_run_clears_bolas()
-    test_drone_echo_doubles_inoculant()
-    test_no_drone_no_echo()
-    test_drone_echo_respects_cap()
-    test_drone_echo_repositions_to_target()
-    test_two_turns_reach_cap()
+    test_inoculant_plants_one_bola()
+    test_drone_basic_attack_plants_bola()
+    test_drone_leash_bounds_player_moves()
     test_drone_spawns_on_upkeep()
     test_drone_leash_rejects_far_move()
     test_drone_regenerates_after_death()
