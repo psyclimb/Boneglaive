@@ -366,8 +366,8 @@ class SetupUnitHelp:
                         'desc': 'Strikes an enemy within 2 tiles for normal damage and grafts a bola bomb (stacks up to 4, arms after one turn).'
                     },
                     {
-                        'name': 'MERIDIAN CUT',
-                        'desc': 'Dashes to an empty tile within range, cutting and grafting a bola onto every enemy along the dash line (the drone mirrors it). Its cooldown is refunded whenever bolas detonate.'
+                        'name': 'SKYHOOK',
+                        'desc': 'The drone hauls him to an empty tile within range, grafting a bola onto an enemy adjacent to the landing (the drone mirrors it). Requires a living drone. Its cooldown is refunded whenever bolas detonate.'
                     },
                     {
                         'name': 'HARVEST',

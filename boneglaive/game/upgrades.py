@@ -312,9 +312,9 @@ SKILL_UPGRADES = {
             "type": "buff",
             "cost": 1
         },
-        "Meridian Cut": {
-            "name": "Meridian Cut",
-            "description": "Meridian Cut refunds additional cooldown per bola detonated, knifing him back into the fray faster.",
+        "Skyhook": {
+            "name": "Skyhook",
+            "description": "Skyhook refunds additional cooldown per bola detonated, redeploying him faster.",
             "type": "buff",
             "cost": 1
         },

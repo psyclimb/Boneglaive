@@ -5209,8 +5209,8 @@ class Game:
 
     def _drone_echo_strike(self, graft, target, ui=None):
         """The autonomous drone mirrors its owner's bola-planting strike: it attacks
-        the SAME target for the drone's ATK damage and grafts a bola. Called from the
-        graft's planting skills (Inoculant, Meridian Cut) so graft + drone = 2 stacks
+        the SAME target for flat STRIKE_DAMAGE and grafts a bola. Called from the
+        graft's planting skills (Inoculant, Skyhook) so graft + drone = 2 stacks
         per turn. Does nothing if the drone is dead/absent — killing it is the
         counterplay. A post-execute death sweep handles any kill (see execute_turn)."""
         from boneglaive.game.skills.ordnance_graft import plant_bola, STRIKE_DAMAGE

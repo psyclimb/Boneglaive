@@ -791,11 +791,11 @@ def get_unit_help_data():
                     ]
                 },
                 {
-                    'name': 'MERIDIAN CUT (Active)',
-                    'description': 'Dash along a line to any empty position within range, ignoring pathing, cutting and grafting a bola onto every enemy the dash passes through. The drone mirrors the sweep, so each skewered enemy takes two cuts and two bolas. Its cooldown is refunded whenever bolas detonate, so a big Harvest sends him knifing back in.',
+                    'name': 'SKYHOOK (Active)',
+                    'description': 'The drone drops a line and hauls him to any empty position within range, ignoring pathing, then grafts a bola onto an enemy adjacent to the landing point (the drone mirrors it, for two bolas). Requires a living drone — kill the drone and he loses both his second planter AND his only escape. Its cooldown is refunded whenever bolas detonate, so a big Harvest redeploys him at once.',
                     'details': [
                         'Range: 4, Cooldown: 4 turns',
-                        'Refunds 2 cooldown per stack detonated'
+                        'Requires a living drone; refunds 2 cooldown per stack detonated'
                     ]
                 },
                 {
@@ -810,14 +810,14 @@ def get_unit_help_data():
             'tips': [
                 '- Plant bolas across two turns (Inoculant + the mirroring drone reach 4 fast), then Harvest the cluster for a tank-melting burst',
                 '- A full 4-stack Harvest on a big-bodied tank can take off nearly its whole health bar',
-                '- Detonations refund Meridian Cut — chain a Harvest into a dash to the next target',
+                '- Detonations refund Skyhook — chain a Harvest into a redeploy to the next target',
                 '- He is weak into low-HP units; save him for the big bodies',
-                '- Protect the drone: losing it removes the second planter, so the cluster builds half as fast until it regenerates'
+                '- Protect the drone: losing it removes the second planter AND grounds Skyhook (his only escape) until it regenerates'
             ],
             'tactical': [
                 '- Strong against: High-HP tanks and bruisers (POTPOURRIST, MARROW CONDENSER, GLAIVEMAN, MANDIBLE FOREMAN)',
-                '- Vulnerable to: Cleanses (Vagal Run removes bolas), PRT, low-HP squishies, focus fire on his 20 HP',
-                '- Best positioning: Dive range of a tank, with the drone planting alongside; retreat on the Meridian Cut refund'
+                '- Vulnerable to: Cleanses (Vagal Run removes bolas), killing the drone (no echo, no Skyhook), PRT, focus fire on his 20 HP',
+                '- Best positioning: Engage range of a tank with the drone planting alongside; retreat on the Skyhook refund (while the drone lives)'
             ]
         },
         'HEINOUS_VAPOR_BROACHING': {

@@ -23,11 +23,11 @@ if TYPE_CHECKING:
 BOLA_PCT_FLOOR = 0.08        # per-stack % at (and below) the reference HP
 BOLA_PCT_REF_HP = 18         # reference max HP the floor applies to (roster's squishy)
 BOLA_PCT_PER_HP = 0.22 / 6   # extra per-stack % for each max-HP point above the reference
-# MERIDIAN CUT cooldown refunded per stack detonated.
-CUT_REFUND_PER_STACK = 2
-CUT_SKILL_NAME = "Meridian Cut"
-# Flat base damage for his strikes (Inoculant / Meridian Cut). NOT ATK-scaled — his
-# damage identity is the bombs, not the sword. DEF/PRT still reduce it via deal_damage.
+# SKYHOOK cooldown refunded per stack detonated (the flow engine).
+SKYHOOK_REFUND_PER_STACK = 2
+SKYHOOK_SKILL_NAME = "Skyhook"
+# Flat base damage for his strikes (Inoculant / Skyhook arrival). NOT ATK-scaled — his
+# damage identity is the bombs, not the strike. DEF/PRT still reduce it via deal_damage.
 STRIKE_DAMAGE = 2
 
 
@@ -95,13 +95,13 @@ def detonate_fused(target: 'Unit', game: 'Game') -> int:
     return dealt
 
 
-def _reduce_cut_cooldown(user: 'Unit', stacks_detonated: int) -> None:
-    """Refund MERIDIAN CUT's cooldown by the stacks just detonated (the flow engine)."""
+def _reduce_skyhook_cooldown(user: 'Unit', stacks_detonated: int) -> None:
+    """Refund SKYHOOK's cooldown by the stacks just detonated (the flow engine)."""
     if stacks_detonated <= 0:
         return
-    refund = stacks_detonated * CUT_REFUND_PER_STACK
+    refund = stacks_detonated * SKYHOOK_REFUND_PER_STACK
     for skill in user.active_skills:
-        if skill.name == CUT_SKILL_NAME:
+        if skill.name == SKYHOOK_SKILL_NAME:
             if skill.current_cooldown > 0:
                 skill.current_cooldown = max(0, skill.current_cooldown - refund)
             break
@@ -193,24 +193,31 @@ class InoculantSkill(ActiveSkill):
         return True
 
 
-class MeridianCutSkill(ActiveSkill):
-    """Dash along a line to an empty tile, cutting and grafting a bola onto EVERY enemy
-    the dash passes through (and the drone mirrors the sweep)."""
+class SkyhookSkill(ActiveSkill):
+    """The drone hauls him to a new position (aerial extraction), grafting a bola onto
+    an enemy adjacent to where he lands. Requires a living drone; refunded by detonations."""
 
     def __init__(self):
         super().__init__(
-            name="Meridian Cut",
-            key="M",
-            description="Dash to any empty position within range, ignoring pathing. Cut and graft a bola onto every enemy along the dash line. Cooldown is refunded when bolas detonate.",
+            name="Skyhook",
+            key="S",
+            description="The drone lifts you to any empty position within range, ignoring pathing, and grafts a bola onto an enemy adjacent to the landing point. Requires a living drone. Cooldown is refunded when bolas detonate.",
             target_type=TargetType.AREA,
             cooldown=4,
             range_=4
         )
 
+    def _has_living_drone(self, user: 'Unit') -> bool:
+        drone = getattr(user, 'drone', None)
+        return bool(drone and drone.is_alive())
+
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         if not super().can_use(user, target_pos, game):
             return False
         if not game or not target_pos:
+            return False
+        # Gated on the drone: no drone, no extraction (it regenerates in a few turns).
+        if not self._has_living_drone(user):
             return False
         ty, tx = target_pos
         if not game.is_valid_position(ty, tx):
@@ -229,14 +236,14 @@ class MeridianCutSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
-        # The cut IS the movement — don't walk first.
+        # The skyhook IS the movement — don't walk first.
         user.move_target = None
         user.vault_target_indicator = target_pos  # reuse the leap indicator
         if game:
             user.action_timestamp = game.action_counter
             game.action_counter += 1
         message_log.add_message(
-            f"{user.get_display_name()} prepares to cut to ({target_pos[0]}, {target_pos[1]})",
+            f"{user.get_display_name()} signals the drone for a skyhook to ({target_pos[0]}, {target_pos[1]})",
             MessageType.ABILITY,
             player=user.player
         )
@@ -244,19 +251,13 @@ class MeridianCutSkill(ActiveSkill):
         return True
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
-        from boneglaive.utils.coordinates import get_line, Position
-
         ty, tx = target_pos
         user.vault_target_indicator = None
 
-        # Capture the dash ORIGIN before we move — the sweep hits enemies on the line
-        # from here to the destination.
-        oy, ox = user.y, user.x
-
-        # Land the dash (bypass the grid setter like Vault — it's a teleport).
+        # The drone hauls him to the landing tile (teleport — flies over everything).
         if game.get_unit_at(ty, tx) is not None:
             message_log.add_message(
-                f"{user.get_display_name()}'s cut fizzles - no room to land!",
+                f"{user.get_display_name()}'s skyhook aborts - no room to land!",
                 MessageType.WARNING,
                 player=user.player
             )
@@ -264,35 +265,32 @@ class MeridianCutSkill(ActiveSkill):
         game._remove_from_unit_grid(user)
         user.y, user.x = ty, tx
         game._update_unit_grid(user)
+        # The drone carried him, so bring it along to the new position.
         game._move_leashed_drones(user, ty, tx, ui)
 
         message_log.add_message(
-            f"{user.get_display_name()} flickers across the field",
+            f"{user.get_display_name()} is lifted across the field by the drone",
             MessageType.ABILITY,
             player=user.player
         )
 
-        # Cut + graft every enemy on the dash line (origin->destination). The origin
-        # holds the graft and the destination is required-empty, so only the enemies
-        # the dash physically passed THROUGH are hit. The drone mirrors each cut.
-        for pos in get_line(Position(oy, ox), Position(ty, tx)):
-            enemy = game.get_unit_at(pos.y, pos.x)
-            if enemy is None or enemy is user:
-                continue
-            if not (enemy.is_alive() and enemy.player != user.player
+        # Graft a bola onto one enemy adjacent to the landing point; the drone mirrors it.
+        for enemy in game.units:
+            if (enemy.is_alive() and enemy.player != user.player
+                    and game.chess_distance(user.y, user.x, enemy.y, enemy.x) <= 1
                     and game.can_target_unit(user, enemy)):
-                continue
-            target_def = enemy.get_effective_stats()['defense']
-            damage = max(1, STRIKE_DAMAGE - target_def)
-            dealt = enemy.deal_damage(damage)
-            plant_bola(enemy, 1)
-            message_log.add_message(
-                f"{user.get_display_name()} cuts {enemy.get_display_name()} for {dealt} and grafts a bola ({len(enemy.bolas)})",
-                MessageType.ABILITY,
-                player=user.player
-            )
-            # The autonomous drone mirrors the cut on this enemy.
-            game._drone_echo_strike(user, enemy, ui)
+                target_def = enemy.get_effective_stats()['defense']
+                damage = max(1, STRIKE_DAMAGE - target_def)
+                dealt = enemy.deal_damage(damage)
+                plant_bola(enemy, 1)
+                message_log.add_message(
+                    f"{user.get_display_name()} grafts a bola onto {enemy.get_display_name()} on arrival for {dealt} ({len(enemy.bolas)})",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+                # The autonomous drone mirrors the graft on this enemy.
+                game._drone_echo_strike(user, enemy, ui)
+                break
         return True
 
 
@@ -303,7 +301,7 @@ class HarvestSkill(ActiveSkill):
         super().__init__(
             name="Harvest",
             key="H",
-            description="Detonate all fused bolas on the field. Each stack deals a percent of the target's max HP that scales up with the size of the body — devastating against tanks, weak against small units. Refunds Meridian Cut's cooldown per stack.",
+            description="Detonate all fused bolas on the field. Each stack deals a percent of the target's max HP that scales up with the size of the body — devastating against tanks, weak against small units. Refunds Skyhook's cooldown per stack.",
             target_type=TargetType.SELF,
             cooldown=3,
             range_=0
@@ -356,7 +354,7 @@ class HarvestSkill(ActiveSkill):
         if total_stacks == 0:
             return False
 
-        _reduce_cut_cooldown(user, total_stacks)
+        _reduce_skyhook_cooldown(user, total_stacks)
         message_log.add_message(
             f"{user.get_display_name()} reaps the graft",
             MessageType.ABILITY,

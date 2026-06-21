@@ -2,7 +2,7 @@
 """Integration tests for ORDNANCE GRAFT — the bola mechanics and the drone.
 
 Drives the engine directly (ui=None) and asserts behaviour, not just absence of
-crashes: bola plant/cap/fuse timing, detonation %max-HP math, the Meridian Cut
+crashes: bola plant/cap/fuse timing, detonation %max-HP math, the Skyhook
 cooldown refund, partial vs. full cleanse, and drone spawn/leash/regen.
 
 Run with: SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python tests/test_ordnance_graft.py
@@ -183,43 +183,43 @@ def test_only_fused_detonate():
 
 
 # ---------------------------------------------------------------------------
-# Meridian Cut refund
+# Skyhook cooldown refund (the flow engine)
 # ---------------------------------------------------------------------------
 
-def test_meridian_cut_refund():
+def test_skyhook_refund():
     g = fresh_game()
     ts = free_tiles(g, 2)
     graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
     tank = place(g, UnitType.POTPOURRIST, 2, *ts[1])
 
-    cut = next(s for s in graft.active_skills if s.name == "Meridian Cut")
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
     harvest = next(s for s in graft.active_skills if s.name == "Harvest")
-    cut.current_cooldown = cut.cooldown  # 4
+    sky.current_cooldown = sky.cooldown  # 4
 
     plant_bola(tank, 3)
     arm_bolas(tank)
     harvest.execute(graft, (graft.y, graft.x), g)
     # 3 stacks detonated -> refund 2*3 = 6, clamped to 0 from a base of 4.
-    check("refund_clamps_to_zero", cut.current_cooldown == 0,
-          f"cd={cut.current_cooldown} (3 stacks should over-refund a cd-4 skill)")
+    check("refund_clamps_to_zero", sky.current_cooldown == 0,
+          f"cd={sky.current_cooldown} (3 stacks should over-refund a cd-4 skill)")
 
     # Single-stack refund trims by exactly 2.
     g2 = fresh_game()
     ts2 = free_tiles(g2, 2)
     graft2 = place(g2, UnitType.ORDNANCE_GRAFT, 1, *ts2[0])
     tank2 = place(g2, UnitType.POTPOURRIST, 2, *ts2[1])
-    cut2 = next(s for s in graft2.active_skills if s.name == "Meridian Cut")
+    sky2 = next(s for s in graft2.active_skills if s.name == "Skyhook")
     harvest2 = next(s for s in graft2.active_skills if s.name == "Harvest")
-    cut2.current_cooldown = 4
+    sky2.current_cooldown = 4
     plant_bola(tank2, 1)
     arm_bolas(tank2)
     harvest2.execute(graft2, (graft2.y, graft2.x), g2)
-    check("refund_one_stack", cut2.current_cooldown == 2,
-          f"cd={cut2.current_cooldown} (1 stack -> -2 from 4)")
+    check("refund_one_stack", sky2.current_cooldown == 2,
+          f"cd={sky2.current_cooldown} (1 stack -> -2 from 4)")
 
 
 # ---------------------------------------------------------------------------
-# Meridian Cut skewer (hits every enemy on the dash line)
+# Skyhook (drone-lift reposition + arrival plant; gated on the drone)
 # ---------------------------------------------------------------------------
 
 def _passable_corridor(g, length):
@@ -233,79 +233,80 @@ def _passable_corridor(g, length):
     return None, None
 
 
-def test_meridian_cut_skewers_line():
-    """The dash hits and grafts EVERY enemy standing on its line. With a drone, each
-    skewered enemy takes two strikes and two bolas."""
+def test_skyhook_repositions_and_plants():
+    """Skyhook lifts the graft to the destination and grafts a bola onto an enemy
+    adjacent to the landing; the drone mirrors it (two bolas)."""
     g = fresh_game()
     r, c0 = _passable_corridor(g, 4)
     if r is None:
-        check("skewer_line", False, "no 4-wide corridor")
+        check("skyhook_reposition", False, "no corridor")
         return
     graft = place(g, UnitType.ORDNANCE_GRAFT, 1, r, c0)
-    e1 = place(g, UnitType.POTPOURRIST, 2, r, c0 + 1)   # DEF 0 -> takes 2/strike
-    e2 = place(g, UnitType.POTPOURRIST, 2, r, c0 + 2)   # DEF 0
+    # Enemy sits at c0+4; land adjacent to it at c0+3.
+    enemy = place(g, UnitType.POTPOURRIST, 2, r, c0 + 4) if (c0 + 4) < WIDTH and g.map.is_passable(r, c0 + 4) else None
+    if enemy is None:
+        check("skyhook_reposition", False, "no tile for arrival enemy")
+        return
     g.current_player = 1
     g._process_ordnance_graft_upkeep()  # spawn drone
-    drone_alive = graft.drone is not None and graft.drone.is_alive()
-    cut = next(s for s in graft.active_skills if s.name == "Meridian Cut")
-    e1_hp0, e2_hp0 = e1.hp, e2.hp
-    cut.execute(graft, (r, c0 + 3), g)
-    # Both line enemies hit; with a drone each has 2 bolas and took 2*2 damage.
-    check("skewer_both_get_bolas", len(e1.bolas) == 2 and len(e2.bolas) == 2,
-          f"e1 bolas={len(e1.bolas)} e2 bolas={len(e2.bolas)} (drone_alive={drone_alive})")
-    check("skewer_both_take_damage", (e1_hp0 - e1.hp) == 4 and (e2_hp0 - e2.hp) == 4,
-          f"e1 dmg={e1_hp0 - e1.hp} e2 dmg={e2_hp0 - e2.hp} (2 strikes x flat 2, DEF 0)")
-
-
-def test_meridian_cut_misses_off_line_enemy():
-    """An enemy beside the landing tile but NOT on the dash line is not hit
-    (the 'on the dash line only' rule). Uses get_line to verify the off tile really
-    is off the line, so the assertion is meaningful regardless of map geometry."""
-    from boneglaive.utils.coordinates import get_line, Position
-    g = fresh_game()
-    r, c0 = _passable_corridor(g, 4)
-    if r is None:
-        check("skewer_misses_off_line", False, "no corridor")
-        return
-    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, r, c0)
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
     dest = (r, c0 + 3)
-    line = {(p.y, p.x) for p in get_line(Position(r, c0), Position(*dest))}
-    # Find any passable, empty tile adjacent to the landing that is NOT on the line.
-    off = None
-    for dy in (-1, 0, 1):
-        for dx in (-1, 0, 1):
-            oy, ox = dest[0] + dy, dest[1] + dx
-            if (0 <= oy < HEIGHT and 0 <= ox < WIDTH and (oy, ox) not in line
-                    and g.map.is_passable(oy, ox) and g.get_unit_at(oy, ox) is None):
-                off = place(g, UnitType.POTPOURRIST, 2, oy, ox)
-                break
-        if off:
-            break
-    if off is None:
-        check("skewer_misses_off_line", False, "no off-line tile available")
-        return
-    graft.drone = None  # isolate the graft's own hit rule
-    cut = next(s for s in graft.active_skills if s.name == "Meridian Cut")
-    cut.execute(graft, dest, g)
-    check("skewer_misses_off_line", len(off.bolas) == 0 and off.hp == off.max_hp,
-          f"off-line enemy bolas={len(off.bolas)} hp={off.hp}/{off.max_hp} (should be untouched)")
+    e_hp0 = enemy.hp
+    ok = sky.execute(graft, dest, g)
+    check("skyhook_moves_graft", (graft.y, graft.x) == dest,
+          f"graft@({graft.y},{graft.x}) expected {dest}")
+    check("skyhook_plants_two_bolas", len(enemy.bolas) == 2,
+          f"arrival enemy bolas={len(enemy.bolas)} (graft + drone mirror)")
+    check("skyhook_arrival_damage", (e_hp0 - enemy.hp) == 4,
+          f"dmg={e_hp0 - enemy.hp} (2 strikes x flat 2, DEF 0)")
 
 
-def test_meridian_cut_skewer_no_drone():
-    """Without a drone, each line enemy gets exactly one bola (no mirror)."""
+def _empty_dest_in_range(g, graft, rng=4):
+    """An empty, passable, in-range tile to skyhook to (chosen AFTER units exist)."""
+    for y in range(HEIGHT):
+        for x in range(WIDTH):
+            if ((y, x) != (graft.y, graft.x) and g.is_valid_position(y, x)
+                    and g.map.is_passable(y, x) and g.get_unit_at(y, x) is None
+                    and g.chess_distance(graft.y, graft.x, y, x) <= rng):
+                return (y, x)
+    return None
+
+
+def test_skyhook_requires_living_drone():
+    """The key gate: Skyhook is unusable with no drone, usable once it exists."""
     g = fresh_game()
-    r, c0 = _passable_corridor(g, 4)
-    if r is None:
-        check("skewer_no_drone", False, "no corridor")
-        return
-    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, r, c0)
-    e1 = place(g, UnitType.POTPOURRIST, 2, r, c0 + 1)
-    e2 = place(g, UnitType.POTPOURRIST, 2, r, c0 + 2)
-    graft.drone = None  # no upkeep -> no drone
-    cut = next(s for s in graft.active_skills if s.name == "Meridian Cut")
-    cut.execute(graft, (r, c0 + 3), g)
-    check("skewer_no_drone_one_each", len(e1.bolas) == 1 and len(e2.bolas) == 1,
-          f"e1 bolas={len(e1.bolas)} e2 bolas={len(e2.bolas)} (no drone -> 1 each)")
+    ts = free_tiles(g, 40)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    # No drone yet (no upkeep run) -> cannot use (pick dest now, no drone occupying tiles).
+    graft.drone = None
+    dest = _empty_dest_in_range(g, graft)
+    check("skyhook_blocked_no_drone", sky.can_use(graft, dest, g) is False,
+          f"can_use with no drone = {sky.can_use(graft, dest, g)} (want False)")
+    # Spawn the drone -> now usable (recompute dest so it isn't the drone's tile).
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()
+    dest = _empty_dest_in_range(g, graft)
+    check("skyhook_ok_with_drone", sky.can_use(graft, dest, g) is True,
+          f"can_use with drone = {sky.can_use(graft, dest, g)} (want True)")
+
+
+def test_skyhook_blocked_after_drone_dies():
+    """Killing the drone grounds Skyhook until it regenerates."""
+    g = fresh_game()
+    ts = free_tiles(g, 40)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()  # drone exists
+    dest = _empty_dest_in_range(g, graft)  # empty tile, not the drone's
+    usable_before = sky.can_use(graft, dest, g)
+    # Kill the drone through the engine death path.
+    drone = graft.drone
+    drone.hp = 0
+    g.handle_unit_death(drone, None, cause="test", ui=None)
+    check("skyhook_grounded_when_drone_killed", usable_before is True and sky.can_use(graft, dest, g) is False,
+          f"before={usable_before} after_death={sky.can_use(graft, dest, g)} (want True then False)")
 
 
 # ---------------------------------------------------------------------------
@@ -546,10 +547,10 @@ def main():
     test_detonation_curve_favours_big_bodies()
     test_detonation_ignores_def_respects_prt()
     test_only_fused_detonate()
-    test_meridian_cut_refund()
-    test_meridian_cut_skewers_line()
-    test_meridian_cut_misses_off_line_enemy()
-    test_meridian_cut_skewer_no_drone()
+    test_skyhook_refund()
+    test_skyhook_repositions_and_plants()
+    test_skyhook_requires_living_drone()
+    test_skyhook_blocked_after_drone_dies()
     test_partial_cleanse_removes_one()
     test_partial_cleanse_prefers_unfused()
     test_full_cleanse_removes_all()

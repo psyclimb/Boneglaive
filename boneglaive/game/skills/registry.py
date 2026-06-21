@@ -52,7 +52,7 @@ from boneglaive.game.skills.landscaper import (
 )
 
 from boneglaive.game.skills.ordnance_graft import (
-    RotorGraft, InoculantSkill, MeridianCutSkill, HarvestSkill
+    RotorGraft, InoculantSkill, SkyhookSkill, HarvestSkill
 )
 
 # Define the skills available for each unit type
@@ -103,7 +103,7 @@ UNIT_SKILLS = {
     },
     UnitType.ORDNANCE_GRAFT: {
         "passive": RotorGraft(),
-        "active": [InoculantSkill(), MeridianCutSkill(), HarvestSkill()]
+        "active": [InoculantSkill(), SkyhookSkill(), HarvestSkill()]
     },
     # ORDNANCE_DRONE has no skills of its own — it acts autonomously (mirrors its
     # owner's plants via _drone_echo_strike) and otherwise basic-attacks. Like
