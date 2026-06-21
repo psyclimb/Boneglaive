@@ -5276,13 +5276,25 @@ class Game:
     def _process_ordnance_graft_upkeep(self):
         """Turn-start upkeep: arm fused bombs and reconcile/regenerate drones."""
         from boneglaive.utils.constants import ORDNANCE_DRONE_REGEN
-        from boneglaive.game.skills.ordnance_graft import arm_bombs
+        from boneglaive.game.skills.ordnance_graft import arm_bombs, tick_bombs
 
         # Arm bombs planted on the enemies of the current player (their graft can now
-        # detonate them). A bomb arms one turn after being planted.
+        # detonate them). A bomb arms one turn after being planted. Then age every bomb
+        # by one turn and drop any that have lingered past their lifespan — they fall off
+        # (the lifespan is refreshed whenever a fresh bomb is grafted). This runs once per
+        # round, at the bomb-owner's turn-start (these are that graft's targets).
         for unit in self.units:
             if unit.is_alive() and unit.player != self.current_player:
                 arm_bombs(unit)
+                expired = tick_bombs(unit)
+                if expired > 0:
+                    remaining = len(unit.bombs)
+                    tail = f" ({remaining} left)" if remaining else ""
+                    message_log.add_message(
+                        f"{expired} bomb{'s' if expired > 1 else ''} fall off {unit.get_display_name()}{tail}",
+                        MessageType.ABILITY,
+                        player=unit.player
+                    )
 
         # Reconcile each current-player ORDNANCE_GRAFT's drone.
         for owner in list(self.units):

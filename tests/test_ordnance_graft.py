@@ -19,11 +19,11 @@ logging.disable(logging.CRITICAL)
 
 from boneglaive.game.engine import Game
 from boneglaive.utils.constants import (
-    UnitType, HEIGHT, WIDTH, BOMB_MAX_STACKS,
+    UnitType, HEIGHT, WIDTH, BOMB_MAX_STACKS, BOMB_LIFESPAN,
     ORDNANCE_DRONE_REGEN, ORDNANCE_DRONE_LEASH,
 )
 from boneglaive.game.skills.ordnance_graft import (
-    plant_bomb, fused_count, arm_bombs, detonate_fused,
+    plant_bomb, fused_count, arm_bombs, tick_bombs, detonate_fused,
     remove_one_bomb, clear_bombs, bomb_pct,
     BOMB_PCT_FLOOR, BOMB_PCT_REF_HP, BOMB_PCT_PER_HP, STRIKE_DAMAGE,
 )
@@ -94,6 +94,51 @@ def test_fuse_timing():
     check("unfused_on_plant", fused_count(tgt) == 0, f"fused={fused_count(tgt)}")
     arm_bombs(tgt)
     check("fused_after_arm", fused_count(tgt) == 2, f"fused={fused_count(tgt)}")
+
+
+def test_bomb_expires_after_lifespan():
+    """A bomb lingers BOMB_LIFESPAN turns then falls off. Each turn = one arm+tick of the
+    bomb-owner's upkeep (modeled directly here)."""
+    g = fresh_game()
+    tgt = place(g, UnitType.INTERFERER, 2, *free_tiles(g, 1)[0])
+    plant_bomb(tgt, 1)
+    check("ttl_on_plant", tgt.bombs[0]['ttl'] == BOMB_LIFESPAN,
+          f"ttl={tgt.bombs[0]['ttl']} (expect {BOMB_LIFESPAN})")
+    # tick lifespan-1 times — still present
+    for _ in range(BOMB_LIFESPAN - 1):
+        arm_bombs(tgt); tick_bombs(tgt)
+    check("alive_before_lifespan", len(tgt.bombs) == 1,
+          f"count={len(tgt.bombs)} after {BOMB_LIFESPAN - 1} turns (should still be 1)")
+    # the lifespan'th tick drops it
+    arm_bombs(tgt); expired = tick_bombs(tgt)
+    check("falls_off_at_lifespan", len(tgt.bombs) == 0 and expired == 1,
+          f"count={len(tgt.bombs)} expired={expired} (should fall off on turn {BOMB_LIFESPAN})")
+
+
+def test_grafting_refreshes_bomb_timers():
+    """Grafting a fresh bomb tops up the WHOLE cluster's timer (keep striking, nothing
+    decays)."""
+    g = fresh_game()
+    tgt = place(g, UnitType.INTERFERER, 2, *free_tiles(g, 1)[0])
+    plant_bomb(tgt, 1)
+    for _ in range(2):  # age the first bomb by 2
+        arm_bombs(tgt); tick_bombs(tgt)
+    check("aged_two", tgt.bombs[0]['ttl'] == BOMB_LIFESPAN - 2,
+          f"ttl={tgt.bombs[0]['ttl']} (expect {BOMB_LIFESPAN - 2})")
+    plant_bomb(tgt, 1)  # graft another -> refresh all
+    check("all_refreshed", all(b['ttl'] == BOMB_LIFESPAN for b in tgt.bombs),
+          f"ttls={[b['ttl'] for b in tgt.bombs]} (all should be {BOMB_LIFESPAN})")
+
+
+def test_bomb_survives_harvest_cooldown():
+    """A bomb outlives a full Harvest cooldown (3), so you can bank it between detonations."""
+    g = fresh_game()
+    tgt = place(g, UnitType.INTERFERER, 2, *free_tiles(g, 1)[0])
+    plant_bomb(tgt, 1)
+    for _ in range(3):  # a full Harvest cooldown's worth of turns
+        arm_bombs(tgt); tick_bombs(tgt)
+    check("survives_harvest_cd", len(tgt.bombs) == 1,
+          f"count={len(tgt.bombs)} after 3 turns (a bomb must outlive the Harvest cd)")
 
 
 def test_stasiality_immune_to_bomb():
@@ -739,6 +784,9 @@ def test_drone_regenerates_after_death():
 def main():
     test_plant_and_cap()
     test_fuse_timing()
+    test_bomb_expires_after_lifespan()
+    test_grafting_refreshes_bomb_timers()
+    test_bomb_survives_harvest_cooldown()
     test_stasiality_immune_to_bomb()
     test_detonation_tank_math()
     test_detonation_curve_favours_big_bodies()

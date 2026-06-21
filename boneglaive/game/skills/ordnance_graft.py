@@ -4,7 +4,7 @@
 from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import ActiveSkill, PassiveSkill, TargetType
-from boneglaive.utils.constants import BOMB_MAX_STACKS
+from boneglaive.utils.constants import BOMB_MAX_STACKS, BOMB_LIFESPAN
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
 
@@ -36,6 +36,10 @@ def plant_bomb(target: 'Unit', amount: int = 1) -> int:
     distinct, individually-cleansable instance, planted unfused (cannot detonate until
     it fuses next turn). Returns the number of bombs actually added.
 
+    Each bomb carries a 'ttl' (turns-to-live); it falls off when the ttl runs out (see
+    _process_ordnance_graft_upkeep). Grafting a fresh bomb REFRESHES the whole cluster's
+    ttl back to full — keep striking the target and nothing decays; stop and it expires.
+
     Stasiality (or effective stasiality — GRAYMAN, HEINOUS_VAPOR, Topiary form) makes
     a unit immune to new status effects, so bombs can't be grafted onto it at all."""
     if target.is_immune_to_effects():
@@ -43,7 +47,11 @@ def plant_bomb(target: 'Unit', amount: int = 1) -> int:
     room = BOMB_MAX_STACKS - len(target.bombs)
     added = max(0, min(amount, room))
     for _ in range(added):
-        target.bombs.append({'fused': False})
+        target.bombs.append({'fused': False, 'ttl': BOMB_LIFESPAN})
+    # Refresh every bomb's timer on a successful graft (the cluster is "topped up").
+    if added > 0:
+        for bomb in target.bombs:
+            bomb['ttl'] = BOMB_LIFESPAN
     return added
 
 
@@ -57,6 +65,19 @@ def arm_bombs(target: 'Unit') -> None:
     owner's turn-start, one fuse-step after a bomb is planted."""
     for bomb in target.bombs:
         bomb['fused'] = True
+
+
+def tick_bombs(target: 'Unit') -> int:
+    """Age every bomb on target by one turn and drop any whose timer has run out (they
+    fall off). Called at the owner's turn-start, right after arming. Returns the number
+    of bombs that expired this tick."""
+    if not target.bombs:
+        return 0
+    for bomb in target.bombs:
+        bomb['ttl'] = bomb.get('ttl', BOMB_LIFESPAN) - 1
+    before = len(target.bombs)
+    target.bombs[:] = [b for b in target.bombs if b.get('ttl', BOMB_LIFESPAN) > 0]
+    return before - len(target.bombs)
 
 
 def remove_one_bomb(target: 'Unit') -> bool:

@@ -136,8 +136,14 @@ def get_unit_status_effects(game_unit):
                 effects['disarmed'] = True
     if hasattr(game_unit, 'is_topiary') and game_unit.is_topiary:
         effects['topiary'] = True
-    if len(getattr(game_unit, 'bombs', []) or []) > 0:
-        effects['bomb'] = True
+    # The on-grid status icon picks the numbered variant (bomb1..bomb4) matching the
+    # stack count, so the floating icon shows how many bombs are grafted. The count is
+    # clamped to BOMB_MAX_STACKS (the icon set tops out there). The side panels are a
+    # separate path (glyph + "N turns" duration) and are unaffected by this key.
+    _bomb_count = len(getattr(game_unit, 'bombs', []) or [])
+    if _bomb_count > 0:
+        from boneglaive.utils.constants import BOMB_MAX_STACKS
+        effects[f'bomb{min(_bomb_count, BOMB_MAX_STACKS)}'] = True
     if hasattr(game_unit, 'partition_shield_active') and game_unit.partition_shield_active:
         effects['partition'] = True
     if hasattr(game_unit, 'severance_active') and game_unit.severance_active:

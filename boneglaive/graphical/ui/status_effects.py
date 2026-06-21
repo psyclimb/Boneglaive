@@ -128,7 +128,7 @@ STATUS_EFFECTS = {
         "type": "debuff",
         "icon": "Ø",
         "description": "Grafted bombs; detonate for percent-max-HP damage",
-        "duration_key": None,  # Special: shows number of bombs (see len(bombs) below)
+        "duration_key": None,  # Special: shows remaining lifespan in turns (see below)
         "check": lambda u: len(getattr(u, 'bombs', []) or []) > 0
     },
     "selenic_backdraft": {
@@ -346,9 +346,13 @@ class StatusEffectIcon:
         if effect_key == "radiation_stacks":
             self.duration = len(unit.radiation_stacks)
 
-        # Special case: bombs (shows the bomb count, not a turn timer)
+        # Special case: bombs show their remaining lifespan (turns until they fall off),
+        # like any other timed status. All bombs on a target share a ttl (a fresh graft
+        # refreshes the whole cluster), so the max ttl is the time until the stack is gone.
         if effect_key == "bomb":
-            self.duration = len(getattr(unit, "bombs", []))
+            from boneglaive.utils.constants import BOMB_LIFESPAN
+            bombs = getattr(unit, "bombs", []) or []
+            self.duration = max((b.get("ttl", BOMB_LIFESPAN) for b in bombs), default=0)
 
         # Special case: partition shield strength
         if effect_key == "partition_shield_active":

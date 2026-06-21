@@ -529,9 +529,14 @@ class UnitInfoPanel:
                         if hasattr(self.game_unit, 'radiation_stacks'):
                             effect_info["duration"] = len(self.game_unit.radiation_stacks)
 
-                    # Special case: bombs (shows the bomb count, not a turn timer)
+                    # Special case: bombs show remaining lifespan (turns until they fall
+                    # off), like other timed statuses. All bombs share a ttl (a fresh graft
+                    # refreshes the cluster), so the max ttl is when the stack is gone.
                     if effect_key == "bomb":
-                        effect_info["duration"] = len(getattr(self.game_unit, "bombs", []))
+                        from boneglaive.utils.constants import BOMB_LIFESPAN
+                        bombs = getattr(self.game_unit, "bombs", []) or []
+                        effect_info["duration"] = max(
+                            (b.get("ttl", BOMB_LIFESPAN) for b in bombs), default=0)
 
                     active_effects.append(effect_info)
             except AttributeError:
