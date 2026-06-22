@@ -30,6 +30,16 @@ SKYHOOK_SKILL_NAME = "Skyhook"
 # damage identity is the bombs, not the strike. DEF/PRT still reduce it via deal_damage.
 STRIKE_DAMAGE = 2
 
+# --- Upgrade tunables (the four skill upgrades; see upgrades.py / SKILL_UPGRADES) ---
+# Booster Charge (Inoculant): bombs grafted per strike on an already-bombed target.
+INOCULANT_BOOSTED_PLANT = 2
+# Crash Landing (Skyhook): the arrival slam can refund its own cooldown via its
+# detonations, but never below this floor — it can't perpetually re-launch itself.
+SKYHOOK_SELF_REFUND_FLOOR = 1
+# Chain Reaction (Harvest): a detonation kill re-grafts and immediately detonates one
+# fused bomb onto the nearest enemy within this Chebyshev radius (one chain per kill).
+CHAIN_REACTION_RANGE = 2
+
 
 def plant_bomb(target: 'Unit', amount: int = 1) -> int:
     """Graft `amount` bombs onto target (capped at BOMB_MAX_STACKS). Each is a
@@ -121,6 +131,29 @@ def detonate_fused(target: 'Unit', game: 'Game') -> int:
     return dealt
 
 
+def detonate_n_stacks(target: 'Unit', n: int) -> int:
+    """Detonate up to `n` FUSED bombs on target (same %max-HP-per-stack math as
+    detonate_fused, but a bounded count) and remove exactly those. Used by Chain Reaction
+    so a chained blast consumes only its own seed, leaving any pre-existing fused bombs.
+    Returns damage dealt."""
+    available = fused_count(target)
+    stacks = min(max(0, n), available)
+    if stacks <= 0:
+        return 0
+    per_stack = max(1, int(round(target.max_hp * bomb_pct(target))))
+    dealt = target.deal_damage(per_stack * stacks)
+    # Remove exactly `stacks` fused bombs (leave the rest fused).
+    removed = 0
+    kept = []
+    for b in target.bombs:
+        if b['fused'] and removed < stacks:
+            removed += 1
+            continue
+        kept.append(b)
+    target.bombs = kept
+    return dealt
+
+
 def _reduce_skyhook_cooldown(user: 'Unit', stacks_detonated: int) -> None:
     """Refund SKYHOOK's cooldown by the stacks just detonated (the flow engine)."""
     if stacks_detonated <= 0:
@@ -202,7 +235,13 @@ class InoculantSkill(ActiveSkill):
         target_def = target.get_effective_stats()['defense']
         damage = max(1, STRIKE_DAMAGE - target_def)
         dealt = target.deal_damage(damage)
-        added = plant_bomb(target, 1)
+        # Booster Charge upgrade: a strike on a target that ALREADY carries a bomb seats
+        # an extra one (rewards committing to a single body — reaches a one-shot stack
+        # faster). 'already carries a bomb' is read before planting.
+        from boneglaive.game.upgrades import UpgradeManager
+        boosted = UpgradeManager.is_skill_upgraded(user, "Inoculant") and len(target.bombs) > 0
+        amount = INOCULANT_BOOSTED_PLANT if boosted else 1
+        added = plant_bomb(target, amount)
 
         if immune:
             message_log.add_message(
@@ -231,7 +270,7 @@ class InoculantSkill(ActiveSkill):
 
 
 class DroneInoculantSkill(InoculantSkill):
-    """The ORDNANCE DRONE's own copy of Inoculant. Behaves identically to the graft's for
+    """The QUADCOPTER's own copy of Inoculant. Behaves identically to the graft's for
     now, but is a SEPARATE class so its numbers can be balanced independently later. Shown
     as "Inoculant" on the front end, but uses its own drone-fitting skill icon."""
 
@@ -346,6 +385,13 @@ class SkyhookSkill(ActiveSkill):
             player=user.player
         )
 
+        # Crash Landing upgrade: the arrival slam also DETONATES the fused bombs already
+        # on each enemy it strikes (read once up front). A high-risk burst: hook into
+        # melee, blow the existing stack, leave a fresh seed for next time.
+        from boneglaive.game.upgrades import UpgradeManager
+        crash_landing = UpgradeManager.is_skill_upgraded(user, SKYHOOK_SKILL_NAME)
+        crash_stacks = 0
+
         # Arrival slam: strike + graft a bomb onto EVERY enemy in the 8 adjacent tiles
         # around the landing point. Snapshot the unit list since the strikes can change
         # board state.
@@ -375,6 +421,25 @@ class SkyhookSkill(ActiveSkill):
                         MessageType.ABILITY,
                         player=user.player
                     )
+                # The just-planted bomb is unfused, so this only blows bombs already fused
+                # from prior turns — the fresh seed survives. Death is swept by the engine
+                # after execute() returns.
+                if crash_landing:
+                    fused_here = fused_count(enemy)
+                    if fused_here > 0:
+                        blown = detonate_fused(enemy, game)
+                        crash_stacks += fused_here
+                        message_log.add_message(
+                            f"{enemy.get_display_name()}'s clusters detonate on landing for #DAMAGE_{blown}# damage",
+                            MessageType.ABILITY,
+                            player=user.player
+                        )
+
+        # Refund the cooldown for the detonations this slam set off — but never below the
+        # self-refund floor, so Crash Landing can't perpetually re-launch itself.
+        if crash_stacks > 0:
+            _reduce_skyhook_cooldown(user, crash_stacks)
+            self.current_cooldown = max(SKYHOOK_SELF_REFUND_FLOOR, self.current_cooldown)
         return True
 
 
@@ -418,12 +483,33 @@ class HarvestSkill(ActiveSkill):
         self.current_cooldown = self.cooldown
         return True
 
+    def _chain_target(self, user: 'Unit', dead: 'Unit', game: 'Game', already: set):
+        """Chain Reaction: the nearest living enemy within CHAIN_REACTION_RANGE of a unit
+        just killed by a detonation, that hasn't already received a chain this Harvest.
+        Returns the unit or None."""
+        best = None
+        best_d = None
+        for u in game.units:
+            if not (u.is_alive() and u.player != user.player) or u is dead or id(u) in already:
+                continue
+            d = game.chess_distance(dead.y, dead.x, u.y, u.x)
+            if d > CHAIN_REACTION_RANGE:
+                continue
+            if best_d is None or d < best_d:
+                best_d, best = d, u
+        return best
+
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        from boneglaive.game.upgrades import UpgradeManager
+        chain_reaction = UpgradeManager.is_skill_upgraded(user, "Harvest")
         total_stacks = 0
         # Record where the bombs go off BEFORE detonation consumes them, so the
         # graphical layer can fire its explosions on the right tiles (the animation
         # runs after execute(), when the bombs have already been cleared).
         detonations = []  # list of (y, x, stacks)
+        # Victims that have already received a chain seed this Harvest (so two separate
+        # kills can't pile chains onto the same body).
+        chain_hit = set()
         for target in list(game.units):
             if not (target.is_alive() and target.player != user.player):
                 continue
@@ -439,6 +525,25 @@ class HarvestSkill(ActiveSkill):
                 MessageType.ABILITY,
                 player=user.player
             )
+            # Chain Reaction upgrade: a detonation KILL re-grafts and immediately blows a
+            # SINGLE fresh bomb on the nearest enemy in range (once per kill — the chained
+            # blast does not itself chain, so the cascade is bounded). It consumes only its
+            # own seed (detonate_n_stacks ..., 1), leaving the victim's pre-existing fused
+            # bombs for the normal pass. The seed scales off the victim's HP, so it still
+            # favours big bodies.
+            if chain_reaction and target.hp <= 0:
+                victim = self._chain_target(user, target, game, chain_hit)
+                if victim is not None and plant_bomb(victim, 1) > 0:
+                    chain_hit.add(id(victim))
+                    arm_bombs(victim)  # arm the seed so it can detonate now
+                    chain_dmg = detonate_n_stacks(victim, 1)
+                    total_stacks += 1
+                    detonations.append((victim.y, victim.x, 1))
+                    message_log.add_message(
+                        f"the blast leaps to {victim.get_display_name()} for #DAMAGE_{chain_dmg}# damage",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
         user.last_harvest_data = {'detonations': detonations}
 
         if total_stacks == 0:

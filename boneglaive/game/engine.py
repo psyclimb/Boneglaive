@@ -2126,6 +2126,13 @@ class Game:
         if getattr(dying_unit, 'is_drone', False):
             from boneglaive.utils.constants import ORDNANCE_DRONE_REGEN
             owner = getattr(dying_unit, 'creator', None)
+            # Munitions Bay upgrade: a destroyed drone touches off the fused bombs on every
+            # enemy adjacent to where it fell — killing it costs the opponent a detonation.
+            # Done BEFORE the drone is unlinked/removed (it explodes on its own tile).
+            if owner is not None:
+                from boneglaive.game.upgrades import UpgradeManager
+                if UpgradeManager.is_skill_upgraded(owner, "Quadcopter"):
+                    self._munitions_bay_detonation(owner, dying_unit, ui)
             if owner is not None:
                 owner.drone = None
                 owner.drone_regen_timer = ORDNANCE_DRONE_REGEN
@@ -5284,6 +5291,38 @@ class Game:
             MessageType.MOVEMENT,
             player=drone.player
         )
+
+    def _munitions_bay_detonation(self, owner, drone, ui=None):
+        """Munitions Bay upgrade: when the drone is destroyed, detonate the fused bombs on
+        every enemy adjacent to its death tile (the drone goes off like ordnance). Runs
+        from inside handle_unit_death, so any kills here are handled directly with the
+        same re-entrancy guard the post-skill death sweep uses."""
+        from boneglaive.game.skills.ordnance_graft import fused_count, detonate_fused
+        from boneglaive.utils.coordinates import get_adjacent_positions
+
+        dy, dx = drone.y, drone.x
+        any_blast = False
+        for ay, ax in get_adjacent_positions(dy, dx):
+            enemy = self.get_unit_at(ay, ax)
+            if not (enemy and enemy.is_alive() and enemy.player != owner.player):
+                continue
+            if fused_count(enemy) <= 0:
+                continue
+            dealt = detonate_fused(enemy, self)
+            any_blast = True
+            message_log.add_message(
+                f"{drone.get_display_name()} detonates, touching off {enemy.get_display_name()}'s clusters for #DAMAGE_{dealt}# damage",
+                MessageType.ABILITY,
+                player=owner.player
+            )
+        if not any_blast:
+            return
+        # Resolve any deaths this caused (we're inside handle_unit_death for the drone).
+        for check_unit in list(self.units):
+            if (check_unit is not drone and check_unit.hp <= 0
+                    and not getattr(check_unit, '_engine_death_handled', False)):
+                check_unit._engine_death_handled = True
+                self.handle_unit_death(check_unit, killer_unit=owner, cause="munitions_bay", ui=ui)
 
     def _process_ordnance_graft_upkeep(self):
         """Turn-start upkeep: arm fused bombs and reconcile/regenerate drones."""

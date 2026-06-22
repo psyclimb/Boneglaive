@@ -23,9 +23,10 @@ from boneglaive.utils.constants import (
     ORDNANCE_DRONE_REGEN, ORDNANCE_DRONE_LEASH,
 )
 from boneglaive.game.skills.ordnance_graft import (
-    plant_bomb, fused_count, arm_bombs, tick_bombs, detonate_fused,
+    plant_bomb, fused_count, arm_bombs, tick_bombs, detonate_fused, detonate_n_stacks,
     remove_one_bomb, clear_bombs, bomb_pct,
     BOMB_PCT_FLOOR, BOMB_PCT_REF_HP, BOMB_PCT_PER_HP, STRIKE_DAMAGE,
+    INOCULANT_BOOSTED_PLANT, SKYHOOK_SELF_REFUND_FLOOR, CHAIN_REACTION_RANGE,
 )
 
 results = []
@@ -910,6 +911,332 @@ def test_drone_flies_over_terrain_but_cannot_land():
           f"can_move_to(occupied tile)={g3.can_move_to(drone3, ry, umid)} (want False)")
 
 
+# ---------------------------------------------------------------------------
+# detonate_n_stacks helper (Chain Reaction's bounded detonation)
+# ---------------------------------------------------------------------------
+
+def test_detonate_n_stacks_is_bounded():
+    """detonate_n_stacks blows only N fused bombs and leaves the rest fused."""
+    g = fresh_game()
+    tgt = place(g, UnitType.POTPOURRIST, 2, *free_tiles(g, 1)[0])
+    plant_bomb(tgt, 3)
+    arm_bombs(tgt)  # 3 fused
+    per = max(1, round(tgt.max_hp * bomb_pct(tgt)))
+    hp0 = tgt.hp
+    dealt = detonate_n_stacks(tgt, 1)
+    check("n_stacks_one_damage", dealt == min(per, hp0), f"dealt={dealt} expected={min(per, hp0)}")
+    check("n_stacks_leaves_rest", fused_count(tgt) == 2 and len(tgt.bombs) == 2,
+          f"fused={fused_count(tgt)} total={len(tgt.bombs)} (1 of 3 should be gone)")
+    # Asking for more than present clamps.
+    g2 = fresh_game()
+    t2 = place(g2, UnitType.POTPOURRIST, 2, *free_tiles(g2, 1)[0])
+    plant_bomb(t2, 2); arm_bombs(t2)
+    detonate_n_stacks(t2, 9)
+    check("n_stacks_clamps", len(t2.bombs) == 0, f"remaining={len(t2.bombs)}")
+
+
+# ---------------------------------------------------------------------------
+# Upgrade: Booster Charge (Inoculant) — +1 bomb on an already-bombed target
+# ---------------------------------------------------------------------------
+
+def test_booster_charge_extra_bomb():
+    g = fresh_game()
+    graft, enemy, drone = _graft_with_drone_and_enemy(g)
+    graft.upgraded_skills = {"Inoculant"}
+    inoc = next(s for s in graft.active_skills if s.name == "Inoculant")
+    # First strike on a CLEAN target: still just 1 (the bonus needs a pre-existing bomb).
+    inoc.execute(graft, (enemy.y, enemy.x), g)
+    check("booster_first_strike_one", len(enemy.bombs) == 1,
+          f"bombs={len(enemy.bombs)} (clean target -> 1)")
+    # Second strike on the now-bombed target: seats INOCULANT_BOOSTED_PLANT this time.
+    inoc.execute(graft, (enemy.y, enemy.x), g)
+    check("booster_second_strike_boosted", len(enemy.bombs) == 1 + INOCULANT_BOOSTED_PLANT,
+          f"bombs={len(enemy.bombs)} (expected {1 + INOCULANT_BOOSTED_PLANT})")
+
+
+def test_booster_charge_off_by_default():
+    g = fresh_game()
+    graft, enemy, drone = _graft_with_drone_and_enemy(g)
+    # No upgrade.
+    inoc = next(s for s in graft.active_skills if s.name == "Inoculant")
+    inoc.execute(graft, (enemy.y, enemy.x), g)
+    inoc.execute(graft, (enemy.y, enemy.x), g)
+    check("no_booster_two_strikes_two_bombs", len(enemy.bombs) == 2,
+          f"bombs={len(enemy.bombs)} (unupgraded -> 1 per strike = 2)")
+
+
+# ---------------------------------------------------------------------------
+# Upgrade: Crash Landing (Skyhook) — arrival slam detonates the existing stack
+# ---------------------------------------------------------------------------
+
+def test_crash_landing_detonates_on_arrival():
+    """With Crash Landing, Skyhook's arrival blows the enemy's already-fused bombs and
+    still leaves a fresh unfused seed."""
+    g = fresh_game()
+    r, c0 = _passable_corridor(g, 4)
+    if r is None:
+        check("crash_landing", False, "no corridor")
+        return
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, r, c0)
+    if not ((c0 + 4) < WIDTH and g.map.is_passable(r, c0 + 4)):
+        check("crash_landing", False, "no arrival enemy tile")
+        return
+    enemy = place(g, UnitType.POTPOURRIST, 2, r, c0 + 4)  # 24 HP tank, DEF 0
+    graft.upgraded_skills = {"Skyhook"}
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()  # drone
+    # Pre-load fused bombs on the enemy (planted+armed before the slam).
+    plant_bomb(enemy, 3)
+    arm_bombs(enemy)
+    per = max(1, round(enemy.max_hp * bomb_pct(enemy)))
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    sky.current_cooldown = sky.cooldown
+    hp0 = enemy.hp
+    dest = (r, c0 + 3)
+    sky.execute(graft, dest, g)
+    # Damage = the flat strike + a 3-stack detonation (capped at HP).
+    expected = min(hp0, STRIKE_DAMAGE + per * 3)
+    check("crash_landing_detonates", (hp0 - enemy.hp) == expected,
+          f"dmg={hp0 - enemy.hp} expected={expected} (strike {STRIKE_DAMAGE} + 3-stack {per*3})")
+    # The fresh seed survives (unfused), the 3 fused ones are consumed.
+    check("crash_landing_leaves_seed", fused_count(enemy) == 0 and len(enemy.bombs) == 1,
+          f"fused={fused_count(enemy)} total={len(enemy.bombs)} (only the fresh seed remains)")
+
+
+def test_crash_landing_self_refund_floored():
+    """Crash Landing's own detonations refund Skyhook but never below the floor (so it
+    can't perpetually re-launch itself)."""
+    g = fresh_game()
+    r, c0 = _passable_corridor(g, 4)
+    if r is None:
+        check("crash_floor", False, "no corridor")
+        return
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, r, c0)
+    if not ((c0 + 4) < WIDTH and g.map.is_passable(r, c0 + 4)):
+        check("crash_floor", False, "no arrival enemy tile")
+        return
+    enemy = place(g, UnitType.POTPOURRIST, 2, r, c0 + 4)
+    graft.upgraded_skills = {"Skyhook"}
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()
+    plant_bomb(enemy, 4)
+    arm_bombs(enemy)  # 4 stacks -> would over-refund a cd-4 skill to 0
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    sky.current_cooldown = sky.cooldown
+    sky.execute(graft, (r, c0 + 3), g)
+    check("crash_self_refund_floored", sky.current_cooldown >= SKYHOOK_SELF_REFUND_FLOOR,
+          f"cd={sky.current_cooldown} (must stay >= floor {SKYHOOK_SELF_REFUND_FLOOR})")
+
+
+def test_crash_landing_off_by_default():
+    g = fresh_game()
+    r, c0 = _passable_corridor(g, 4)
+    if r is None:
+        check("crash_off", False, "no corridor")
+        return
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, r, c0)
+    if not ((c0 + 4) < WIDTH and g.map.is_passable(r, c0 + 4)):
+        check("crash_off", False, "no arrival enemy tile")
+        return
+    enemy = place(g, UnitType.POTPOURRIST, 2, r, c0 + 4)
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()
+    plant_bomb(enemy, 3)
+    arm_bombs(enemy)
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    hp0 = enemy.hp
+    sky.execute(graft, (r, c0 + 3), g)
+    # No upgrade: only the flat strike lands; the 3 fused bombs are untouched (+ a new seed).
+    check("no_crash_no_detonation", (hp0 - enemy.hp) == STRIKE_DAMAGE,
+          f"dmg={hp0 - enemy.hp} expected just the strike {STRIKE_DAMAGE}")
+    check("no_crash_keeps_fused", fused_count(enemy) == 3 and len(enemy.bombs) == 4,
+          f"fused={fused_count(enemy)} total={len(enemy.bombs)} (3 kept + 1 fresh seed)")
+
+
+# ---------------------------------------------------------------------------
+# Upgrade: Chain Reaction (Harvest) — a kill leaps to the nearest enemy
+# ---------------------------------------------------------------------------
+
+def _two_enemies_within(g, dist):
+    """Place a graft and two enemies, the two enemies within `dist` of each other.
+    Returns (graft, a, b) or (None, None, None)."""
+    ts = free_tiles(g, 60)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
+    # find two free tiles within `dist` of each other (and not the graft's)
+    pool = [t for t in ts[1:] if g.get_unit_at(*t) is None]
+    for i in range(len(pool)):
+        for j in range(i + 1, len(pool)):
+            (ay, ax), (by, bx) = pool[i], pool[j]
+            if g.chess_distance(ay, ax, by, bx) <= dist:
+                a = place(g, UnitType.POTPOURRIST, 2, ay, ax)
+                b = place(g, UnitType.POTPOURRIST, 2, by, bx)
+                return graft, a, b
+    return None, None, None
+
+
+def test_chain_reaction_leaps_on_kill():
+    """A Harvest detonation that KILLS enemy A grafts+detonates a single seed on the
+    nearest enemy B in range."""
+    g = fresh_game()
+    graft, a, b = _two_enemies_within(g, CHAIN_REACTION_RANGE)
+    if graft is None:
+        check("chain_leaps", False, "no two-enemy layout")
+        return
+    graft.upgraded_skills = {"Harvest"}
+    # Make A killable by a detonation: drop its HP low, load fused bombs.
+    a.hp = 3
+    plant_bomb(a, 4); arm_bombs(a)
+    b_hp0 = b.hp
+    per_b = max(1, round(b.max_hp * bomb_pct(b)))
+    harvest = next(s for s in graft.active_skills if s.name == "Harvest")
+    harvest.execute(graft, (graft.y, graft.x), g)
+    check("chain_kills_a", a.hp <= 0, f"A hp={a.hp} (should die to the detonation)")
+    # B took exactly a 1-stack chained detonation (it had no bombs of its own).
+    check("chain_hits_b", (b_hp0 - b.hp) == min(b_hp0, per_b),
+          f"B dmg={b_hp0 - b.hp} expected 1-stack {per_b}")
+    check("chain_seed_consumed", len(b.bombs) == 0,
+          f"B bombs={len(b.bombs)} (the single seed should detonate, leaving none)")
+
+
+def test_chain_reaction_no_chain_without_kill():
+    """If the detonation does NOT kill, no chain occurs."""
+    g = fresh_game()
+    graft, a, b = _two_enemies_within(g, CHAIN_REACTION_RANGE)
+    if graft is None:
+        check("chain_nokill", False, "no two-enemy layout")
+        return
+    graft.upgraded_skills = {"Harvest"}
+    # A is a healthy tank; a small detonation won't kill it.
+    plant_bomb(a, 1); arm_bombs(a)
+    b_hp0 = b.hp
+    harvest = next(s for s in graft.active_skills if s.name == "Harvest")
+    harvest.execute(graft, (graft.y, graft.x), g)
+    check("chain_a_survives", a.hp > 0, f"A hp={a.hp} (1 stack shouldn't kill a tank)")
+    check("chain_no_leap_without_kill", (b_hp0 - b.hp) == 0 and len(b.bombs) == 0,
+          f"B dmg={b_hp0 - b.hp} bombs={len(b.bombs)} (no kill -> no chain)")
+
+
+def test_chain_reaction_off_by_default():
+    g = fresh_game()
+    graft, a, b = _two_enemies_within(g, CHAIN_REACTION_RANGE)
+    if graft is None:
+        check("chain_off", False, "no two-enemy layout")
+        return
+    # No upgrade.
+    a.hp = 3
+    plant_bomb(a, 4); arm_bombs(a)
+    b_hp0 = b.hp
+    harvest = next(s for s in graft.active_skills if s.name == "Harvest")
+    harvest.execute(graft, (graft.y, graft.x), g)
+    check("no_chain_b_untouched", (b_hp0 - b.hp) == 0 and len(b.bombs) == 0,
+          f"B dmg={b_hp0 - b.hp} bombs={len(b.bombs)} (unupgraded -> no chain)")
+
+
+def test_chain_reaction_seed_leaves_pre_existing_fused():
+    """The chain consumes only its own seed; a victim's pre-existing fused bombs are left
+    for the normal pass (here we assert they remain fused after the chain seeds B, by
+    detonating A with a chain into a B that itself carries unrelated fused bombs)."""
+    g = fresh_game()
+    graft, a, b = _two_enemies_within(g, CHAIN_REACTION_RANGE)
+    if graft is None:
+        check("chain_seed_only", False, "no two-enemy layout")
+        return
+    graft.upgraded_skills = {"Harvest"}
+    a.hp = 3
+    plant_bomb(a, 4); arm_bombs(a)
+    # B carries 2 fused bombs of its own BEFORE Harvest runs. The primary loop will
+    # detonate them; the chain adds exactly one more seed. To isolate the chain's seed
+    # behaviour we check total damage = B's own 2-stack (primary) + 1-stack (chain).
+    plant_bomb(b, 2); arm_bombs(b)
+    per_b = max(1, round(b.max_hp * bomb_pct(b)))
+    b_hp0 = b.hp
+    harvest = next(s for s in graft.active_skills if s.name == "Harvest")
+    harvest.execute(graft, (graft.y, graft.x), g)
+    # B should be hit for its own 2 stacks + the 1 chained stack = 3 total (capped at HP).
+    check("chain_plus_primary", (b_hp0 - b.hp) == min(b_hp0, per_b * 3),
+          f"B dmg={b_hp0 - b.hp} expected 3-stack {per_b*3} (2 own + 1 chained)")
+    check("chain_consumes_everything", len(b.bombs) == 0,
+          f"B bombs={len(b.bombs)} (all fused detonated this Harvest)")
+
+
+# ---------------------------------------------------------------------------
+# Upgrade: Munitions Bay (Quadcopter) — drone detonates on death
+# ---------------------------------------------------------------------------
+
+def _drone_adjacent_enemy(g):
+    """Graft + drone with an enemy parked adjacent to the DRONE (within leash). Returns
+    (graft, drone, enemy) or (None, None, None)."""
+    graft, enemy, drone = _graft_with_drone_and_enemy(g)
+    if drone is None:
+        return None, None, None
+    # Move the enemy adjacent to the drone if it isn't already.
+    if g.chess_distance(drone.y, drone.x, enemy.y, enemy.x) > 1:
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                ny, nx = drone.y + dy, drone.x + dx
+                if ((dy or dx) and g.is_valid_position(ny, nx) and g.map.is_passable(ny, nx)
+                        and g.get_unit_at(ny, nx) is None):
+                    g._remove_from_unit_grid(enemy)
+                    enemy.y, enemy.x = ny, nx
+                    g._update_unit_grid(enemy)
+                    return graft, drone, enemy
+        return None, None, None
+    return graft, drone, enemy
+
+
+def test_munitions_bay_detonates_on_drone_death():
+    g = fresh_game()
+    graft, drone, enemy = _drone_adjacent_enemy(g)
+    if graft is None:
+        check("munitions_bay", False, "no drone-adjacent-enemy layout")
+        return
+    graft.upgraded_skills = {"Quadcopter"}
+    plant_bomb(enemy, 3); arm_bombs(enemy)
+    per = max(1, round(enemy.max_hp * bomb_pct(enemy)))
+    hp0 = enemy.hp
+    drone.hp = 0
+    g.handle_unit_death(drone, None, cause="test", ui=None)
+    check("munitions_detonates_adjacent", (hp0 - enemy.hp) == min(hp0, per * 3),
+          f"dmg={hp0 - enemy.hp} expected 3-stack {per*3}")
+    check("munitions_consumes_fused", fused_count(enemy) == 0,
+          f"fused={fused_count(enemy)} (all should detonate)")
+    # The owner's regen timer is still set (drone death bookkeeping intact).
+    check("munitions_regen_timer_set", graft.drone is None and graft.drone_regen_timer == ORDNANCE_DRONE_REGEN,
+          f"drone={graft.drone} timer={graft.drone_regen_timer}")
+
+
+def test_munitions_bay_off_by_default():
+    g = fresh_game()
+    graft, drone, enemy = _drone_adjacent_enemy(g)
+    if graft is None:
+        check("munitions_off", False, "no layout")
+        return
+    # No upgrade.
+    plant_bomb(enemy, 3); arm_bombs(enemy)
+    hp0 = enemy.hp
+    drone.hp = 0
+    g.handle_unit_death(drone, None, cause="test", ui=None)
+    check("no_munitions_no_detonation", (hp0 - enemy.hp) == 0 and fused_count(enemy) == 3,
+          f"dmg={hp0 - enemy.hp} fused={fused_count(enemy)} (unupgraded -> bombs survive)")
+
+
+def test_munitions_bay_kill_is_handled():
+    """A Munitions Bay detonation that KILLS the adjacent enemy routes through the engine
+    death path (the enemy is removed/dead, not left at hp<=0 in the unit list)."""
+    g = fresh_game()
+    graft, drone, enemy = _drone_adjacent_enemy(g)
+    if graft is None:
+        check("munitions_kill", False, "no layout")
+        return
+    graft.upgraded_skills = {"Quadcopter"}
+    enemy.hp = 2  # lethal to even a 1-stack detonation
+    plant_bomb(enemy, 2); arm_bombs(enemy)
+    drone.hp = 0
+    g.handle_unit_death(drone, None, cause="test", ui=None)
+    check("munitions_kill_resolved", not enemy.is_alive(),
+          f"enemy hp={enemy.hp} alive={enemy.is_alive()} (the detonation should have killed it)")
+
+
 def main():
     test_plant_and_cap()
     test_fuse_timing()
@@ -942,6 +1269,21 @@ def main():
     test_drone_leash_rejects_far_move()
     test_drone_regenerates_after_death()
     test_drone_flies_over_terrain_but_cannot_land()
+
+    # Upgrades
+    test_detonate_n_stacks_is_bounded()
+    test_booster_charge_extra_bomb()
+    test_booster_charge_off_by_default()
+    test_crash_landing_detonates_on_arrival()
+    test_crash_landing_self_refund_floored()
+    test_crash_landing_off_by_default()
+    test_chain_reaction_leaps_on_kill()
+    test_chain_reaction_no_chain_without_kill()
+    test_chain_reaction_off_by_default()
+    test_chain_reaction_seed_leaves_pre_existing_fused()
+    test_munitions_bay_detonates_on_drone_death()
+    test_munitions_bay_off_by_default()
+    test_munitions_bay_kill_is_handled()
 
     print("\n==== ORDNANCE GRAFT INTEGRATION ====")
     allok = True

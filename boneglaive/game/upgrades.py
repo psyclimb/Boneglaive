@@ -302,25 +302,25 @@ SKILL_UPGRADES = {
     UnitType.ORDNANCE_GRAFT: {
         "Quadcopter": {
             "name": "Quadcopter",
-            "description": "The drone regenerates faster after being destroyed.",
+            "description": "When the drone is destroyed, it detonates all fused bombs on adjacent enemies.",
             "type": "buff",
             "cost": 1
         },
         "Inoculant": {
             "name": "Inoculant",
-            "description": "Inoculant grafts an extra bomb when striking a target that already carries a bomb.",
+            "description": "Grafts an additional bomb when striking a target that already carries one.",
             "type": "buff",
             "cost": 1
         },
         "Skyhook": {
             "name": "Skyhook",
-            "description": "Skyhook refunds additional cooldown per bomb detonated, redeploying him faster.",
+            "description": "The arrival slam also detonates all fused bombs on enemies it strikes.",
             "type": "buff",
             "cost": 1
         },
         "Harvest": {
             "name": "Harvest",
-            "description": "Harvest deals increased percent damage per stack against full-health targets.",
+            "description": "When a detonation kills a target, the blast chains to the nearest enemy within 2 tiles, grafting and detonating a bomb. Chains once per kill.",
             "type": "buff",
             "cost": 1
         }
