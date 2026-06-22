@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Graphical animations for the ORDNANCE GRAFT unit type and its ORDNANCE DRONE summon.
+Graphical animations for the ORDNANCE GRAFT unit type and its QUADCOPTER drone summon.
 Skill animations with particles, screen effects, and phased sequencing.
 
 Color scheme matches the ORDNANCE GRAFT sprite: olive drab, gunmetal, black spiked
@@ -823,7 +823,7 @@ class OrdnanceGraftLinstockAttack:
 
 
 # ============================================================================
-# ORDNANCE DRONE basic attack — a plain ranged shot (rotor buzz + amber tracer).
+# QUADCOPTER basic attack — a plain ranged shot (rotor buzz + amber tracer).
 # It no longer plants a bomb; the drone grafts via its own Inoculant skill.
 # ============================================================================
 

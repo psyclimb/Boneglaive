@@ -412,7 +412,15 @@ class Unit:
                 display_type = "D.APPRAISER"
             else:
                 display_type = "DELPHIC APPRAISER"
-        
+        elif display_type == "ORDNANCE_DRONE":
+            # The ORDNANCE GRAFT's drone is displayed as QUADCOPTER (the enum keeps the
+            # ORDNANCE_DRONE name for the sprite/internal wiring).
+            display_type = "QUADCOPTER"
+
+        # Any unit not special-cased above keeps its enum name; spaces in place of
+        # underscores so multi-word types (e.g. ORDNANCE_GRAFT) read correctly.
+        display_type = display_type.replace("_", " ")
+
         # For echo units, change name to "ECHO {TYPE}"
         if self.is_doppelganger:
             base_name = f"ECHO {display_type}"
