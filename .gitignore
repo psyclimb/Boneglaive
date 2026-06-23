@@ -82,6 +82,7 @@ logs/
 
 # Assets (kept in private boneglaive-assets repo)
 sounds/**/*.wav
+sounds/**/*.ogg
 graphics/
 
 # Game-specific
