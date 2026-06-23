@@ -463,6 +463,29 @@ class TacticalEvaluator:
             # Return early - GAS_MACHINIST skills are all handled by special evaluator
             return actions
 
+        # Check for ORDNANCE_GRAFT special handling (anti-tank bomb sequencing)
+        if unit.type == UnitType.ORDNANCE_GRAFT:
+            try:
+                graft_actions = self._evaluate_ordnance_graft_skills(unit, analysis, plan)
+                actions.extend(graft_actions)
+                logger.debug(f"        ORDNANCE_GRAFT: Found {len(graft_actions)} skill actions")
+            except Exception as e:
+                logger.error(f"        Error evaluating ORDNANCE_GRAFT skills: {e}")
+            # Return early - ORDNANCE_GRAFT skills are handled by special evaluator
+            return actions
+
+        # Check for ORDNANCE_DRONE special handling (the QUADCOPTER plants bombs in
+        # coordination with its ORDNANCE_GRAFT owner, who is processed earlier this turn)
+        if unit.type == UnitType.ORDNANCE_DRONE:
+            try:
+                drone_actions = self._evaluate_ordnance_drone_skills(unit, analysis, plan)
+                actions.extend(drone_actions)
+                logger.debug(f"        ORDNANCE_DRONE: Found {len(drone_actions)} skill actions")
+            except Exception as e:
+                logger.error(f"        Error evaluating ORDNANCE_DRONE skills: {e}")
+            # Return early - ORDNANCE_DRONE skills are handled by special evaluator
+            return actions
+
         # Check for DELPHIC_APPRAISER special handling
         if unit.type == UnitType.DELPHIC_APPRAISER:
             try:
@@ -3004,4 +3027,324 @@ class TacticalEvaluator:
             logger.debug(f"          Dissonance: {len(actions)} targets, best score={best.priority:.1f} "
                         f"at {best.data['target_pos']}, hits={best.data['enemies_hit']}")
 
+        return actions
+
+    # ------------------------------------------------------------------
+    # ORDNANCE GRAFT — the anti-tank gunner and its QUADCOPTER drone.
+    #
+    # His damage identity is %-of-max-HP "bombs" that scale UP with the target's
+    # max HP, detonated en masse by Harvest. The generic path is actively wrong for
+    # him (it scores Harvest 0 due to area==0, and its target priority favours LOW-HP
+    # targets — the opposite of an anti-tank). These dedicated evaluators invert that:
+    # value the biggest bodies, concentrate stacks onto one of them, and fire Harvest
+    # only when the fused cluster is actually lethal/valuable. Correct plant -> arm ->
+    # detonate sequencing emerges from the per-turn score crossover (the live bomb
+    # lists on enemies ARE the cross-turn memory), with no global planner state.
+    # ------------------------------------------------------------------
+
+    def _ordnance_target_value(self, enemy: 'Unit', analysis: 'BattlefieldAnalysis',
+                               plan: 'StrategicPlan') -> float:
+        """Anti-tank target value: reward HIGH max-HP / high bomb %, the inverse of the
+        global low-HP priority bias. The single building block every bomb-planting
+        sub-scorer shares so the graft and drone converge on the same big body."""
+        from boneglaive.game.skills.ordnance_graft import bomb_pct
+
+        # Immune bodies (GRAYMAN/Stasiality, etc.) can't hold bombs at all -> a strike on
+        # them seeds nothing, so they are near-worthless as a bomb target. Collapse early.
+        if enemy.is_immune_to_effects():
+            return 5.0
+
+        per_stack = max(1, int(round(enemy.max_hp * bomb_pct(enemy))))  # 1 (18HP) .. 7 (24HP)
+        value = 30.0 + per_stack * 8.0                                  # anti-tank core: 38 .. 86
+
+        if enemy in plan.focus_targets:
+            value += 12.0
+        if any(enemy is t for t, _ in analysis.priority_targets[:3]):
+            value += 8.0
+        # De-emphasise tiny squishies — the kit barely scratches an 18-HP body.
+        if per_stack <= 1:
+            value -= 20.0
+
+        return max(0.0, value)
+
+    def _evaluate_ordnance_graft_skills(self, unit: 'Unit', analysis: 'BattlefieldAnalysis',
+                                        plan: 'StrategicPlan') -> List[Action]:
+        """Coordinator for ORDNANCE GRAFT: locate Inoculant / Skyhook / Harvest and
+        dispatch each to its dedicated scorer. Mirrors the GAS_MACHINIST pattern."""
+        actions = []
+
+        try:
+            available_skills = unit.get_available_skills()
+        except Exception as e:
+            logger.error(f"        Error getting ORDNANCE_GRAFT skills: {e}")
+            return actions
+
+        inoculant = skyhook = harvest = None
+        for skill in available_skills:
+            if skill.name == "Inoculant":
+                inoculant = skill
+            elif skill.name == "Skyhook":
+                skyhook = skill
+            elif skill.name == "Harvest":
+                harvest = skill
+
+        if inoculant:
+            try:
+                actions.extend(self._evaluate_ordnance_inoculant(unit, inoculant, analysis, plan))
+            except Exception as e:
+                logger.error(f"          Error evaluating Inoculant: {e}")
+
+        if harvest:
+            try:
+                actions.extend(self._evaluate_ordnance_harvest(unit, harvest, analysis, plan))
+            except Exception as e:
+                logger.error(f"          Error evaluating Harvest: {e}")
+
+        if skyhook:
+            try:
+                actions.extend(self._evaluate_ordnance_skyhook(unit, skyhook, analysis, plan))
+            except Exception as e:
+                logger.error(f"          Error evaluating Skyhook: {e}")
+
+        return actions
+
+    def _ordnance_targetable_enemies(self, unit: 'Unit', analysis: 'BattlefieldAnalysis'):
+        """Enemies a bomb-planting strike may target (mirrors the generic enemy filter)."""
+        out = []
+        for enemy in analysis.enemy_units:
+            if enemy.type == UnitType.HEINOUS_VAPOR:
+                continue
+            if getattr(enemy, 'is_topiary', False):
+                continue
+            if hasattr(enemy, 'can_be_targeted_by') and not enemy.can_be_targeted_by(unit):
+                continue
+            out.append(enemy)
+        return out
+
+    def _ordnance_fused_is_lethal(self, enemy: 'Unit') -> bool:
+        """True if the enemy's CURRENTLY fused bombs would already kill it on detonation.
+        Used to stop the AI from wastefully planting another bomb on a body Harvest can
+        already delete — it should fire instead."""
+        from boneglaive.game.skills.ordnance_graft import bomb_pct, fused_count
+        f = fused_count(enemy)
+        if f <= 0:
+            return False
+        per_stack = max(1, int(round(enemy.max_hp * bomb_pct(enemy))))
+        raw = per_stack * f
+        return (raw - enemy.get_effective_prt()) >= enemy.hp
+
+    def _evaluate_ordnance_inoculant(self, unit: 'Unit', skill,
+                                     analysis: 'BattlefieldAnalysis',
+                                     plan: 'StrategicPlan') -> List[Action]:
+        """Strike + plant one bomb. Prefer big bodies (anti-tank value) and CONCENTRATE
+        stacks onto a single target so the cluster reaches a lethal Harvest. The
+        concentrate ramp is suppressed once the target's fused cluster is already lethal
+        (plant nothing more — Harvest should fire) so it never out-bids a lethal detonation."""
+        actions = []
+        for enemy in self._ordnance_targetable_enemies(unit, analysis):
+            try:
+                if not skill.can_use(unit, (enemy.y, enemy.x), self.game):
+                    continue
+            except Exception:
+                continue
+
+            tv = self._ordnance_target_value(enemy, analysis, plan)
+            if tv <= 0:
+                continue
+
+            score = 40.0 + tv * 0.6
+
+            # Concentrate fire: build one body toward a lethal cluster. Bounded ramp, and
+            # only while detonating now would NOT already kill it (else: stop planting).
+            if not self._ordnance_fused_is_lethal(enemy):
+                existing = len(enemy.bombs)
+                if existing >= 1:
+                    score += 10.0
+                if existing >= 2:
+                    score += 10.0
+                if existing >= 3:
+                    score += 10.0
+
+            action = Action("skill", target=(skill, enemy), priority=score)
+            actions.append(action)
+        return actions
+
+    def _evaluate_ordnance_harvest(self, unit: 'Unit', skill,
+                                   analysis: 'BattlefieldAnalysis',
+                                   plan: 'StrategicPlan') -> List[Action]:
+        """Detonate every fused bomb on the field. Scored by the actual payoff via a PURE
+        mirror of the detonation math (no mutation): big rewards for kills and large
+        %-HP removal, scaled by how many bodies/stacks go off. Withheld on a lone trivial
+        stack. This REPLACES the broken generic SELF-AOE path that scored Harvest 0."""
+        from boneglaive.game.skills.ordnance_graft import bomb_pct, fused_count
+
+        try:
+            if not skill.can_use(unit, (unit.y, unit.x), self.game):
+                return []
+        except Exception:
+            return []
+
+        total_score = 0.0
+        kills = 0
+        fused_targets = 0
+        worthwhile = False  # something beyond a lone 1-stack 1-dmg body is present
+
+        for enemy in analysis.enemy_units:
+            f = fused_count(enemy)
+            if f <= 0:
+                continue
+            fused_targets += 1
+            per_stack = max(1, int(round(enemy.max_hp * bomb_pct(enemy))))
+            raw = per_stack * f
+            faithful = max(0, raw - enemy.get_effective_prt())  # PRT applies; DEF does not
+            if faithful <= 0:
+                continue
+            if (raw - enemy.get_effective_prt()) >= enemy.hp:
+                kills += 1
+                total_score += 80.0
+                worthwhile = True
+            else:
+                pct_of_bar = faithful / max(1, enemy.max_hp)
+                total_score += pct_of_bar * 60.0
+                if not (f <= 1 and per_stack <= 1):
+                    worthwhile = True
+
+        if fused_targets == 0:
+            return []  # paranoia; can_use already guarantees a fused enemy exists
+
+        # Gate: don't waste Harvest on a lone trivial stack unless it secures a kill.
+        if kills == 0 and not worthwhile:
+            return []
+
+        score = 30.0 + total_score
+        if fused_targets >= 2:
+            score += 20.0
+        if kills >= 2:
+            score += 30.0
+
+        return [Action("skill", target=(skill, unit), priority=score)]
+
+    def _evaluate_ordnance_skyhook(self, unit: 'Unit', skill,
+                                   analysis: 'BattlefieldAnalysis',
+                                   plan: 'StrategicPlan') -> List[Action]:
+        """Drone hauls the graft to an empty tile, then he slams — strike + seed a bomb on
+        every enemy within Chebyshev 1 of the landing. Score by the AoE seed value, plus a
+        defensive component to escape a high-threat tile. Gated on a living drone."""
+        actions = []
+
+        drone = getattr(unit, 'drone', None)
+        if not (drone and drone.is_alive()):
+            return actions  # no carrier, no Skyhook (and can_use would reject anyway)
+
+        src = unit.move_target if unit.move_target else (unit.y, unit.x)
+        cur_threat = 0
+        if src in analysis.threat_map:
+            cur_threat = analysis.threat_map[src].threat_level
+
+        search_range = getattr(skill, 'range', 4)
+        for y in range(self.game.map.height):
+            for x in range(self.game.map.width):
+                if self.game.chess_distance(src[0], src[1], y, x) > search_range:
+                    continue
+                try:
+                    if not skill.can_use(unit, (y, x), self.game):
+                        continue
+                except Exception:
+                    continue
+
+                land_threat = 0
+                if (y, x) in analysis.threat_map:
+                    land_threat = analysis.threat_map[(y, x)].threat_level
+
+                score = 25.0
+                struck = 0
+                for enemy in self._ordnance_targetable_enemies(unit, analysis):
+                    if self.game.chess_distance(y, x, enemy.y, enemy.x) <= 1:
+                        struck += 1
+                        score += self._ordnance_target_value(enemy, analysis, plan) * 0.5
+                if struck >= 2:
+                    score += 25.0
+
+                # Defensive escape: reward landing out of danger when currently exposed.
+                if cur_threat > 0:
+                    score += max(0, cur_threat - land_threat) * 1.5
+
+                # Skip pointless/suicidal hops: nobody struck and no threat reduction.
+                if struck == 0 and land_threat >= cur_threat:
+                    continue
+
+                action = Action("skill", target=(skill, (y, x)), priority=score)
+                action.data['target_pos'] = (y, x)
+                actions.append(action)
+
+        return actions
+
+    def _evaluate_ordnance_drone_skills(self, unit: 'Unit', analysis: 'BattlefieldAnalysis',
+                                        plan: 'StrategicPlan') -> List[Action]:
+        """Coordinator for the QUADCOPTER drone — it only has its own Inoculant."""
+        actions = []
+
+        try:
+            available_skills = unit.get_available_skills()
+        except Exception as e:
+            logger.error(f"        Error getting ORDNANCE_DRONE skills: {e}")
+            return actions
+
+        for skill in available_skills:
+            if skill.name == "Inoculant":
+                try:
+                    actions.extend(self._evaluate_ordnance_drone_inoculant(unit, skill, analysis, plan))
+                except Exception as e:
+                    logger.error(f"          Error evaluating drone Inoculant: {e}")
+        return actions
+
+    def _evaluate_ordnance_drone_inoculant(self, unit: 'Unit', skill,
+                                           analysis: 'BattlefieldAnalysis',
+                                           plan: 'StrategicPlan') -> List[Action]:
+        """The drone plants in COORDINATION with its graft: strongly prefer the enemy the
+        graft is fusing this turn (read off the owner, processed earlier in the loop), so
+        the two bodies stack one cluster toward a Harvest one-shot. Falls back to the
+        global best anti-tank target. Penalised for stranding the 6-HP drone in danger —
+        its death grounds the graft's Skyhook."""
+        actions = []
+
+        # Resolve the graft's queued focus this turn via the owner back-ref.
+        creator = getattr(unit, 'creator', None)
+        focus = None
+        if creator is not None and creator.is_alive():
+            tpos = creator.skill_target if creator.skill_target else creator.attack_target
+            if tpos is not None:
+                u = self.game.get_unit_at(tpos[0], tpos[1])
+                if u is not None and u.player != unit.player and u.is_alive():
+                    focus = u
+
+        # Survival: does the drone's current tile sit in lethal threat?
+        plant_threat = 0
+        if (unit.y, unit.x) in analysis.threat_map:
+            plant_threat = analysis.threat_map[(unit.y, unit.x)].threat_level
+
+        for enemy in self._ordnance_targetable_enemies(unit, analysis):
+            try:
+                if not skill.can_use(unit, (enemy.y, enemy.x), self.game):
+                    continue
+            except Exception:
+                continue
+
+            tv = self._ordnance_target_value(enemy, analysis, plan)
+            if tv <= 0:
+                continue
+
+            score = 40.0 + tv * 0.6
+            if focus is not None and enemy is focus:
+                # Coordination: the graft already chose this body — pile onto it so the two
+                # bodies stack one cluster toward a Harvest one-shot. Sized to decisively
+                # beat the anti-tank value spread across the roster (an 18->24 HP gap is
+                # ~40 pts of tv*0.6), so the drone follows the focus even onto a smaller
+                # body, per the "full coordination" design.
+                score += 70.0
+            if plant_threat >= unit.hp:
+                score -= 40.0  # don't trade the drone (and the graft's Skyhook) for a plant
+
+            action = Action("skill", target=(skill, enemy), priority=score)
+            actions.append(action)
         return actions
