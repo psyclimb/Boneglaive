@@ -414,6 +414,30 @@ MULTI_EVENT_SOUNDS = {
     "dissonance_whirl": "sounds/skills/dissonance_whirl.wav",          # Upgraded: terrain tiles ripped into CCW arc — grinding vortex roar
     "dissonance_shrapnel": "sounds/skills/dissonance_shrapnel.wav",    # Shrapnel radiates outward — sharp fragments whistling through air
 
+    # ORDNANCE GRAFT - Basic Attack / linstock (2 events)
+    "ordnance_attack_swing": "sounds/skills/ordnance_attack_swing.wav",    # Linstock pole sweeping through its arc — heavy wooden whoosh
+    "ordnance_attack_impact": "sounds/skills/ordnance_attack_impact.wav",  # Gunmetal head cracks into the target — blunt metal-on-body thud
+
+    # ORDNANCE GRAFT - Inoculant graft (2 events)
+    "inoculant_swing": "sounds/skills/inoculant_swing.wav",      # Linstock winds back and sweeps in — sharp whoosh with ember crackle
+    "inoculant_strike": "sounds/skills/inoculant_strike.wav",    # Spiked bomb driven into the body — meaty thunk + metallic embed
+
+    # QUADCOPTER - Drone Inoculant (2 events)
+    "drone_inoculant_fire": "sounds/skills/drone_inoculant_fire.wav",    # Drone fires a bomb round — pneumatic muzzle pop over rotor buzz
+    "drone_inoculant_graft": "sounds/skills/drone_inoculant_graft.wav",  # Bomb round embeds in the target — sharp impact + graft hiss
+
+    # ORDNANCE GRAFT - Skyhook (2 events)
+    "skyhook_launch": "sounds/skills/skyhook_launch.wav",    # Cable snaps taut and yanks him up — winch crack + sudden whoosh of lift
+    "skyhook_land": "sounds/skills/skyhook_land.wav",        # Dropped from the cable into an arrival slam — heavy ground impact + dust
+
+    # ORDNANCE GRAFT - Harvest (2 events)
+    "harvest_ignite": "sounds/skills/harvest_ignite.wav",        # Fuses catch field-wide, warm-up glow building — rising sizzling whine
+    "harvest_detonate": "sounds/skills/harvest_detonate.wav",    # Each fused bomb goes off (plays per blast) — sharp explosive crack
+
+    # QUADCOPTER - Basic Attack (2 events)
+    "ordnance_drone_attack": "sounds/skills/ordnance_drone_attack.wav",    # Drone fires its tracer round — buzzing rotor + light report
+    "ordnance_drone_impact": "sounds/skills/ordnance_drone_impact.wav",    # Tracer round hits the target — small spark impact
+
 }
 
 

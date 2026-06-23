@@ -129,13 +129,20 @@ class InoculantAnimation:
         self.px, self.py = -self.uy, self.ux                      # perpendicular (swing plane)
         self.bomb_rot = random.uniform(0, 60)
         self.connected = False
+        self.swing_sound_played = False
 
     def update(self, delta_time):
         self.elapsed += delta_time
 
+        # Swing beat — the linstock winds back and sweeps in (start of the strike).
+        if not self.swing_sound_played:
+            self.swing_sound_played = True
+            play_sound("inoculant_swing")
+
         # Connection beat — spark + graft + shake when the linstock lands.
         if not self.connected and self.elapsed >= self.STRIKE:
             self.connected = True
+            play_sound("inoculant_strike")
             if self.particle_emitter:
                 self.particle_emitter.emit_burst(self.tx, self.ty, AMBER, count=12)
                 self.particle_emitter.emit_burst(self.tx, self.ty, AMBER_BRIGHT, count=6)
@@ -253,6 +260,7 @@ class DroneInoculantAnimation:
 
         if not self.fired and self.elapsed >= self.FIRE:
             self.fired = True
+            play_sound("drone_inoculant_fire")
             # muzzle flash / rotor wash at the drone
             if self.particle_emitter:
                 self.particle_emitter.emit_burst(self.sx, self.sy, AMBER, count=6)
@@ -260,6 +268,7 @@ class DroneInoculantAnimation:
 
         if not self.hit and self.elapsed >= self.HIT:
             self.hit = True
+            play_sound("drone_inoculant_graft")
             if self.particle_emitter:
                 self.particle_emitter.emit_burst(self.tx, self.ty, AMBER, count=12)
                 self.particle_emitter.emit_burst(self.tx, self.ty, AMBER_BRIGHT, count=6)
@@ -386,6 +395,7 @@ class SkyhookAnimationController:
         self.caster.wind_up_rotation = 0
 
         # Launch beat: cable snaps taut, dust kicks up at the origin.
+        play_sound("skyhook_launch")
         if self.particle_emitter:
             for _ in range(14):
                 a = random.uniform(0, math.tau)
@@ -610,10 +620,13 @@ class HarvestAnimation:
         # Total duration = the last blast's fire time + its lifetime.
         self.total_duration = max(b['t0'] for b in self.blasts) + self.BLAST_DUR
         self.shake_done = False
+        self.ignite_sound_played = False
 
     def _erupt(self, b):
         """Spawn the heavy layered particle burst for one blast point."""
         bx, by = b['x'], b['y']
+        # Each bomb's detonation crack (fires per blast — the chain reads as a barrage).
+        play_sound("harvest_detonate")
         pe = self.particle_emitter
         if not pe:
             return
@@ -651,6 +664,11 @@ class HarvestAnimation:
 
     def update(self, delta_time):
         self.elapsed += delta_time
+
+        # Ignite beat — the fuses catch and the warm-up glow builds before the barrage.
+        if not self.ignite_sound_played:
+            self.ignite_sound_played = True
+            play_sound("harvest_ignite")
 
         any_fired_now = False
         for b in self.blasts:
@@ -768,11 +786,16 @@ class OrdnanceGraftLinstockAttack:
         dist = max(1.0, math.hypot(dx, dy))
         self.ux, self.uy = dx / dist, dy / dist
         self.impact_done = False
+        self.swing_sound_played = False
 
     def update(self, delta_time):
         self.elapsed += delta_time
+        if not self.swing_sound_played:
+            self.swing_sound_played = True
+            play_sound("ordnance_attack_swing")
         if not self.impact_done and self.elapsed > 0.18:
             self.impact_done = True
+            play_sound("ordnance_attack_impact")
             if self.particle_emitter:
                 self.particle_emitter.emit_burst(self.tx, self.ty, GUNMETAL_LIGHT, count=8)
                 self.particle_emitter.emit_burst(self.tx, self.ty, AMBER, count=5)
@@ -860,6 +883,7 @@ class OrdnanceDroneShotAttack:
 
         if not self.impact_done and self.elapsed > 0.18:
             self.impact_done = True
+            play_sound("ordnance_drone_impact")
             if self.particle_emitter:
                 self.particle_emitter.emit_burst(self.tx, self.ty, AMBER, count=8)
                 self.particle_emitter.emit_burst(self.tx, self.ty, GUNMETAL_LIGHT, count=5)
