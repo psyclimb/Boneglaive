@@ -83,14 +83,20 @@ class SoundManager:
         if sound_key in self._sound_cache:
             return True  # Already loaded
 
-        # Construct file path: sounds/<category>/<sound_key>.wav
-        sound_path = self.sounds_dir / category / f"{sound_key}.wav"
+        # Resolve the sound file: prefer .ogg (compact, decoded fully into
+        # memory so there's no runtime cost), fall back to .wav so any
+        # not-yet-converted file still loads. Try the category subdir first,
+        # then the flat sounds/ directory.
+        sound_path = None
+        for ext in (".ogg", ".wav"):
+            candidate = self.sounds_dir / category / f"{sound_key}{ext}"
+            if not candidate.exists():
+                candidate = self.sounds_dir / f"{sound_key}{ext}"
+            if candidate.exists():
+                sound_path = candidate
+                break
 
-        if not sound_path.exists():
-            # Try without category (flat directory structure)
-            sound_path = self.sounds_dir / f"{sound_key}.wav"
-
-        if not sound_path.exists():
+        if sound_path is None:
             if sound_key not in self._missing_sounds:
                 self._missing_sounds.add(sound_key)
             return False

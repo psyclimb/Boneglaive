@@ -5,8 +5,10 @@ Maps skill names, actions, and events to sound files.
 """
 
 # Sound registry: maps event/skill names to sound keys
-# Sound keys are filenames (without .wav extension)
-# The SoundManager will look for these in sounds/<category>/<sound_key>.wav
+# Sound keys are filenames (without extension)
+# The SoundManager looks for sounds/<category>/<sound_key>.ogg (preferred,
+# falling back to .wav). The path strings in the value column below are
+# documentation only; the loader builds the real path from the key.
 
 SKILL_SOUNDS = {
     # GLAIVEMAN skills (primary skill sound - played by AnimationFactory)
