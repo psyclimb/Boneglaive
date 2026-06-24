@@ -4,7 +4,6 @@ Unit Status Bar UI Component
 Displays grid of unit cards showing alive/dead/selected status.
 """
 import pygame
-import os
 from typing import List, Optional, Tuple, Dict
 from boneglaive.utils.constants import UNIT_SYMBOLS
 from .font_utils import render_fitted_text

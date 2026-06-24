@@ -4,7 +4,7 @@ Battlefield Analyzer for Smart AI.
 Analyzes game state to provide tactical intelligence.
 """
 
-from typing import Dict, List, Set, Tuple, Optional, TYPE_CHECKING
+from typing import Dict, List, Tuple, TYPE_CHECKING
 from boneglaive.utils.debug import logger
 
 if TYPE_CHECKING:
@@ -290,36 +290,3 @@ class BattlefieldAnalyzer:
         # Sort by danger (highest first)
         analysis.vulnerable_allies = sorted(vulnerable, key=lambda x: x[1], reverse=True)
 
-    def get_threat_at_position(self, analysis: BattlefieldAnalysis,
-                               y: int, x: int) -> Optional[ThreatZone]:
-        """
-        Get threat information for a specific position.
-
-        Args:
-            analysis: The battlefield analysis
-            y, x: Position to check
-
-        Returns:
-            ThreatZone if position is threatened, None otherwise
-        """
-        return analysis.threat_map.get((y, x))
-
-    def is_position_safe(self, analysis: BattlefieldAnalysis,
-                        y: int, x: int, unit_hp: int) -> bool:
-        """
-        Check if a position is safe for a unit with given HP.
-
-        Args:
-            analysis: The battlefield analysis
-            y, x: Position to check
-            unit_hp: HP of the unit considering this position
-
-        Returns:
-            True if position is safe (threat level < 50% of HP)
-        """
-        threat = self.get_threat_at_position(analysis, y, x)
-        if not threat:
-            return True
-
-        # Position is safe if threat level is less than 50% of unit's HP
-        return threat.threat_level < (unit_hp * 0.5)

@@ -6,7 +6,7 @@ Skill animations for the GLAIVEMAN unit.
 import pygame
 import random
 import math
-from .core import TILE_SIZE, Particle, DebrisParticle
+from .core import TILE_SIZE, Particle
 from boneglaive.graphical.sound_helper import play_sound
 
 class LightningBolt:
@@ -1578,64 +1578,6 @@ class PryDebrisImpact:
                     surface.blit(rotated, rect)
 
 
-class PryGroundExplosion:
-    """
-    Ground impact explosion with orange fireball + gray dust.
-    Uses GLAIVEMAN orange colors.
-    """
-    def __init__(self, center_x, center_y, is_primary=False):
-        self.center_x = center_x
-        self.center_y = center_y
-        self.timer = 0
-        self.duration = 0.5 if is_primary else 0.35
-        self.active = True
-        self.max_radius = 50 if is_primary else 30
-        self.is_primary = is_primary
-
-    def update(self, delta_time):
-        """Update explosion expansion."""
-        if not self.active:
-            return False
-
-        self.timer += delta_time
-
-        if self.timer >= self.duration:
-            self.active = False
-
-        return self.active
-
-    def draw(self, surface):
-        """Draw orange fireball explosion."""
-        if not self.active:
-            return
-
-        progress = min(1.0, self.timer / self.duration)
-
-        # Fast expansion
-        if progress < 0.3:
-            radius = int(self.max_radius * (progress / 0.3))
-        else:
-            radius = self.max_radius
-
-        # Fade out
-        alpha = int(255 * (1.0 - progress))
-
-        if alpha > 20 and radius > 0:
-            explosion_surf = pygame.Surface((radius * 2 + 20, radius * 2 + 20), pygame.SRCALPHA)
-            center = radius + 10
-
-            # Outer bright yellow glow (#ffffcc from GLAIVEMAN cross)
-            pygame.draw.circle(explosion_surf, (255, 255, 204, alpha // 3), (center, center), radius + 8)
-            # Main bright yellow glow (#ffffff glow)
-            pygame.draw.circle(explosion_surf, (255, 255, 255, alpha), (center, center), radius)
-            # Inner bright core
-            if progress < 0.4:
-                inner_radius = int(radius * 0.5)
-                pygame.draw.circle(explosion_surf, (255, 255, 255, alpha), (center, center), inner_radius)
-
-            surface.blit(explosion_surf, (int(self.center_x - center), int(self.center_y - center)))
-
-
 class PryShockwave:
     """
     Expanding shockwave ring on ground impact.
@@ -2818,49 +2760,6 @@ class AutoclaveHealingEffect:
                 pygame.draw.circle(p_surf, (0, 255, 0, alpha),
                                  (int(particle['size']), int(particle['size'])), int(particle['size']))
                 surface.blit(p_surf, (int(particle['x'] - particle['size']), int(particle['y'] - particle['size'])))
-
-
-class AutoclaveImpactFlash:
-    """
-    Flash at hit tile positions.
-    White/bright yellow flash.
-    """
-    def __init__(self, tile_x, tile_y, delay=0):
-        self.tile_x = tile_x
-        self.tile_y = tile_y
-        self.timer = -delay
-        self.duration = 0.25
-        self.active = False  # Activates after delay
-
-    def update(self, delta_time):
-        """Update flash."""
-        self.timer += delta_time
-
-        if self.timer >= 0:
-            self.active = True
-
-        if self.timer >= self.duration:
-            self.active = False
-            return False
-
-        return True
-
-    def draw(self, surface):
-        """Draw white/bright yellow flash."""
-        if not self.active or self.timer < 0:
-            return
-
-        progress = min(1.0, self.timer / self.duration)
-        radius = int(25 * (1.0 - progress * 0.5))  # Shrinks slightly
-        alpha = int(255 * (1.0 - progress))
-
-        if alpha > 20 and radius > 0:
-            flash_surf = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-            # Bright yellow flash (#ffffcc)
-            pygame.draw.circle(flash_surf, (255, 255, 204, alpha), (radius, radius), radius)
-            # White core
-            pygame.draw.circle(flash_surf, (255, 255, 255, alpha), (radius, radius), radius // 2)
-            surface.blit(flash_surf, (int(self.tile_x - radius), int(self.tile_y - radius)))
 
 
 class AutoclaveAnimationV2:

@@ -4,10 +4,9 @@ Play Menu Screens
 Screens for game mode selection and map selection.
 """
 import pygame
-from typing import Optional, List
+from typing import Optional
 from .menu_components import (
-    MenuScreen, Button, COLOR_TEXT,
-    menu_button_width, menu_button_height, menu_button_spacing, menu_start_y,
+    MenuScreen, Button,     menu_button_width, menu_button_height, menu_button_spacing, menu_start_y,
     map_button_width, map_button_height
 )
 from boneglaive.utils.config import ConfigManager, GameMode

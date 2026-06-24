@@ -13,9 +13,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 # Import actual game classes
 from boneglaive.game.engine import Game
-from boneglaive.game.units import Unit
-
-
 class AnimationEvent:
     """Represents an animation that needs to be played."""
     def __init__(self, event_type: str, source_unit, target_unit=None, **kwargs):
@@ -952,25 +949,8 @@ class GameStateAdapter:
                         if skill_target:
                             target_game_unit = self.game.get_unit_at(skill_target[0], skill_target[1])
 
-                        # Check if skill will be reflected by Backhand (for blocking skills)
-                        will_be_reflected = False
-                        if target_game_unit and hasattr(target_game_unit, 'backhand_active') and target_game_unit.backhand_active:
-                            # Check if skill is reflectable
-                            reflectable_skills = {
-                                'Judgement', 'Estrange', 'Neural Shunt', 'Granite Geas', 'Pry', 'Auction Curse',
-                                'Fragcrest', 'Expedite'
-                            }
-                            if skill_name in reflectable_skills:
-                                will_be_reflected = True
-                                # Set flag early so pre-execution animation check can see it
-                                game_unit.skill_was_reflected = True
-
-                        # Capture Matador bounce count for animation
+                        # Bounce count for ricochet-style animations
                         bounce_count = 2  # default
-                        if skill_name in ["Matador", "MATADOR"]:
-                            # Calculate dynamic bounce count for Matador animation
-                            if hasattr(game_unit, 'selected_skill') and hasattr(game_unit.selected_skill, '_calculate_matador_bounces'):
-                                bounce_count = game_unit.selected_skill._calculate_matador_bounces(game_unit, self.game)
 
                         # Check if skill is upgraded and modify skill_name for upgraded animations
                         # This allows the animation factory to use upgraded animation variants
@@ -1288,8 +1268,7 @@ class GameStateAdapter:
                     source_unit=None,
                     target_unit=None,
                     skill_name="SLAG_WALL_DESPAWN",
-                    skill_target=(pos_y, pos_x),
-                ))
+                    skill_target=(pos_y, pos_x)))
             self.game.last_despawned_slag_walls = []
 
         # Detect topiary reverts (LANDSCAPER Topiary Breath)
@@ -1300,8 +1279,7 @@ class GameStateAdapter:
                     source_unit=None,
                     target_unit=None,
                     skill_name="TOPIARY_REVERT",
-                    skill_target=(pos_y, pos_x),
-                ))
+                    skill_target=(pos_y, pos_x)))
             self.game.last_reverted_topiaries = []
 
         return events
@@ -1349,12 +1327,6 @@ class GameStateAdapter:
             target_pos=(vapor_unit.y, vapor_unit.x)  # Game coords (y, x)
         )
         self.animation_queue.append(event)
-
-    def get_pending_animations(self) -> List[AnimationEvent]:
-        """Get and clear pending animations."""
-        animations = self.animation_queue.copy()
-        self.animation_queue.clear()
-        return animations
 
     def get_movement_range(self, game_unit) -> List[Tuple[int, int]]:
         """
@@ -1544,43 +1516,3 @@ class GameStateAdapter:
 
         return False
 
-    def get_game_state(self) -> Dict[str, Any]:
-        """
-        Get current game state for UI display.
-
-        Returns:
-            Dictionary with current game state info
-        """
-        if not self.game:
-            return {}
-
-        return {
-            "turn": self.current_turn,
-            "phase": self.game_phase,
-            "active_unit": self.active_unit_id,
-            "selected_unit": self.selected_unit_id,
-            "selected_skill": self.selected_skill,
-            "awaiting_target": self.awaiting_target,
-        }
-
-    def get_valid_targets(self, skill_name: str, caster) -> List[Any]:
-        """
-        Get list of valid targets for a skill.
-
-        Args:
-            skill_name: Name of the skill
-            caster: Unit casting the skill
-
-        Returns:
-            List of valid target units
-        """
-        return []
-
-
-    def is_game_over(self) -> bool:
-        """Check if game is over."""
-        return False
-
-    def get_winner(self) -> Optional[str]:
-        """Get winner if game is over."""
-        return None

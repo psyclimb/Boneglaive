@@ -29,12 +29,10 @@ def check_cairo():
     """Verify cairosvg is working. Show a clear error dialog and exit if not."""
     try:
         import cairosvg
-        from io import BytesIO
         # Render a minimal SVG to confirm Cairo native libs are loaded
         cairosvg.svg2png(bytestring=b'<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>', output_width=1, output_height=1)
     except Exception as e:
         import pygame
-        import traceback
         pygame.init()
         screen = pygame.display.set_mode((640, 300))
         pygame.display.set_caption("Boneglaive — Missing Dependency")
@@ -73,7 +71,7 @@ def run_game():
     config = ConfigManager()
 
     # Get selected map from config
-    selected_map = config.get('selected_map', 'edgecase')
+    selected_map = config.get('selected_map', 'hard_pressed')
 
     # Create game state adapter
     adapter = GameStateAdapter()

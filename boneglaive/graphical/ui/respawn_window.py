@@ -4,7 +4,7 @@ Respawn Window UI Component
 Modal window for selecting dead units to respawn.
 """
 import pygame
-from typing import Optional, List, Tuple
+from typing import List, Tuple
 from .scrollbar import Scrollbar
 from boneglaive.utils.paths import asset_path, load_svg
 

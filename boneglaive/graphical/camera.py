@@ -58,55 +58,8 @@ class Camera:
 
         return screen_x, screen_y
 
-    def screen_to_grid(self, screen_x, screen_y):
-        """
-        Convert screen pixel coordinates to grid coordinates.
-
-        Args:
-            screen_x: Screen X position in pixels
-            screen_y: Screen Y position in pixels
-
-        Returns:
-            (grid_x, grid_y) tuple
-        """
-        # Remove shake offset
-        screen_x -= self.shake_offset_x
-        screen_y -= self.shake_offset_y
-
-        grid_x = (screen_x - self.grid_offset_x) // self.tile_size
-        grid_y = (screen_y - self.grid_offset_y) // self.tile_size
-
-        return int(grid_x), int(grid_y)
-
     def set_shake(self, offset_x, offset_y):
         """Set screen shake offset (called by screen shake system)."""
         self.shake_offset_x = offset_x
         self.shake_offset_y = offset_y
 
-    def get_tile_size(self):
-        """Get current tile size (useful for animations that need to scale)."""
-        return self.tile_size
-
-    def set_zoom(self, zoom_level):
-        """
-        Set zoom level (1.0 = normal).
-        Note: This would require additional changes to tile rendering.
-        """
-        self.zoom = zoom_level
-
-    def update_layout(self, grid_offset_x=None, grid_offset_y=None, tile_size=None):
-        """
-        Update camera layout parameters.
-        This allows dynamic repositioning/resizing of the game view.
-
-        Args:
-            grid_offset_x: New X offset (None = keep current)
-            grid_offset_y: New Y offset (None = keep current)
-            tile_size: New tile size (None = keep current)
-        """
-        if grid_offset_x is not None:
-            self.grid_offset_x = grid_offset_x
-        if grid_offset_y is not None:
-            self.grid_offset_y = grid_offset_y
-        if tile_size is not None:
-            self.tile_size = tile_size

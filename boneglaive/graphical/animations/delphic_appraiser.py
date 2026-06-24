@@ -6,7 +6,7 @@ Skill animations for the DELPHIC APPRAISER unit.
 import pygame
 import random
 import math
-from .core import TILE_SIZE, COLOR_DAMAGE, COLOR_SKILL
+from .core import TILE_SIZE
 from boneglaive.graphical.sound_helper import play_sound
 
 
@@ -2807,92 +2807,6 @@ class DelphicAppraiserAstralAttack:
 # ============================================================================
 # DEFT(?) REROLL ANIMATION
 # ============================================================================
-
-class SpinningNumberEffect:
-    """
-    Spinning slot-machine number effect at a single position.
-    """
-    def __init__(self, x, y, final_value=None, delay=0):
-        self.x = x
-        self.y = y
-        self.timer = -delay
-        self.spin_duration = 0.8
-        self.lock_duration = 0.5
-        self.active = True
-        self.phase = "spinning"  # spinning -> locking -> done
-
-        # Visual state
-        self.current_number = random.randint(1, 9)
-        self.spin_speed = 15  # Numbers per second
-        self.final_number = final_value if final_value is not None else random.randint(1, 9)
-        self.lock_flash_alpha = 0
-
-    def update(self, delta_time):
-        if not self.active:
-            return False
-
-        self.timer += delta_time
-
-        if self.timer < 0:  # Delay not elapsed
-            return True
-
-        if self.phase == "spinning":
-            # Rapidly cycle numbers
-            self.current_number = 1 + int((self.timer * self.spin_speed) % 9)
-
-            if self.timer >= self.spin_duration:
-                self.phase = "locking"
-                self.timer = 0
-                self.current_number = self.final_number
-                self.lock_flash_alpha = 255
-
-        elif self.phase == "locking":
-            # Flash and fade
-            progress = self.timer / self.lock_duration
-            self.lock_flash_alpha = int(255 * (1.0 - progress))
-
-            if self.timer >= self.lock_duration:
-                self.phase = "done"
-                self.active = False
-
-        return self.active
-
-    def draw(self, surface):
-        if self.timer < 0:  # Don't draw during delay
-            return
-
-        # Colors
-        gold = (255, 215, 0)
-        white = (255, 255, 255)
-
-        # Draw number
-        font = pygame.font.Font(None, 32)
-
-        if self.phase == "spinning":
-            # Blur effect during spin (draw multiple overlapping numbers)
-            for offset in [-2, 0, 2]:
-                alpha = 150 if offset != 0 else 255
-                text = font.render(str(self.current_number), True, gold)
-                text.set_alpha(alpha)
-                text_rect = text.get_rect(center=(int(self.x), int(self.y + offset)))
-                surface.blit(text, text_rect)
-
-        elif self.phase == "locking":
-            # Lock-in flash
-            if self.lock_flash_alpha > 0:
-                # Draw flash ring
-                flash_radius = 20
-                flash_surf = pygame.Surface((flash_radius * 2, flash_radius * 2), pygame.SRCALPHA)
-                pygame.draw.circle(flash_surf, (*gold, self.lock_flash_alpha),
-                                 (flash_radius, flash_radius), flash_radius, 3)
-                surface.blit(flash_surf, (int(self.x - flash_radius),
-                                         int(self.y - flash_radius)))
-
-            # Draw final number
-            text = font.render(str(self.final_number), True, white)
-            text_rect = text.get_rect(center=(int(self.x), int(self.y)))
-            surface.blit(text, text_rect)
-
 
 class DeftRerollAnimation:
     """

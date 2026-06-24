@@ -11,7 +11,7 @@ from boneglaive.utils.paths import asset_path, load_svg
 
 # Import unit types and skills
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
-from boneglaive.utils.constants import UnitType, UNIT_STATS, UNIT_DISPLAY_NAMES
+from boneglaive.utils.constants import UnitType, UNIT_DISPLAY_NAMES
 from boneglaive.game.recruitment import RECRUITMENT_ORDER
 from .scrollbar import Scrollbar
 
@@ -71,8 +71,6 @@ class SetupUnitHelp:
 
     def _get_unit_name(self, unit_type):
         """Get display name for a unit type."""
-        if isinstance(unit_type, str):
-            return unit_type
         try:
             return unit_type.name
         except AttributeError:
@@ -374,29 +372,6 @@ class SetupUnitHelp:
                         'desc': 'Touches off every armed bomb on the field. Each stack deals a percent of the target\'s maximum HP that scales up with the size of the body, ignoring defense — devastating on tanks, slight on small units.'
                     }
                 ]
-            },
-            "AETHERIC_CURLER": {
-                'difficulty': 5,  # Out of 5
-                'role': '??? / ??? / ???',
-                'overview': 'A mysterious entity shrouded in aetheric energy. Details unknown. Coming soon...',
-                'passive': {
-                    'name': '???',
-                    'desc': 'Placeholder ability description. This unit is not yet available.'
-                },
-                'skills': [
-                    {
-                        'name': '???',
-                        'desc': 'Placeholder skill description. This unit is not yet available.'
-                    },
-                    {
-                        'name': '???',
-                        'desc': 'Placeholder skill description. This unit is not yet available.'
-                    },
-                    {
-                        'name': '???',
-                        'desc': 'Placeholder skill description. This unit is not yet available.'
-                    }
-                ]
             }
         }
 
@@ -490,11 +465,6 @@ class SetupUnitHelp:
         cache_key = (unit_type, size)
         if cache_key in self.sprite_cache:
             return self.sprite_cache[cache_key]
-
-        # Skip loading for placeholder units (strings)
-        if isinstance(unit_type, str):
-            self.sprite_cache[cache_key] = None
-            return None
 
         try:
             sprite_name = unit_type.name.lower()
@@ -614,30 +584,16 @@ class SetupUnitHelp:
         glaive_spacing = 40
         glaive_y = current_y + 10
 
-        # Check if this is the AETHERIC_CURLER for flashing effect (only this one flashes)
-        should_flash = self.unit_type == "AETHERIC_CURLER"
-
-        if should_flash and difficulty == 5:
-            # Flash all 5 glaives for max difficulty placeholder
-            import time
-            import math
-            flash_speed = 3.0  # Hz
-            alpha = int(128 + 127 * math.sin(time.time() * flash_speed * 2 * math.pi))
-
-            for i in range(5):
-                x = sprite_center_x + ((i - 2) * glaive_spacing)
-                self._draw_glaive(content_surface, x, glaive_y, glaive_size, alpha, (220, 180, 255))
-        else:
-            # Normal difficulty indicator
-            for i in range(5):
-                # Position relative to center glaive
-                x = sprite_center_x + ((i - 2) * glaive_spacing)
-                if i < difficulty:
-                    # Illuminated glaive
-                    self._draw_glaive(content_surface, x, glaive_y, glaive_size, 255, (220, 220, 255))
-                else:
-                    # Dimmed glaive
-                    self._draw_glaive(content_surface, x, glaive_y, glaive_size, 60, (100, 100, 100))
+        # Difficulty indicator (illuminated glaives = difficulty rating)
+        for i in range(5):
+            # Position relative to center glaive
+            x = sprite_center_x + ((i - 2) * glaive_spacing)
+            if i < difficulty:
+                # Illuminated glaive
+                self._draw_glaive(content_surface, x, glaive_y, glaive_size, 255, (220, 220, 255))
+            else:
+                # Dimmed glaive
+                self._draw_glaive(content_surface, x, glaive_y, glaive_size, 60, (100, 100, 100))
         current_y += 40
 
         # Draw unit sprite (2x larger - 160x160 instead of 80x80)
@@ -921,13 +877,9 @@ class SetupUnitHelp:
             screen.blit(no_unit_text, no_unit_rect)
             return panel_rect
 
-        # Check if this is AETHERIC_CURLER that needs animation (flashing glaives)
-        needs_animation = self.unit_type == "AETHERIC_CURLER"
-
         # Render content if needed (choose simplified or full based on show_advanced flag)
-        # For AETHERIC_CURLER, always re-render to animate the flashing glaives
         # Use full width since scrollbar will be positioned outside panel
-        if not self.content_surface or (needs_animation and not self.show_advanced):
+        if not self.content_surface:
             if self.show_advanced:
                 # Check if full help data exists
                 if self.unit_type not in self.unit_help_data:

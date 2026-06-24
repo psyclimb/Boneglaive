@@ -3,9 +3,8 @@
 Lock-Out-Tag-Out (LOTO) System
 Checks unit status effects to determine which actions are blocked.
 """
-from typing import Optional, Set
+from typing import Set
 import pygame
-import os
 from boneglaive.utils.paths import asset_path, load_svg
 from boneglaive.utils.constants import UnitType
 
@@ -79,9 +78,6 @@ class LOTOChecker:
         # Check all-action-blocking effects
         if hasattr(unit, 'gaussian_dusk_recharge') and unit.gaussian_dusk_recharge:
             blocked.add('all')  # Blocks everything during recharge
-
-        if hasattr(unit, 'gaussian_charging') and unit.gaussian_charging:
-            blocked.add('all')  # Blocks everything while charging
 
         return blocked
 

@@ -11,8 +11,6 @@ from typing import Optional, TYPE_CHECKING, List, Tuple
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
-from boneglaive.utils.constants import UnitType
-
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
     from boneglaive.game.engine import Game

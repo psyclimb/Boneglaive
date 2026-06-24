@@ -2,12 +2,12 @@
 """
 Unit classes and related functionality for Boneglaive.
 """
-from typing import List, Dict, Optional, TYPE_CHECKING
+from typing import List, Dict, TYPE_CHECKING
 from boneglaive.utils.constants import UNIT_STATS, UnitType, INVULNERABLE_PRT
 from boneglaive.utils.debug import logger
 
 if TYPE_CHECKING:
-    from boneglaive.game.skills.core import Skill, ActiveSkill
+    from boneglaive.game.skills.core import ActiveSkill
     from boneglaive.game.engine import Game
 
 class Unit:
@@ -558,10 +558,6 @@ class Unit:
 
         # FOWL_CONTRIVANCE movement restrictions
         if self.type == UnitType.FOWL_CONTRIVANCE:
-            # Cannot move while charging Gaussian Dusk
-            if hasattr(self, 'gaussian_charging') and self.gaussian_charging:
-                return False
-
             # Must move along rails (if rails exist)
             if game.map.has_rails():
                 from boneglaive.game.map import TerrainType
@@ -1742,111 +1738,6 @@ class Unit:
             return False
             
         return True
-    
-    def process_interferer_effects(self, game: 'Game') -> None:
-        """Process INTERFERER-specific status effects at end of turn."""
-        # Karrier Rave duration is now processed at the end of execute_turn (after combat)
-        # to prevent it from expiring before the attack executes
-
-        # Neural Shunt duration is now processed at the end of execute_turn (after random actions)
-        # to prevent it from expiring before the random actions are applied
-        
-    def get_skill_by_key(self, key: str) -> Optional:
-        """Get an active skill by its key (for UI selection)."""
-        key = key.upper()
-        for skill in self.active_skills:
-            if skill.key.upper() == key:
-                return skill
-        return None
-        
-    
-    def _teleport_derelictionist_away(self, derelictionist):
-        """Helper method to teleport DERELICTIONIST to random valid position 3+ tiles away."""
-        if not hasattr(self, '_game') or not self._game:
-            return
-            
-        game = self._game
-        valid_positions = []
-        
-        # Find all valid positions 3+ tiles away
-        for y in range(game.map.height):
-            for x in range(game.map.width):
-                if (game.is_valid_position(y, x) and 
-                    game.map.is_passable(y, x) and
-                    game.get_unit_at(y, x) is None):
-                    
-                    # Calculate distance from protected unit
-                    distance = abs(y - self.y) + abs(x - self.x)
-                    if distance >= 3:
-                        valid_positions.append((y, x))
-        
-        if valid_positions:
-            import random
-            new_y, new_x = random.choice(valid_positions)
-            derelictionist.y = new_y
-            derelictionist.x = new_x
-            
-            from boneglaive.utils.message_log import message_log, MessageType
-            message_log.add_message(
-                f"{derelictionist.get_display_name()} dissociates away from the trauma!",
-                MessageType.ABILITY
-            )
-    
-    def _trigger_abreaction(self):
-        """Trigger trauma processing abreaction - deal trauma debt, heal, cleanse."""
-        if not hasattr(self, 'trauma_processing_active') or not self.trauma_processing_active:
-            return
-            
-        from boneglaive.utils.debug import logger
-        from boneglaive.utils.message_log import message_log, MessageType
-        from boneglaive.game.skills.derelictionist import calculate_distance
-        
-        caster = getattr(self, 'trauma_processing_caster', None)
-        trauma_damage = self.trauma_debt
-        
-        # Deal stored trauma damage
-        if trauma_damage > 0:
-            previous_hp = self.hp
-            self.hp = max(0, self.hp - trauma_damage)
-            actual_trauma_damage = previous_hp - self.hp
-            
-            message_log.add_message(
-                f"{self.get_display_name()} experiences abreaction ({actual_trauma_damage} trauma damage)!",
-                MessageType.COMBAT
-            )
-        
-        # Calculate healing based on distance from DERELICTIONIST
-        heal_amount = trauma_damage  # Base healing equals trauma damage
-        if caster and caster.is_alive():
-            distance = calculate_distance(caster, self)
-            heal_amount += distance  # Add distance bonus
-        
-        # Apply healing
-        if heal_amount > 0 and self.hp < self.max_hp:
-            # Apply healing using universal heal method
-            actual_heal = self.heal(heal_amount, "processed trauma")
-
-            if actual_heal > 0:
-                message_log.add_message(
-                    f"{self.get_display_name()} heals for {actual_heal} HP from processed trauma!",
-                    MessageType.ABILITY
-                )
-            
-        # Remove ALL negative status effects (cleanse)
-        self._cleanse_all_negative_effects()
-        
-        # Remove trauma processing status and attack bonus
-        self.trauma_processing_active = False
-        self.trauma_processing_caster = None
-        self.trauma_debt = 0
-        self.attack_bonus -= 3  # Remove the +3 attack bonus
-        
-        message_log.add_message(
-            f"{self.get_display_name()}'s trauma processing ends - all ailments cleansed!",
-            MessageType.ABILITY
-        )
-        
-        logger.info(f"ABREACTION: {self.get_display_name()} healed {heal_amount}, cleansed, lost attack bonus")
     
     def _cleanse_all_negative_effects(self):
         """Remove all negative status effects from the unit."""

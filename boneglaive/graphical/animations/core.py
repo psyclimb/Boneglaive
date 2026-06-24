@@ -3,11 +3,7 @@
 import pygame
 import random
 import math
-from pathlib import Path
-from typing import List, Tuple, Optional
-import sys
-import os
-
+from typing import List, Tuple
 from boneglaive.utils.paths import load_svg
 
 
@@ -26,8 +22,6 @@ def _get_tile_size():
 TILE_SIZE = _get_tile_size()
 
 # Attack animation colors
-COLOR_MELEE_SLASH = (255, 200, 100)  # Orange-yellow for melee slash
-COLOR_IMPACT = (255, 255, 255)  # White for impact flash
 
 # Colors (shared)
 COLOR_PLAYER1 = (100, 150, 255)

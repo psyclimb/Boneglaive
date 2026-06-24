@@ -5,13 +5,11 @@ This module contains all passive and active abilities for FOWL_CONTRIVANCE units
 Reworked as a mechanical peacock rail artillery platform.
 """
 
-from typing import Optional, TYPE_CHECKING, List, Dict, Tuple, Set
-import random
-
+from typing import Optional, TYPE_CHECKING, List, Tuple
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.game.map import TerrainType
 from boneglaive.utils.message_log import message_log, MessageType
-from boneglaive.utils.constants import UnitType, CRITICAL_HEALTH_PERCENT
+from boneglaive.utils.constants import UnitType
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit

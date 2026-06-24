@@ -4,12 +4,10 @@ Skills specific to the GAS_MACHINIST unit type.
 This module contains all passive and active abilities for GAS_MACHINIST units.
 """
 
-import random
-from typing import Optional, List, Dict, Tuple, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
-from boneglaive.utils.debug import logger
 from boneglaive.utils.constants import UnitType
 
 if TYPE_CHECKING:
@@ -174,7 +172,6 @@ class EnbroachmentGasSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Broaching Gas skill to summon a HEINOUS VAPOR."""
-        import time
 
         # Clear the broaching gas indicator when skill is executed
         user.broaching_gas_indicator = None
@@ -322,7 +319,6 @@ class SaftEGasSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Saft-E-Gas skill to summon a HEINOUS VAPOR."""
-        import time
 
         # Clear the saft-e-gas indicator when skill is executed
         user.saft_e_gas_indicator = None
@@ -492,7 +488,6 @@ class DivergeSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Diverge skill to split a HEINOUS VAPOR or self into two vapors."""
-        import time
         from boneglaive.utils.coordinates import get_adjacent_positions
 
         # Get the user's current position - by execution time any planned move will have been executed
@@ -862,7 +857,6 @@ class AerosolizeArmsSkill(ActiveSkill):
 
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Aerosolize Arms skill."""
-        import time
         from boneglaive.utils.coordinates import get_adjacent_positions
 
         # Get target unit

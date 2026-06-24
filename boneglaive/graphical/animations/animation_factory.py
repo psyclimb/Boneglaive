@@ -3,21 +3,20 @@
 Animation Factory
 Maps skill names to animation classes and creates appropriate animations.
 """
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 import sys
 from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from boneglaive.graphical.animations.core import AnimatedUnit, TILE_SIZE
+from boneglaive.graphical.animations.core import AnimatedUnit
 from boneglaive.graphical.animations.glaiveman import (
-    LightningBolt, CrossBeam, AutoclaveAnimation, AutoclaveAnimationV2, SpinningGlaiveProjectile,
-    PryImpactAnimation, VaultAnimationController, VaultAnimationControllerUpgraded,
+    AutoclaveAnimationV2, VaultAnimationController, VaultAnimationControllerUpgraded,
     PryAnimation, JudgementAnimation, GlaiveSweepAnimation, AutoclaveFailureAnimation
 )
 from boneglaive.graphical.animations.mandible_foreman import (
-    JawClamp, ViseroyTrap, ViseroyRelease, JawTighten, SiteInspectionBuff,
+    ViseroyTrap, ViseroyRelease, JawTighten,
     SiteInspectionScan, SiteInspectionScanUpgraded, ExpediteRush, JawlineNetwork, JawlineNetworkUpgraded
 )
 from boneglaive.graphical.animations.potpourrist import (
@@ -28,16 +27,13 @@ from boneglaive.graphical.animations.grayman import (
     DeltaConfigAnimation,
     GraeExchangeAnimation,
     EstrangeBeam,
-    GraymanEchoDeathExplosionAnimation,
-)
+    GraymanEchoDeathExplosionAnimation)
 from boneglaive.graphical.animations.interferer import (
     NeutronIlluminantCardinal,
     NeutronIlluminantDiagonal,
     NeuralShuntAnimation,
-    ScalarNodeTriggerAnimation,
     KarrierRavePhaseOut,
-    KarrierRaveTripleStrike,
-)
+    KarrierRaveTripleStrike)
 from boneglaive.graphical.animations.delphic_appraiser import (
     DivineDrepreciationAnimation,
     AuctionCurseAnimation,
@@ -45,64 +41,51 @@ from boneglaive.graphical.animations.delphic_appraiser import (
     AuctionCurseSoulCollectionAnimation,
     MarketFuturesAnimation,
     MarketFuturesTeleportAnimation,
-    DeftRerollAnimation,
-)
+    DeftRerollAnimation)
 from boneglaive.graphical.animations.marrow_condenser import (
     OssifyAnimation,
     BoneTitheAnimation,
     BoneTitheDeathHealAnimation,
     MarrowDikeAnimation,
-    MarrowDikeWallDespawnAnimation,
-)
+    MarrowDikeWallDespawnAnimation)
 from boneglaive.graphical.animations.derelictionist import (
     PartitionAnimation,
-    PartitionHitAnimation,
     VagalRunAnimation,
     VagalRunAbreactionAnimation,
     DerelictPushTrail,
     DerelictBuildingFormation,
-    DerelictBuildingTiles,
-)
+    DerelictBuildingTiles)
 from boneglaive.graphical.animations.fowl_contrivance import (
     ParabolAnimation,
     ParabolAnimationUpgraded,
     FragcrestAnimation,
     FragcrestTrapAnimation,
     GaussianDuskFireAnimation,
-    RailGenesisDeathExplosionAnimation,
-)
+    RailGenesisDeathExplosionAnimation)
 from boneglaive.graphical.animations.gas_machinist import (
     VaporSpawnAnimation,
     DivergeAnimation,
     DivergeAnimationUpgraded,
     AerosolizeArmsAnimation,
-    VaporAOETickAnimation,
-)
+    VaporAOETickAnimation)
 from boneglaive.graphical.animations.core_animations import (
-    RespawnAnimation,
-)
+    RespawnAnimation)
 from boneglaive.graphical.animations.landscaper import (
     HornswoggleAnimation,
     TopiaryBreathAnimation,
     DissonanceAnimation,
     SlagWallDespawnAnimation,
-    TopiaryRevertAnimation,
-)
+    TopiaryRevertAnimation)
 
 from boneglaive.graphical.animations.ordnance_graft import (
     InoculantAnimation,
     DroneInoculantAnimation,
     SkyhookAnimationController,
-    HarvestAnimation,
-)
+    HarvestAnimation)
 
 # Import sound system
 from boneglaive.graphical.sound_registry import get_sound_for_skill
 from boneglaive.graphical.sound_manager import get_sound_manager
-
-if TYPE_CHECKING:
-    from boneglaive.game.units import Unit
-    from boneglaive.graphical.camera import Camera
 
 
 class AnimationFactory:
@@ -1217,91 +1200,6 @@ class AnimationFactory:
                     units_list=units_list if units_list else [],
                     camera=camera,
                     game=kwargs.get('game')  # Required for finding nearby furniture
-                )
-            elif anim_class.__name__ == "MatadorAnimation":
-                # Matador - MASSIVE pelota projectile with multi-bounce ricochet
-                # Requires: caster_unit, target_pos, camera, particle_emitter, game, bounce_count
-                if not target_pos:
-                    return None
-                animation = anim_class(
-                    caster_unit=caster_unit,
-                    target_pos=target_pos,
-                    camera=camera,
-                    particle_emitter=particle_emitter,
-                    game=kwargs.get('game'),
-                    bounce_count=kwargs.get('bounce_count', 2)
-                )
-            elif anim_class.__name__ == "PoachAnimation":
-                # Poach - Medium pelota with ricochet and buff stealing
-                # Requires: caster_unit, target_pos, camera, particle_emitter, game, screen shake/flash
-                if not target_pos:
-                    return None
-
-                animation = anim_class(
-                    caster_unit=caster_unit,
-                    target_pos=target_pos,
-                    camera=camera,
-                    particle_emitter=particle_emitter,
-                    screen_shake_callback=screen_shake_callback,
-                    screen_flash_callback=screen_flash_callback,
-                    game=kwargs.get('game')
-                )
-            elif anim_class.__name__ == "BackhandAnimation":
-                # Backhand - Self-buff stance animation
-                # Requires: full standard signature (self-buff uses caster position as target)
-                animation = anim_class(
-                    caster_unit=caster_unit,
-                    target_unit=target_unit,  # None for self-buff
-                    target_pos=target_pos if target_pos else (caster_unit.grid_y, caster_unit.grid_x),
-                    is_crit=is_crit,
-                    is_infused=is_infused,
-                    particle_emitter=particle_emitter,
-                    debris_list=debris_list if debris_list else [],
-                    screen_shake_callback=screen_shake_callback,
-                    screen_flash_callback=screen_flash_callback,
-                    units_list=units_list if units_list else [],
-                    camera=camera,
-                    game=game
-                )
-            elif anim_class.__name__ == "BackhandReflectionAnimation":
-                # Backhand Reflection - Reflected skill projectile animation
-                # Requires: caster, target_pos (not used), camera, particle_emitter, callbacks, game
-                # Plus: trajectory (list of positions), reflected_skill_name (reflected skill), bounce_count, is_infused, is_crit
-                animation = anim_class(
-                    caster_unit=caster_unit,
-                    target_pos=target_pos if target_pos else (0, 0),  # Not used
-                    camera=camera,
-                    particle_emitter=particle_emitter,
-                    screen_shake_callback=screen_shake_callback,
-                    screen_flash_callback=screen_flash_callback,
-                    game=game,
-                    trajectory=trajectory if trajectory else [],
-                    skill_name=reflected_skill_name if reflected_skill_name else 'Estrange',
-                    bounce_count=bounce_count,
-                    is_infused=is_infused,
-                    is_crit=is_crit
-                )
-            elif anim_class.__name__ == "DerelictBuildingFormation":
-                # Derelict Building Formation - Building rising animation
-                # Requires: building_tiles (list of grid positions), camera, game
-                if not building_tiles:
-                    return None
-
-                animation = anim_class(
-                    building_tiles=building_tiles,
-                    camera=camera,
-                    game=game
-                )
-            elif anim_class.__name__ == "DerelictBuildingTiles":
-                # Derelict Building Tiles - Persistent building tile effect
-                # Requires: building_tiles (list of grid positions), camera, game
-                if not building_tiles:
-                    return None
-
-                animation = anim_class(
-                    building_tiles=building_tiles,
-                    camera=camera,
-                    game=game
                 )
             elif anim_class.__name__ in ["InoculantAnimation", "HarvestAnimation"]:
                 # ORDNANCE GRAFT skills - full signature; Harvest reads bombed units off game.

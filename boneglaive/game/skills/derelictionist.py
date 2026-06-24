@@ -8,8 +8,6 @@ trauma processing, and distance-based healing mechanics.
 """
 
 
-import random
-import math
 from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType

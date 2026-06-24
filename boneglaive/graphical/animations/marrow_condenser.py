@@ -6,7 +6,7 @@ Skill animations for the MARROW CONDENSER unit.
 import pygame
 import random
 import math
-from .core import TILE_SIZE, COLOR_DAMAGE, COLOR_SKILL
+from .core import TILE_SIZE
 from boneglaive.graphical.sound_helper import play_sound
 
 

@@ -9,12 +9,12 @@ units into topiary sculptures, and shattering terrain and furniture for piercing
 shrapnel damage.
 """
 
-from typing import Optional, List, Tuple, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
-from boneglaive.utils.constants import UnitType, INVULNERABLE_PRT
+from boneglaive.utils.constants import INVULNERABLE_PRT
 
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit

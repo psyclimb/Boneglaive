@@ -4,7 +4,7 @@ Setup Window UI Component
 Modal window for selecting unit types during setup phase.
 """
 import pygame
-from typing import Optional, List, Tuple
+from typing import Optional, Tuple
 from pathlib import Path
 from .font_utils import render_fitted_text
 from .scrollbar import Scrollbar
@@ -128,18 +128,6 @@ class SetupWindow:
         self.units_remaining = units_remaining
         self.unit_counts = unit_counts.copy()
         self.can_confirm = (units_remaining == 0)
-
-    def select_next(self):
-        """Select next unit type in list."""
-        if self.unit_types:
-            self.selected_index = (self.selected_index + 1) % len(self.unit_types)
-            self._ensure_visible(self.selected_index)
-
-    def select_prev(self):
-        """Select previous unit type in list."""
-        if self.unit_types:
-            self.selected_index = (self.selected_index - 1) % len(self.unit_types)
-            self._ensure_visible(self.selected_index)
 
     def get_selected_unit_type(self):
         """Get currently selected unit type."""
@@ -424,20 +412,12 @@ class SetupWindow:
             item_rect = pygame.Rect(window_x + 15, item_y, WINDOW_WIDTH - 30, ITEM_HEIGHT)
             self.item_rects.append(item_rect)
 
-            # Check if this is a placeholder unit
-            is_placeholder = isinstance(unit_type, str)
-
             # Check if maxed
-            is_maxed = self.is_unit_type_maxed(unit_type) if not is_placeholder else True
-            unit_count = self.unit_counts.get(unit_type, 0) if not is_placeholder else 0
+            is_maxed = self.is_unit_type_maxed(unit_type)
+            unit_count = self.unit_counts.get(unit_type, 0)
 
             # Determine background colors and style (matching main menu buttons)
-            if is_placeholder:
-                bg_top = (60, 40, 80)  # Purple-ish tint for placeholder
-                bg_bottom = (50, 30, 70)
-                border_color = COLOR_WINDOW_BORDER
-                show_glow = False
-            elif is_maxed:
+            if is_maxed:
                 bg_top = COLOR_MAXED
                 bg_bottom = (60, 30, 30)
                 border_color = COLOR_WINDOW_BORDER
@@ -479,58 +459,32 @@ class SetupWindow:
             # Draw border
             pygame.draw.rect(screen, border_color, item_rect, 2, border_radius=5)
 
-            if is_placeholder:
-                # Draw glaives for placeholder unit
-                alpha = 255
+            # Draw sprite
+            sprite = self.sprite_cache.get(unit_type)
+            if sprite:
+                sprite_rect = sprite.get_rect(midleft=(item_rect.left + 10, item_rect.centery))
+                screen.blit(sprite, sprite_rect)
 
-                # Draw 5 small glaives
-                glaive_start_x = item_rect.left + 60
-                glaive_y = item_rect.centery + 12
-                for g in range(5):
-                    glaive_x = glaive_start_x + (g * 25)
-                    self._draw_small_glaive(screen, glaive_x, glaive_y, 8, alpha, (220, 180, 255))
+            # Draw unit name
+            text_color = COLOR_TEXT_DISABLED if is_maxed else COLOR_TEXT
+            name_text = self.small_font.render(self.unit_names[unit_type], True, text_color)
+            name_rect = name_text.get_rect(midleft=(item_rect.left + 60, item_rect.centery - 10))
+            screen.blit(name_text, name_rect)
 
-                # Draw placeholder name
-                name_text = self.small_font.render(self.unit_names[unit_type], True, (180, 140, 200))
-                name_rect = name_text.get_rect(midleft=(item_rect.left + 60, item_rect.centery - 10))
-                screen.blit(name_text, name_rect)
+            # Draw count (x/1) - only 1 of each unit allowed
+            count_color = (255, 100, 100) if is_maxed else COLOR_INFO
+            count_text = self.small_font.render(f"({unit_count}/1)", True, count_color)
+            count_rect = count_text.get_rect(midright=(item_rect.right - 10, item_rect.centery - 10))
+            screen.blit(count_text, count_rect)
 
-                # Draw "COMING SOON" text
-                coming_soon_text = self.small_font.render("COMING SOON", True, (150, 120, 170))
-                coming_soon_rect = coming_soon_text.get_rect(midright=(item_rect.right - 10, item_rect.centery - 10))
-                screen.blit(coming_soon_text, coming_soon_rect)
-
-                # Draw question mark icon
-                question_mark = self.font.render("?", True, (150, 120, 170))
-                question_rect = question_mark.get_rect(midleft=(item_rect.left + 10, item_rect.centery))
-                screen.blit(question_mark, question_rect)
-            else:
-                # Draw sprite
-                sprite = self.sprite_cache.get(unit_type)
-                if sprite:
-                    sprite_rect = sprite.get_rect(midleft=(item_rect.left + 10, item_rect.centery))
-                    screen.blit(sprite, sprite_rect)
-
-                # Draw unit name
-                text_color = COLOR_TEXT_DISABLED if is_maxed else COLOR_TEXT
-                name_text = self.small_font.render(self.unit_names[unit_type], True, text_color)
-                name_rect = name_text.get_rect(midleft=(item_rect.left + 60, item_rect.centery - 10))
-                screen.blit(name_text, name_rect)
-
-                # Draw count (x/1) - only 1 of each unit allowed
-                count_color = (255, 100, 100) if is_maxed else COLOR_INFO
-                count_text = self.small_font.render(f"({unit_count}/1)", True, count_color)
-                count_rect = count_text.get_rect(midright=(item_rect.right - 10, item_rect.centery - 10))
-                screen.blit(count_text, count_rect)
-
-                # Draw stats for this unit
-                hp, atk, defense, move_range, attack_range = UNIT_STATS[unit_type]
-                stats_text = self.small_font.render(
-                    f"HP:{hp} ATK:{atk} DEF:{defense} MV:{move_range} RNG:{attack_range}",
-                    True, text_color
-                )
-                stats_rect = stats_text.get_rect(midleft=(item_rect.left + 60, item_rect.centery + 12))
-                screen.blit(stats_text, stats_rect)
+            # Draw stats for this unit
+            hp, atk, defense, move_range, attack_range = UNIT_STATS[unit_type]
+            stats_text = self.small_font.render(
+                f"HP:{hp} ATK:{atk} DEF:{defense} MV:{move_range} RNG:{attack_range}",
+                True, text_color
+            )
+            stats_rect = stats_text.get_rect(midleft=(item_rect.left + 60, item_rect.centery + 12))
+            screen.blit(stats_text, stats_rect)
 
         # Remove clipping
         screen.set_clip(None)
@@ -553,89 +507,6 @@ class SetupWindow:
         instr_text = self.small_font.render(instructions, True, COLOR_TEXT_DIM)
         instr_rect = instr_text.get_rect(center=(window_x + WINDOW_WIDTH // 2, instructions_y))
         screen.blit(instr_text, instr_rect)
-
-    def _draw_selected_stats(self, screen: pygame.Surface, window_x: int, window_y: int):
-        """Draw detailed stats for selected unit."""
-        if not (0 <= self.selected_index < len(self.unit_types)):
-            return
-
-        unit_type = self.unit_types[self.selected_index]
-
-        # Check if this is a placeholder unit
-        is_placeholder = isinstance(unit_type, str)
-
-        # Stats area
-        stats_y = window_y + WINDOW_HEIGHT - 140
-        stats_rect = pygame.Rect(window_x + 15, stats_y, WINDOW_WIDTH - 30, 60)
-        pygame.draw.rect(screen, COLOR_TITLE_BG, stats_rect, border_radius=5)
-        pygame.draw.rect(screen, COLOR_WINDOW_BORDER, stats_rect, 1, border_radius=5)
-
-        # Draw "Selected:" label
-        label_text = self.small_font.render("Selected:", True, COLOR_INFO)
-        screen.blit(label_text, (stats_rect.left + 10, stats_rect.top + 5))
-
-        # Draw unit name
-        name_color = (180, 140, 200) if is_placeholder else COLOR_GOLD
-        name_text = self.small_font.render(self.unit_names[unit_type], True, name_color)
-        screen.blit(name_text, (stats_rect.left + 10, stats_rect.top + 25))
-
-        if is_placeholder:
-            # Draw placeholder message
-            placeholder_text = self.small_font.render("Stats unknown - Coming soon!", True, (150, 120, 170))
-            screen.blit(placeholder_text, (stats_rect.left + 10, stats_rect.top + 43))
-        else:
-            # Draw stats on second line
-            hp, atk, defense, move_range, attack_range = UNIT_STATS[unit_type]
-            stats_lines = [
-                f"HP: {hp}",
-                f"ATK: {atk}",
-                f"DEF: {defense}",
-                f"Move: {move_range}",
-                f"Range: {attack_range}"
-            ]
-
-            x_offset = stats_rect.left + 10
-            for stat in stats_lines:
-                stat_text = self.small_font.render(stat, True, COLOR_TEXT)
-                screen.blit(stat_text, (x_offset, stats_rect.top + 43))
-                x_offset += stat_text.get_width() + 15
-
-    def _draw_small_glaive(self, surface: pygame.Surface, x: int, y: int, size: int, alpha: int, color: tuple):
-        """
-        Draw a small static six-pointed glaive.
-
-        Args:
-            surface: Surface to draw on
-            x, y: Center position
-            size: Radius of glaive
-            alpha: Transparency (0-255)
-            color: RGB tuple for glaive color
-        """
-        import math
-
-        # Six blades radiating from center
-        for blade in range(6):
-            angle = math.radians(blade * 60)
-            # Outer point
-            px1 = x + math.cos(angle) * size
-            py1 = y + math.sin(angle) * size
-            # Inner left
-            angle_l = math.radians(blade * 60 - 15)
-            px2 = x + math.cos(angle_l) * (size * 0.4)
-            py2 = y + math.sin(angle_l) * (size * 0.4)
-            # Inner right
-            angle_r = math.radians(blade * 60 + 15)
-            px3 = x + math.cos(angle_r) * (size * 0.4)
-            py3 = y + math.sin(angle_r) * (size * 0.4)
-
-            # Draw blade triangle with alpha
-            blade_color = (*color, alpha)
-            pygame.draw.polygon(surface, blade_color,
-                              [(px1, py1), (px2, py2), (px3, py3)])
-
-        # Center hub
-        hub_color = (*color, alpha)
-        pygame.draw.circle(surface, hub_color, (int(x), int(y)), int(size * 0.3))
 
     def _draw_confirm_button(self, screen: pygame.Surface, window_x: int, window_y: int):
         """Draw the confirm setup button."""

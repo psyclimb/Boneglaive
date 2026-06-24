@@ -4,7 +4,7 @@ Upgrade Window UI Component
 Modal window for selecting unit skill upgrades during gameplay.
 """
 import pygame
-from typing import Optional, List, Dict
+from typing import Optional, Dict
 from boneglaive.utils.paths import asset_path, load_svg
 
 # Colors - matching bone/industrial theme

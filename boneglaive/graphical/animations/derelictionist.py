@@ -6,7 +6,7 @@ Skill animations for the DERELICTIONIST unit.
 import pygame
 import random
 import math
-from .core import TILE_SIZE, COLOR_DAMAGE, COLOR_SKILL
+from .core import TILE_SIZE
 from boneglaive.graphical.sound_helper import play_sound
 
 
@@ -867,142 +867,6 @@ class RollingEyesEffect:
                 surface.blit(eye_surf, (int(eye_x - eye_size), int(eye_y - eye_size)))
 
 
-class SeveranceLine:
-    """
-    Brilliant ice-blue-white line connecting protected unit to DERELICTIONIST.
-    Stretches, then snaps dramatically.
-    """
-    def __init__(self, start_x, start_y, end_x, end_y):
-        self.start_x = start_x
-        self.start_y = start_y
-        self.end_x = end_x
-        self.end_y = end_y
-        self.timer = 0
-        self.duration = 0.8
-        self.active = True
-
-        # Line properties
-        self.thickness = 1
-        self.stretch_amount = 0
-        self.snapped = False
-
-    def update(self, delta_time):
-        """Update severance line (appear, stretch, snap)."""
-        if not self.active:
-            return False
-
-        self.timer += delta_time
-
-        # Phase 1: Appear and stretch (0-0.6s)
-        if self.timer < 0.6:
-            progress = self.timer / 0.6
-            self.thickness = int(1 + 3 * progress)  # Grow to 4px
-            self.stretch_amount = progress * 10  # Stretch by 10 pixels
-
-        # Phase 2: Snap (0.6-0.8s)
-        elif self.timer < 0.8:
-            self.snapped = True
-            self.active = False  # Line disappears when snapped
-
-        return self.active
-
-    def draw(self, surface):
-        """Draw severance line."""
-        if not self.active or self.snapped:
-            return
-
-        # Calculate stretched positions
-        dx = self.end_x - self.start_x
-        dy = self.end_y - self.start_y
-        length = math.sqrt(dx * dx + dy * dy)
-
-        if length > 0:
-            # Normalize direction
-            nx = dx / length
-            ny = dy / length
-
-            # Add stretch to end point (pull away from DERELICTIONIST)
-            stretched_end_x = self.end_x + nx * self.stretch_amount
-            stretched_end_y = self.end_y + ny * self.stretch_amount
-
-            # Pulsing alpha
-            alpha = int(200 + 55 * math.sin(self.timer * 10))
-
-            # Draw main line (bright ice-blue-white)
-            pygame.draw.line(surface, (154, 202, 248, alpha),
-                           (int(self.start_x), int(self.start_y)),
-                           (int(stretched_end_x), int(stretched_end_y)),
-                           self.thickness)
-
-            # Inner glow
-            if self.thickness > 2:
-                pygame.draw.line(surface, (232, 232, 240, alpha),
-                               (int(self.start_x), int(self.start_y)),
-                               (int(stretched_end_x), int(stretched_end_y)),
-                               self.thickness - 1)
-
-
-class LineSnapParticles:
-    """
-    Particle burst when severance line snaps.
-    Cold blue particles scatter from break point.
-    """
-    def __init__(self, center_x, center_y):
-        self.center_x = center_x
-        self.center_y = center_y
-        self.timer = 0
-        self.duration = 0.4
-        self.active = True
-
-        # Create particles
-        self.particles = []
-        for i in range(15):
-            angle = random.uniform(0, 2 * math.pi)
-            speed = random.uniform(30, 80)
-            self.particles.append({
-                'x': center_x,
-                'y': center_y,
-                'vx': math.cos(angle) * speed,
-                'vy': math.sin(angle) * speed,
-                'size': random.uniform(2, 5)
-            })
-
-    def update(self, delta_time):
-        """Update snap particles."""
-        if not self.active:
-            return False
-
-        self.timer += delta_time
-
-        # Update particle positions
-        for p in self.particles:
-            p['x'] += p['vx'] * delta_time
-            p['y'] += p['vy'] * delta_time
-            # Slow down
-            p['vx'] *= 0.95
-            p['vy'] *= 0.95
-
-        if self.timer >= self.duration:
-            self.active = False
-
-        return self.active
-
-    def draw(self, surface):
-        """Draw snap particles."""
-        if not self.active:
-            return
-
-        progress = self.timer / self.duration
-        alpha = int(220 * (1.0 - progress))
-
-        if alpha > 0:
-            for p in self.particles:
-                particle_surf = pygame.Surface((int(p['size'] * 2), int(p['size'] * 2)), pygame.SRCALPHA)
-                pygame.draw.circle(particle_surf, (154, 202, 248, alpha),
-                                 (int(p['size']), int(p['size'])), int(p['size']))
-                surface.blit(particle_surf, (int(p['x'] - p['size']), int(p['y'] - p['size'])))
-
-
 class AnchoredEffect:
     """
     Heavy particles settling downward around unit (Derelicted/immobilized effect).
@@ -1379,7 +1243,7 @@ class FragmentationCracks:
         if frag_alpha > 0:
             for frag in self.fragments:
                 frag_surf = pygame.Surface((int(frag['size'] * 2), int(frag['size'] * 2)), pygame.SRCALPHA)
-                color = frag['color_choice'] + (frag_alpha,)
+                color = frag['color_choice'] + (frag_alpha)
                 pygame.draw.circle(frag_surf, color,
                                  (int(frag['size']), int(frag['size'])), int(frag['size']))
                 surface.blit(frag_surf, (int(frag['x'] - frag['size']), int(frag['y'] - frag['size'])))
@@ -1458,8 +1322,8 @@ class FallingMetalBeam:
 
         # Draw metal beam with edge highlight
         beam_rect = pygame.Rect(2, 2, self.width, self.height)
-        pygame.draw.rect(beam_surf, self.color + (alpha,), beam_rect)
-        pygame.draw.rect(beam_surf, self.edge_color + (alpha,), beam_rect, 1)
+        pygame.draw.rect(beam_surf, self.color + (alpha), beam_rect)
+        pygame.draw.rect(beam_surf, self.edge_color + (alpha), beam_rect, 1)
 
         # Rotate
         rotated_surf = pygame.transform.rotate(beam_surf, self.rotation)
@@ -1516,14 +1380,14 @@ class MetalStructure:
         # Draw metal structure
         struct_rect = pygame.Rect(5, 5, self.width, self.height)
         alpha = 255
-        pygame.draw.rect(struct_surf, self.base_color + (alpha,), struct_rect)
+        pygame.draw.rect(struct_surf, self.base_color + (alpha), struct_rect)
         pygame.draw.rect(struct_surf, (48, 48, 48, alpha), struct_rect, 1)
 
         # Ice-blue glow during locking
         if self.active:
             glow_alpha = int(180 * (1.0 - progress))
             if glow_alpha > 0:
-                pygame.draw.rect(struct_surf, self.glow_color + (glow_alpha,), struct_rect, 2)
+                pygame.draw.rect(struct_surf, self.glow_color + (glow_alpha), struct_rect, 2)
 
         # Rotate
         rotated_surf = pygame.transform.rotate(struct_surf, self.angle)
@@ -1943,7 +1807,7 @@ class SeveranceDissolve:
         if frag_alpha > 0:
             for frag in self.fragments:
                 frag_surf = pygame.Surface((int(frag['size'] * 2), int(frag['size'] * 2)), pygame.SRCALPHA)
-                color = frag['color'] + (frag_alpha,)
+                color = frag['color'] + (frag_alpha)
                 pygame.draw.circle(frag_surf, color, (int(frag['size']), int(frag['size'])), int(frag['size']))
                 surface.blit(frag_surf, (int(frag['x'] - frag['size']), int(frag['y'] - frag['size'])))
 
@@ -2013,7 +1877,7 @@ class IceParticleSwirl:
                 py = self.center_y + math.sin(p['angle']) * p['radius']
 
                 particle_surf = pygame.Surface((int(p['size'] * 2), int(p['size'] * 2)), pygame.SRCALPHA)
-                color = p['color'] + (alpha,)
+                color = p['color'] + (alpha)
                 pygame.draw.circle(particle_surf, color, (int(p['size']), int(p['size'])), int(p['size']))
                 surface.blit(particle_surf, (int(px - p['size']), int(py - p['size'])))
 
@@ -2078,7 +1942,7 @@ class FragmentReassembly:
                 current_y = frag['start_y'] + (self.center_y - frag['start_y']) * ease_progress
 
                 frag_surf = pygame.Surface((int(frag['size'] * 2), int(frag['size'] * 2)), pygame.SRCALPHA)
-                color = frag['color'] + (alpha,)
+                color = frag['color'] + (alpha)
                 pygame.draw.circle(frag_surf, color, (int(frag['size']), int(frag['size'])), int(frag['size']))
                 surface.blit(frag_surf, (int(current_x - frag['size']), int(current_y - frag['size'])))
 
@@ -2820,7 +2684,7 @@ class FractureExplosion:
         if particle_alpha > 0:
             for p in self.particles:
                 particle_surf = pygame.Surface((int(p['size'] * 2), int(p['size'] * 2)), pygame.SRCALPHA)
-                color = p['color'] + (particle_alpha,)
+                color = p['color'] + (particle_alpha)
                 pygame.draw.circle(particle_surf, color, (int(p['size']), int(p['size'])), int(p['size']))
                 surface.blit(particle_surf, (int(p['x'] - p['size']), int(p['y'] - p['size'])))
 

@@ -5,7 +5,6 @@ Handles loading/saving settings and provides defaults.
 """
 
 import json
-import os
 from dataclasses import asdict, dataclass
 from enum import Enum
 from pathlib import Path

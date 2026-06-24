@@ -7,7 +7,6 @@ This module contains all passive and active abilities for GRAYMAN units.
 from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
-from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
 from boneglaive.utils.constants import UnitType
 
@@ -121,7 +120,6 @@ class DeltaConfigSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Delta Config teleportation skill."""
         from boneglaive.utils.message_log import message_log, MessageType
-        import time
         from boneglaive.game.upgrades import UpgradeManager
 
         # SAFETY CHECK: Verify target position is still valid and empty
@@ -374,7 +372,6 @@ class EstrangeSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Estrange skill to phase a target out of normal spacetime."""
         from boneglaive.utils.message_log import message_log, MessageType
-        import time
 
 
         # Get target unit
@@ -550,8 +547,6 @@ class GraeExchangeSkill(ActiveSkill):
         """Execute the Græ Exchange skill - banish target enemy and replace with doppelganger."""
         from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
-        import time
-        from boneglaive.game.upgrades import UpgradeManager
 
         # Get target unit
         target = game.get_unit_at(target_pos[0], target_pos[1])

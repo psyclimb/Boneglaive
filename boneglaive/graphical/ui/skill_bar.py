@@ -4,8 +4,7 @@ Skill Bar UI Component
 Displays available skills for the selected unit with hotkeys.
 """
 import pygame
-import os
-from typing import Optional, List, Tuple, Dict, Set
+from typing import Optional, List, Tuple, Dict
 from .font_utils import render_fitted_text
 from .loto_system import LOTORenderer
 from boneglaive.utils.paths import asset_path, load_svg
@@ -397,20 +396,3 @@ class SkillBar:
 
         return None
 
-    def get_tooltip(self, mouse_pos: Tuple[int, int]) -> Optional[str]:
-        """
-        Get tooltip text for hovered skill.
-
-        Returns:
-            Tooltip string or None
-        """
-        for slot in self.skill_slots:
-            if slot.contains_point(mouse_pos):
-                skill = slot.skill
-                tooltip = f"{skill.name}\n{skill.description}"
-                if skill.current_cooldown > 0:
-                    tooltip += f"\nCooldown: {skill.current_cooldown} turns"
-                if skill.range > 0:
-                    tooltip += f"\nRange: {skill.range}"
-                return tooltip
-        return None

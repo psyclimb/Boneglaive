@@ -37,10 +37,6 @@ class FontCache:
 
         return self._cache[key]
 
-    def clear(self):
-        """Clear the font cache."""
-        self._cache.clear()
-
 
 # Global font cache instance
 _font_cache = FontCache()
@@ -153,8 +149,3 @@ def render_fitted_text(text: str,
     )
 
     return font.render(text, antialias, color)
-
-
-def clear_font_cache():
-    """Clear the global font cache."""
-    _font_cache.clear()

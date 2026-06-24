@@ -6,8 +6,7 @@ Screens for game settings configuration.
 import pygame
 from typing import Optional
 from .menu_components import (
-    MenuScreen, MenuPanel, Button, Slider, Checkbox, COLOR_TEXT,
-    menu_button_width, menu_button_height, menu_button_spacing, menu_start_y
+    MenuScreen, MenuPanel, Button, Slider, Checkbox,     menu_button_width, menu_button_height, menu_button_spacing, menu_start_y
 )
 from boneglaive.utils.config import ConfigManager
 from boneglaive.graphical.sound_manager import get_sound_manager

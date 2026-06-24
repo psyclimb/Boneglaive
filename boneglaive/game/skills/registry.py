@@ -28,7 +28,7 @@ from boneglaive.game.skills.fowl_contrivance import (
 )
 
 from boneglaive.game.skills.gas_machinist import (
-    EffluviumLathe, EnbroachmentGasSkill, SaftEGasSkill, DivergeSkill, AerosolizeArmsSkill
+    EffluviumLathe, EnbroachmentGasSkill, SaftEGasSkill, DivergeSkill
 )
 
 from boneglaive.game.skills.delphic_appraiser import (

@@ -37,7 +37,6 @@ from .mandible_foreman import (
     JawRelease,
     ViseroyTrap,
     ViseroyRelease,
-    SiteInspectionBuff,
     SiteInspectionScan,
     SiteInspectionScanUpgraded,
     ExpediteRush,
@@ -49,10 +48,8 @@ from .potpourrist import (
     PedestalStrike,
     InfuseEffect,
     DemiluneSwing,
-    LunacyEffect,
     GraniteGeasEffect,
     GeasBreakHeal,
-    MelangeEminence,
     MelangeEminenceHealAnimation,
     MelangeEminenceInfusedHealAnimation
 )
@@ -108,7 +105,6 @@ from .derelictionist import (
 from .fowl_contrivance import (
     ParabolAnimation,
     FragcrestAnimation,
-    GaussianDuskChargeAnimation,
     GaussianDuskFireAnimation,
     RailGenesisDeathExplosionAnimation,
 )
@@ -152,7 +148,6 @@ __all__ = [
     'JawRelease',
     'ViseroyTrap',
     'ViseroyRelease',
-    'SiteInspectionBuff',
     'SiteInspectionScan',
     'SiteInspectionScanUpgraded',
     'ExpediteRush',
@@ -162,10 +157,8 @@ __all__ = [
     'PedestalStrike',
     'InfuseEffect',
     'DemiluneSwing',
-    'LunacyEffect',
     'GraniteGeasEffect',
     'GeasBreakHeal',
-    'MelangeEminence',
     'MelangeEminenceHealAnimation',
     'MelangeEminenceInfusedHealAnimation',
     # Grayman
@@ -191,7 +184,6 @@ __all__ = [
     # Marrow Condenser
     'OssifyAnimation',
     'BoneTitheAnimation',
-    'BoneTitheAnimationUpgraded',
     'MarrowDikeAnimation',
     'MarrowDikeWallDespawnAnimation',
     # Derelictionist
@@ -208,7 +200,6 @@ __all__ = [
     # Fowl Contrivance
     'ParabolAnimation',
     'FragcrestAnimation',
-    'GaussianDuskChargeAnimation',
     'GaussianDuskFireAnimation',
     'RailGenesisDeathExplosionAnimation',
     # Gas Machinist

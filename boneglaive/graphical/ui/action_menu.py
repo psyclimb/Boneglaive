@@ -4,7 +4,7 @@ Action Menu UI Component
 Displays action buttons for Move, Attack, Execute, etc.
 """
 import pygame
-from typing import Optional, Tuple, Callable, Set
+from typing import Optional, Tuple
 from .font_utils import render_fitted_text
 from .loto_system import LOTORenderer, LOTOChecker
 from boneglaive.utils.paths import asset_path, load_svg
@@ -231,7 +231,6 @@ class ActionButton:
         if self.action == "respawn":
             import math
             import time
-            import os
 
             # Load skeletal hand icon if not cached
             if self.skeletal_hand_icon is None:
@@ -271,7 +270,6 @@ class ActionButton:
         if self.action == "upgrade":
             import math
             import time
-            import os
 
             # Load lightning bolt icon if not cached
             if self.lightning_bolt_icon is None:
@@ -309,7 +307,6 @@ class ActionButton:
 
         # Draw gears icon on execute button - ALWAYS visible, grey color
         if self.action == "execute":
-            import os
 
             # Load gears icon if not cached
             if self.gears_icon is None:
@@ -336,7 +333,6 @@ class ActionButton:
 
         # Draw glaive icon on attack button - ALWAYS visible, grey color
         if self.action == "attack":
-            import os
 
             # Load glaive icon if not cached
             if self.glaive_icon is None:
@@ -363,8 +359,6 @@ class ActionButton:
 
         # Draw toolbox icon on skills button - ALWAYS visible, grey color
         if self.action == "skills":
-            import os
-
             # Load toolbox icon if not cached
             if self.toolbox_icon is None:
                 icon_path = asset_path("graphics/ui/toolbox.svg")
@@ -390,7 +384,6 @@ class ActionButton:
 
         # Draw help scream icon on help button - ALWAYS visible
         if self.action == "help":
-            import os
 
             # Load help scream icon if not cached
             if self.help_scream_icon is None:
@@ -417,8 +410,6 @@ class ActionButton:
 
         # Draw white flag icon on concede button - ALWAYS visible
         if self.action == "concede":
-            import os
-
             # Load white flag icon if not cached
             if self.white_flag_icon is None:
                 icon_path = asset_path("graphics/ui/white_flag.svg")
@@ -692,7 +683,6 @@ class ActionMenu:
 
         # Draw all particles AFTER all buttons (so they appear on top)
         for particle_data in particle_data_list:
-            import random
             import math
             time_val = particle_data['time_val']
             pulse = particle_data['pulse']

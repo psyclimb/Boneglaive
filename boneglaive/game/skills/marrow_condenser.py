@@ -5,7 +5,6 @@ This module contains all passive and active abilities for MARROW CONDENSER units
 """
 
 from typing import Optional, TYPE_CHECKING
-import random
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
@@ -129,7 +128,6 @@ class OssifySkill(ActiveSkill):
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Ossify skill during turn resolution."""
-        import time
 
 
         # Check for Dominion auto-upgrade (from kills in Marrow Dike)
@@ -306,7 +304,6 @@ class MarrowDikeSkill(ActiveSkill):
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Marrow Dike skill during turn resolution."""
         from boneglaive.game.map import TerrainType
-        import time
         
         # Clear the indicator since we're executing
         user.marrow_dike_indicator = None
@@ -692,7 +689,6 @@ class BoneTitheSkill(ActiveSkill):
         
     def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
         """Execute the Bone Tithe skill during turn resolution."""
-        import time
         from boneglaive.utils.debug import logger
         
         # Log that we're executing this skill

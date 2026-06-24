@@ -3,10 +3,9 @@
 Core Animation Classes
 General-purpose animations used across multiple units or game events.
 """
-import pygame
 import random
 import math
-from .core import TILE_SIZE, Particle
+from .core import Particle
 from boneglaive.graphical.sound_helper import play_sound
 
 

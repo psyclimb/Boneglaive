@@ -5,7 +5,7 @@ Determines high-level strategy and team objectives.
 """
 
 from enum import Enum
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, List
 from boneglaive.utils.debug import logger
 
 if TYPE_CHECKING:
@@ -220,42 +220,3 @@ class StrategicPlanner:
         if plan.defend_units:
             logger.debug(f"Defend units: {[u.get_display_name() for u in plan.defend_units]}")
 
-    def should_be_aggressive(self, plan: StrategicPlan) -> bool:
-        """
-        Check if current strategy calls for aggressive play.
-
-        Args:
-            plan: Current strategic plan
-
-        Returns:
-            True if strategy is aggressive
-        """
-        return plan.strategy in [Strategy.AGGRESSIVE_PUSH, Strategy.DESPERATE_RUSH]
-
-    def should_prioritize_safety(self, plan: StrategicPlan) -> bool:
-        """
-        Check if current strategy prioritizes safety.
-
-        Args:
-            plan: Current strategic plan
-
-        Returns:
-            True if strategy prioritizes safety
-        """
-        return plan.strategy in [Strategy.DEFENSIVE_HOLD, Strategy.TRADE_EFFICIENTLY]
-
-    def get_objective_priority(self, plan: StrategicPlan, objective_type: str) -> float:
-        """
-        Get priority value for a specific objective.
-
-        Args:
-            plan: Current strategic plan
-            objective_type: Type of objective to query
-
-        Returns:
-            Priority value (0.0 to 1.0)
-        """
-        for objective in plan.objectives:
-            if objective.type == objective_type:
-                return objective.priority
-        return 0.0

@@ -12,7 +12,6 @@ from boneglaive.graphical.sound_helper import play_sound
 # Carabiner glow colors from the sprite
 COLOR_CARABINER_GLOW = (0, 191, 255)  # #00bfff - deep sky blue
 COLOR_RADIO_WAVE = (0, 206, 209)  # #00ced1 - dark turquoise
-COLOR_FLASH_BRIGHT = (255, 255, 255)  # Bright white for the illuminant effect
 COLOR_FLASH_CORE = (200, 240, 255)  # Pale blue for core
 
 

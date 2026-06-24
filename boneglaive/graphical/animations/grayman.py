@@ -6,7 +6,7 @@ Skill animations for the GRAYMAN unit.
 import pygame
 import random
 import math
-from .core import TILE_SIZE, Particle, DebrisParticle
+from .core import TILE_SIZE, Particle
 from boneglaive.graphical.sound_helper import play_sound
 
 

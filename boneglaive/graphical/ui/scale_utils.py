@@ -92,17 +92,6 @@ class ScaleManager:
         else:  # uniform
             return int(value * self.scale_uniform)
 
-    def scale_tuple(self, values, axis='uniform'):
-        """Scale a tuple of values."""
-        if axis == 'uniform':
-            return tuple(int(v * self.scale_uniform) for v in values)
-        elif axis == 'xy':
-            return (int(values[0] * self.scale_x), int(values[1] * self.scale_y))
-        else:
-            scale_factor = self.scale_x if axis == 'x' else self.scale_y
-            return tuple(int(v * scale_factor) for v in values)
-
-
 # Singleton instance — UI components import this as: from .scale_utils import scale_manager
 scale_manager = ScaleManager()
 

@@ -102,8 +102,6 @@ PRE_EXECUTION_BLOCKING_SKILLS = [
     "Pry", "PRY",
     # NOTE: Judgement removed from pre-execution so it plays AFTER moves execute
     "Autoclave", "AUTOCLAVE",
-    "Matador", "MATADOR",
-    "Poach", "POACH",
     "Vault_Upgraded", "VAULT_UPGRADED",  # Upgraded Vault with AOE landing impact
     # NOTE: Jawline removed - it doesn't displace units, so it should play AFTER moves execute
 ]
@@ -350,30 +348,6 @@ class GraphicalRenderer:
 
         self.running = True
         self.paused = False
-
-    def setup_demo_scene(self):
-        """
-        Set up a demo scene with test units.
-        For initial testing before game logic is hooked up.
-        """
-        # Create test units
-        player_unit = AnimatedUnit(
-            "GLAIVEMAN", player=0,
-            grid_x=2, grid_y=4,
-            color=COLOR_PLAYER1
-        )
-        player_unit.max_hp = 20
-        player_unit.hp = 20
-
-        enemy_unit = AnimatedUnit(
-            "ENEMY", player=1,
-            grid_x=9, grid_y=4,
-            color=COLOR_PLAYER2
-        )
-        enemy_unit.max_hp = 15
-        enemy_unit.hp = 15
-
-        self.units = [player_unit, enemy_unit]
 
     def _init_terrain_furniture_mapping(self):
         """Initialize the mapping from TerrainType to SVG file paths."""
@@ -3285,13 +3259,8 @@ class GraphicalRenderer:
         if is_infused:
             pass
 
-        # Get Matador bounce count if this is a Matador skill
+        # Bounce count for ricochet-style animations
         bounce_count = event.kwargs.get("bounce_count", 2)  # Default to 2 if not specified
-
-        # Check if skill was reflected by Backhand
-        if caster and hasattr(caster, 'skill_was_reflected') and caster.skill_was_reflected:
-            caster.skill_was_reflected = False  # Reset flag
-            return  # Don't create the original skill animation
 
         # Create animation via factory
 
@@ -3969,91 +3938,6 @@ class GraphicalRenderer:
         # Blit cached grid to main surface
         surface.blit(self._static_grid_surface, (GRID_OFFSET_X, GRID_OFFSET_Y))
 
-    def draw_grid_old(self, surface: pygame.Surface):
-        """
-        OLD IMPLEMENTATION - kept for reference.
-        Draw the game grid with terrain and furniture using two-pass rendering for rails.
-        """
-        # Get game map if available
-        game_map = self.game_adapter.game.map if self.game_adapter.game else None
-
-        # PASS 1: Draw base terrain and furniture
-        for y in range(GRID_HEIGHT):
-            for x in range(GRID_WIDTH):
-                # Calculate tile position (relative to grid surface, not screen)
-                tile_x = x * TILE_SIZE
-                tile_y = y * TILE_SIZE
-                rect = pygame.Rect(tile_x, tile_y, TILE_SIZE, TILE_SIZE)
-
-                # Get terrain type at this position
-                terrain_type = TerrainType.EMPTY
-                if game_map:
-                    terrain_type = game_map.get_terrain_at(y, x)
-
-                # For rail tiles, render the underlying terrain instead
-                if terrain_type == TerrainType.RAIL and game_map:
-                    # Get original terrain before rail was placed
-                    terrain_type = game_map.get_rail_original_terrain(y, x)
-
-                # Determine base color (checkerboard pattern for empty/passable tiles)
-                base_color = COLOR_GRID_DARK if (x + y) % 2 == 0 else COLOR_GRID_LIGHT
-
-                # Draw base tile
-                pygame.draw.rect(self._grid_surface, base_color, rect)
-
-                # Try to load and draw terrain/furniture SVG
-                if terrain_type != TerrainType.EMPTY:
-                    terrain_surface = self._load_terrain_tile(terrain_type)
-                    if terrain_surface:
-                        # Blit the SVG surface at tile position
-                        self._grid_surface.blit(terrain_surface, (tile_x, tile_y))
-
-                        # Add player-colored outline for MARROW_WALL
-                        if terrain_type == TerrainType.MARROW_WALL:
-                            if hasattr(self.game_adapter.game, 'marrow_dike_tiles'):
-                                pos_tuple = (y, x)
-                                if pos_tuple in self.game_adapter.game.marrow_dike_tiles:
-                                    wall_info = self.game_adapter.game.marrow_dike_tiles[pos_tuple]
-                                    if 'owner' in wall_info and wall_info['owner']:
-                                        # Use owner's player color for outline
-                                        if wall_info['owner'].player == 1:
-                                            outline_color = (0, 255, 100)  # Green
-                                        else:
-                                            outline_color = (100, 150, 255)  # Blue
-
-                                        # Draw outline around the tile (same as units)
-                                        pygame.draw.rect(self._grid_surface, outline_color, rect, 2)
-                    else:
-                        # Fallback: draw a colored rectangle to indicate terrain/furniture
-                        # Use different colors for different types
-                        if terrain_type in [TerrainType.LIMESTONE, TerrainType.PILLAR,
-                                           TerrainType.STAINED_STONE, TerrainType.HYDRAULIC_PRESS]:
-                            # Blocking terrain - dark gray
-                            pygame.draw.rect(self._grid_surface, (80, 80, 90), rect)
-                        elif terrain_type in [TerrainType.DUST, TerrainType.CANYON_FLOOR, TerrainType.CONCRETE_FLOOR]:
-                            # Passable terrain - slightly different shade
-                            pygame.draw.rect(self._grid_surface, (70, 75, 80), rect)
-                        else:
-                            # Furniture - lighter color
-                            pygame.draw.rect(self._grid_surface, (100, 110, 120), rect)
-
-                # Draw grid lines
-                pygame.draw.rect(self._grid_surface, (30, 34, 42), rect, 1)
-
-        # PASS 2: Draw universal rail bomb overlays on top of terrain
-        if game_map and self.rail_universal:
-            for y in range(GRID_HEIGHT):
-                for x in range(GRID_WIDTH):
-                    terrain_type = game_map.get_terrain_at(y, x)
-
-                    if terrain_type == TerrainType.RAIL:
-                        # Calculate tile position (relative to grid surface)
-                        tile_x = x * TILE_SIZE
-                        tile_y = y * TILE_SIZE
-
-                        # Blit the universal rail bomb overlay
-                        self._grid_surface.blit(self.rail_universal, (tile_x, tile_y))
-
     def draw_revealed_traps(self, surface: pygame.Surface):
         """Draw revealed scalar node traps and Fragcrest traps on the map."""
         # Draw revealed scalar node traps
@@ -4562,7 +4446,7 @@ class GraphicalRenderer:
 
     def _apply_player2_first_turn_buff(self):
         """Apply +1 move range buff to all player 2 units on their first turn."""
-        from boneglaive.utils.message_log import message_log, MessageType
+        from boneglaive.utils.message_log import message_log
 
         # Find all player 2 units and apply the buff
         player2_units = [unit for unit in self.game_adapter.game.units if unit.player == 2 and unit.is_alive()]
@@ -5072,7 +4956,6 @@ class GraphicalRenderer:
                 # Create shadow surface
                 if is_market_futures or is_broaching_gas or is_saft_e_gas:
                     # Determine which skill icon to load
-                    import os
                     if is_market_futures:
                         icon_filename = 'market_futures.svg'
                     elif is_broaching_gas:
@@ -5628,26 +5511,6 @@ class GraphicalRenderer:
         else:
             self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
             self.combat_log.add_message("Windowed mode enabled (F11 to toggle)", "system")
-
-    def _handle_cursor_movement(self, key):
-        """Handle cursor movement during setup placement."""
-        if not self.setup_ghost_pos:
-            # Start at center of map
-            self.setup_ghost_pos = (5, 10)
-            return
-
-        y, x = self.setup_ghost_pos
-
-        if key == pygame.K_UP:
-            y = max(0, y - 1)
-        elif key == pygame.K_DOWN:
-            y = min(self.game_adapter.game.map.height - 1, y + 1)
-        elif key == pygame.K_LEFT:
-            x = max(0, x - 1)
-        elif key == pygame.K_RIGHT:
-            x = min(self.game_adapter.game.map.width - 1, x + 1)
-
-        self.setup_ghost_pos = (y, x)
 
     def run(self):
         """Main game loop."""

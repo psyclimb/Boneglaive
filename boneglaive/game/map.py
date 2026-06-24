@@ -9,9 +9,6 @@ import json
 import os
 
 from boneglaive.utils.constants import HEIGHT, WIDTH
-from boneglaive.utils.coordinates import Position
-
-
 class TerrainType(Enum):
     """Types of terrain that can appear on the map."""
     EMPTY = 0      # Basic empty tile, no effects
@@ -74,9 +71,6 @@ class GameMap:
         # Format: {player: {(y, x): value}}
         self.cosmic_values: Dict[int, Dict[Tuple[int, int], int]] = {}
 
-        # Dictionary to store lighting effects
-        self.lighting_effects: Dict[Tuple[int, int], Dict] = {}
-
         # Dictionary to store original terrain that was replaced by rails
         self.rail_original_terrain: Dict[Tuple[int, int], TerrainType] = {}
 
@@ -93,10 +87,9 @@ class GameMap:
             for x in range(self.width):
                 self.terrain[(y, x)] = TerrainType.EMPTY
 
-        # Reset astral values and lighting effects
+        # Reset astral values
         self.cosmic_values = {}
-        self.lighting_effects = {}
-    
+
     def get_terrain_at(self, y: int, x: int) -> TerrainType:
         """Get terrain type at the given coordinates."""
         return self.terrain.get((y, x), TerrainType.EMPTY)
@@ -221,63 +214,6 @@ class GameMap:
                           TerrainType.GRANITE_SPHERE, TerrainType.TERRACOTTA,
                           TerrainType.LITHOPHONE, TerrainType.RATTAN_CHAIR]
 
-    def set_lighting_effect(self, y: int, x: int, light_type: str, color: str = "white", radius: int = 1) -> None:
-        """
-        Set a lighting effect at the given coordinates.
-        
-        Args:
-            y, x: Coordinates of the light source
-            light_type: Type of lighting (e.g., "glow", "lamp", "fire")
-            color: Color of the light (e.g., "orange", "white", "blue")
-            radius: How far the light reaches (in tiles)
-        """
-        self.lighting_effects[(y, x)] = {
-            "type": light_type,
-            "color": color,
-            "radius": radius
-        }
-    
-    def get_lighting_at(self, y: int, x: int) -> Optional[Dict]:
-        """Get lighting effect at the given coordinates."""
-        return self.lighting_effects.get((y, x))
-    
-    def is_illuminated(self, y: int, x: int) -> bool:
-        """Check if a position is illuminated by any light source."""
-        # Check all light sources to see if this position is within range
-        for (light_y, light_x), light_info in self.lighting_effects.items():
-            distance = max(abs(light_y - y), abs(light_x - x))  # Chess distance (Chebyshev)
-            if distance <= light_info.get("radius", 1):
-                return True
-        return False
-    
-    def get_illumination_color(self, y: int, x: int) -> Optional[str]:
-        """Get the color of illumination at a position (if illuminated)."""
-        for (light_y, light_x), light_info in self.lighting_effects.items():
-            distance = max(abs(light_y - y), abs(light_x - x))  # Chess distance (Chebyshev)
-            if distance <= light_info.get("radius", 1):
-                return light_info.get("color", "white")
-        return None
-    
-    def setup_tiffany_lamp_lighting(self) -> None:
-        """Setup lighting effects for all Tiffany lamps on the map."""
-        for (y, x), terrain in self.terrain.items():
-            if terrain == TerrainType.TIFFANY_LAMP:
-                # Regular maps get white light
-                light_color = "white"
-
-                # Check if this is a special themed map
-                if "autumn" in self.name.lower() or "harvest" in self.name.lower():
-                    light_color = "orange"
-                elif "winter" in self.name.lower():
-                    light_color = "blue"
-                elif "spring" in self.name.lower():
-                    light_color = "green"
-                elif "summer" in self.name.lower():
-                    light_color = "yellow"
-                
-                # Tiffany lamps illuminate a radius of 2 tiles
-                self.set_lighting_effect(y, x, "lamp_glow", light_color, radius=2)
-
     def has_rails(self) -> bool:
         """Check if the map currently has any rail tiles."""
         for terrain in self.terrain.values():
@@ -400,10 +336,6 @@ class GameMap:
         """Get the original terrain that was at this position before a rail was placed."""
         return self.rail_original_terrain.get((y, x), TerrainType.EMPTY)
 
-    def is_rail_junction(self, y: int, x: int) -> bool:
-        """Check if a position is a rail junction (cross-type rail)."""
-        return self.get_rail_type(y, x) == "cross"
-
     def remove_rail_network(self) -> None:
         """
         Remove all rail tiles and restore original terrain.
@@ -498,162 +430,8 @@ class GameMap:
                 
             except ValueError as e:
                 raise ValueError(f"Invalid astral value at '{coord_str}': {value} - {e}")
-        
-        # Setup lighting effects for Tiffany lamps
-        game_map.setup_tiffany_lamp_lighting()
-        
+
         return game_map
-
-    def to_json(self, file_path: str) -> None:
-        """
-        Save the GameMap to a JSON file.
-        
-        Args:
-            file_path: Path where to save the JSON map file
-        """
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        
-        # Build terrain data (only non-empty tiles)
-        terrain_data = {}
-        for (y, x), terrain_type in self.terrain.items():
-            if terrain_type != TerrainType.EMPTY:
-                terrain_data[f"{y},{x}"] = terrain_type.name
-        
-        # Build astral values data
-        cosmic_data = {}
-        for (y, x), value in self.cosmic_values.items():
-            cosmic_data[f"{y},{x}"] = value
-        
-        # Create JSON data
-        data = {
-            'format_version': '1.0',
-            'name': self.name,
-            'width': self.width,
-            'height': self.height,
-            'terrain': terrain_data,
-            'cosmic_values': cosmic_data
-        }
-        
-        # Write to file
-        with open(file_path, 'w') as f:
-            json.dump(data, f, indent=2)
-
-
-class LimeFoyerMap(GameMap):
-    """The Lime Foyer map with pillars, furniture and windswept dust patterns."""
-    
-    def __init__(self):
-        super().__init__()
-        self.name = "The Lime Foyer"
-        self.generate_map()
-    
-    def generate_map(self) -> None:
-        """Generate the enhanced Lime Foyer map based on the mockup."""
-        # Reset to empty first
-        self.reset_to_empty()
-        
-        # Add strategically placed furniture
-        
-        # Entry vestibule furniture
-        self.set_terrain_at(1, 1, TerrainType.LECTERN)   # Corner lectern (entrance decor)
-        self.set_terrain_at(1, 18, TerrainType.LECTERN)  # Corner lectern (entrance decor)
-        
-        # Top round pillar (3x3)
-        pillar_top = [
-            (2, 7), (2, 8), (2, 9),
-            (3, 7), (3, 8), (3, 9),
-            (4, 7), (4, 8), (4, 9)
-        ]
-        for y, x in pillar_top:
-            self.set_terrain_at(y, x, TerrainType.PILLAR)
-            
-        # Bottom round pillar (3x5)
-        pillar_bottom = [
-            (7, 7), (7, 8), (7, 9), (7, 10), (7, 11),
-            (8, 7), (8, 8), (8, 9), (8, 10), (8, 11),
-            (9, 7), (9, 8), (9, 9), (9, 10), (9, 11)
-        ]
-        for y, x in pillar_bottom:
-            self.set_terrain_at(y, x, TerrainType.PILLAR)
-        
-        # Logical furniture arrangement for a foyer
-        
-        # Coat racks near entrance
-        self.set_terrain_at(0, 4, TerrainType.COAT_RACK)  # Left coat rack for visitors
-        self.set_terrain_at(0, 15, TerrainType.COAT_RACK) # Right coat rack for visitors
-        
-        # Reception/check-in area
-        self.set_terrain_at(2, 4, TerrainType.CONSOLE)    # Reception desk
-        self.set_terrain_at(2, 5, TerrainType.LECTERN)  # Reception lectern
-        
-        # Main waiting area (centered in open space)
-        self.set_terrain_at(4, 15, TerrainType.OTTOMAN)   # Right ottoman
-        self.set_terrain_at(5, 15, TerrainType.OTTOMAN)   # Right ottoman extension
-        self.set_terrain_at(4, 4, TerrainType.OTTOMAN)    # Left ottoman
-        self.set_terrain_at(5, 4, TerrainType.OTTOMAN)    # Left ottoman extension
-        
-        # Center coffee/magazine tables
-        self.set_terrain_at(4, 3, TerrainType.CURIOSITY_SHELF)  # Side table by ottoman
-        self.set_terrain_at(4, 16, TerrainType.CURIOSITY_SHELF) # Side table by ottoman
-        
-        # Lower seating area (near second pillar)
-        self.set_terrain_at(8, 4, TerrainType.OTTOMAN)    # Lower lobby ottoman
-        self.set_terrain_at(8, 15, TerrainType.OTTOMAN)   # Lower lobby ottoman opposite
-        
-        # Decorative elements
-        self.set_terrain_at(6, 5, TerrainType.LECTERN)  # Lectern between seating areas
-        self.set_terrain_at(6, 14, TerrainType.LECTERN) # Lectern between seating areas
-        
-        # Light limestone dustings (windswept patterns)
-        # This is a partial list - approximately 50% of tiles will have dust
-        dust_patterns = [
-            # Top row dust
-            (0, 0), (0, 1), (0, 3), (0, 4), (0, 6), (0, 7), (0, 8), (0, 9), (0, 11), (0, 12), (0, 13), (0, 15), (0, 16), (0, 18), (0, 19),
-            
-            # Second row dust
-            (1, 0), (1, 1), (1, 4), (1, 5), (1, 6), (1, 8), (1, 9), (1, 10), (1, 11), (1, 12), (1, 13), (1, 14), (1, 15), (1, 19),
-            
-            # Third row dust
-            (2, 0), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 10), (2, 11), (2, 12), (2, 13), (2, 15), (2, 16), (2, 17), (2, 19),
-            
-            # Fourth row dust
-            (3, 0), (3, 1), (3, 4), (3, 5), (3, 6), (3, 10), (3, 11), (3, 12), (3, 14), (3, 15), (3, 17), (3, 18), (3, 19),
-            
-            # Fifth row dust
-            (4, 1), (4, 2), (4, 4), (4, 5), (4, 6), (4, 10), (4, 11), (4, 12), (4, 13), (4, 14), (4, 15), (4, 17), (4, 18), (4, 19),
-            
-            # Sixth row dust
-            (5, 0), (5, 1), (5, 3), (5, 5), (5, 6), (5, 7), (5, 8), (5, 9), (5, 11), (5, 12), (5, 14), (5, 15), (5, 16), (5, 17), (5, 18), (5, 19),
-            
-            # Seventh row dust
-            (6, 0), (6, 1), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), (6, 8), (6, 9), (6, 11), (6, 12), (6, 13), (6, 14), (6, 17), (6, 18),
-            
-            # Eighth row dust
-            (7, 0), (7, 1), (7, 2), (7, 4), (7, 5), (7, 6), (7, 12), (7, 13), (7, 14), (7, 15), (7, 17), (7, 18), (7, 19),
-            
-            # Ninth row dust
-            (8, 0), (8, 1), (8, 2), (8, 4), (8, 5), (8, 6), (8, 12), (8, 14), (8, 15), (8, 16), (8, 17), (8, 18), (8, 19),
-            
-            # Bottom row dust
-            (9, 2), (9, 3), (9, 4), (9, 5), (9, 6), (9, 12), (9, 14), (9, 16), (9, 17), (9, 18), (9, 19)
-        ]
-        
-        for y, x in dust_patterns:
-            # Only set dust if the tile is empty (not already a pillar, furniture, etc.)
-            if self.get_terrain_at(y, x) == TerrainType.EMPTY:
-                self.set_terrain_at(y, x, TerrainType.DUST)
-
-        # Replace specific tiles with dust (positions given as x,y, stored as y,x)
-        dust_overrides = [
-            (4, 3), (4, 4), (5, 3), (5, 4),    # (x,y): (3,4) (4,4) (3,5) (4,5)
-            (4, 15), (5, 15), (4, 16), (5, 16)  # (x,y): (15,4) (15,5) (16,4) (16,5)
-        ]
-        for y, x in dust_overrides:
-            self.set_terrain_at(y, x, TerrainType.DUST)
-
-        # Cosmic values will be assigned when needed during gameplay
-
 
 class NewLimeFoyerMap(GameMap):
     """The New Lime Foyer map featuring a central circular pit arena with strategic furniture placement."""

@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """Core game engine — state machine, combat resolution, and turn flow."""
-import logging
 import time
 from boneglaive.utils.constants import (UnitType, HEIGHT, WIDTH, CRITICAL_HEALTH_PERCENT,
                                         MAX_UNITS, RESPAWN_TIMER, UPGRADE_POINT_THRESHOLDS)
 from boneglaive.game.units import Unit
 from boneglaive.game.recruitment import RECRUITMENT_ORDER
-from boneglaive.game.map import GameMap, MapFactory, TerrainType
-from boneglaive.utils.coordinates import Position
+from boneglaive.game.map import MapFactory, TerrainType
 from boneglaive.utils.debug import debug_config, measure_perf, logger
 from boneglaive.utils.message_log import message_log, MessageType
 
@@ -86,12 +84,7 @@ class Game:
         # If skipping setup, add default units
         if skip_setup:
             self.setup_initial_units()
-            
-        # Subscribe to events
-        from boneglaive.utils.event_system import get_event_manager, EventType
-        self.event_manager = get_event_manager()
-        self.event_manager.subscribe(EventType.EFFECT_EXPIRED, self._handle_effect_expired)
-        
+
         # Set game reference in message log for PRT calculations
         from boneglaive.utils.message_log import message_log
         message_log.set_game_reference(self)
@@ -127,39 +120,6 @@ class Game:
         from boneglaive.game.upgrades import UpgradeManager
         return UpgradeManager.apply_upgrade(unit, skill_name, self)
 
-    def change_map(self, new_map_name):
-        """
-        Change the current map and reset the game.
-        Used for switching maps between games.
-        
-        Args:
-            new_map_name: The name of the new map to use
-            
-        Returns:
-            Success flag
-        """
-        try:
-            self.map = MapFactory.create_map(new_map_name)
-            self.map_name = new_map_name
-            
-            # Reset game state for a new game
-            self.units = []
-            self.current_player = 1
-            self.turn = 1
-            self.winner = None
-            self.action_counter = 0  # Reset action counter
-            
-            # Start in setup phase
-            self.setup_phase = True
-            self.setup_player = 1
-            self.setup_confirmed = {1: False, 2: False}
-            self.setup_units_remaining = {1: MAX_UNITS, 2: MAX_UNITS}
-
-            return True
-        except Exception as e:
-            logger.error(f"Failed to change map: {e}")
-            return False
-    
     def _place_default_units_for_player(self, player):
         """
         Place default units for the specified player.
@@ -735,31 +695,6 @@ class Game:
 
         return True
             
-    def remove_last_setup_unit(self):
-        """
-        Remove the last unit placed by the current setup player.
-        
-        Returns:
-            True if a unit was removed, False if no units to remove
-        """
-        if not self.setup_phase:
-            return False
-            
-        # Find the last unit placed by the current setup player
-        # Search backwards through the units list
-        for i in range(len(self.units) - 1, -1, -1):
-            unit = self.units[i]
-            if unit.player == self.setup_player:
-                # Remove this unit
-                self.units.remove(unit)
-                # CRITICAL: Remove from spatial grid
-                self._remove_from_unit_grid(unit)
-                # Increment remaining units counter
-                self.setup_units_remaining[self.setup_player] += 1
-                return True
-                
-        return False
-        
     def confirm_setup(self):
         """
         Confirm the current player's setup and proceed.
@@ -936,15 +871,6 @@ class Game:
                 # Position is free, mark it as occupied
                 occupied_positions.add(pos)
     
-    def resolve_unit_conflicts(self):
-        """
-        Public method to resolve unit placement conflicts.
-        Called from recruitment menu when game starts.
-        """
-        self._resolve_unit_placement_conflicts()
-        # OPTIMIZATION: Rebuild spatial grid after resolving conflicts
-        self._rebuild_unit_grid()
-    
     def add_unit(self, unit_type, player, y, x):
         # Check if position is valid for placement
         if not self.map.can_place_unit(y, x):
@@ -1105,13 +1031,6 @@ class Game:
         """
         return max(abs(y1 - y2), abs(x1 - x2))
     
-    def is_adjacent(self, y1, x1, y2, x2):
-        """
-        Check if two positions are adjacent (including diagonals).
-        Returns True if the chess distance between them is 1.
-        """
-        return self.chess_distance(y1, x1, y2, x2) == 1
-
     def get_valid_respawn_tiles(self, player):
         """
         Get all valid tiles where a unit can be respawned for a given player.
@@ -1387,7 +1306,6 @@ class Game:
         """
         from boneglaive.utils.coordinates import Position, get_line
         from boneglaive.utils.debug import logger
-        from boneglaive.game.map import TerrainType
         
         # Get all positions along the line
         start_pos = Position(from_y, from_x)
@@ -1557,21 +1475,6 @@ class Game:
 
         return True
     
-    def is_protected_from(self, target_unit, attacker_unit):
-        """
-        Check if a target unit is protected from an attacker by Saft-E-Gas.
-        
-        Args:
-            target_unit: The unit being targeted
-            attacker_unit: The unit trying to target
-            
-        Returns:
-            bool: True if target is protected, False if not
-        """
-        
-        # Saft-E-Gas no longer provides targeting protection, only +1 defense bonus
-        return False
-    
     def can_target_unit(self, attacker, target):
         """
         Universal targeting validation for both basic attacks and skills.
@@ -1641,18 +1544,6 @@ class Game:
             from boneglaive.utils.debug import logger
             logger.debug(f"{unit.get_display_name()} cannot attack target at ({y}, {x}) due to blocked line of sight")
             return False
-                
-        # Protection Zone Mechanic: Units inside Saft-E-Gas clouds cannot be targeted by enemy units outside
-        # This protection is ALWAYS active, not tied to any "tick" effect
-        if target and target.player != unit.player:  # Only applies for enemy targets
-            # Use the is_protected_from method to check protection
-            if self.is_protected_from(target, unit):
-                from boneglaive.utils.message_log import message_log, MessageType
-                message_log.add_message(
-                    f"Cannot target {target.get_display_name()} - protected by safety gas",
-                    MessageType.ABILITY
-                )
-                return False
                 
         # Check if it's a valid unit target
         if target and target.player != unit.player:
@@ -1750,71 +1641,9 @@ class Game:
         
         return attacks
 
-    def get_attack_range_tiles(self, unit, from_pos=None):
-        """
-        Get all tiles within attack range for a unit, regardless of whether they contain valid targets.
-
-        Args:
-            unit: The unit to check attack range for
-            from_pos: Optional (y, x) position to calculate range from (for post-move attacks)
-
-        Returns:
-            List of (y, x) tuples representing all tiles within attack range
-        """
-        range_tiles = []
-
-        # Use provided position or unit's current position
-        y_pos, x_pos = from_pos if from_pos else (unit.y, unit.x)
-
-        # Get effective attack range
-        effective_stats = unit.get_effective_stats()
-        effective_attack_range = effective_stats['attack_range']
-
-        for y in range(max(0, y_pos - effective_attack_range), min(HEIGHT, y_pos + effective_attack_range + 1)):
-            for x in range(max(0, x_pos - effective_attack_range), min(WIDTH, x_pos + effective_attack_range + 1)):
-                # Calculate chess distance (allows diagonals) from the attack position
-                distance = self.chess_distance(y_pos, x_pos, y, x)
-                if distance > effective_attack_range:
-                    continue  # Skip if out of range
-
-                # Check line of sight for attack range visualization (all units)
-                los_check = self.has_line_of_sight(y_pos, x_pos, y, x)
-                if not los_check:
-                    continue  # Skip if no line of sight
-
-                # Check if there's a unit at this position
-                target_unit = self.get_unit_at(y, x)
-
-                # Exclude ally positions
-                if target_unit and target_unit.player == unit.player:
-                    continue  # Skip ally positions
-
-                # Check if terrain is passable (exclude impassable terrain)
-                # Exception: Include marrow walls as they are attackable obstacles
-                if not self.map.is_passable(y, x):
-                    # Check if this is a marrow wall tile (attackable obstacle)
-                    if not (hasattr(self, 'marrow_dike_tiles') and (y, x) in self.marrow_dike_tiles):
-                        continue  # Skip impassable terrain that isn't a marrow wall
-
-                # Add tile to range (includes empty tiles, enemies, attackable walls)
-                range_tiles.append((y, x))
-
-        return range_tiles
-
-    # Store reference to the UI for animations
     def set_ui_reference(self, ui):
         """Store a reference to the game UI for animations."""
         self.ui = ui
-    
-    def get_ossify_defense_bonus(self, unit):
-        """
-        Helper method to get the defense bonus from Ossify skill.
-        """
-        if unit.type == UnitType.MARROW_CONDENSER:
-            for skill in unit.active_skills:
-                if skill.name == "Ossify" and hasattr(skill, 'defense_bonus'):
-                    return skill.defense_bonus
-        return 4  # Default defense bonus if we can't find the skill
     
     @measure_perf
     def check_critical_health(self, unit, attacker=None, previous_hp=None, ui=None):
@@ -1832,7 +1661,6 @@ class Game:
             bool: True if processing should continue, False if processing should stop
         """
         from boneglaive.utils.message_log import message_log, MessageType
-        from boneglaive.utils.constants import CRITICAL_HEALTH_PERCENT
         
         # Skip if unit is already dead
         if not unit.is_alive():
@@ -2862,11 +2690,7 @@ class Game:
                 # Process radiation damage
                 if hasattr(unit, 'radiation_stacks') and unit.radiation_stacks:
                     unit.apply_radiation_damage(self, ui)
-                
-                # Process INTERFERER-specific effects (Karrier Rave, Neural Shunt)
-                if hasattr(unit, 'process_interferer_effects'):
-                    unit.process_interferer_effects(self)
-            
+
             # Process potpourri bowl healing aura (only for current player's units)
             if unit.player == self.current_player:
                 self._process_potpourri_bowl_healing(unit, ui)
@@ -3276,15 +3100,6 @@ class Game:
                             player=unit.player
                         )
                 
-                # Revalidate protection status - might have changed since attack was queued
-                if target and target.player != unit.player and self.is_protected_from(target, unit):
-                    logger.debug(f"Attack cancelled: {target.get_display_name()} is protected by Saft-E-Gas")
-                    message_log.add_message(
-                        f"{unit.get_display_name()}'s attack fails - target is protected by safety gas",
-                        MessageType.COMBAT,
-                        player=unit.player
-                    )
-                    continue  # Skip this attack and go to next unit
 
                 # Check Selenic Backdraft: attacker cannot basic attack the POTPOURRIST who applied it
                 if (hasattr(unit, 'selenic_backdraft') and unit.selenic_backdraft and
@@ -3306,12 +3121,11 @@ class Game:
                     if attack_distance <= effective_attack_range and los_check:
                         wall_target = (y, x)  # Mark this as a valid wall target
 
-                # Check if attack is valid (checks all conditions including protection)
-                valid_attack = (target and 
-                               target.player != unit.player and 
-                               attack_distance <= effective_attack_range and 
-                               los_check and 
-                               not self.is_protected_from(target, unit))
+                # Check if attack is valid
+                valid_attack = (target and
+                               target.player != unit.player and
+                               attack_distance <= effective_attack_range and
+                               los_check)
                                
                 if valid_attack or wall_target:  # Valid attack on unit or wall
                     # Mark that this attack was executed (for animation detection in graphical mode)
@@ -3579,9 +3393,8 @@ class Game:
                         if unit.type == UnitType.INTERFERER:
                             # Check for Karrier Rave triple strike (active during phasing)
                             if hasattr(unit, 'carrier_rave_active') and unit.carrier_rave_active:
-                                # Trigger flash effect for the first strike of Karrier Rave
+                                # Trigger radiation for the first strike of Karrier Rave
                                 if unit.passive_skill and unit.passive_skill.name == "Radio Effulgent":
-                                    unit.passive_skill.trigger_flash_effect(unit, (target.y, target.x), self, ui)
                                     unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
                                 
                                 # Apply two additional strikes
@@ -3608,9 +3421,8 @@ class Game:
                                         if ui:
                                             ui.show_attack_animation(unit, target, actual_additional_damage)
                                             
-                                        # Trigger flash effect immediately after each additional strike
+                                        # Trigger radiation immediately after each additional strike
                                         if unit.passive_skill and unit.passive_skill.name == "Radio Effulgent":
-                                            unit.passive_skill.trigger_flash_effect(unit, (target.y, target.x), self, ui)
                                             unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
                                 
                                 # End Karrier Rave effect after using triple strike
@@ -3625,9 +3437,7 @@ class Game:
                             else:
                                 # Normal single attack - trigger Radio Effulgent if available
                                 if unit.passive_skill and unit.passive_skill.name == "Radio Effulgent":
-                                    # Always trigger flash effect for regular attacks
-                                    unit.passive_skill.trigger_flash_effect(unit, (target.y, target.x), self, ui)
-                                    # Also trigger radiation effect (only applies if enemies are in range)  
+                                    # Trigger radiation effect (only applies if enemies are in range)
                                     unit.passive_skill.trigger_radiation(unit, (target.y, target.x), self, ui)
                         
                         # Handle removal of Market Futures effect after attack if it's expiring
@@ -3687,19 +3497,6 @@ class Game:
                 # Execute the skill
                 skill = unit.selected_skill
                 target_pos = unit.skill_target
-
-                # Revalidate skill target for protection - might have changed since skill was queued
-                from boneglaive.game.skills import TargetType
-                if hasattr(skill, 'target_type') and skill.target_type == TargetType.ENEMY:
-                    target_unit = self.get_unit_at(target_pos[0], target_pos[1])
-                    if target_unit and target_unit.player != unit.player and self.is_protected_from(target_unit, unit):
-                        logger.debug(f"Skill cancelled: {target_unit.get_display_name()} is protected by Saft-E-Gas")
-                        message_log.add_message(
-                            f"{unit.get_display_name()}'s skill fails - target is protected by safety gas",
-                            MessageType.ABILITY,
-                            player=unit.player
-                        )
-                        continue  # Skip this skill and go to next unit
 
                 # Execute the skill if it has an execute method
                 if hasattr(skill, 'execute'):
@@ -4395,27 +4192,6 @@ class Game:
                                 player=unit.player
                             )
 
-            # Process Backhand duration for current player's units (after combat phase)
-            # This ensures the counter stance lasts through the entire turn
-            for unit in self.units:
-                if unit.is_alive() and unit.player == self.current_player:
-                    if hasattr(unit, 'backhand_duration') and unit.backhand_duration > 0:
-                        # Decrement duration
-                        unit.backhand_duration -= 1
-                        logger.debug(f"{unit.get_display_name()}'s Backhand duration: {unit.backhand_duration}")
-
-                        # Check if the effect has expired
-                        if unit.backhand_duration <= 0:
-                            # Deactivate Backhand
-                            unit.backhand_active = False
-
-                            # Log the expiration message
-                            message_log.add_message(
-                                f"{unit.get_display_name()}'s Backhand stance expires",
-                                MessageType.ABILITY,
-                                player=unit.player
-                            )
-
             # Decrement respawn timers for current player's dead units (before player switch)
             for dead_unit in self.dead_units:
                 if dead_unit.player == self.current_player:
@@ -5086,38 +4862,6 @@ class Game:
                 target_name=unit.get_display_name()
             )
     
-    def _release_trapped_units(self):
-        """
-        Release any trapped units for MANDIBLE_FOREMENs that took actions.
-        No damage is applied when a unit is released from the jaws.
-        """
-        from boneglaive.utils.message_log import message_log, MessageType
-        from boneglaive.utils.debug import logger
-
-        # Find all MANDIBLE_FOREMENs that took actions
-        for foreman in self.units:
-            if not foreman.is_alive() or foreman.type != UnitType.MANDIBLE_FOREMAN or not foreman.took_action:
-                continue
-                
-            # Release any units trapped by this foreman
-            for unit in self.units:
-                if unit.is_alive() and unit.trapped_by == foreman:
-                    logger.debug(f"MANDIBLE_FOREMAN took action, releasing {unit.get_display_name()}")
-                    
-                    # Play release animation if UI is available
-                    ui = getattr(self, 'ui', None)
-                    
-                    # Release the unit
-                    unit.trapped_by = None
-                    message_log.add_message(
-                        f"{unit.get_display_name()} is released from mechanical jaws",
-                        MessageType.ABILITY,
-                        target_name=unit.get_display_name()
-                    )
-            
-            # Reset the foreman's action tracking
-            foreman.took_action = False
-
     def _move_leashed_aerosols(self, unit, old_y, old_x, ui=None):
         """
         Move any LIVING_AEROSOL units that are leashed to the unit that just moved.
@@ -5326,7 +5070,6 @@ class Game:
 
     def _process_ordnance_graft_upkeep(self):
         """Turn-start upkeep: arm fused bombs and reconcile/regenerate drones."""
-        from boneglaive.utils.constants import ORDNANCE_DRONE_REGEN
         from boneglaive.game.skills.ordnance_graft import arm_bombs, tick_bombs
 
         # Arm bombs planted on the enemies of the current player (their graft can now
@@ -5438,7 +5181,6 @@ class Game:
         Process Fragcrest trap arming and duration.
         Called at the end of each turn to arm traps and expire old ones.
         """
-        from boneglaive.utils.message_log import message_log, MessageType
 
         traps_to_remove = []
 
@@ -5480,7 +5222,6 @@ class Game:
         Only armed traps can trigger.
         """
         from boneglaive.utils.message_log import message_log, MessageType
-        import math
 
         logger.debug(f"Checking Fragcrest traps. Player {self.current_player} ending turn.")
         logger.debug(f"Fragcrest traps present: {getattr(self, 'fragcrest_traps', {})}")
@@ -5694,7 +5435,6 @@ class Game:
         Units affected by Neural Shunt perform random actions during their turn.
         """
         import random
-        from boneglaive.utils.message_log import message_log, MessageType
         from boneglaive.utils.debug import logger
         
         # Find all units belonging to current player that are affected by Neural Shunt
@@ -5837,11 +5577,6 @@ class Game:
             unit.selected_skill = None
             logger.debug(f"Neural Shunt: No valid targets for skill {selected_skill.name} on {unit.get_display_name()}")
     
-    def toggle_test_mode(self):
-        self.test_mode = not self.test_mode
-        logger.info(f"Test mode {'enabled' if self.test_mode else 'disabled'}")
-        return self.test_mode
-        
     def _trigger_doppelganger_death_effect(self, doppelganger_unit, ui=None, processed_doppelgangers=None):
         """
         Handle the death effect when an doppelganger unit is destroyed.
@@ -6077,57 +5812,6 @@ class Game:
                 # Pass the processed_doppelgangers set to prevent infinite loops
                 self._trigger_doppelganger_death_effect(unit, ui, processed_doppelgangers)
     
-    
-    @measure_perf
-    def _handle_effect_expired(self, event_type, event_data):
-        """
-        Handle effect expiration events from skills.
-        Removes bonuses and debuffs when a skill effect expires.
-        
-        Args:
-            event_type: The event type (should be EFFECT_EXPIRED)
-            event_data: The event data containing the skill_name
-        """
-        from boneglaive.utils.debug import logger
-        from boneglaive.utils.message_log import message_log, MessageType
-        
-        skill_name = getattr(event_data, 'skill_name', None)
-        if not skill_name:
-            logger.warning("Received EFFECT_EXPIRED event without skill_name")
-            return
-        
-        logger.debug(f"Handling effect expiration for skill: {skill_name}")
-        
-        # Handle different skills if needed in the future
-        
-    @measure_perf
-    def get_game_state(self):
-        """Return a dictionary with the current game state for debugging"""
-        state = {
-            'turn': self.turn,
-            'current_player': self.current_player,
-            'winner': self.winner,
-            'test_mode': self.test_mode,
-            'units': []
-        }
-        
-        for unit in self.units:
-            if unit.is_alive():
-                unit_info = {
-                    'type': unit.get_type_name(),
-                    'player': unit.player,
-                    'position': (unit.y, unit.x),
-                    'hp': f"{unit.hp}/{unit.max_hp}",
-                    'stats': {
-                        'attack': unit.attack,
-                        'defense': unit.defense,
-                        'move_range': unit.move_range,
-                        'attack_range': unit.attack_range
-                    }
-                }
-                state['units'].append(unit_info)
-        
-        return state
     
     def _move_fowl_contrivances_to_rails(self):
         """Move all FOWL_CONTRIVANCE units to the nearest rail position when the game starts."""
@@ -6481,7 +6165,7 @@ class Game:
         """Apply seasonal bonuses when the game starts (after setup phase)."""
         # Check if this is an autumn map
         if "autumn" in self.map.name.lower():
-            from boneglaive.utils.message_log import message_log, MessageType
+            from boneglaive.utils.message_log import message_log
             
             # Apply Crisp Air bonus (+1 movement to all units)
             crisp_air_applied = 0

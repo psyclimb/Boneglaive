@@ -2,12 +2,9 @@
 """Debug configuration, logging setup, and performance measurement."""
 import logging
 import os
-import sys
 import time
 from enum import Enum
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Union
-
 # Configure logging levels
 class LogLevel(Enum):
     DEBUG = logging.DEBUG
@@ -61,21 +58,6 @@ class DebugConfig:
         
         return logger
 
-    def toggle(self):
-        """Toggle debug mode on/off"""
-        self.enabled = not self.enabled
-        return self.enabled
-    
-    def toggle_overlay(self):
-        """Toggle debug overlay display"""
-        self.show_debug_overlay = not self.show_debug_overlay
-        return self.show_debug_overlay
-    
-    def toggle_perf_tracking(self):
-        """Toggle performance tracking"""
-        self.perf_tracking = not self.perf_tracking
-        return self.perf_tracking
-
 # Create a global debug configuration instance
 debug_config = DebugConfig()
 
@@ -115,36 +97,3 @@ def measure_perf(func):
     return wrapper
 
 # Assert functions (will log but not crash in non-debug mode)
-def game_assert(condition: bool, message: str, logger: Optional[logging.Logger] = None):
-    """Assert a condition and log an error if it fails"""
-    if not condition:
-        if debug_config.enabled:
-            # In debug mode, raise an exception
-            assert condition, message
-        elif logger:
-            # In non-debug mode, log the issue but continue
-            logger.error(f"Assertion failed: {message}")
-
-# Get debug overlay information
-def get_debug_overlay() -> List[str]:
-    """Get debug information to display in the UI overlay"""
-    if not debug_config.show_debug_overlay:
-        return []
-    
-    lines = []
-    lines.append("=== DEBUG OVERLAY ===")
-    
-    # Add performance metrics if tracking is enabled
-    if debug_config.perf_tracking and debug_config.performance_data:
-        lines.append("Performance:")
-        # Sort by average time (descending)
-        sorted_perf = sorted(
-            debug_config.performance_data.items(),
-            key=lambda x: x[1]['avg_time'],
-            reverse=True
-        )
-        # Show top 5 functions
-        for func_name, stats in sorted_perf[:5]:
-            lines.append(f"  {func_name}: {stats['avg_time']:.4f}s avg, {stats['calls']} calls")
-    
-    return lines

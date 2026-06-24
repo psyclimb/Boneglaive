@@ -7,7 +7,6 @@ This module contains all passive and active abilities for MANDIBLE_FOREMAN units
 from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
-from boneglaive.utils.message_log import message_log, MessageType
 from boneglaive.utils.debug import logger
 
 if TYPE_CHECKING:

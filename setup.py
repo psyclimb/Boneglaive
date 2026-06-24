@@ -27,15 +27,10 @@ for req in requirements:
 setup(
     name="boneglaive",
     version=__version__,
-    description="Linux & BSD terminal tactical combat game",
+    description="A graphical tactical turn-based combat game",
     packages=find_packages(),
     install_requires=install_requires,
     python_requires=">=3.8",
-    entry_points={
-        'console_scripts': [
-            'boneglaive=boneglaive.main:main',
-        ],
-    },
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
@@ -47,6 +42,6 @@ setup(
         "Operating System :: POSIX :: BSD",
         "Topic :: Games/Entertainment :: Turn Based Strategy",
     ],
-    keywords="game tactical combat strategy terminal curses nix unix linux bsd",
+    keywords="game tactical combat strategy turn-based pygame linux bsd windows",
     include_package_data=True,
 )

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Game constants, unit types, stats, and symbols."""
 from enum import Enum
-from typing import Dict, NamedTuple
+from typing import NamedTuple
 
 # Game constants
 WIDTH = 20
@@ -77,10 +77,7 @@ UNIT_DESCRIPTORS = (
     # ORDNANCE_DRONE is an ORDNANCE_GRAFT summon: not recruitable, awards no GP.
     # Displayed as QUADCOPTER; the enum keeps ORDNANCE_DRONE (sprite + internal wiring).
     UnitDescriptor(UnitType.ORDNANCE_DRONE, 'QUADCOPTER', 'q', UnitStats(6, 3, 2, 4, 2),
-                   recruitable=False, awards_gp=False),
-)
-
-DESCRIPTORS_BY_TYPE = {d.unit_type: d for d in UNIT_DESCRIPTORS}
+                   recruitable=False, awards_gp=False))
 
 # Derived views — kept as the historical names/shapes so existing readers are
 # unchanged. Do not edit these directly; edit UNIT_DESCRIPTORS above.

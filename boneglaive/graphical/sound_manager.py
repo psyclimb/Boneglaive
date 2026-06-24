@@ -4,7 +4,6 @@ Sound Manager for Boneglaive
 Centralized system for loading, caching, and playing sound effects.
 """
 import pygame
-import os
 from pathlib import Path
 from typing import Dict, Optional
 from boneglaive.utils.paths import asset_path
@@ -141,14 +140,6 @@ class SoundManager:
         except Exception as e:
             return False
 
-    def stop(self, sound_key: str):
-        """Stop a currently playing sound."""
-        if sound_key in self._sound_cache:
-            try:
-                self._sound_cache[sound_key].stop()
-            except Exception as e:
-                pass
-
     def stop_all(self):
         """Stop all currently playing sounds."""
         pygame.mixer.stop()
@@ -174,23 +165,6 @@ class SoundManager:
         self.enabled = False
         self.stop_all()
 
-    def preload_sounds(self, sound_list: list, category: str = "skills"):
-        """
-        Preload a list of sounds for faster playback.
-
-        Args:
-            sound_list: List of sound keys to preload
-            category: Sound category
-        """
-        for sound_key in sound_list:
-            self.load_sound(sound_key, category)
-
-    def clear_cache(self):
-        """Clear the sound cache (useful for reloading sounds)."""
-        self._sound_cache.clear()
-        self._missing_sounds.clear()
-
-
 # Global sound manager instance (singleton pattern)
 _sound_manager_instance: Optional[SoundManager] = None
 
@@ -205,20 +179,4 @@ def get_sound_manager() -> SoundManager:
     global _sound_manager_instance
     if _sound_manager_instance is None:
         _sound_manager_instance = SoundManager()
-    return _sound_manager_instance
-
-
-def init_sound_manager(sounds_dir: Optional[str] = None, enabled: bool = True) -> SoundManager:
-    """
-    Initialize the global SoundManager instance.
-
-    Args:
-        sounds_dir: Path to sounds directory
-        enabled: Whether sounds are enabled globally
-
-    Returns:
-        SoundManager instance
-    """
-    global _sound_manager_instance
-    _sound_manager_instance = SoundManager(sounds_dir=sounds_dir, enabled=enabled)
     return _sound_manager_instance

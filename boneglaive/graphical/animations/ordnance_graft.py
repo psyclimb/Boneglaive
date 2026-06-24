@@ -10,10 +10,8 @@ bombs, and an amber fuse/ember accent.
 import pygame
 import random
 import math
-from typing import Optional, List, Tuple
-
 from boneglaive.graphical.animations.core import (
-    TILE_SIZE, Particle, ParticleEmitter
+    TILE_SIZE, Particle
 )
 
 from boneglaive.graphical.sound_helper import play_sound
@@ -24,7 +22,6 @@ from boneglaive.graphical.sound_helper import play_sound
 
 OLIVE = (75, 83, 32)
 OLIVE_DARK = (47, 54, 20)
-OLIVE_LIGHT = (107, 122, 58)
 GUNMETAL = (74, 74, 79)
 GUNMETAL_DARK = (58, 58, 63)
 GUNMETAL_LIGHT = (138, 138, 142)

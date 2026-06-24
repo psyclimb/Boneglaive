@@ -41,10 +41,6 @@ class Position:
         """Hash function for using Position as a dictionary key."""
         return hash((self.y, self.x))
     
-    def as_tuple(self) -> Tuple[int, int]:
-        """Return position as a tuple (y, x)."""
-        return (self.y, self.x)
-    
     def distance_to(self, other: Union['Position', Tuple[int, int]]) -> int:
         """Calculate Chebyshev (chess) distance to another position."""
         if isinstance(other, Position):
@@ -58,23 +54,6 @@ class Position:
         """Check if position is adjacent (including diagonals)."""
         return self.distance_to(other) <= 1
     
-    def is_in_bounds(self, height: int, width: int) -> bool:
-        """Check if position is within bounds."""
-        return 0 <= self.y < height and 0 <= self.x < width
-
-def get_positions_in_range(center: Position, range_value: int, 
-                          height: int, width: int) -> List[Position]:
-    """Get all positions within a certain range of a center position."""
-    positions = []
-    
-    for y in range(max(0, center.y - range_value), min(height, center.y + range_value + 1)):
-        for x in range(max(0, center.x - range_value), min(width, center.x + range_value + 1)):
-            pos = Position(y, x)
-            if pos.distance_to(center) <= range_value:
-                positions.append(pos)
-    
-    return positions
-
 def get_line(start: Position, end: Position) -> List[Position]:
     """Get a list of positions forming a line from start to end."""
     positions = []

@@ -4,11 +4,9 @@ How To Play Screen
 Game manual with scrollable content.
 """
 import pygame
-from typing import Optional, Tuple
+from typing import Optional
 from .menu_components import (
-    MenuScreen, MenuPanel, COLOR_TEXT, COLOR_TITLE,
-    menu_button_width
-)
+    MenuScreen, MenuPanel, COLOR_TITLE)
 from .scrollbar import Scrollbar
 
 # In-content heading colors (not screen title — that uses COLOR_TITLE via MenuPanel)

@@ -7,9 +7,7 @@ import pygame
 from typing import Optional
 from boneglaive import __version__
 from .menu_components import (
-    MenuScreen, MenuPanel, COLOR_TEXT,
-    menu_button_width
-)
+    MenuScreen, MenuPanel, COLOR_TEXT)
 
 
 class AboutScreen(MenuScreen):

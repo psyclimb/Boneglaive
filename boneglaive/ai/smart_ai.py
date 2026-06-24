@@ -9,8 +9,6 @@ from boneglaive.utils.debug import logger
 from boneglaive.ai.battlefield_analyzer import BattlefieldAnalyzer
 from boneglaive.ai.strategic_planner import StrategicPlanner
 from boneglaive.ai.tactical_evaluator import TacticalEvaluator, Action
-from boneglaive.ai.skill_simulator import SkillSimulator
-from boneglaive.ai.pathfinding import PathfindingEngine
 
 if TYPE_CHECKING:
     from boneglaive.game.engine import Game
@@ -37,8 +35,6 @@ class SmartAI:
         self.analyzer = BattlefieldAnalyzer(game, self.player_number)
         self.planner = StrategicPlanner(game, self.player_number)
         self.evaluator = TacticalEvaluator(game, self.player_number)
-        self.skill_sim = SkillSimulator(game, self.player_number)
-        self.pathfinder = PathfindingEngine(game, self.player_number)
 
         logger.info("Smart AI initialized")
 

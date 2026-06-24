@@ -4,7 +4,6 @@ Unit Info Panel UI Component
 Displays detailed information about selected unit.
 """
 import pygame
-from typing import Optional
 from .font_utils import render_fitted_text
 
 # Colors - matching bone/industrial theme
@@ -590,61 +589,6 @@ class UnitInfoPanel:
                 y += 16
 
         return y
-
-    def _draw_stat_line(self, surface: pygame.Surface, x: int, y: int,
-                       label: str, value: int, base_value: int = None) -> int:
-        """
-        Draw a single stat line.
-
-        Args:
-            surface: Surface to draw on
-            x, y: Position
-            label: Stat label
-            value: Current effective value
-            base_value: Base value (if different, show as buff/debuff)
-
-        Returns:
-            y position after drawing
-        """
-        # Draw label
-        label_text = render_fitted_text(
-            f"{label}:",
-            max_width=145,
-            max_height=LINE_HEIGHT,
-            color=COLOR_STAT_LABEL,
-            base_font_size=18,
-            min_font_size=14,
-            max_font_size=20
-        )
-        surface.blit(label_text, (x, y))
-
-        # Draw value
-        if base_value is not None and value != base_value:
-            # Stat is modified
-            if value > base_value:
-                value_color = COLOR_HP_BAR_FULL  # Green for buff
-                modifier = f"+{value - base_value}"
-            else:
-                value_color = COLOR_HP_BAR_LOW  # Red for debuff
-                modifier = f"{value - base_value}"
-
-            value_str = f"{value} ({modifier})"
-        else:
-            value_color = COLOR_TEXT
-            value_str = str(value)
-
-        value_text = render_fitted_text(
-            value_str,
-            max_width=85,
-            max_height=LINE_HEIGHT,
-            color=value_color,
-            base_font_size=18,
-            min_font_size=14,
-            max_font_size=20
-        )
-        surface.blit(value_text, (x + 150, y))
-
-        return y + LINE_HEIGHT
 
     def _draw_furniture_info(self, surface: pygame.Surface, x: int, y: int):
         """

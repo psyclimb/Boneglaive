@@ -4,7 +4,7 @@ Upgrade System for Boneglaive
 Defines skill and passive upgrades for all units.
 """
 
-from typing import Optional, Dict, List
+from typing import Dict, List
 from boneglaive.utils.constants import UnitType
 from boneglaive.utils.message_log import message_log, MessageType
 

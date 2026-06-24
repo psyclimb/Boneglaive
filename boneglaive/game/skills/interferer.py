@@ -5,14 +5,10 @@ This module contains all passive and active abilities for INTERFERER units.
 """
 
 
-import random
 from typing import Optional, TYPE_CHECKING
 
 from boneglaive.game.skills.core import PassiveSkill, ActiveSkill, TargetType
 from boneglaive.utils.message_log import message_log, MessageType
-from boneglaive.utils.debug import logger
-from boneglaive.utils.constants import UnitType
-
 if TYPE_CHECKING:
     from boneglaive.game.units import Unit
     from boneglaive.game.engine import Game
@@ -48,9 +44,6 @@ class NeutronIlluminant(PassiveSkill):
         """Check if the passive can trigger (not on cooldown)."""
         return self.current_cooldown == 0
     
-    def trigger_flash_effect(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> None:
-        """Trigger the neutron flash animation effect that always plays on INTERFERER attacks."""
-
     def _get_radiation_positions(self, user: 'Unit', target_pos: tuple) -> list:
         """Get radiation positions based on attack direction."""
         # Calculate attack direction

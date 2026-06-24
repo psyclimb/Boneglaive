@@ -4,7 +4,6 @@ Status Effects UI Component
 Displays status effects for selected unit with tooltips.
 """
 import pygame
-import os
 from typing import List, Dict, Optional, Tuple
 from .font_utils import render_fitted_text
 
@@ -290,14 +289,6 @@ STATUS_EFFECTS = {
         "description": "+2 defense. When hit by basic attack, fires 4 diagonal balls (3 damage each, 1 ricochet). 3 turn CD.",
         "check": lambda u: hasattr(u, 'riposte_active') and u.riposte_active
     },
-    "backhand_active": {
-        "name": "Backhand",
-        "type": "buff",
-        "icon": "<",
-        "description": "Counter stance. Reflects enemy single-target skills back as ricochet ball (2 bounces). Full effects apply to anyone hit.",
-        "duration_key": "backhand_duration",
-        "check": lambda u: hasattr(u, 'backhand_active') and u.backhand_active
-    },
 
     # Special/Neutral
     "gaussian_dusk_recharge": {
@@ -570,27 +561,3 @@ class StatusEffectsPanel:
         # Hover is calculated in draw method
         pass
 
-    def handle_click(self, pos: Tuple[int, int]) -> Optional[StatusEffectIcon]:
-        """
-        Handle click on status effect.
-
-        Returns:
-            Clicked effect icon, or None
-        """
-        if not self.panel_rect or not self.effects:
-            return None
-
-        if not self.panel_rect.collidepoint(pos):
-            return None
-
-        # Check which effect was clicked
-        x = self.panel_rect.x + PANEL_PADDING
-        current_y = self.panel_rect.y + PANEL_PADDING
-
-        for effect in self.effects:
-            effect_rect = pygame.Rect(x, current_y, PANEL_WIDTH - PANEL_PADDING * 2, EFFECT_HEIGHT)
-            if effect_rect.collidepoint(pos):
-                return effect
-            current_y += EFFECT_HEIGHT + SPACING
-
-        return None

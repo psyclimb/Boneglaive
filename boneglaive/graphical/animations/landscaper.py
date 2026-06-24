@@ -9,10 +9,8 @@ Color scheme matches the Landscaper sprite: burgundy, bone, quartz crystal, dark
 import pygame
 import random
 import math
-from typing import Optional, List, Tuple
-
 from boneglaive.graphical.animations.core import (
-    TILE_SIZE, Particle, ParticleEmitter
+    TILE_SIZE
 )
 
 from boneglaive.graphical.sound_helper import play_sound
@@ -25,7 +23,6 @@ BURGUNDY = (114, 47, 55)
 BURGUNDY_DARK = (74, 31, 39)
 BURGUNDY_LIGHT = (150, 65, 75)
 BONE_IVORY = (224, 213, 197)
-BONE_WARM = (139, 115, 85)
 QUARTZ_PALE = (224, 224, 255)
 QUARTZ_BRIGHT = (232, 232, 255)
 DRAGON_EYE = (255, 107, 53)
@@ -34,7 +31,6 @@ SLAG_DARK = (139, 69, 19)
 TOPIARY_GRAY = (160, 160, 160)
 STONE_GRAY = (128, 128, 128)
 DARK_METAL = (74, 74, 79)
-METAL_LIGHT = (138, 138, 142)
 
 
 # ============================================================================
@@ -1505,8 +1501,7 @@ class DissonanceAnimation:
                         ca = trail_rot + ci * math.pi / 2
                         trail_corners.append((
                             int(trail_x + math.cos(ca) * bhs * 0.7),
-                            int(trail_y + math.sin(ca) * bhs * 0.7),
-                        ))
+                            int(trail_y + math.sin(ca) * bhs * 0.7)))
                     pygame.draw.polygon(overlay, (*BURGUNDY_DARK, 50), trail_corners)
 
                     # Burgundy glow envelope
@@ -1520,8 +1515,7 @@ class DissonanceAnimation:
                         ca = rot + ci * math.pi / 2
                         corners.append((
                             int(bx + math.cos(ca) * bhs * 0.9),
-                            int(by + math.sin(ca) * bhs * 0.9),
-                        ))
+                            int(by + math.sin(ca) * bhs * 0.9)))
                     pygame.draw.polygon(overlay, (*td['color'], 210), corners)
                     pygame.draw.polygon(overlay, (*td['border_color'], 170), corners, 2)
 
