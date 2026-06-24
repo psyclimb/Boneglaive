@@ -16,6 +16,30 @@ if TYPE_CHECKING:
     from boneglaive.ai.strategic_planner import StrategicPlan
 
 
+# --- Action score budget -----------------------------------------------------
+# The AI picks the single highest-scored action. To stop units from idling far
+# from the enemy while wasting skills on empty tiles, three score tiers must hold:
+#   * A skill that affects NO enemy (cast into empty space) must score BELOW the
+#     approach gradient, so closing the distance always wins over a do-nothing cast.
+#   * The approach gradient (moving toward the nearest enemy) is a smooth, non-
+#     clipping pull that stays meaningfully positive across the whole map, but is
+#     capped so it never beats a real in-range combat action.
+#   * A real attack / a skill that actually hits an enemy keeps its existing
+#     50+ score and continues to dominate when a target is in range.
+ENGAGEMENT_RANGE = 4          # within this many tiles of an enemy, idle self/utility
+                              # skills regain their standalone value
+# Approach gradient = BASELINE + SCALE * (1 - min_enemy_distance / max_map_distance).
+# Non-clipping: even at maximum map separation the pull stays above IDLE_SKILL_FAR_SCORE,
+# so a far-away unit always prefers advancing to wasting a skill on nothing. Capped well
+# below the 50+ score of a real in-range attack/skill so it never overrides actual combat.
+APPROACH_BASELINE = 6.0       # floor pull when an enemy exists (any distance), non-aggressive
+APPROACH_SCALE = 14.0         # additional distance-scaled pull, non-aggressive
+APPROACH_BASELINE_AGGRO = 8.0 # floor pull, aggressive_push / desperate_rush
+APPROACH_SCALE_AGGRO = 22.0   # additional distance-scaled pull, aggressive
+IDLE_SKILL_FAR_SCORE = 4.0    # value of a standalone self-buff with no enemy in range
+                              # (deliberately below the far end of the approach gradient)
+
+
 class Action:
     """Represents a possible action for a unit."""
 
@@ -377,15 +401,18 @@ class TacticalEvaluator:
             min_distance = min(self.game.chess_distance(y, x, e.y, e.x)
                              for e in analysis.enemy_units)
 
-            # Aggressive strategies: strong bonus for closing distance
+            # Smooth, non-clipping pull toward the nearest enemy. Unlike the old
+            # max(8 - dist*0.5, 0) ramp, this stays positive across the whole map so a
+            # stranded unit keeps advancing instead of plateauing to ~0 and idling.
+            # Chebyshev (chess) distance maxes at the larger map span, not width+height.
+            max_dist = max(1, self.game.map.width - 1, self.game.map.height - 1)
+            closeness = 1.0 - min(min_distance, max_dist) / max_dist  # 1.0 adjacent -> 0 corner
             if plan.strategy.value in ["aggressive_push", "desperate_rush"]:
-                # Closer = better (inverse distance bonus)
-                score += max(15 - min_distance, 0)
-            # All other strategies: moderate bonus for closing distance
+                score += APPROACH_BASELINE_AGGRO + APPROACH_SCALE_AGGRO * closeness
             else:
-                # Even defensive/trading strategies should advance when safe
-                # This prevents AI from standing still forever
-                score += max(8 - min_distance * 0.5, 0)
+                # Even defensive/trading strategies advance when safe (the threat
+                # penalty above still blocks walking into lethal positions).
+                score += APPROACH_BASELINE + APPROACH_SCALE * closeness
 
             # Bonus if this position enables attack (all strategies benefit)
             stats = unit.get_effective_stats()
@@ -597,9 +624,15 @@ class TacticalEvaluator:
                     if skill.can_use(unit, (unit.y, unit.x), self.game):
                         # Score based on number of enemies in AOE
                         score = self._score_aoe_skill_use(unit, skill, analysis, plan)
-                        # Self-buff skills (Infuse, Karrier Rave, Ossify) have value even without adjacent enemies
+                        # Self-buff skills (Infuse, Karrier Rave, Ossify) have standalone
+                        # value, but only worth casting once near combat — far from any
+                        # enemy they must score below the approach gradient so the unit
+                        # advances first instead of buffing in place every cooldown.
                         if score == 0 and skill.name in ("Infuse", "Karrier Rave", "Ossify"):
-                            score = 30.0
+                            if self._nearest_enemy_distance(unit.y, unit.x, analysis) <= ENGAGEMENT_RANGE:
+                                score = 30.0
+                            else:
+                                score = IDLE_SKILL_FAR_SCORE
                         if score > 0:
                             action = Action("skill", target=(skill, unit), priority=score)
                             actions.append(action)
@@ -621,9 +654,10 @@ class TacticalEvaluator:
                                 continue
                             try:
                                 if skill.can_use(unit, (ty, tx), self.game):
-                                    score = self._score_skill_use(unit, skill, unit, analysis, plan)
-                                    action = Action("skill", target=(skill, (ty, tx)), priority=score)
-                                    actions.append(action)
+                                    score = self._score_area_skill_at_tile(unit, skill, (ty, tx), analysis, plan)
+                                    if score > 0:
+                                        action = Action("skill", target=(skill, (ty, tx)), priority=score)
+                                        actions.append(action)
                             except Exception:
                                 continue
                 except Exception:
@@ -652,6 +686,77 @@ class TacticalEvaluator:
                         continue
 
         return actions
+
+    def _nearest_enemy_distance(self, y: int, x: int,
+                                analysis: 'BattlefieldAnalysis') -> int:
+        """Chebyshev distance from (y, x) to the closest live, targetable enemy.
+
+        Returns a large sentinel when there are no enemies so callers can treat
+        'no enemy' as 'infinitely far' without special-casing.
+        """
+        targetable = [e for e in analysis.enemy_units
+                      if e.type != UnitType.HEINOUS_VAPOR and not getattr(e, 'is_topiary', False)]
+        if not targetable:
+            return 999
+        return min(self.game.chess_distance(y, x, e.y, e.x) for e in targetable)
+
+    def _score_area_skill_at_tile(self, unit: 'Unit', skill, tile: Tuple[int, int],
+                                  analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> float:
+        """Score an AREA skill cast at an empty tile (e.g. Vault, Delta Config, Demilune).
+
+        AREA skills target a tile rather than a unit, so the generic enemy-targeted
+        scorer does not apply. Two cases:
+          * Offensive AREA (the effect radius hits an enemy): score as a real skill use.
+          * Repositioning AREA (a teleport to an empty tile): worth doing only if it
+            closes distance to the enemy or lands the unit in attack range; a teleport
+            that does not improve engagement is near-worthless (this is what stopped
+            units from blinking into a corner while the enemy stood across the map).
+        """
+        ty, tx = tile
+        area = getattr(skill, 'area', 0) or 0
+
+        # Does the skill's effect footprint (the tile + its area radius) cover an enemy?
+        nearest_to_effect = self._nearest_enemy_distance(ty, tx, analysis)
+        if nearest_to_effect <= max(area, 0):
+            # The cast actually hits something — score it like a normal skill use,
+            # using the nearest enemy as the notional target for the priority bonuses.
+            targetable = [e for e in analysis.enemy_units
+                          if e.type != UnitType.HEINOUS_VAPOR and not getattr(e, 'is_topiary', False)]
+            target = min(targetable, key=lambda e: self.game.chess_distance(ty, tx, e.y, e.x))
+            return self._score_skill_use(unit, skill, target, analysis, plan)
+
+        # Otherwise it is a repositioning cast. Reward only genuine engagement gains.
+        stats = unit.get_effective_stats()
+        attack_range = stats['attack_range']
+        cur_dist = self._nearest_enemy_distance(unit.y, unit.x, analysis)
+        new_dist = nearest_to_effect
+
+        # Landing in attack range with line of sight is a strong reposition (e.g. a
+        # ranged unit blinking across the map into firing range). Base 40, plus a small
+        # gradient so the BEST in-range tile is chosen (deeper advance, safer) instead of
+        # an arbitrary first hit like a map corner — minus a threat penalty for exposure.
+        targetable = [e for e in analysis.enemy_units
+                      if e.type != UnitType.HEINOUS_VAPOR and not getattr(e, 'is_topiary', False)]
+        in_range = any(
+            self.game.chess_distance(ty, tx, e.y, e.x) <= attack_range and
+            self.game.has_line_of_sight(ty, tx, e.y, e.x)
+            for e in targetable
+        )
+        if in_range:
+            score = 40.0 + min((cur_dist - new_dist), 8) * 0.5  # 40..44, below a real hit
+            threat = analysis.threat_map.get((ty, tx))
+            if threat:
+                if threat.threat_level >= unit.hp:
+                    score -= 25.0  # do not blink into a lethal tile
+                else:
+                    score -= (threat.threat_level / max(unit.hp, 1)) * 10.0
+            return max(score, 0.0)
+
+        # No hit, not in range: value strictly by distance closed. A teleport that does
+        # not close the gap scores below the approach gradient so a plain move wins.
+        if new_dist < cur_dist:
+            return min(IDLE_SKILL_FAR_SCORE + (cur_dist - new_dist) * 2.0, 25.0)
+        return 0.0  # neutral/backward teleport into empty space — do not waste the skill
 
     def _score_skill_use(self, unit: 'Unit', skill, target: 'Unit',
                         analysis: 'BattlefieldAnalysis', plan: 'StrategicPlan') -> float:
@@ -945,6 +1050,14 @@ class TacticalEvaluator:
                 for ally in allies_in_area:
                     if ally in plan.focus_targets:
                         score += 10
+
+                # Engagement gate: a lone caster self-buffing far from any enemy is the
+                # classic wasted-skill-at-range case (the +1 atk/+1 move expires before a
+                # fight). Allow a solo buff only near combat; a genuine multi-ally stack is
+                # still worth pre-positioning. Buffing 2+ allies always passes.
+                solo_buff = len(allies_in_area) == 1 and allies_in_area[0] is unit
+                if solo_buff and self._nearest_enemy_distance(target_y, target_x, analysis) > ENGAGEMENT_RANGE:
+                    continue
 
                 # Only create action if score is worthwhile
                 if score > 20:
@@ -1832,17 +1945,6 @@ class TacticalEvaluator:
         score = 0.0
         y, x = pos
 
-        # Base score for using skill
-        score += 30.0
-
-        # Charge bonus (prefer 3-4 charges)
-        if charges >= 4:
-            score += 40.0  # Excellent value
-        elif charges >= 3:
-            score += 20.0  # Good value
-        else:
-            score -= 10.0  # Mediocre value
-
         # Count nearby enemies (damage value)
         nearby_enemies = 0
         for enemy in analysis.enemy_units:
@@ -1873,6 +1975,23 @@ class TacticalEvaluator:
                     cleanse_value += 1
                 if hasattr(ally, 'derelicted') and ally.derelicted:
                     cleanse_value += 1
+
+        # Engagement gate: a gas cloud that damages no adjacent enemy and cleanses no
+        # ally is wasted. Without a real beneficiary, don't burn the skill (the unit
+        # falls through to advancing toward the enemy instead of gassing empty ground).
+        if nearby_enemies == 0 and cleanse_value == 0:
+            return 0.0
+
+        # Base score for a placement that actually does something
+        score += 30.0
+
+        # Charge bonus (prefer 3-4 charges)
+        if charges >= 4:
+            score += 40.0  # Excellent value
+        elif charges >= 3:
+            score += 20.0  # Good value
+        else:
+            score -= 10.0  # Mediocre value
 
         score += cleanse_value * 20.0
 
@@ -2616,17 +2735,26 @@ class TacticalEvaluator:
         """Score a Scalar Node trap placement."""
         score = 0.0
         y, x = pos
-        
+
+        # Engagement gate: a trap only matters if an enemy might actually walk into it
+        # soon. Planting it on empty ground with every enemy across the map is a wasted
+        # cooldown — bail so the INTERFERER advances instead of trapping nothing.
+        # (TRAP_LOOKAHEAD covers a couple of tiles of enemy movement beyond the
+        # near-combat band.)
+        TRAP_LOOKAHEAD = ENGAGEMENT_RANGE + 2
+        if self._nearest_enemy_distance(y, x, analysis) > TRAP_LOOKAHEAD:
+            return 0.0
+
         # Base score
         score += 30.0
-        
+
         # Score based on enemy proximity and likely movement
         for enemy in analysis.enemy_units:
             if enemy.type == UnitType.HEINOUS_VAPOR:
                 continue
-            
+
             enemy_dist = self.game.chess_distance(y, x, enemy.y, enemy.x)
-            
+
             # High bonus for tiles adjacent to enemies (likely to move here)
             if enemy_dist == 1:
                 score += 60.0
@@ -2787,12 +2915,14 @@ class TacticalEvaluator:
 
             # Score this direction
             score = 30.0
+            combat_relevant = False  # did this cast actually affect/setup against an enemy?
 
             # Enemy displacement at slag/deposit tiles
             for ty, tx in all_affected_tiles:
                 displaced_unit = self.game.get_unit_at(ty, tx)
                 if displaced_unit and displaced_unit.is_alive() and displaced_unit.player != unit.player:
                     score += 25.0
+                    combat_relevant = True
                     if displaced_unit in plan.focus_targets:
                         score += 15.0
 
@@ -2807,14 +2937,24 @@ class TacticalEvaluator:
                 dist = self.game.chess_distance(dep_y, dep_x, enemy.y, enemy.x)
                 if dist <= 2:
                     score += 20.0
+                    combat_relevant = True
                 elif dist <= 4:
                     score += 10.0
+                    combat_relevant = True
 
             # Grabbing an enemy topiary (dragging immobilized enemy)
             if hasattr(self.game, 'topiary_units') and (grab_y, grab_x) in self.game.topiary_units:
                 topiary_data = self.game.topiary_units[(grab_y, grab_x)]
                 if topiary_data['unit'].player != unit.player:
                     score += 35.0
+                    combat_relevant = True
+
+            # Engagement gate: terrain manipulation with no enemy displaced, no enemy
+            # topiary grabbed, and no combo deposited near an enemy is just shuffling
+            # furniture across an empty map. Suppress it so the LANDSCAPER advances
+            # instead of laying slag every cooldown while the enemy is far away.
+            if not combat_relevant:
+                continue
 
             # Strategy bonus
             if plan.strategy.value in ["aggressive_push", "desperate_rush"]:
