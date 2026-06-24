@@ -779,7 +779,7 @@ def get_unit_help_data():
             'skills': [
                 {
                     'name': 'QUADCOPTER (Passive)',
-                    'description': 'Fields one leashed QUADCOPTER — a second body you pilot yourself. It moves and acts on its own orders each turn and carries its own copy of Inoculant, so it is a mobile second planter. It may never stray beyond a few tiles of its owner; when he moves it follows. The drone is bound to its owner: if destroyed it regenerates after a few turns; if the owner dies it falls with him and returns when he respawns. Killing it removes your second planter — and grounds Skyhook.',
+                    'description': 'Fields one leashed QUADCOPTER — a second body you pilot yourself. It moves and acts on its own orders each turn and carries its own copy of Inoculant, so it is a mobile second planter. It may never stray beyond a few tiles of its owner; when he moves it follows. The drone is immune to all status effects, so it cannot be trapped, mired, estranged, or otherwise locked down. The drone is bound to its owner: if destroyed it regenerates after a few turns; if the owner dies it falls with him and returns when he respawns. Killing it removes your second planter — and grounds Skyhook.',
                     'details': []
                 },
                 {

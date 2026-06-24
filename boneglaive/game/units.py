@@ -441,11 +441,15 @@ class Unit:
     def is_immune_to_effects(self) -> bool:
         """Check if this unit has immunity to status effects and debuffs.
         Currently only GRAYMAN with Stasiality passive has this immunity.
-        HEINOUS_VAPOR units are also immune to all status effects.
+        HEINOUS_VAPOR and ORDNANCE_DRONE (QUADCOPTER) units are also immune to all
+        status effects.
         Topiary units are immune while transformed (terrain form).
-        Note: This includes immunity to physical traps like Viseroy."""
-        # HEINOUS_VAPOR units are always immune to status effects
-        if self.type == UnitType.HEINOUS_VAPOR:
+        Note: This includes immunity to physical traps like Viseroy.
+        This grants status/trap immunity only — it does NOT confer the HEINOUS_VAPOR
+        invulnerability (999 PRT); the QUADCOPTER stays killable (its low HP is the
+        keystone of the ORDNANCE GRAFT kit)."""
+        # HEINOUS_VAPOR and the ORDNANCE GRAFT's QUADCOPTER drone are always immune
+        if self.type in (UnitType.HEINOUS_VAPOR, UnitType.ORDNANCE_DRONE):
             return True
         # GRAYMAN with Stasiality passive is immune
         if self.passive_skill and self.passive_skill.name == "Stasiality":

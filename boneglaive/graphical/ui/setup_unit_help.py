@@ -358,7 +358,7 @@ class SetupUnitHelp:
                 'overview': 'A gunner who grafts clustered spiked bombs onto enemies with his linstock, then touches them off for damage scaled to maximum HP. The roster\'s anti-tank: the bigger the body, the harder he hits. He also pilots a leashed quadcopter drone as a second body.',
                 'passive': {
                     'name': 'QUADCOPTER',
-                    'desc': 'Fields one leashed quadcopter drone you pilot yourself — a second body that acts on its own orders and carries its own Inoculant to graft bombs. It stays within a few tiles of its owner. Regenerates a few turns after being destroyed; falls and returns with its owner.'
+                    'desc': 'Fields one leashed quadcopter drone you pilot yourself — a second body that acts on its own orders and carries its own Inoculant to graft bombs. It stays within a few tiles of its owner. Immune to all status effects. Regenerates a few turns after being destroyed; falls and returns with its owner.'
                 },
                 'skills': [
                     {
