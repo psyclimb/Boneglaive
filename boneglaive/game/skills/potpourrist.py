@@ -378,7 +378,12 @@ class DemiluneSkill(ActiveSkill):
                 actual_damage = old_hp - target.hp
                 game.current_attacker = None
 
-                if target.hp > 0:
+                # Route lethal hits through centralized death handling so on-death
+                # effects fire (the hp setter's _handle_death only awards GP and removes
+                # the unit from game.units — the post-skill sweep then can't find it).
+                if target.hp <= 0:
+                    game.handle_unit_death(target, user, cause="demilune", ui=ui)
+                else:
                     game.check_critical_health(target, user, old_hp, ui)
 
                 message_log.add_combat_message(
@@ -426,7 +431,10 @@ class DemiluneSkill(ActiveSkill):
                     actual_damage = old_hp - target.hp
                     game.current_attacker = None
 
-                    if target.hp > 0:
+                    # Route lethal hits through centralized death handling (see Demilune front arc).
+                    if target.hp <= 0:
+                        game.handle_unit_death(target, user, cause="selenic_backdraft", ui=ui)
+                    else:
                         game.check_critical_health(target, user, old_hp, ui)
 
                     message_log.add_combat_message(
@@ -598,7 +606,10 @@ class GraniteGeasSkill(ActiveSkill):
         actual_damage = old_hp - target.hp
         game.current_attacker = None
 
-        if target.hp > 0:
+        # Route lethal hits through centralized death handling (see Demilune front arc).
+        if target.hp <= 0:
+            game.handle_unit_death(target, user, cause="granite_geas", ui=ui)
+        else:
             game.check_critical_health(target, user, old_hp, ui)
 
         message_log.add_combat_message(
@@ -676,7 +687,10 @@ class GraniteGeasSkill(ActiveSkill):
                         actual_chain_damage = old_hp - adj_unit.hp
                         game.current_attacker = None
 
-                        if adj_unit.hp > 0:
+                        # Route lethal hits through centralized death handling (see Demilune front arc).
+                        if adj_unit.hp <= 0:
+                            game.handle_unit_death(adj_unit, user, cause="granite_geas", ui=ui)
+                        else:
                             game.check_critical_health(adj_unit, user, old_hp, ui)
 
                         message_log.add_combat_message(

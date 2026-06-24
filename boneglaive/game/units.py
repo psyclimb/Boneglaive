@@ -1255,18 +1255,17 @@ class Unit:
                         attacker_player=self.player,
                         target_player=unit.player
                     )
-                    
-                        
-                    # Check if unit was defeated
+
+                    # Route a lethal tick through centralized death handling so on-death
+                    # effects fire. This runs in the engine's vapor phase, OUTSIDE any
+                    # skill execute(), so the post-skill death sweep never sees it — the
+                    # hp setter's _handle_death only awards GP and removes the unit.
+                    # handle_unit_death logs its own "perishes" message.
                     if unit.hp <= 0:
-                        message_log.add_message(
-                            f"{unit.get_display_name()} perishes!",
-                            MessageType.COMBAT,
-                            player=self.player,
-                            target=unit.player,
-                            target_name=unit.get_display_name()
-                        )
-                        
+                        game.handle_unit_death(
+                            unit, killer_unit=getattr(self, 'vapor_creator', None),
+                            cause="broaching_gas", ui=ui)
+
                 elif unit.player == self.player and unit != self:
                     # Ally unit - cleanse ONE random negative status effect
                     import random
@@ -1582,17 +1581,13 @@ class Unit:
                         attacker_player=self.player,
                         target_player=unit.player
                     )
-                    
-                        
-                    # Check if unit was defeated
+
+                    # Route a lethal tick through centralized death handling (see
+                    # Broaching Gas above) — vapor phase runs outside skill execute().
                     if unit.hp <= 0:
-                        message_log.add_message(
-                            f"{unit.get_display_name()} perishes!",
-                            MessageType.COMBAT,
-                            player=self.player,
-                            target=unit.player,
-                            target_name=unit.get_display_name()
-                        )
+                        game.handle_unit_death(
+                            unit, killer_unit=getattr(self, 'vapor_creator', None),
+                            cause="cutting_gas", ui=ui)
 
         elif self.vapor_type == "CALIBRATION":
             # Calibration Gas: Temporarily resets all units (allies and enemies) to base stats
@@ -1703,7 +1698,7 @@ class Unit:
             
         # Apply damage
         self.hp = max(0, self.hp - total_damage)
-        
+
         # Log radiation damage
         from boneglaive.utils.message_log import message_log, MessageType
         message_log.add_message(
@@ -1711,11 +1706,19 @@ class Unit:
             MessageType.ABILITY,
             player=self.player
         )
-        
-        
+
+        # Route a lethal RF burn through centralized death handling so on-death effects
+        # fire. Radiation is applied in the per-unit status phase, outside any skill
+        # execute(), so the post-skill death sweep never sees the kill; the hp setter's
+        # _handle_death only awards GP and removes the unit. No source is tracked on the
+        # stacks, so the killer is unattributed (None).
+        if self.hp <= 0 and game:
+            game.handle_unit_death(self, killer_unit=None, cause="rf_burn", ui=ui)
+            return total_damage
+
         # Decrement all radiation stack durations
         self.radiation_stacks = [duration - 1 for duration in self.radiation_stacks if duration > 1]
-        
+
         return total_damage
     
     def is_untargetable(self) -> bool:

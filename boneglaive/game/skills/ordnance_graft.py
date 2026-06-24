@@ -117,9 +117,30 @@ def bomb_pct(target: 'Unit') -> float:
     return BOMB_PCT_FLOOR + max(0, target.max_hp - BOMB_PCT_REF_HP) * BOMB_PCT_PER_HP
 
 
-def detonate_fused(target: 'Unit', game: 'Game') -> int:
+def _resolve_detonation_death(target: 'Unit', game: 'Game', killer: Optional['Unit'],
+                              ui, cause: str) -> None:
+    """If a detonation just killed `target`, run the engine's centralized death handling.
+
+    `deal_damage` reaches 0 HP through the Unit.hp setter, which fires the unit-side
+    `_handle_death` (GP award + DeadUnit/respawn) and removes the unit from `game.units`.
+    But that path does NOT run the per-unit DEATH EFFECTS that live in
+    `Game.handle_unit_death` (Rail Genesis explosion + rail cleanup, Dominion kill credit,
+    Bone Tithe, Derelict/Valuation-Oracle cleanup, doppelganger chains, ...). The engine's
+    post-skill death sweep can't pick these up either, because the victim is already gone
+    from `game.units` by the time it runs. So we dispatch handle_unit_death here, on the
+    direct reference, mirroring the basic-attack kill path. The `_engine_death_handled`
+    guard keeps any later sweep from double-processing the same death."""
+    if target.hp <= 0 and not getattr(target, '_engine_death_handled', False):
+        game.handle_unit_death(target, killer_unit=killer, cause=cause, ui=ui)
+
+
+def detonate_fused(target: 'Unit', game: 'Game', killer: Optional['Unit'] = None, ui=None,
+                   cause: str = "detonation") -> int:
     """Detonate and remove all FUSED bombs on target for %max-HP damage (ignores DEF;
-    PRT still applies via deal_damage). Unfused bombs remain. Returns damage dealt."""
+    PRT still applies via deal_damage). Unfused bombs remain. Returns damage dealt.
+
+    A lethal detonation routes the kill through Game.handle_unit_death so on-death
+    effects fire; pass `killer` (the ORDNANCE_GRAFT) for kill attribution."""
     stacks = fused_count(target)
     if stacks <= 0:
         return 0
@@ -128,14 +149,17 @@ def detonate_fused(target: 'Unit', game: 'Game') -> int:
     dealt = target.deal_damage(total)
     target.bombs = [b for b in target.bombs if not b['fused']]
     logger.debug(f"Bomb detonation: {stacks} stacks on {target.get_display_name()} for {dealt}")
+    _resolve_detonation_death(target, game, killer, ui, cause)
     return dealt
 
 
-def detonate_n_stacks(target: 'Unit', n: int) -> int:
+def detonate_n_stacks(target: 'Unit', n: int, game: 'Game', killer: Optional['Unit'] = None,
+                      ui=None, cause: str = "detonation") -> int:
     """Detonate up to `n` FUSED bombs on target (same %max-HP-per-stack math as
     detonate_fused, but a bounded count) and remove exactly those. Used by Chain Reaction
     so a chained blast consumes only its own seed, leaving any pre-existing fused bombs.
-    Returns damage dealt."""
+    Returns damage dealt. A lethal detonation routes the kill through
+    Game.handle_unit_death (see detonate_fused)."""
     available = fused_count(target)
     stacks = min(max(0, n), available)
     if stacks <= 0:
@@ -151,6 +175,7 @@ def detonate_n_stacks(target: 'Unit', n: int) -> int:
             continue
         kept.append(b)
     target.bombs = kept
+    _resolve_detonation_death(target, game, killer, ui, cause)
     return dealt
 
 
@@ -422,12 +447,12 @@ class SkyhookSkill(ActiveSkill):
                         player=user.player
                     )
                 # The just-planted bomb is unfused, so this only blows bombs already fused
-                # from prior turns — the fresh seed survives. Death is swept by the engine
-                # after execute() returns.
+                # from prior turns — the fresh seed survives. A lethal detonation is routed
+                # through handle_unit_death inside detonate_fused (on-death effects fire).
                 if crash_landing:
                     fused_here = fused_count(enemy)
                     if fused_here > 0:
-                        blown = detonate_fused(enemy, game)
+                        blown = detonate_fused(enemy, game, killer=user, ui=ui)
                         crash_stacks += fused_here
                         message_log.add_message(
                             f"{enemy.get_display_name()}'s clusters detonate on landing for #DAMAGE_{blown}# damage",
@@ -518,7 +543,8 @@ class HarvestSkill(ActiveSkill):
                 continue
             detonations.append((target.y, target.x, fused))
             # Detonate consumes the fused bombs; any unfused remain on the target.
-            dealt = detonate_fused(target, game)
+            # A lethal blast routes the kill through handle_unit_death (on-death effects).
+            dealt = detonate_fused(target, game, killer=user, ui=ui)
             total_stacks += fused
             message_log.add_message(
                 f"{target.get_display_name()}'s clusters detonate for #DAMAGE_{dealt}# damage",
@@ -536,7 +562,7 @@ class HarvestSkill(ActiveSkill):
                 if victim is not None and plant_bomb(victim, 1) > 0:
                     chain_hit.add(id(victim))
                     arm_bombs(victim)  # arm the seed so it can detonate now
-                    chain_dmg = detonate_n_stacks(victim, 1)
+                    chain_dmg = detonate_n_stacks(victim, 1, game, killer=user, ui=ui)
                     total_stacks += 1
                     detonations.append((victim.y, victim.x, 1))
                     message_log.add_message(

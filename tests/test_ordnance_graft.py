@@ -923,7 +923,7 @@ def test_detonate_n_stacks_is_bounded():
     arm_bombs(tgt)  # 3 fused
     per = max(1, round(tgt.max_hp * bomb_pct(tgt)))
     hp0 = tgt.hp
-    dealt = detonate_n_stacks(tgt, 1)
+    dealt = detonate_n_stacks(tgt, 1, g)
     check("n_stacks_one_damage", dealt == min(per, hp0), f"dealt={dealt} expected={min(per, hp0)}")
     check("n_stacks_leaves_rest", fused_count(tgt) == 2 and len(tgt.bombs) == 2,
           f"fused={fused_count(tgt)} total={len(tgt.bombs)} (1 of 3 should be gone)")
@@ -931,7 +931,7 @@ def test_detonate_n_stacks_is_bounded():
     g2 = fresh_game()
     t2 = place(g2, UnitType.POTPOURRIST, 2, *free_tiles(g2, 1)[0])
     plant_bomb(t2, 2); arm_bombs(t2)
-    detonate_n_stacks(t2, 9)
+    detonate_n_stacks(t2, 9, g2)
     check("n_stacks_clamps", len(t2.bombs) == 0, f"remaining={len(t2.bombs)}")
 
 
@@ -1237,6 +1237,92 @@ def test_munitions_bay_kill_is_handled():
           f"enemy hp={enemy.hp} alive={enemy.is_alive()} (the detonation should have killed it)")
 
 
+# ---------------------------------------------------------------------------
+# Regression: a Harvest detonation KILL must run engine-level on-death effects.
+#
+# Bug: detonate_fused/detonate_n_stacks deal damage via deal_damage, which reaches
+# 0 HP through the Unit.hp setter -> Unit._handle_death (GP + respawn) and REMOVES
+# the victim from game.units. The engine's post-skill death sweep then can't find
+# the victim (it's gone from the list), so Game.handle_unit_death never ran for it
+# and its per-unit DEATH effects (Rail Genesis rail cleanup, Dominion kill credit,
+# Bone Tithe, ...) silently never fired. The fix routes the kill through
+# handle_unit_death at the detonation site.
+# ---------------------------------------------------------------------------
+
+def _killable_enemy_for_graft(g, player, victim_type=UnitType.GLAIVEMAN):
+    """Place a graft (player) and an enemy victim within Harvest's field-wide reach,
+    pre-loaded with a lethal fused cluster. Returns (graft, victim, harvest_skill)."""
+    ts = free_tiles(g, 6)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, player, *ts[0])
+    other = 2 if player == 1 else 1
+    victim = place(g, victim_type, other, *ts[1])
+    victim.hp = 3  # low enough that a fused cluster finishes it
+    plant_bomb(victim, 4); arm_bombs(victim)
+    harvest = next(s for s in graft.active_skills if s.name == "Harvest")
+    return graft, victim, harvest
+
+
+def test_harvest_kill_invokes_handle_unit_death():
+    """The core invariant: a Harvest detonation kill calls Game.handle_unit_death
+    for the victim (so on-death effects get a chance to fire)."""
+    g = fresh_game()
+    graft, victim, harvest = _killable_enemy_for_graft(g, 1)
+    seen = []
+    real = g.handle_unit_death
+    def spy(dying_unit, killer_unit=None, cause="combat", ui=None):
+        seen.append((dying_unit, cause))
+        return real(dying_unit, killer_unit, cause, ui)
+    g.handle_unit_death = spy
+    harvest.execute(graft, (graft.y, graft.x), g)
+    g.handle_unit_death = real
+    check("harvest_kill_calls_hud", any(d is victim for d, _ in seen),
+          f"handle_unit_death victims={[id(d) for d, _ in seen]} (expected the killed victim)")
+    check("harvest_victim_dead", not victim.is_alive(), f"victim hp={victim.hp}")
+
+
+def test_harvest_kill_triggers_rail_cleanup():
+    """Killing the last FOWL_CONTRIVANCE with a Harvest detonation must run Rail
+    Genesis' on-death cleanup and remove the rail network (the reported symptom)."""
+    from boneglaive.game.map import TerrainType
+    g = fresh_game()
+    graft, fowl, harvest = _killable_enemy_for_graft(g, 1, victim_type=UnitType.FOWL_CONTRIVANCE)
+    # Lay a rail tile somewhere empty (mirrors the engine's own placement idiom so
+    # remove_rail_network can restore it).
+    ry, rx = next((y, x) for (y, x) in free_tiles(g, 60)
+                  if (y, x) != (fowl.y, fowl.x) and (y, x) != (graft.y, graft.x))
+    g.map.rail_original_terrain[(ry, rx)] = g.map.get_terrain_at(ry, rx)
+    g.map.set_terrain_at(ry, rx, TerrainType.RAIL)
+    check("rail_precondition", g.map.has_rails(), "rail tile should be present before the kill")
+    harvest.execute(graft, (graft.y, graft.x), g)
+    check("rail_fowl_dead", not fowl.is_alive(), f"FOWL hp={fowl.hp}")
+    check("rail_cleaned_up_on_harvest_kill", not g.map.has_rails(),
+          "rails should be gone after the last FOWL dies to a Harvest detonation")
+
+
+def test_harvest_kill_credits_dominion():
+    """An enemy dying inside a MARROW_CONDENSER's dike to a Harvest detonation must
+    credit that CONDENSER's Dominion kill counter (the reported Dominion symptom)."""
+    g = fresh_game()
+    ts = free_tiles(g, 8)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
+    marrow = place(g, UnitType.MARROW_CONDENSER, 1, *ts[1])
+    victim = place(g, UnitType.GLAIVEMAN, 2, *ts[2])
+    victim.hp = 3
+    plant_bomb(victim, 4); arm_bombs(victim)
+    # Mark the victim's tile as interior of the MARROW's dike (minimal shape the
+    # engine death logic reads — just 'owner'). The dict is created lazily by the
+    # real Marrow Dike skill, so seed it here.
+    if not hasattr(g, 'marrow_dike_interior'):
+        g.marrow_dike_interior = {}
+    g.marrow_dike_interior[(victim.y, victim.x)] = {'owner': marrow, 'duration': 5, 'upgraded': False}
+    kills0 = marrow.passive_skill.kills
+    harvest = next(s for s in graft.active_skills if s.name == "Harvest")
+    harvest.execute(graft, (graft.y, graft.x), g)
+    check("dominion_victim_dead", not victim.is_alive(), f"victim hp={victim.hp}")
+    check("dominion_kill_credited", marrow.passive_skill.kills == kills0 + 1,
+          f"Dominion kills {kills0}->{marrow.passive_skill.kills} (in-dike Harvest kill should credit +1)")
+
+
 def main():
     test_plant_and_cap()
     test_fuse_timing()
@@ -1284,6 +1370,11 @@ def main():
     test_munitions_bay_detonates_on_drone_death()
     test_munitions_bay_off_by_default()
     test_munitions_bay_kill_is_handled()
+
+    # Regression: detonation kills must fire engine-level on-death effects
+    test_harvest_kill_invokes_handle_unit_death()
+    test_harvest_kill_triggers_rail_cleanup()
+    test_harvest_kill_credits_dominion()
 
     print("\n==== ORDNANCE GRAFT INTEGRATION ====")
     allok = True

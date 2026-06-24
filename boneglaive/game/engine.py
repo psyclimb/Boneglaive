@@ -3505,9 +3505,14 @@ class Game:
                     skill.execute(unit, target_pos, self, ui)
                     self.current_attacker = None
 
-                    # Check for deaths caused by skill execution (AOE/chain skills may kill multiple units)
-                    # Use _hp directly since is_alive() returns hp > 0, and hp setter's _handle_death
-                    # sets _death_handled but doesn't call handle_unit_death for engine-level effects
+                    # Best-effort sweep for collateral kills a skill left at hp <= 0 without
+                    # routing through handle_unit_death (so the on-death effects in
+                    # handle_unit_death fire). NOTE: this only catches victims still present
+                    # in self.units. A unit killed via deal_damage / the hp setter has already
+                    # run Unit._handle_death (GP + respawn) which REMOVES it from self.units,
+                    # so it will NOT be found here — such kills must call handle_unit_death at
+                    # the damage site themselves (see ordnance_graft.detonate_fused). The
+                    # _engine_death_handled guard prevents double-processing either way.
                     skill_cause = skill.name.lower().replace(' ', '_')
                     for check_unit in list(self.units):
                         if (check_unit != unit and check_unit.hp <= 0 and
@@ -5052,7 +5057,11 @@ class Game:
                 continue
             if fused_count(enemy) <= 0:
                 continue
-            dealt = detonate_fused(enemy, self)
+            # detonate_fused routes any lethal blast through handle_unit_death itself
+            # (cause="munitions_bay"), so on-death effects fire even though we're already
+            # inside handle_unit_death for the drone — the _engine_death_handled guard
+            # prevents double-processing.
+            dealt = detonate_fused(enemy, self, killer=owner, ui=ui, cause="munitions_bay")
             any_blast = True
             message_log.add_message(
                 f"{drone.get_display_name()} detonates, touching off {enemy.get_display_name()}'s clusters for #DAMAGE_{dealt}# damage",
@@ -5061,12 +5070,6 @@ class Game:
             )
         if not any_blast:
             return
-        # Resolve any deaths this caused (we're inside handle_unit_death for the drone).
-        for check_unit in list(self.units):
-            if (check_unit is not drone and check_unit.hp <= 0
-                    and not getattr(check_unit, '_engine_death_handled', False)):
-                check_unit._engine_death_handled = True
-                self.handle_unit_death(check_unit, killer_unit=owner, cause="munitions_bay", ui=ui)
 
     def _process_ordnance_graft_upkeep(self):
         """Turn-start upkeep: arm fused bombs and reconcile/regenerate drones."""
