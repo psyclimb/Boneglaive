@@ -154,7 +154,9 @@ class UnitInfoPanel:
         elif hasattr(self.game_unit, 'vapor_type') and self.game_unit.vapor_type:
             unit_name = self.game_unit.get_display_name()
         else:
-            unit_name = self.game_unit.type.name.replace('_', ' ')
+            # Use the unit's own display name so per-type renames stay consistent
+            # (e.g. ORDNANCE_DRONE shows as QUADCOPTER) instead of the raw enum name.
+            unit_name = self.game_unit.get_display_name()
         name_text = render_fitted_text(
             unit_name,
             max_width=PANEL_WIDTH - PANEL_PADDING * 2,

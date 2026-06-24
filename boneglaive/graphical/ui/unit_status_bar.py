@@ -54,6 +54,8 @@ _UNIT_TYPE_SHORT_NAMES = {
     'GAS_MACHINIST': 'G.MACHINIST',
     'DELPHIC_APPRAISER': 'D.APPRAISER',
     'HEINOUS_VAPOR': 'H.VAPOR',
+    # ORDNANCE_DRONE is displayed as QUADCOPTER (the enum keeps the internal name).
+    'ORDNANCE_DRONE': 'QUADCOPTER',
 }
 
 def _unit_type_short_name(unit_type) -> str:
