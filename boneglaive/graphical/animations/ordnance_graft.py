@@ -124,18 +124,26 @@ class _Inoculation:
     ARM = 0.32           # amber pulse rings; it wakes up
     TOTAL = SEAT + BURROW + ARM
     SIZE = 1.6           # overall size multiplier for all seat/burrow/arm visuals
+    # Per-cast cap on how many burrow/arm sounds may overlap. Every bomb that grafts in
+    # plays its OWN burrow/arm (see audio_budget), but a big multi-bomb cast (Skyhook on
+    # up to 8 adjacent enemies, staggered ~0.05-0.08s apart) would otherwise fire 8 copies
+    # into ~0.4s with no mixer throttle -> mud + channel starvation. So we play per-bomb up
+    # to this many simultaneous copies per cast, then fall silent. 1-2 bomb skills are fully
+    # per-bomb; only a heavy Skyhook gets trimmed. Set high enough that normal play is literal.
+    MAX_AUDIBLE = 3
 
     def __init__(self, tx, ty, ux, uy, emitter, screen_shake,
                  start_size=5.5, seated_size=2.4, base_rot=0.0,
-                 spin_carry=0.0, scale=1.0, start_delay=0.0, play_audio=True):
+                 spin_carry=0.0, scale=1.0, start_delay=0.0, play_audio=True,
+                 audio_budget=None):
         # tx,ty = entry point; ux,uy = unit vector pointing INTO the body (delivery dir).
         # start_delay holds the element idle (drawing nothing) until that much time has
         # passed, so a single owner can stagger several graft-ins (Skyhook on N enemies,
         # Booster Charge's 2nd bomb, Chain Reaction's seed) off one clock.
-        # play_audio gates the burrow/arm SOUND so it fires once PER CAST, not per bomb:
-        # a multi-bomb skill (Skyhook/Harvest-chain/Booster) would otherwise machine-gun N
-        # overlapping copies into mud (and exhaust mixer channels). Grouped/extra bombs are
-        # visual-only for sound; the owning animation's slam/detonation carries the audio.
+        # play_audio: master gate for THIS bomb's burrow/arm sounds. audio_budget is an
+        # optional shared mutable dict {'burrow': n, 'arm': n} the owner passes to ALL its
+        # bombs so they collectively respect MAX_AUDIBLE (caps overlap on Skyhook-on-many);
+        # when None, each bomb plays freely (subject only to play_audio).
         self.tx, self.ty = tx, ty
         self.ux, self.uy = ux, uy
         self.emitter = emitter
@@ -147,6 +155,7 @@ class _Inoculation:
         self.scale = scale
         self.start_delay = start_delay
         self.play_audio = play_audio
+        self.audio_budget = audio_budget
         self.elapsed = -start_delay       # counts up; own beats begin once it reaches 0
         self._shuddered = False
         self._burrowed = False
@@ -158,6 +167,19 @@ class _Inoculation:
     @property
     def active(self):
         return self.elapsed < self.TOTAL
+
+    def _claim_audio(self, beat):
+        """Return True if this bomb may play its `beat` ('burrow'/'arm') sound now.
+        Honors play_audio, then draws from the shared per-cast budget (if any) so no more
+        than MAX_AUDIBLE copies of that beat overlap across the whole cast."""
+        if not self.play_audio:
+            return False
+        if self.audio_budget is None:
+            return True
+        if self.audio_budget.get(beat, 0) >= self.MAX_AUDIBLE:
+            return False
+        self.audio_budget[beat] = self.audio_budget.get(beat, 0) + 1
+        return True
 
     def _eject_specks(self, n, speed_lo, speed_hi):
         """A few dark body specks flung outward from the entry (the body pushing back)."""
@@ -183,7 +205,7 @@ class _Inoculation:
         # BURROW beat: it bites in — suction pull inward + a couple specks ejected.
         if not self._burrowed and self.elapsed >= self.SEAT:
             self._burrowed = True
-            if self.play_audio:
+            if self._claim_audio("burrow"):
                 play_sound("inoculant_burrow")
             _emit_graft_inward(self.emitter, self.tx, self.ty,
                                n=int(8 * self.scale) + 5, color=BOMB_BLACK)
@@ -192,7 +214,7 @@ class _Inoculation:
         # ARM beat: it wakes up under the skin — one short sound.
         if not self._armed and self.elapsed >= self.SEAT + self.BURROW:
             self._armed = True
-            if self.play_audio:
+            if self._claim_audio("arm"):
                 play_sound("inoculant_arm")
 
         return self.active
@@ -266,9 +288,13 @@ def _make_inoculations(tiles, camera, emitter, screen_shake, base_delay=0.0,
     Used by skills that plant on several enemies at once (Skyhook) or one chained body
     (Chain Reaction) so every bomb the graft applies burrows in with the same seat/arm
     sequence as Inoculant. Each sinks toward its OWN tile center (no incoming strike
-    vector at these sites, so the bombs auger straight down). Returns the list; the
-    owning animation ticks/draws them and sizes its duration to outlast them."""
+    vector at these sites, so the bombs auger straight down). Every bomb plays its own
+    burrow/arm sound, but all of them share ONE audio_budget so a wide Skyhook caps the
+    overlap at _Inoculation.MAX_AUDIBLE copies instead of machine-gunning N into mud.
+    Returns the list; the owning animation ticks/draws them and sizes its duration to
+    outlast them."""
     inocs = []
+    audio_budget = {}                         # shared across all bombs in THIS cast
     for i, (gy, gx) in enumerate(tiles):
         ex, ey = _grid_center(camera, gy, gx)
         inocs.append(_Inoculation(
@@ -277,7 +303,7 @@ def _make_inoculations(tiles, camera, emitter, screen_shake, base_delay=0.0,
             base_rot=random.uniform(0, 60),
             scale=scale,
             start_delay=base_delay + i * stagger,
-            play_audio=False,                 # owner's slam/detonation carries the sound
+            audio_budget=audio_budget,        # per-bomb sound, capped per cast
         ))
     return inocs
 
@@ -328,6 +354,7 @@ class InoculantAnimation:
         self.swing_sound_played = False
         self.inoc = None                                          # the seat/burrow/arm sub-anim
         self.extra_inocs = []                                     # Booster Charge's extra bombs
+        self._audio_budget = {}                                   # shared by all bombs this strike
         # How many bombs actually seated this strike (Booster Charge seats 2). Read from the
         # data the skill recorded; default 1 if absent (e.g. older state / the drone).
         caster_gu = getattr(caster_unit, 'game_unit', None)
@@ -357,18 +384,20 @@ class InoculantAnimation:
                 self.screen_shake(4, 0.14)
             self.inoc = _Inoculation(self.tx, self.ty, self.ux, self.uy,
                                      self.particle_emitter, self.screen_shake,
-                                     start_size=5.5, seated_size=2.4, base_rot=self.bomb_rot)
+                                     start_size=5.5, seated_size=2.4, base_rot=self.bomb_rot,
+                                     audio_budget=self._audio_budget)
             # Booster Charge: a 2nd (and rarely more) bomb seats right after the first,
-            # staggered so the player reads two distinct graft-ins, not one fat blob. The
-            # extras are visual-only for sound — the one burrow/arm from self.inoc covers
-            # the strike (they all seat from the same blow; N squelches would muddy it).
+            # staggered so the player reads two distinct graft-ins, not one fat blob. Each
+            # extra bomb plays its OWN burrow/arm too, sharing the strike's audio_budget so
+            # the pair reads as two graft-ins (well under MAX_AUDIBLE) without ever stacking
+            # past the cap.
             for k in range(1, self.planted):
                 self.extra_inocs.append(_Inoculation(
                     self.tx, self.ty, self.ux, self.uy,
                     self.particle_emitter, self.screen_shake,
                     start_size=5.0, seated_size=2.2,
                     base_rot=random.uniform(0, 60), start_delay=0.14 * k,
-                    play_audio=False))
+                    audio_budget=self._audio_budget))
 
         if self.inoc is not None:
             self.inoc.update(delta_time)
@@ -511,14 +540,14 @@ class DroneInoculantAnimation:
                 self.screen_shake(3, 0.12)
             # hand the round off to the inoculation: a lighter round (smaller scale), and
             # its flight-spin carries into the auger twist so the drill read is continuous.
-            # play_audio=False: the drone has its OWN single graft sound (drone_inoculant_graft,
-            # fired just above, covering embed+settle); it does NOT borrow the graft's
-            # melee-flavored burrow/arm sounds — keeps the drone at its 2 spec'd sound files.
+            # The drone's bomb burrows/arms with the SAME inoculant_burrow/inoculant_arm
+            # sounds as the graft's (consistent "a bomb is grafting in" cue across the kit);
+            # drone_inoculant_graft (fired just above) layers on as its distinct muzzle/embed
+            # report. Single bomb, so no audio_budget needed.
             self.inoc = _Inoculation(self.tx, self.ty, self.ux, self.uy,
                                      self.particle_emitter, self.screen_shake,
                                      start_size=4.6, seated_size=2.0,
                                      base_rot=self.bomb_rot + self.SPIN_AT_HIT,
-                                     play_audio=False,
                                      spin_carry=140.0, scale=0.85)
 
         if self.inoc is not None:
