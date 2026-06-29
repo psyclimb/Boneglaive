@@ -56,6 +56,18 @@ def _draw_spiked_bomb(overlay, cx, cy, outer, alpha, rot=0.0):
     pygame.draw.circle(overlay, (*BOMB_BLACK, alpha), (int(cx), int(cy)), int(outer * 0.55))
 
 
+def _draw_bomb_cluster(overlay, cx, cy, scale, alpha, rot=0.0):
+    """Draw the staff's grape-cluster of spiked bombs (matches the SVG's detonator head):
+    a tight bunch of small spiked balls with one amber trigger-glint. Used on the linstock
+    tip so the weapon reads as the bomb-tipped detonator staff, not a plain pole."""
+    # bunch of 3 small spiked balls clustered like grapes
+    for ox, oy, r in ((0.0, -1.4, 1.9), (-1.5, 0.9, 1.7), (1.5, 0.9, 1.7)):
+        _draw_spiked_bomb(overlay, cx + ox * scale, cy + oy * scale,
+                          r * scale, alpha, rot + ox * 20)
+    # amber radio-trigger glint nestled in the cluster (the firing button accent)
+    pygame.draw.circle(overlay, (*AMBER, alpha), (int(cx), int(cy)), max(1, int(0.9 * scale)))
+
+
 def _grid_center(camera, gy, gx):
     """Grid (y, x) -> screen pixel center. Camera takes (grid_x, grid_y)."""
     if camera:
@@ -95,17 +107,187 @@ def _draw_target_pos(camera, target_unit, target_pos, caster_unit):
 
 
 # ============================================================================
+# Shared INOCULATION sequence: the weird centerpiece. A delivered bomb SEATS proud
+# of the body, then BURROWS (twists + sinks "under the skin" while a wound ring
+# closes over it and a couple of specks are ejected), then ARMS (amber pulse rings
+# + a live pinprick ember). Surgical/clean body-horror. Both Inoculant variants
+# drive one of these so the graft step is byte-identical between graft and drone.
+# ============================================================================
+
+class _Inoculation:
+    """The bomb settling INTO the target and arming. Pure visual sub-animation; the
+    owning animation calls update(dt)/draw(surface) and passes the strike direction so
+    the bomb sinks 'inward' along the line of delivery."""
+
+    SEAT = 0.12          # bomb sits proud, contact shudder
+    BURROW = 0.45        # twists + sinks under the skin; wound ring closes (eased slow so it reads)
+    ARM = 0.32           # amber pulse rings; it wakes up
+    TOTAL = SEAT + BURROW + ARM
+    SIZE = 1.6           # overall size multiplier for all seat/burrow/arm visuals
+
+    def __init__(self, tx, ty, ux, uy, emitter, screen_shake,
+                 start_size=5.5, seated_size=2.4, base_rot=0.0,
+                 spin_carry=0.0, scale=1.0, start_delay=0.0):
+        # tx,ty = entry point; ux,uy = unit vector pointing INTO the body (delivery dir).
+        # start_delay holds the element idle (drawing nothing) until that much time has
+        # passed, so a single owner can stagger several graft-ins (Skyhook on N enemies,
+        # Booster Charge's 2nd bomb, Chain Reaction's seed) off one clock.
+        self.tx, self.ty = tx, ty
+        self.ux, self.uy = ux, uy
+        self.emitter = emitter
+        self.screen_shake = screen_shake or (lambda i, d: None)
+        self.start_size = start_size * self.SIZE
+        self.seated_size = seated_size * self.SIZE
+        self.base_rot = base_rot
+        self.spin_carry = spin_carry      # extra deg the drone round was already spinning
+        self.scale = scale
+        self.start_delay = start_delay
+        self.elapsed = -start_delay       # counts up; own beats begin once it reaches 0
+        self._shuddered = False
+        self._burrowed = False
+        self._armed = False
+        self._pulses = []                 # (fire_time,) list for staggered arm rings
+        for k in range(3):
+            self._pulses.append(0.001 + self.SEAT + self.BURROW + k * 0.10)
+
+    @property
+    def active(self):
+        return self.elapsed < self.TOTAL
+
+    def _eject_specks(self, n, speed_lo, speed_hi):
+        """A few dark body specks flung outward from the entry (the body pushing back)."""
+        if not self.emitter:
+            return
+        for _ in range(n):
+            a = random.uniform(0, math.tau)
+            sp = random.uniform(speed_lo, speed_hi)
+            p = Particle(self.tx, self.ty, math.cos(a) * sp, math.sin(a) * sp,
+                         random.choice((BOMB_BLACK, BOMB_EDGE, OLIVE_DARK)),
+                         random.uniform(1.2, 2.2) * self.scale * self.SIZE, random.uniform(0.18, 0.34))
+            p.gravity = 140
+            self.emitter.particles.append(p)
+
+    def update(self, delta_time):
+        self.elapsed += delta_time
+
+        # SEAT beat: a small contact shudder the instant it lands proud.
+        if not self._shuddered and self.elapsed >= 0.0:
+            self._shuddered = True
+            self.screen_shake(3, 0.09)
+
+        # BURROW beat: it bites in — suction pull inward + a couple specks ejected.
+        if not self._burrowed and self.elapsed >= self.SEAT:
+            self._burrowed = True
+            play_sound("inoculant_burrow")
+            _emit_graft_inward(self.emitter, self.tx, self.ty,
+                               n=int(8 * self.scale) + 5, color=BOMB_BLACK)
+            self._eject_specks(3, 45, 90)
+
+        # ARM beat: it wakes up under the skin — one short sound.
+        if not self._armed and self.elapsed >= self.SEAT + self.BURROW:
+            self._armed = True
+            play_sound("inoculant_arm")
+
+        return self.active
+
+    def _burrow_t(self):
+        """0 during seat, 0->1 across the burrow, 1 after (clamped)."""
+        return max(0.0, min(1.0, (self.elapsed - self.SEAT) / self.BURROW))
+
+    def draw(self, overlay):
+        if not self.active or self.elapsed < 0.0:       # idle during the start delay
+            return
+        bt = self._burrow_t()
+        ease = bt * bt                                  # accelerate inward (auger bite)
+
+        # sub-dermal amber glow blooms UNDER the entry as it takes hold (drawn first so
+        # the bomb sinks over it). Peaks at the end of the burrow, lingers through arm.
+        glow_t = max(0.0, min(1.0, (self.elapsed - self.SEAT) / (self.BURROW + self.ARM)))
+        ga = int(70 * math.sin(min(1.0, glow_t) * math.pi))
+        if ga > 0:
+            pygame.draw.circle(overlay, (*AMBER_DARK, ga),
+                               (int(self.tx), int(self.ty)), int((4 + glow_t * 4) * self.scale * self.SIZE))
+
+        # the bomb itself: shrinks as it sinks, nudged a few px into the body, and
+        # SCREWS in (rotation threads the spikes inward instead of just shrinking).
+        size = (self.start_size + (self.seated_size - self.start_size) * ease)
+        sink = ease * 3.0 * self.scale * self.SIZE      # px driven under the surface
+        bx = self.tx + self.ux * sink
+        by = self.ty + self.uy * sink
+        twist = self.base_rot + self.spin_carry * (1 - ease) + ease * 150  # auger + carry
+        if size > 0.4:
+            # contact shadow ring under the bomb while it's still proud (seat->early burrow)
+            if bt < 0.6:
+                sa = int(90 * (1 - bt / 0.6))
+                pygame.draw.circle(overlay, (*BOMB_BLACK, sa),
+                                   (int(self.tx), int(self.ty)), int(size * 1.25), 1)
+            _draw_spiked_bomb(overlay, bx, by, size, 255, twist)
+
+        # puckering WOUND RING that contracts over the entry as the bomb sinks under.
+        if bt > 0.02:
+            wound_r = int(size * 1.5 * self.scale + (1 - ease) * 5 * self.scale * self.SIZE)
+            wa = int(150 * (1 - bt * 0.7))
+            if wa > 0 and wound_r > 0:
+                pygame.draw.circle(overlay, (*OLIVE_DARK, wa),
+                                   (int(self.tx), int(self.ty)), wound_r, 1)
+
+        # ARM beat: amber pulse rings expand + fade from the entry (it's live now), with
+        # a live pinprick ember glinting each pulse (ties to his amber radio trigger).
+        for pt in self._pulses:
+            dt = self.elapsed - pt
+            if dt < 0:
+                continue
+            rt = dt / 0.24
+            if rt > 1.0:
+                continue
+            ring_r = int((2 + rt * 9) * self.scale * self.SIZE)
+            ring_a = int(180 * (1 - rt))
+            if ring_a > 0:
+                pygame.draw.circle(overlay, (*AMBER, ring_a),
+                                   (int(self.tx), int(self.ty)), ring_r, 2)
+            # pinprick ember at the entry as each pulse fires
+            ea = int(220 * (1 - rt))
+            if ea > 0:
+                pygame.draw.circle(overlay, (*AMBER_BRIGHT, ea),
+                                   (int(self.tx), int(self.ty)), max(1, int(1.6 * self.scale * self.SIZE)))
+
+
+def _make_inoculations(tiles, camera, emitter, screen_shake, base_delay=0.0,
+                       stagger=0.08, scale=1.0):
+    """Build a staggered list of _Inoculation graft-ins, one per (grid_y, grid_x) tile.
+
+    Used by skills that plant on several enemies at once (Skyhook) or one chained body
+    (Chain Reaction) so every bomb the graft applies burrows in with the same seat/arm
+    sequence as Inoculant. Each sinks toward its OWN tile center (no incoming strike
+    vector at these sites, so the bombs auger straight down). Returns the list; the
+    owning animation ticks/draws them and sizes its duration to outlast them."""
+    inocs = []
+    for i, (gy, gx) in enumerate(tiles):
+        ex, ey = _grid_center(camera, gy, gx)
+        inocs.append(_Inoculation(
+            ex, ey, 0.0, 1.0,                 # sink "down" (+y) into the tile
+            emitter, screen_shake,
+            base_rot=random.uniform(0, 60),
+            scale=scale,
+            start_delay=base_delay + i * stagger,
+        ))
+    return inocs
+
+
+# ============================================================================
 # INOCULANT (GRAFT) — he sweeps the linstock into the enemy; bombs graft in.
 # ============================================================================
 
 class InoculantAnimation:
-    """The graft's Inoculant: the linstock winds back, sweeps into the target with a
-    motion-blur swipe and amber ember, then a spiked bomb thunks in and grafts (inward
-    particles), with an impact spark + slash mark. Body stays put; the weapon does the work."""
+    """The graft's Inoculant: the bomb-tipped detonator staff winds back, sweeps into the
+    target with a motion-blur swipe, and transfers ONE spiked bomb off its grape-cluster
+    head onto the enemy. The bomb then SEATS, BURROWS under the skin (twisting in as a
+    wound ring closes over it), and ARMS (amber pulses) — the weird inoculation. Body
+    stays put; the weapon does the work."""
 
     WINDUP = 0.12
     STRIKE = 0.24   # weapon connects here
-    TOTAL = 0.6
+    TOTAL = STRIKE + _Inoculation.TOTAL + 0.05   # strike + the full graft-in sequence
 
     def __init__(self, caster_unit, target_unit=None, target_pos=None,
                  is_crit=False, is_infused=False,
@@ -124,9 +306,28 @@ class InoculantAnimation:
         dist = max(1.0, math.hypot(dx, dy))
         self.ux, self.uy = dx / dist, dy / dist
         self.px, self.py = -self.uy, self.ux                      # perpendicular (swing plane)
+        # The swing ADAPTS to range: the staff extends along the aim line exactly far
+        # enough to reach the target at full strike (Inoculant is range 2, so the target
+        # can sit ~1 to ~2.8 tiles away on screen). A short reach (~1 tile) reads as a
+        # swat with a wide wrist-arc; a long reach reads as a committed thrust/lunge — so
+        # as distance grows we extend the reach and FLATTEN the perpendicular arc into a
+        # straighter jab. Tip lands on (tx,ty) regardless, so the bomb transfers cleanly.
+        self.aim_reach = dist                                    # along-aim travel = true gap
+        tiles = dist / max(1.0, TILE_SIZE)
+        self.thrust_bias = max(0.0, min(1.0, tiles - 1.0))       # 0 @ <=1 tile -> 1 @ >=2 tiles
         self.bomb_rot = random.uniform(0, 60)
         self.connected = False
         self.swing_sound_played = False
+        self.inoc = None                                          # the seat/burrow/arm sub-anim
+        self.extra_inocs = []                                     # Booster Charge's extra bombs
+        # How many bombs actually seated this strike (Booster Charge seats 2). Read from the
+        # data the skill recorded; default 1 if absent (e.g. older state / the drone).
+        caster_gu = getattr(caster_unit, 'game_unit', None)
+        data = getattr(caster_gu, 'last_inoculant_data', None) if caster_gu else None
+        self.planted = max(1, data.get('planted', 1)) if data else 1
+        # A 2nd planted bomb extends the animation so its staggered graft-in finishes too.
+        if self.planted >= 2:
+            self.TOTAL = self.STRIKE + 0.14 + _Inoculation.TOTAL + 0.05
 
     def update(self, delta_time):
         self.elapsed += delta_time
@@ -136,7 +337,7 @@ class InoculantAnimation:
             self.swing_sound_played = True
             play_sound("inoculant_swing")
 
-        # Connection beat — spark + graft + shake when the linstock lands.
+        # Connection beat — spark + shake, and kick off the inoculation (bomb grafts in).
         if not self.connected and self.elapsed >= self.STRIKE:
             self.connected = True
             play_sound("inoculant_strike")
@@ -144,9 +345,24 @@ class InoculantAnimation:
                 self.particle_emitter.emit_burst(self.tx, self.ty, AMBER, count=12)
                 self.particle_emitter.emit_burst(self.tx, self.ty, AMBER_BRIGHT, count=6)
                 self.particle_emitter.emit_burst(self.tx, self.ty, GUNMETAL_LIGHT, count=5)
-                _emit_graft_inward(self.particle_emitter, self.tx, self.ty, n=9)
             if self.screen_shake:
                 self.screen_shake(4, 0.14)
+            self.inoc = _Inoculation(self.tx, self.ty, self.ux, self.uy,
+                                     self.particle_emitter, self.screen_shake,
+                                     start_size=5.5, seated_size=2.4, base_rot=self.bomb_rot)
+            # Booster Charge: a 2nd (and rarely more) bomb seats right after the first,
+            # staggered so the player reads two distinct graft-ins, not one fat blob.
+            for k in range(1, self.planted):
+                self.extra_inocs.append(_Inoculation(
+                    self.tx, self.ty, self.ux, self.uy,
+                    self.particle_emitter, self.screen_shake,
+                    start_size=5.0, seated_size=2.2,
+                    base_rot=random.uniform(0, 60), start_delay=0.14 * k))
+
+        if self.inoc is not None:
+            self.inoc.update(delta_time)
+        for e in self.extra_inocs:
+            e.update(delta_time)
 
         if self.elapsed >= self.TOTAL:
             self.active = False
@@ -157,43 +373,50 @@ class InoculantAnimation:
             return
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
 
-        # ---- the linstock: winds back, then sweeps into the target ----
+        # ---- the linstock: winds back, then sweeps/thrusts out to reach the target ----
+        # The perpendicular wrist-arc stays a fixed visual width (it's a cock of the wrist,
+        # not a reach) and flattens as the strike becomes a long thrust; only the along-aim
+        # extension grows with distance, ending exactly on the target.
+        swing_w = TILE_SIZE * 0.6 * (1.0 - 0.7 * self.thrust_bias)   # fixed-ish arc width
         if self.elapsed < self.STRIKE + 0.06:
             if self.elapsed < self.WINDUP:
                 # windup: tip pulled back behind the graft, off the swing plane
                 wt = self.elapsed / self.WINDUP
-                reach = TILE_SIZE * 0.5
-                tipx = self.cx - self.ux * reach * 0.3 + self.px * reach * (0.6 + 0.4 * wt)
-                tipy = self.cy - self.uy * reach * 0.3 + self.py * reach * (0.6 + 0.4 * wt)
+                tipx = self.cx - self.ux * (TILE_SIZE * 0.15) + self.px * swing_w * (0.6 + 0.4 * wt)
+                tipy = self.cy - self.uy * (TILE_SIZE * 0.15) + self.py * swing_w * (0.6 + 0.4 * wt)
             else:
-                # strike: tip races along an arc from the windup side to the target
+                # strike: tip races out along the aim line all the way to the target,
+                # swinging in from the windup side (the sideways arc decays to 0 on contact)
                 st = min(1.0, (self.elapsed - self.WINDUP) / (self.STRIKE - self.WINDUP))
                 ease = 1 - (1 - st) * (1 - st)
-                reach = TILE_SIZE * 0.95
-                # blend from perpendicular windup to the aim line
                 swing = (1 - ease)
-                tipx = self.cx + self.ux * reach * ease + self.px * reach * 0.7 * swing
-                tipy = self.cy + self.uy * reach * ease + self.py * reach * 0.7 * swing
+                tipx = self.cx + self.ux * self.aim_reach * ease + self.px * swing_w * swing
+                tipy = self.cy + self.uy * self.aim_reach * ease + self.py * swing_w * swing
             buttx = self.cx - self.ux * (TILE_SIZE * 0.22)
             butty = self.cy - self.uy * (TILE_SIZE * 0.22)
             a = 235
-            # motion-blur swipe arc during the strike
+            # motion-blur swipe arc during the strike — spans from near the caster out to
+            # the tip, so it stretches into a streak on a long thrust and stays an arc on a
+            # short swat (perpendicular kick scales with the same arc width).
             if self.elapsed >= self.WINDUP:
                 st = min(1.0, (self.elapsed - self.WINDUP) / (self.STRIKE - self.WINDUP))
                 blur_a = int(120 * (1 - abs(st - 0.7)))
                 if blur_a > 0:
+                    kick = swing_w * 0.22
                     pygame.draw.line(overlay, (*AMBER_BRIGHT, blur_a),
-                                     (int(self.cx + self.ux * TILE_SIZE * 0.4 + self.px * 8),
-                                      int(self.cy + self.uy * TILE_SIZE * 0.4 + self.py * 8)),
+                                     (int(self.cx + self.ux * TILE_SIZE * 0.4 + self.px * kick),
+                                      int(self.cy + self.uy * TILE_SIZE * 0.4 + self.py * kick)),
                                      (int(tipx), int(tipy)), 4)
             # tan shaft + grain
             pygame.draw.line(overlay, (*TAN, a), (int(buttx), int(butty)), (int(tipx), int(tipy)), 4)
             pygame.draw.line(overlay, (*OLIVE_DARK, max(0, a - 60)), (int(buttx), int(butty)), (int(tipx), int(tipy)), 1)
-            # gunmetal head + amber slow-match ember at the tip
-            pygame.draw.circle(overlay, (*GUNMETAL, a), (int(tipx), int(tipy)), 4)
-            pygame.draw.circle(overlay, (*GUNMETAL_LIGHT, a), (int(tipx), int(tipy)), 4, 1)
-            ember_r = 2 + int(abs(math.sin(self.elapsed * 30)))
-            pygame.draw.circle(overlay, (*AMBER, a), (int(tipx + self.px * 4), int(tipy + self.py * 4)), ember_r)
+            # gunmetal collar at the head, then the grape-cluster of bombs (the detonator
+            # head from his SVG) — until the strike lands, after which the cluster is
+            # "one bomb lighter" and the transferred bomb lives on the target.
+            pygame.draw.circle(overlay, (*GUNMETAL, a), (int(tipx), int(tipy)), 3)
+            pygame.draw.circle(overlay, (*GUNMETAL_LIGHT, a), (int(tipx), int(tipy)), 3, 1)
+            cluster_scale = 1.0 if not self.connected else 0.8
+            _draw_bomb_cluster(overlay, tipx, tipy - 3, cluster_scale, a, self.bomb_rot)
 
         # ---- impact: spark flash + a short slash mark across the target ----
         if self.connected:
@@ -210,15 +433,11 @@ class InoculantAnimation:
                                  (int(self.tx + self.px * sl + self.ux * sl * 0.3),
                                   int(self.ty + self.py * sl + self.uy * sl * 0.3)), 2)
 
-        # ---- the planted bomb thunks in and settles ----
-        if self.elapsed > self.STRIKE:
-            bt = min(1.0, (self.elapsed - self.STRIKE) / 0.28)
-            ease = 1 - (1 - bt) * (1 - bt)
-            size = 5.5 * ease
-            jiggle = math.sin(self.elapsed * 45) * (1 - bt) * 2
-            bomb_alpha = int(255 * min(1.0, (self.elapsed - self.STRIKE) / 0.18))
-            if size > 0.5:
-                _draw_spiked_bomb(overlay, self.tx + jiggle, self.ty, size, bomb_alpha, self.bomb_rot)
+        # ---- the bomb seats, burrows under the skin, and arms (the weird part) ----
+        if self.inoc is not None:
+            self.inoc.draw(overlay)
+        for e in self.extra_inocs:                       # Booster Charge's extra bomb(s)
+            e.draw(overlay)
 
         surface.blit(overlay, (0, 0))
 
@@ -229,12 +448,15 @@ class InoculantAnimation:
 
 class DroneInoculantAnimation:
     """The drone's Inoculant: a muzzle flash + rotor blur at the drone, a spiked-bomb
-    projectile spins across to the target trailing amber, then grafts in (inward particles)
-    with an impact spark. Reads as the drone shooting a bomb that embeds in the enemy."""
+    projectile spins across to the target trailing amber — then DRILLS in. The round's
+    flight-spin carries straight through into the burrow, so it reads as a self-tunnelling
+    inoculant dart: spinning in the air, then spinning IN under the skin, where it seats,
+    a wound closes over it, and it arms (amber pulses)."""
 
     FIRE = 0.04
     HIT = 0.26       # projectile reaches the target
-    TOTAL = 0.6
+    SPIN_AT_HIT = 360.0 * (HIT - FIRE) / 0.25   # deg the round has spun on arrival (carry)
+    TOTAL = HIT + _Inoculation.TOTAL + 0.05
 
     def __init__(self, caster_unit, target_unit=None, target_pos=None,
                  is_crit=False, is_infused=False,
@@ -248,9 +470,14 @@ class DroneInoculantAnimation:
 
         self.sx, self.sy = caster_unit.x, caster_unit.y          # drone screen pos
         self.tx, self.ty = _draw_target_pos(camera, target_unit, target_pos, caster_unit)
+        # flight direction = the line the round drills in along (into the body)
+        dx, dy = self.tx - self.sx, self.ty - self.sy
+        dist = max(1.0, math.hypot(dx, dy))
+        self.ux, self.uy = dx / dist, dy / dist
         self.bomb_rot = random.uniform(0, 60)
         self.fired = False
         self.hit = False
+        self.inoc = None
 
     def update(self, delta_time):
         self.elapsed += delta_time
@@ -269,9 +496,18 @@ class DroneInoculantAnimation:
             if self.particle_emitter:
                 self.particle_emitter.emit_burst(self.tx, self.ty, AMBER, count=12)
                 self.particle_emitter.emit_burst(self.tx, self.ty, AMBER_BRIGHT, count=6)
-                _emit_graft_inward(self.particle_emitter, self.tx, self.ty, n=9)
             if self.screen_shake:
                 self.screen_shake(3, 0.12)
+            # hand the round off to the inoculation: a lighter round (smaller scale), and
+            # its flight-spin carries into the auger twist so the drill read is continuous.
+            self.inoc = _Inoculation(self.tx, self.ty, self.ux, self.uy,
+                                     self.particle_emitter, self.screen_shake,
+                                     start_size=4.6, seated_size=2.0,
+                                     base_rot=self.bomb_rot + self.SPIN_AT_HIT,
+                                     spin_carry=140.0, scale=0.85)
+
+        if self.inoc is not None:
+            self.inoc.update(delta_time)
 
         if self.elapsed >= self.TOTAL:
             self.active = False
@@ -303,8 +539,8 @@ class DroneInoculantAnimation:
             try_ = self.sy + (self.ty - self.sy) * trail_t
             pygame.draw.line(overlay, (*AMBER, 150), (int(trx), int(try_)), (int(bx), int(by)), 2)
             pygame.draw.line(overlay, (*AMBER_BRIGHT, 200), (int(trx), int(try_)), (int(bx), int(by)), 1)
-            # the tumbling spiked bomb
-            _draw_spiked_bomb(overlay, bx, by, 4.0, 255, self.bomb_rot + t * 360)
+            # the tumbling spiked bomb (spin rate matches SPIN_AT_HIT so the carry is seamless)
+            _draw_spiked_bomb(overlay, bx, by, 4.0, 255, self.bomb_rot + t * self.SPIN_AT_HIT)
 
         # ---- impact spark on the target ----
         if self.hit:
@@ -314,14 +550,9 @@ class DroneInoculantAnimation:
                 pygame.draw.circle(overlay, (*AMBER, fa), (int(self.tx), int(self.ty)), int(6 + it * 8))
                 pygame.draw.circle(overlay, (*AMBER_BRIGHT, fa), (int(self.tx), int(self.ty)), int(3 + it * 4))
 
-        # ---- the planted bomb settles in ----
-        if self.hit:
-            bt = min(1.0, (self.elapsed - self.HIT) / 0.26)
-            ease = 1 - (1 - bt) * (1 - bt)
-            size = 5.0 * ease
-            bomb_alpha = int(255 * min(1.0, (self.elapsed - self.HIT) / 0.15))
-            if size > 0.5:
-                _draw_spiked_bomb(overlay, self.tx, self.ty, size, bomb_alpha, self.bomb_rot)
+        # ---- the round drills in, seats, and arms (the weird part) ----
+        if self.inoc is not None:
+            self.inoc.draw(overlay)
 
         surface.blit(overlay, (0, 0))
 
@@ -387,6 +618,25 @@ class SkyhookAnimationController:
         self.arc_height = 150          # how high the lift carries him (he's hauled UP)
         self.slam_done = False
         self.launch_done = False
+        self._landed_at_total = False
+
+        # Graft-ins for every bomb the slam plants (read from the data execute() recorded).
+        # Each starts just as he touches down, staggered so a multi-enemy slam reads as a
+        # quick succession of bombs biting home rather than one mush. The controller stays
+        # alive past its normal end until these finish; landing/drone-reveal still happen
+        # on time (at TOTAL) so the sprite doesn't hang in the air.
+        self._slam_at = self.CARRY_END * self.TOTAL + (self.TOTAL - self.CARRY_END * self.TOTAL) * 0.85
+        plants = []
+        sky_data = getattr(graft_gu, 'last_skyhook_data', None) if graft_gu else None
+        if sky_data and sky_data.get('plants'):
+            plants = list(sky_data['plants'])
+            graft_gu.last_skyhook_data = None  # consume so it doesn't replay next cast
+        self.inocs = _make_inoculations(plants, self.camera, self.particle_emitter,
+                                        self.screen_shake, base_delay=self._slam_at + 0.02,
+                                        stagger=0.09)
+        last_finish = (max((ino.start_delay for ino in self.inocs), default=0.0)
+                       + _Inoculation.TOTAL) if self.inocs else 0.0
+        self._anim_end = max(self.TOTAL, last_finish + 0.03)
 
         # set up sprite-rotation state (the renderer reads wind_up_rotation)
         self.caster.wind_up_rotation = 0
@@ -446,9 +696,20 @@ class SkyhookAnimationController:
                 self._land_caster()
                 self._slam()
 
-        if self.elapsed >= self.TOTAL:
+        # Tick the per-bomb graft-ins (they idle until their start delay, around touchdown).
+        for ino in self.inocs:
+            ino.update(delta_time)
+
+        # Land the sprite + reveal the drone ON TIME (at TOTAL) even though the controller
+        # may stay alive a little longer to finish the graft-in visuals.
+        if not self._landed_at_total and self.elapsed >= self.TOTAL:
+            self._landed_at_total = True
             self._land_caster()
             self._reveal_drone()  # defensive: ensure the drone is never left hidden
+
+        if self.elapsed >= self._anim_end:
+            self._land_caster()
+            self._reveal_drone()
             self.active = False
         return self.active
 
@@ -550,6 +811,10 @@ class SkyhookAnimationController:
             if core_a > 0:
                 pygame.draw.circle(overlay, (*AMBER, core_a), (int(self.dx), int(self.dy)), int(10 * (1 - st) + 3))
 
+        # Per-bomb graft-ins on the struck enemies (seat/burrow/arm), after the slam.
+        for ino in self.inocs:
+            ino.draw(overlay)
+
         surface.blit(overlay, (0, 0))
 
     def _draw_drone(self, overlay, dx, dy, t):
@@ -614,8 +879,21 @@ class HarvestAnimation:
                 'seed': random.uniform(0, math.tau),
             })
 
-        # Total duration = the last blast's fire time + its lifetime.
-        self.total_duration = max(b['t0'] for b in self.blasts) + self.BLAST_DUR
+        # Chain Reaction upgrade: each chained victim gets a fresh bomb slammed in and
+        # immediately blown. Show the graft-in (seat/burrow/arm) on those tiles, its SEAT
+        # landing right as the detonation barrage fires so it reads as "a bomb rams home
+        # and goes off." Empty list when the upgrade is off / nothing chained.
+        chain_plants = harvest_data.get('chain_plants', []) if harvest_data else []
+        self.inocs = _make_inoculations(chain_plants, camera, self.particle_emitter,
+                                        self.screen_shake, base_delay=self.IGNITE_AT,
+                                        stagger=0.06)
+
+        # Total duration = the last blast's fire time + its lifetime, but never shorter
+        # than the last chain graft-in needs to finish.
+        blast_end = max(b['t0'] for b in self.blasts) + self.BLAST_DUR
+        inoc_end = (max((ino.start_delay for ino in self.inocs), default=0.0)
+                    + _Inoculation.TOTAL) if self.inocs else 0.0
+        self.total_duration = max(blast_end, inoc_end + 0.03)
         self.shake_done = False
         self.ignite_sound_played = False
 
@@ -678,6 +956,10 @@ class HarvestAnimation:
         if any_fired_now and self.screen_shake:
             n = len(self.blasts)
             self.screen_shake(min(14, 7 + n * 2), 0.35)
+
+        # Chain Reaction graft-ins (a fresh bomb ramming into each chained victim).
+        for ino in self.inocs:
+            ino.update(delta_time)
 
         if self.elapsed >= self.total_duration:
             self.active = False
@@ -752,6 +1034,11 @@ class HarvestAnimation:
                 continue
             self._draw_fireball(overlay, bx, by, bt, b['seed'])
             self._draw_local_flash(overlay, bx, by, bt)
+
+        # Chain Reaction graft-ins, drawn over the blast so the seeded bomb is still
+        # visibly seating/arming as the fireball clears.
+        for ino in self.inocs:
+            ino.draw(overlay)
 
         surface.blit(overlay, (0, 0))
 

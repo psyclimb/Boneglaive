@@ -267,6 +267,10 @@ class InoculantSkill(ActiveSkill):
         boosted = UpgradeManager.is_skill_upgraded(user, "Inoculant") and len(target.bombs) > 0
         amount = INOCULANT_BOOSTED_PLANT if boosted else 1
         added = plant_bomb(target, amount)
+        # Tell the graphical layer how many bombs actually seated, so the Inoculant
+        # animation can show a graft-in PER bomb (Booster Charge seats two). Harmless in
+        # headless mode (nothing reads it). Stored on the user, like last_harvest_data.
+        user.last_inoculant_data = {'planted': added}
 
         if immune:
             message_log.add_message(
@@ -481,6 +485,10 @@ class SkyhookSkill(ActiveSkill):
         # Arrival slam: strike + graft a bomb onto EVERY enemy in the 8 adjacent tiles
         # around the landing point. Snapshot the unit list since the strikes can change
         # board state.
+        # Record every tile a bomb actually seats on, so the graphical layer can play a
+        # graft-in (seat/burrow/arm) per bomb after the slam — same as Inoculant. Harmless
+        # headless. Reset before the loop so a re-cast doesn't show stale plants.
+        plant_tiles = []
         for enemy in list(game.units):
             if (enemy.is_alive() and enemy.player != user.player
                     and game.chess_distance(user.y, user.x, enemy.y, enemy.x) <= 1
@@ -489,7 +497,8 @@ class SkyhookSkill(ActiveSkill):
                 target_def = enemy.get_effective_stats()['defense']
                 damage = max(1, STRIKE_DAMAGE - target_def)
                 dealt = enemy.deal_damage(damage)
-                plant_bomb(enemy, 1)
+                if plant_bomb(enemy, 1) > 0:
+                    plant_tiles.append((enemy.y, enemy.x))
                 if immune:
                     message_log.add_message(
                         f"{user.get_display_name()} comes down hard on {enemy.get_display_name()} for #DAMAGE_{dealt}# damage",
@@ -520,6 +529,10 @@ class SkyhookSkill(ActiveSkill):
                             MessageType.ABILITY,
                             player=user.player
                         )
+
+        # Hand the planted tiles to the graphical layer (the Skyhook animation plays a
+        # graft-in on each after the slam). Always overwrite so a recast can't reuse stale.
+        user.last_skyhook_data = {'plants': plant_tiles}
 
         # Refund the cooldown for the detonations this slam set off — but never below the
         # self-refund floor, so Crash Landing can't perpetually re-launch itself.
@@ -593,6 +606,7 @@ class HarvestSkill(ActiveSkill):
         # graphical layer can fire its explosions on the right tiles (the animation
         # runs after execute(), when the bombs have already been cleared).
         detonations = []  # list of (y, x, stacks)
+        chain_plants = []  # tiles where Chain Reaction grafts a fresh seed (for the graft-in VFX)
         # Victims that have already received a chain seed this Harvest (so two separate
         # kills can't pile chains onto the same body).
         chain_hit = set()
@@ -622,6 +636,7 @@ class HarvestSkill(ActiveSkill):
                 victim = self._chain_target(user, target, game, chain_hit)
                 if victim is not None and plant_bomb(victim, 1) > 0:
                     chain_hit.add(id(victim))
+                    chain_plants.append((victim.y, victim.x))  # graft-in VFX on the seed
                     arm_bombs(victim)  # arm the seed so it can detonate now
                     chain_dmg = detonate_n_stacks(victim, 1, game, killer=user, ui=ui)
                     total_stacks += 1
@@ -631,7 +646,7 @@ class HarvestSkill(ActiveSkill):
                         MessageType.ABILITY,
                         player=user.player
                     )
-        user.last_harvest_data = {'detonations': detonations}
+        user.last_harvest_data = {'detonations': detonations, 'chain_plants': chain_plants}
 
         if total_stacks == 0:
             return False
