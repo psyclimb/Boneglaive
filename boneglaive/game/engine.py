@@ -2991,9 +2991,20 @@ class Game:
                             player=unit.player
                         )
                     
-                    # Update unit position
-                    unit.y, unit.x = y, x
-                    
+                    # Update unit position ATOMICALLY. Do NOT use `unit.y, unit.x = y, x`:
+                    # that assigns y then x through the property setters, so the unit
+                    # transiently occupies the intermediate corner (y, old_x). If another
+                    # unit is on that corner — e.g. an ORDNANCE_GRAFT's leashed QUADCOPTER,
+                    # which sits adjacent to him — the grid's collision safety net restores
+                    # _y to old_y, but the following `x` assignment still runs, stranding
+                    # the unit at (old_y, x): a tile that was never validated and may be
+                    # impassable (a pylon). Writing both axes then updating the grid once
+                    # moves the entry straight from the real old tile to the validated
+                    # final tile, never touching a corner. (Trap-release + anchor updates
+                    # are handled explicitly below, so bypassing the setters loses nothing.)
+                    unit._y, unit._x = y, x
+                    self._update_unit_grid(unit, start_y, start_x)
+
                     # Check for terrain-specific interactions
                     current_terrain = self.map.get_terrain_at(y, x)
                     
@@ -3045,15 +3056,10 @@ class Game:
                         )
                         time.sleep(0.3)  # Short delay after each unit moves
                     else:
-                        # Save original position
-                        start_y, start_x = unit.y, unit.x
-                        
-                        # Without UI, just update position
-                        unit.y, unit.x = y, x
-                        
+                        # Position is already set above. Just reconcile state.
                         # Update anchor status effects after position change
                         self.update_anchor_status_effects()
-                        
+
                         # Check for trap release due to position change
                         self._check_position_change_trap_release(unit, start_y, start_x)
 

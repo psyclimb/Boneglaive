@@ -452,9 +452,11 @@ def test_skyhook_aborts_and_refunds_if_drone_dies_after_queue():
           f"cd={sky.current_cooldown} (want refunded to 0)")
 
 
-def test_skyhook_aborts_and_refunds_if_landing_occupied():
-    """If the landing tile becomes occupied between queue and resolve, execute aborts and
-    refunds the cooldown (the player shouldn't eat a 4-turn cd for a no-op)."""
+def test_skyhook_displaces_if_landing_occupied():
+    """If a UNIT moves onto the landing tile between queue and resolve, the graft is
+    displaced one tile to the side instead of aborting — he still completes the leap,
+    landing adjacent to the intended tile, and keeps the full cooldown (it wasn't a
+    no-op)."""
     g = fresh_game()
     ts = free_tiles(g, 40)
     graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
@@ -463,13 +465,165 @@ def test_skyhook_aborts_and_refunds_if_landing_occupied():
     g._process_ordnance_graft_upkeep()  # drone exists
     dest = _empty_dest_in_range(g, graft)
     sky.use(graft, dest, g)  # queue it -> charges cooldown
-    place(g, UnitType.INTERFERER, 2, dest[0], dest[1])  # something lands on the target tile
+    place(g, UnitType.INTERFERER, 2, dest[0], dest[1])  # a unit lands on the target tile
     before = (graft.y, graft.x)
     ok = sky.execute(graft, dest, g)
-    check("skyhook_occupied_aborts", ok is False and (graft.y, graft.x) == before,
+    landed = (graft.y, graft.x)
+    check("skyhook_occupied_completes", ok is True and landed != before,
+          f"returned={ok} landed={landed} before={before} (want leap, displaced)")
+    check("skyhook_occupied_not_on_blocker", landed != dest,
+          f"landed={landed} dest={dest} (must not stack on the blocker)")
+    check("skyhook_occupied_adjacent_to_dest", g.chess_distance(landed[0], landed[1], dest[0], dest[1]) == 1,
+          f"landed={landed} dest={dest} (want adjacent sidestep)")
+    check("skyhook_occupied_lands_on_open_tile",
+          g.map.is_passable(landed[0], landed[1]) and g.get_unit_at(landed[0], landed[1]) is graft,
+          f"landed={landed} (must be passable + only the graft)")
+    check("skyhook_occupied_keeps_cooldown", sky.current_cooldown == sky.cooldown,
+          f"cd={sky.current_cooldown} (want full {sky.cooldown}, no refund — the leap happened)")
+    check("skyhook_occupied_sets_displaced_flag", getattr(graft, 'vault_displaced_to', None) == landed,
+          f"vault_displaced_to={getattr(graft, 'vault_displaced_to', None)} (want {landed} for the animation)")
+
+
+def test_skyhook_displaces_if_terrain_spawns_under_him():
+    """If impassable terrain/furniture appears on the landing tile between queue and
+    resolve (e.g. a Marrow Dike wall), the graft must be displaced to an open adjacent
+    tile — NOT land on top of the terrain. Guards the second defect: execute used to
+    only check unit occupancy, never passability."""
+    from boneglaive.game.map import TerrainType
+    g = fresh_game()
+    ts = free_tiles(g, 40)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()  # drone exists
+    dest = _empty_dest_in_range(g, graft)
+    sky.use(graft, dest, g)  # queue it while the tile is passable + empty
+    # Block the landing tile with impassable terrain after queueing.
+    g.map.set_terrain_at(dest[0], dest[1], TerrainType.LIMESTONE)
+    before = (graft.y, graft.x)
+    ok = sky.execute(graft, dest, g)
+    landed = (graft.y, graft.x)
+    check("skyhook_terrain_completes", ok is True and landed != before,
+          f"returned={ok} landed={landed} (want leap, displaced off terrain)")
+    check("skyhook_terrain_not_on_blocked_tile", landed != dest,
+          f"landed={landed} dest={dest} (must not land on the impassable tile)")
+    check("skyhook_terrain_lands_passable", g.map.is_passable(landed[0], landed[1]),
+          f"landed={landed} (must be a passable tile)")
+    check("skyhook_terrain_adjacent_to_dest", g.chess_distance(landed[0], landed[1], dest[0], dest[1]) == 1,
+          f"landed={landed} dest={dest} (want adjacent sidestep)")
+
+
+def test_skyhook_aborts_and_refunds_if_boxed_in():
+    """Only when EVERY tile around the landing point is blocked too does the leap abort
+    and refund — there's genuinely nowhere to come down."""
+    from boneglaive.game.map import TerrainType
+    g = fresh_game()
+    ts = free_tiles(g, 60)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()  # drone exists
+    # Pick a destination whose 8 neighbours can all be sealed (and aren't the graft/drone).
+    occupied = {(graft.y, graft.x)}
+    if getattr(graft, 'drone', None):
+        occupied.add((graft.drone.y, graft.drone.x))
+    dest = None
+    from boneglaive.utils.coordinates import get_adjacent_positions
+    for y in range(HEIGHT):
+        for x in range(WIDTH):
+            if ((y, x) in occupied or not g.is_valid_position(y, x)
+                    or not g.map.is_passable(y, x) or g.get_unit_at(y, x) is not None
+                    or g.chess_distance(graft.y, graft.x, y, x) > 4):
+                continue
+            neigh = get_adjacent_positions(y, x)
+            if all(n not in occupied for n in neigh):
+                dest = (y, x)
+                break
+        if dest:
+            break
+    if dest is None:
+        check("skyhook_boxed_setup", False, "no suitable destination to box in")
+        return
+    sky.use(graft, dest, g)  # queue it
+    before = (graft.y, graft.x)
+    # Seal the landing tile AND all 8 neighbours with impassable terrain.
+    g.map.set_terrain_at(dest[0], dest[1], TerrainType.LIMESTONE)
+    for (ny, nx) in get_adjacent_positions(dest[0], dest[1]):
+        if g.is_valid_position(ny, nx) and g.get_unit_at(ny, nx) is None:
+            g.map.set_terrain_at(ny, nx, TerrainType.LIMESTONE)
+    ok = sky.execute(graft, dest, g)
+    check("skyhook_boxed_aborts", ok is False and (graft.y, graft.x) == before,
           f"returned={ok} moved={(graft.y, graft.x) != before} (want abort, no move)")
-    check("skyhook_occupied_refunds", sky.current_cooldown == 0,
+    check("skyhook_boxed_refunds", sky.current_cooldown == 0,
           f"cd={sky.current_cooldown} (want refunded to 0)")
+
+
+# ---------------------------------------------------------------------------
+# Atomic move: the graft must never strand on an intermediate corner when his
+# leashed QUADCOPTER sits on it (the "stops on a pylon on the way" bug).
+# ---------------------------------------------------------------------------
+
+def test_diagonal_move_does_not_strand_on_intermediate_corner():
+    """A regular diagonal move sets y then x; mid-assignment the unit transiently
+    occupies the corner (newy, oldx). The QUADCOPTER is leashed adjacent, so it
+    routinely sits on that corner. The old non-atomic write let the grid's collision
+    safety-net restore _y while the x-assignment still ran, stranding the graft at
+    (oldy, newx) — an UNVALIDATED tile that can be impassable (a pylon). He must
+    instead land on the validated destination, never a corner. Driven through the
+    real execute_turn."""
+    from boneglaive.game.map import TerrainType
+    g = fresh_game(map_name="lime_foyer")
+    ts = free_tiles(g, 40)
+    # Graft at (5,5) -> legal diagonal to (4,6). Corner (4,5) = the QUADCOPTER's tile
+    # (the intermediate (newy, oldx)); corner (5,6) = (oldy, newx) made impassable.
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, 5, 5)
+    graft.drone = None  # controlled repro: place our own stand-in on the corner
+    corner_unit = place(g, UnitType.GLAIVEMAN, 1, 4, 5)  # blocks (newy, oldx)
+    g.map.set_terrain_at(5, 6, TerrainType.PYLON)         # impassable (oldy, newx)
+
+    check("atomic_setup_legal_move", g.can_move_to(graft, 4, 6) is True,
+          f"can_move_to(graft,4,6)={g.can_move_to(graft, 4, 6)} (the diagonal is legal)")
+
+    graft.move_target = (4, 6)
+    graft.action_timestamp = g.action_counter
+    g.action_counter += 1
+    g.current_player = 1
+    g.execute_turn(ui=None)
+
+    check("atomic_lands_on_destination", (graft.y, graft.x) == (4, 6),
+          f"graft at {(graft.y, graft.x)} (want the validated dest (4,6))")
+    check("atomic_not_on_impassable", g.map.is_passable(graft.y, graft.x),
+          f"graft at {(graft.y, graft.x)} terrain={g.map.get_terrain_at(graft.y, graft.x).name} (must be passable)")
+    check("atomic_grid_consistent",
+          g.get_unit_at(graft.y, graft.x) is graft
+          and [k for k, v in g.unit_grid.items() if v is graft] == [(graft.y, graft.x)],
+          f"grid keys for graft={[k for k, v in g.unit_grid.items() if v is graft]} (want exactly [(4,6)])")
+    # The blocker on the corner is untouched and the corner still holds only it.
+    check("atomic_corner_unit_intact", (corner_unit.y, corner_unit.x) == (4, 5)
+          and g.get_unit_at(4, 5) is corner_unit,
+          f"corner unit at {(corner_unit.y, corner_unit.x)} (must stay put at (4,5))")
+
+
+def test_blocked_diagonal_destination_keeps_graft_put():
+    """If the FINAL tile (not just a corner) is occupied when the move resolves, the
+    move is correctly skipped and the graft stays exactly where it was — the atomic
+    write must not corrupt his position in the rejected case either."""
+    g = fresh_game(map_name="lime_foyer")
+    ts = free_tiles(g, 40)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, 5, 5)
+    graft.drone = None
+    graft.move_target = (4, 6)
+    graft.action_timestamp = g.action_counter
+    g.action_counter += 1
+    # Occupy the destination AFTER queueing (it was empty/valid at queue time).
+    place(g, UnitType.GLAIVEMAN, 2, 4, 6)
+    before = (graft.y, graft.x)
+    g.current_player = 1
+    g.execute_turn(ui=None)
+    check("blocked_dest_graft_unmoved", (graft.y, graft.x) == before,
+          f"graft at {(graft.y, graft.x)} (want unchanged {before} — move skipped)")
+    check("blocked_dest_grid_consistent", g.get_unit_at(*before) is graft,
+          f"grid at {before} = {g.get_unit_at(*before)} (want the graft)")
 
 
 # ---------------------------------------------------------------------------
@@ -1340,7 +1494,11 @@ def main():
     test_skyhook_requires_living_drone()
     test_skyhook_blocked_after_drone_dies()
     test_skyhook_aborts_and_refunds_if_drone_dies_after_queue()
-    test_skyhook_aborts_and_refunds_if_landing_occupied()
+    test_skyhook_displaces_if_landing_occupied()
+    test_skyhook_displaces_if_terrain_spawns_under_him()
+    test_skyhook_aborts_and_refunds_if_boxed_in()
+    test_diagonal_move_does_not_strand_on_intermediate_corner()
+    test_blocked_diagonal_destination_keeps_graft_put()
     test_partial_cleanse_removes_one()
     test_partial_cleanse_prefers_unfused()
     test_full_cleanse_removes_all()

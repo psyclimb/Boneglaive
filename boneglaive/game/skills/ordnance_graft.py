@@ -334,6 +334,48 @@ class SkyhookSkill(ActiveSkill):
         drone = getattr(user, 'drone', None)
         return bool(drone and drone.is_alive())
 
+    def _find_landing_position(self, game: 'Game', target_pos: tuple) -> Optional[tuple]:
+        """Find where the graft actually comes down. The landing tile was empty when
+        Skyhook was queued, but a unit may have moved onto it, or terrain/furniture may
+        have spawned there, before this resolves. If the tile is still open he lands on
+        it; otherwise he twists down onto the nearest open adjacent tile (he's hauled in
+        on a line, so a one-tile sidestep is fine). Returns None only if he's completely
+        boxed in. Mirrors Glaiveman Vault's displacement so the two leaps behave alike."""
+        from boneglaive.utils.coordinates import get_adjacent_positions
+
+        ty, tx = target_pos
+
+        def is_open(y: int, x: int) -> bool:
+            if not game.is_valid_position(y, x):
+                return False
+            if not game.map.is_passable(y, x):
+                return False
+            if game.get_unit_at(y, x) is not None:
+                return False
+            # Don't drop onto a tile another unit is already moving/leaping into this
+            # same turn — that would just create a collision the engine has to untangle.
+            for other in game.units:
+                if not other.is_alive():
+                    continue
+                if getattr(other, 'move_target', None) == (y, x):
+                    return False
+                if getattr(other, 'vault_target_indicator', None) == (y, x):
+                    return False
+                if getattr(other, 'teleport_target_indicator', None) == (y, x):
+                    return False
+            return True
+
+        # The intended tile is still best if it freed up (or never got taken).
+        if is_open(ty, tx):
+            return (ty, tx)
+
+        # Otherwise sidestep to the nearest open adjacent tile.
+        for adj_y, adj_x in get_adjacent_positions(ty, tx):
+            if is_open(adj_y, adj_x):
+                return (adj_y, adj_x)
+
+        return None
+
     def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
         if not super().can_use(user, target_pos, game):
             return False
@@ -390,7 +432,12 @@ class SkyhookSkill(ActiveSkill):
             return False
 
         # The drone hauls him to the landing tile (teleport — flies over everything).
-        if game.get_unit_at(ty, tx) is not None:
+        # The tile was clear when this was queued, but a unit may have moved onto it or
+        # terrain/furniture may have spawned there since. Resolve the real landing tile:
+        # the intended one if it's still open, else the nearest open adjacent tile. Only
+        # a complete box-in aborts the leap.
+        landing = self._find_landing_position(game, target_pos)
+        if landing is None:
             message_log.add_message(
                 f"{user.get_display_name()}'s skyhook aborts - no room to land!",
                 MessageType.WARNING,
@@ -398,17 +445,31 @@ class SkyhookSkill(ActiveSkill):
             )
             self.current_cooldown = 0  # refund — the skill did nothing
             return False
+        displaced = landing != (ty, tx)
+        land_y, land_x = landing
         game._remove_from_unit_grid(user)
-        user.y, user.x = ty, tx
+        user.y, user.x = land_y, land_x
         game._update_unit_grid(user)
+        # Tell the graphical layer the carry arc ends on the displaced tile (the Skyhook
+        # animation reads vault_displaced_to, same as Vault) so the sprite doesn't fly to
+        # the obstruction. Harmless in headless mode (no animation reads it).
+        if displaced:
+            user.vault_displaced_to = (land_y, land_x)
         # The drone carried him here, so it lands ADJACENT to him at the new position.
         game._snap_drone_adjacent(user, ui)
 
-        message_log.add_message(
-            f"{user.get_display_name()} is hauled across the field on the drone's line",
-            MessageType.ABILITY,
-            player=user.player
-        )
+        if displaced:
+            message_log.add_message(
+                f"{user.get_display_name()} is hauled across the field, twisting down beside the obstruction to ({land_y}, {land_x})",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            message_log.add_message(
+                f"{user.get_display_name()} is hauled across the field on the drone's line",
+                MessageType.ABILITY,
+                player=user.player
+            )
 
         # Crash Landing upgrade: the arrival slam also DETONATES the fused bombs already
         # on each enemy it strikes (read once up front). A high-risk burst: hook into

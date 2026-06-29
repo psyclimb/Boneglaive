@@ -445,9 +445,19 @@ class AnimationFactory:
                 # the drone (it's carrying him) and reveal it at the landing.
                 if not target_pos:
                     return None
+
+                # Check if the landing was displaced (the intended tile got taken by a
+                # unit or terrain before he arrived) so the carry arc ends where he
+                # actually came down, not on the obstruction.
+                actual_target_pos = target_pos
+                if caster_unit and hasattr(caster_unit, 'game_unit') and hasattr(caster_unit.game_unit, 'vault_displaced_to'):
+                    actual_target_pos = caster_unit.game_unit.vault_displaced_to
+                    # Clear the flag
+                    del caster_unit.game_unit.vault_displaced_to
+
                 animation = anim_class(
                     caster_unit=caster_unit,
-                    target_pos=target_pos,
+                    target_pos=actual_target_pos,
                     particle_emitter=particle_emitter,
                     screen_shake_callback=screen_shake_callback,
                     camera=camera,
