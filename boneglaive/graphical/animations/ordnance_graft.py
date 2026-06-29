@@ -127,11 +127,15 @@ class _Inoculation:
 
     def __init__(self, tx, ty, ux, uy, emitter, screen_shake,
                  start_size=5.5, seated_size=2.4, base_rot=0.0,
-                 spin_carry=0.0, scale=1.0, start_delay=0.0):
+                 spin_carry=0.0, scale=1.0, start_delay=0.0, play_audio=True):
         # tx,ty = entry point; ux,uy = unit vector pointing INTO the body (delivery dir).
         # start_delay holds the element idle (drawing nothing) until that much time has
         # passed, so a single owner can stagger several graft-ins (Skyhook on N enemies,
         # Booster Charge's 2nd bomb, Chain Reaction's seed) off one clock.
+        # play_audio gates the burrow/arm SOUND so it fires once PER CAST, not per bomb:
+        # a multi-bomb skill (Skyhook/Harvest-chain/Booster) would otherwise machine-gun N
+        # overlapping copies into mud (and exhaust mixer channels). Grouped/extra bombs are
+        # visual-only for sound; the owning animation's slam/detonation carries the audio.
         self.tx, self.ty = tx, ty
         self.ux, self.uy = ux, uy
         self.emitter = emitter
@@ -142,6 +146,7 @@ class _Inoculation:
         self.spin_carry = spin_carry      # extra deg the drone round was already spinning
         self.scale = scale
         self.start_delay = start_delay
+        self.play_audio = play_audio
         self.elapsed = -start_delay       # counts up; own beats begin once it reaches 0
         self._shuddered = False
         self._burrowed = False
@@ -178,7 +183,8 @@ class _Inoculation:
         # BURROW beat: it bites in — suction pull inward + a couple specks ejected.
         if not self._burrowed and self.elapsed >= self.SEAT:
             self._burrowed = True
-            play_sound("inoculant_burrow")
+            if self.play_audio:
+                play_sound("inoculant_burrow")
             _emit_graft_inward(self.emitter, self.tx, self.ty,
                                n=int(8 * self.scale) + 5, color=BOMB_BLACK)
             self._eject_specks(3, 45, 90)
@@ -186,7 +192,8 @@ class _Inoculation:
         # ARM beat: it wakes up under the skin — one short sound.
         if not self._armed and self.elapsed >= self.SEAT + self.BURROW:
             self._armed = True
-            play_sound("inoculant_arm")
+            if self.play_audio:
+                play_sound("inoculant_arm")
 
         return self.active
 
@@ -270,6 +277,7 @@ def _make_inoculations(tiles, camera, emitter, screen_shake, base_delay=0.0,
             base_rot=random.uniform(0, 60),
             scale=scale,
             start_delay=base_delay + i * stagger,
+            play_audio=False,                 # owner's slam/detonation carries the sound
         ))
     return inocs
 
@@ -351,13 +359,16 @@ class InoculantAnimation:
                                      self.particle_emitter, self.screen_shake,
                                      start_size=5.5, seated_size=2.4, base_rot=self.bomb_rot)
             # Booster Charge: a 2nd (and rarely more) bomb seats right after the first,
-            # staggered so the player reads two distinct graft-ins, not one fat blob.
+            # staggered so the player reads two distinct graft-ins, not one fat blob. The
+            # extras are visual-only for sound — the one burrow/arm from self.inoc covers
+            # the strike (they all seat from the same blow; N squelches would muddy it).
             for k in range(1, self.planted):
                 self.extra_inocs.append(_Inoculation(
                     self.tx, self.ty, self.ux, self.uy,
                     self.particle_emitter, self.screen_shake,
                     start_size=5.0, seated_size=2.2,
-                    base_rot=random.uniform(0, 60), start_delay=0.14 * k))
+                    base_rot=random.uniform(0, 60), start_delay=0.14 * k,
+                    play_audio=False))
 
         if self.inoc is not None:
             self.inoc.update(delta_time)
@@ -500,10 +511,14 @@ class DroneInoculantAnimation:
                 self.screen_shake(3, 0.12)
             # hand the round off to the inoculation: a lighter round (smaller scale), and
             # its flight-spin carries into the auger twist so the drill read is continuous.
+            # play_audio=False: the drone has its OWN single graft sound (drone_inoculant_graft,
+            # fired just above, covering embed+settle); it does NOT borrow the graft's
+            # melee-flavored burrow/arm sounds — keeps the drone at its 2 spec'd sound files.
             self.inoc = _Inoculation(self.tx, self.ty, self.ux, self.uy,
                                      self.particle_emitter, self.screen_shake,
                                      start_size=4.6, seated_size=2.0,
                                      base_rot=self.bomb_rot + self.SPIN_AT_HIT,
+                                     play_audio=False,
                                      spin_carry=140.0, scale=0.85)
 
         if self.inoc is not None:
