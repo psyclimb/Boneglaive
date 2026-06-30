@@ -726,25 +726,26 @@ def test_jounce_reels_from_queued_move_destination_not_pre_move_tile():
     check("jounce_movedest_consumes_launch", graft.jounce_launch_from is None,
           "launch origin consumed so it can't leak into a later turn")
     # The animation needs the launch tile (the destination) so it can walk the sprite there
-    # before firing — without it the cord would draw from his pre-move tile.
-    check("jounce_movedest_anim_from_set", graft.jounce_anim_from == (5, 5),
-          f"jounce_anim_from={graft.jounce_anim_from} (want the move destination (5,5))")
+    # before firing — without it the cord would draw from his pre-move tile. (Shared field
+    # consumed by the WalkIn helper across all movement skills.)
+    check("jounce_movedest_anim_from_set", graft.skill_walkin_from == (5, 5),
+          f"skill_walkin_from={graft.skill_walkin_from} (want the move destination (5,5))")
 
 
-def test_jounce_anim_from_unset_without_queued_move():
-    """An in-place Jounce (no queued move) leaves jounce_anim_from None, so the animation
+def test_jounce_walkin_unset_without_queued_move():
+    """An in-place Jounce (no queued move) leaves skill_walkin_from None, so the animation
     skips the walk-in and fires from where he stands (it must not inherit a stale launch
     tile from a prior cast)."""
     g = fresh_game()
     g.unit_grid = {}
     graft = _make_jounce_graft(g, 5, 5)
     j = _leap_slot(graft)
-    graft.jounce_anim_from = (9, 9)     # stale value from a hypothetical earlier cast
+    graft.skill_walkin_from = (9, 9)    # stale value from a hypothetical earlier cast
     enemy = place(g, UnitType.GLAIVEMAN, 2, 5, 8)
     j.use(graft, (5, 8), g)             # no move queued
     j.execute(graft, (5, 8), g, ui=None)
-    check("jounce_no_move_anim_from_none", graft.jounce_anim_from is None,
-          f"jounce_anim_from={graft.jounce_anim_from} (want None; in-place cast has no walk-in)")
+    check("jounce_no_move_anim_from_none", graft.skill_walkin_from is None,
+          f"skill_walkin_from={graft.skill_walkin_from} (want None; in-place cast has no walk-in)")
 
 
 # ---------------------------------------------------------------------------
@@ -1691,7 +1692,7 @@ def main():
     test_jounce_pulls_to_stop_adjacent_and_slams()
     test_jounce_aborts_and_refunds_with_no_anchor()
     test_jounce_reels_from_queued_move_destination_not_pre_move_tile()
-    test_jounce_anim_from_unset_without_queued_move()
+    test_jounce_walkin_unset_without_queued_move()
     test_diagonal_move_does_not_strand_on_intermediate_corner()
     test_blocked_diagonal_destination_keeps_graft_put()
     test_partial_cleanse_removes_one()

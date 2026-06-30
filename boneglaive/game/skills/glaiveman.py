@@ -628,7 +628,13 @@ class VaultSkill(ActiveSkill):
             user.action_timestamp = game.action_counter
             game.action_counter += 1
 
-        # Clear the move target - Vault IS the movement, don't walk first
+        # Clear the move target - Vault IS the movement, don't walk first. But if a move was
+        # queued, hand its destination to the animation so the sprite walks there before the
+        # leap arcs from it (purely visual; the leap still goes to the absolute target).
+        if user.move_target and user.move_target != (user.y, user.x):
+            user.skill_walkin_from = user.move_target
+        else:
+            user.skill_walkin_from = None
         user.move_target = None
 
         # Set vault target indicator for UI

@@ -483,10 +483,6 @@ class AnimationFactory:
                     camera=camera,
                     units_list=units_list
                 )
-                # The controller has read the walk-in launch tile; clear it so a later Jounce
-                # without a queued move can't inherit a stale launch origin.
-                if caster_unit and hasattr(caster_unit, 'game_unit'):
-                    caster_unit.game_unit.jounce_anim_from = None
             elif anim_class.__name__ == "VaultAnimationControllerUpgraded":
                 # VaultAnimationControllerUpgraded needs target position (same signature as regular Vault)
                 if not target_pos:
@@ -1349,6 +1345,13 @@ class AnimationFactory:
             else:
                 # Most animations expect just target coordinates
                 animation = anim_class(**kwargs)
+
+            # Movement-skill controllers (Vault/Delta/Expedite/Jounce) read skill_walkin_from
+            # in their __init__ to walk the sprite to the queued move tile first. Consume it
+            # here so a later cast without a queued move can't inherit a stale launch tile.
+            if animation is not None and caster_unit is not None and hasattr(caster_unit, 'game_unit') \
+                    and caster_unit.game_unit is not None and getattr(caster_unit.game_unit, 'skill_walkin_from', None):
+                caster_unit.game_unit.skill_walkin_from = None
 
             return animation
         except Exception as e:

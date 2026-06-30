@@ -6,7 +6,7 @@ Skill animations for the GRAYMAN unit.
 import pygame
 import random
 import math
-from .core import TILE_SIZE, Particle
+from .core import TILE_SIZE, Particle, WalkIn
 from boneglaive.graphical.sound_helper import play_sound
 
 
@@ -43,11 +43,22 @@ class DeltaConfigAnimation:
             from boneglaive.game.upgrades import UpgradeManager
             self.is_upgraded = UpgradeManager.is_skill_upgraded(caster_unit.game_unit, "Delta Config")
 
-        # Convert grid to screen coordinates using camera
-        self.source_x = caster_unit.x
-        self.source_y = caster_unit.y
-        self.source_grid_x = caster_unit.grid_x
-        self.source_grid_y = caster_unit.grid_y
+        # If a move was queued before Delta Config, the engine already walked him to that tile
+        # then teleported from there; play the walk visually and originate the teleport-pull
+        # from the move tile (B), not his pre-move tile. Inert with no queued move.
+        graft_gu = getattr(caster_unit, 'game_unit', None)
+        launch_from = getattr(graft_gu, 'skill_walkin_from', None) if graft_gu else None
+        self._walk = WalkIn(caster_unit, launch_from)
+
+        # Teleport origin (the pull chain + well start here). Default to the unit's current
+        # screen/grid tile; with a queued move, use the walk-in's end tile B.
+        self.source_x = self._walk.bx
+        self.source_y = self._walk.by
+        if launch_from:
+            self.source_grid_y, self.source_grid_x = launch_from
+        else:
+            self.source_grid_x = caster_unit.grid_x
+            self.source_grid_y = caster_unit.grid_y
 
         if self.camera:
             self.target_x, self.target_y = self.camera.grid_to_screen(self.target_grid_x, self.target_grid_y)
@@ -186,6 +197,11 @@ class DeltaConfigAnimation:
 
     def update(self, delta_time):
         """Update animation state."""
+        # Walk to the launch tile first (only when a move was queued); hold the teleport clock
+        # until he arrives, so the energize/pull/snap all originate from the move tile.
+        if self._walk.update(delta_time, self.particle_emitter):
+            return True
+
         self.timer += delta_time
 
         if self.phase == "energize":
@@ -321,6 +337,10 @@ class DeltaConfigAnimation:
 
     def draw(self, surface):
         """Draw the Delta Config animation."""
+        # Nothing to draw while he's still walking in — the energize/pull effects belong at
+        # the launch tile, which he hasn't reached yet.
+        if self._walk.active:
+            return
         if self.phase == "energize":
             # Draw energizing glow at source
             progress = self.timer / self.energize_duration

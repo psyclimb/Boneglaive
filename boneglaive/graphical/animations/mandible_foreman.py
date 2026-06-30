@@ -1475,6 +1475,15 @@ class ExpediteRush:
         self.timer = 0
         self.active = True
 
+        # If a move was queued before Expedite, walk the sprite to the launch tile first; the
+        # dash already starts from there (start_x/start_y = the planned move tile). Inert with
+        # no queued move. (steam_particles must exist before update() ticks the walk.)
+        from boneglaive.graphical.animations.core import WalkIn
+        graft_gu = getattr(foreman_unit, 'game_unit', None)
+        launch_from = getattr(graft_gu, 'skill_walkin_from', None) if graft_gu else None
+        self._walk = WalkIn(foreman_unit, launch_from)
+        self._charged = False  # play the charge beat when the walk completes
+
         # Store camera reference and get tile size
         self.camera = camera
         if camera:
@@ -1540,10 +1549,19 @@ class ExpediteRush:
         # Impact debris particles (created on impact)
         self.impact_debris = []
 
-        play_sound("expedite_charge")
+        if not self._walk.had_walk:
+            play_sound("expedite_charge")
 
     def update(self, delta_time):
         """Update expedite rush animation."""
+        # Walk to the launch tile first (only when a move was queued); hold the dash clock
+        # until he arrives, then crack off the charge beat and let the existing phases run.
+        if self._walk.update(delta_time, getattr(self, 'particle_emitter', None)):
+            return True
+        if not self._charged:
+            self._charged = True
+            play_sound("expedite_charge")
+
         self.timer += delta_time
 
         if self.phase == "charging":
@@ -1737,6 +1755,11 @@ class ExpediteRush:
     def draw(self, surface):
         """Draw the expedite rush animation."""
         if not self.active:
+            return
+
+        # Nothing to draw while he's still walking in to the launch tile — the charge/rush
+        # visuals belong at the dash origin, which he hasn't reached yet.
+        if self._walk.active:
             return
 
         # Draw steam particles

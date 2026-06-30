@@ -984,6 +984,76 @@ class AnimatedUnit:
         # surface.blit(name_text, name_rect)
 
 
+class WalkIn:
+    """A short walk-in that movement-skill animations prepend when the player queued a move
+    before the skill.
+
+    Several movement skills (Vault, Delta Config, Expedite, Jounce) clear/ignore the queued
+    move and resolve the unit straight to the skill's destination, so the visual layer never
+    plays the walk to the move tile and the skill animation fires from the unit's PRE-MOVE
+    tile. This helper walks the sprite from its pre-move tile (A) to the launch tile (B = the
+    queued move destination) first; the owning controller then runs its own phases with the
+    origin at B. With no queued move (B is None or equals A) it's inert: ``active`` is False
+    from the start and ``duration`` is 0, so the controller behaves exactly as before.
+
+    Usage (in a controller):
+        self._walk = WalkIn(caster_unit, launch_from_grid)   # launch_from_grid = (y, x) or None
+        # compute the controller's origin from (self._walk.bx, self._walk.by)
+        ...
+        def update(self, dt):
+            if self._walk.update(dt, self.particle_emitter):
+                return True            # still walking — hold the skill's own clock
+            ... run the existing phase logic, which now starts from B ...
+    """
+
+    PIXELS_PER_SEC = 520.0      # walk speed; duration scales with distance
+    MAX_DURATION = 0.45         # cap so a long reposition doesn't drag
+    _DUST = (194, 178, 128)     # tan kick-up under the stride
+
+    def __init__(self, caster_unit, launch_from_grid):
+        self.caster = caster_unit
+        self.start_x, self.start_y = caster_unit.x, caster_unit.y
+        # Launch screen position B = the queued move destination, else the current tile.
+        if launch_from_grid is not None:
+            from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+            ly, lx = launch_from_grid
+            self.bx = lx * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
+            self.by = ly * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
+        else:
+            self.bx, self.by = self.start_x, self.start_y
+        dist = math.hypot(self.bx - self.start_x, self.by - self.start_y)
+        self.duration = min(self.MAX_DURATION, dist / self.PIXELS_PER_SEC) if dist > 1.0 else 0.0
+        self.had_walk = self.duration > 0.0
+        self.active = self.had_walk
+        self.elapsed = 0.0
+
+    def update(self, delta_time, particle_emitter=None):
+        """Advance the walk. Returns True while still walking (the caller should hold its own
+        animation clock), False once the sprite has arrived at B (or immediately if inert)."""
+        if not self.active:
+            return False
+        self.elapsed += delta_time
+        if self.elapsed < self.duration:
+            mt = self.elapsed / self.duration
+            ease = mt * mt * (3 - 2 * mt)  # smoothstep stride
+            self.caster.x = self.start_x + (self.bx - self.start_x) * ease
+            self.caster.y = self.start_y + (self.by - self.start_y) * ease
+            # Point the sprite's own smooth-move target at B too, so the unit's per-frame
+            # update (which runs before the controller) pulls the same way and the walk-cycle
+            # plays; the controller then sets the exact eased position.
+            self.caster.target_x, self.caster.target_y = self.bx, self.by
+            self.caster.is_moving = True
+            if particle_emitter and random.random() < 0.3:
+                particle_emitter.emit_trail(self.caster.x + random.uniform(-4, 4),
+                                            self.caster.y + 12, self._DUST, count=1)
+            return True
+        # Arrived at the launch tile.
+        self.active = False
+        self.caster.x, self.caster.y = self.bx, self.by
+        self.caster.is_moving = False
+        return False
+
+
 class FloatingText:
     """Floating damage/heal numbers with Autoclave-style animation."""
     def __init__(self, x, y, text, color):

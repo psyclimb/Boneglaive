@@ -6,7 +6,7 @@ Skill animations for the GLAIVEMAN unit.
 import pygame
 import random
 import math
-from .core import TILE_SIZE, Particle
+from .core import TILE_SIZE, Particle, WalkIn
 from boneglaive.graphical.sound_helper import play_sound
 
 class LightningBolt:
@@ -441,12 +441,19 @@ class VaultAnimationController:
         self.screen_shake = screen_shake_callback
         self.camera = camera
 
-        # Set up vault animation state
+        # If a move was queued before Vault, walk the sprite to that tile first, then arc from
+        # it (the leap still lands on the absolute target). Inert with no queued move.
+        graft_gu = getattr(caster_unit, 'game_unit', None)
+        launch_from = getattr(graft_gu, 'skill_walkin_from', None) if graft_gu else None
+        self._walk = WalkIn(caster_unit, launch_from)
+        self._launched = False  # fire the launch beat/particles when the walk completes
+
+        # Set up vault animation state. The arc launches from the walk-in's end tile B.
         self.caster.vault_phase = "vaulting"
         self.caster.vault_timer = 0
         self.caster.vault_duration = 0.6  # Total vault time
-        self.caster.vault_start_x = caster_unit.x
-        self.caster.vault_start_y = caster_unit.y
+        self.caster.vault_start_x = self._walk.bx
+        self.caster.vault_start_y = self._walk.by
         self.caster.wind_up_rotation = 0  # Initialize rotation for flip
 
         # Calculate target screen position using camera
@@ -464,26 +471,35 @@ class VaultAnimationController:
         self.caster.vault_target_grid_x = target_grid_x
         self.caster.vault_target_grid_y = target_grid_y
 
+        self.active = True
 
-        # Launch sound - leap off ground
+        # Leap off immediately when there's no walk-in; otherwise wait until he arrives at B.
+        if not self._walk.had_walk:
+            self._launch()
+
+    def _launch(self):
+        """Leap-off beat: launch sound + ground particles from the current tile."""
+        self._launched = True
         play_sound("vault_launch")
-
-        # Launch particles
         for _ in range(20):
             angle = random.uniform(0, 2 * math.pi)
             speed = random.uniform(50, 150)
             self.particle_emitter.particles.append(
-                Particle(caster_unit.x, caster_unit.y,
+                Particle(self.caster.x, self.caster.y,
                         math.cos(angle) * speed, math.sin(angle) * speed,
                         (100, 200, 255), random.uniform(2, 5), 0.4)
             )
-
-        self.active = True
 
     def update(self, delta_time):
         """Update vault animation - returns True if still active."""
         if not self.active:
             return False
+
+        # Walk to the launch tile first (only when a move was queued); hold the vault clock.
+        if self._walk.update(delta_time, self.particle_emitter):
+            return True
+        if not self._launched:
+            self._launch()
 
         if hasattr(self.caster, 'vault_phase') and self.caster.vault_phase == "vaulting":
             self.caster.vault_timer += delta_time
@@ -564,12 +580,19 @@ class VaultAnimationControllerUpgraded:
         self.screen_shake = screen_shake_callback
         self.camera = camera
 
-        # Set up vault animation state
+        # If a move was queued before Vault, walk the sprite to that tile first, then arc from
+        # it (the leap still lands on the absolute target). Inert with no queued move.
+        graft_gu = getattr(caster_unit, 'game_unit', None)
+        launch_from = getattr(graft_gu, 'skill_walkin_from', None) if graft_gu else None
+        self._walk = WalkIn(caster_unit, launch_from)
+        self._launched = False
+
+        # Set up vault animation state. The arc launches from the walk-in's end tile B.
         self.caster.vault_phase = "vaulting"
         self.caster.vault_timer = 0
         self.caster.vault_duration = 0.8  # Longer duration for extended vault (was 0.6)
-        self.caster.vault_start_x = caster_unit.x
-        self.caster.vault_start_y = caster_unit.y
+        self.caster.vault_start_x = self._walk.bx
+        self.caster.vault_start_y = self._walk.by
         self.caster.wind_up_rotation = 0  # Initialize rotation for double flip
 
         # Calculate target screen position using camera
@@ -587,30 +610,38 @@ class VaultAnimationControllerUpgraded:
         self.caster.vault_target_grid_x = target_grid_x
         self.caster.vault_target_grid_y = target_grid_y
 
+        self.active = True
+        self.trail_timer = 0  # Timer for continuous particle trail
 
-        # Launch sound (upgraded version)
+        # Leap off immediately when there's no walk-in; otherwise wait until he arrives at B.
+        if not self._walk.had_walk:
+            self._launch()
+
+    def _launch(self):
+        """Leap-off beat (upgraded): sound + enhanced particles + shake from the current tile."""
+        self._launched = True
         play_sound("vault_launch_upgraded")
-
-        # Enhanced launch particles (more particles, brighter colors)
         for _ in range(35):  # Was 20
             angle = random.uniform(0, 2 * math.pi)
             speed = random.uniform(70, 200)  # Faster particles
             self.particle_emitter.particles.append(
-                Particle(caster_unit.x, caster_unit.y,
+                Particle(self.caster.x, self.caster.y,
                         math.cos(angle) * speed, math.sin(angle) * speed,
                         (150, 220, 255), random.uniform(3, 7), 0.5)  # Brighter blue, larger
             )
-
         # Launch screen shake (stronger than regular vault)
         self.screen_shake(6, 0.3)
-
-        self.active = True
-        self.trail_timer = 0  # Timer for continuous particle trail
 
     def update(self, delta_time):
         """Update vault animation - returns True if still active."""
         if not self.active:
             return False
+
+        # Walk to the launch tile first (only when a move was queued); hold the vault clock.
+        if self._walk.update(delta_time, self.particle_emitter):
+            return True
+        if not self._launched:
+            self._launch()
 
         if hasattr(self.caster, 'vault_phase') and self.caster.vault_phase == "vaulting":
             self.caster.vault_timer += delta_time

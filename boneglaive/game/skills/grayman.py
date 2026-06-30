@@ -101,7 +101,13 @@ class DeltaConfigSkill(ActiveSkill):
         user.selected_skill = self
 
         # Don't clear move_target - allow move+skill combos
-        # If user moves first, they can reposition before teleporting
+        # If user moves first, they can reposition before teleporting (the engine walks him
+        # to the move tile, then this teleports from there). Hand that tile to the animation
+        # so the visual walks there before the teleport-pull originates from it.
+        if user.move_target and user.move_target != (user.y, user.x):
+            user.skill_walkin_from = user.move_target
+        else:
+            user.skill_walkin_from = None
 
         # Set teleport target indicator for UI
         user.teleport_target_indicator = target_pos

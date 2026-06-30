@@ -733,13 +733,13 @@ class JounceSkill(ActiveSkill):
         landing = self._resolve_landing(game, user, target_pos)
         user.jounce_launch_from = None
         # Hand the animation the tile he reeled FROM when it differs from where the sprite
-        # currently sits (i.e. a move was queued). The Jounce animation walks the sprite to
-        # this launch tile first, THEN fires the grapple from it, so the trajectory matches
-        # what the player aimed (the move ghost), instead of firing from his pre-move tile.
+        # currently sits (i.e. a move was queued). The animation walks the sprite to this
+        # launch tile first (shared WalkIn), THEN fires the grapple from it, so the trajectory
+        # matches what the player aimed (the move ghost), instead of his pre-move tile.
         # Cleared otherwise so a stale launch tile never leaks into a plain in-place Jounce.
-        user.jounce_anim_from = launch_from if (launch_from and launch_from != pre_move_pos) else None
+        user.skill_walkin_from = launch_from if (launch_from and launch_from != pre_move_pos) else None
         if landing is None:
-            user.jounce_anim_from = None  # nothing happened — don't walk the sprite anywhere
+            user.skill_walkin_from = None  # nothing happened — don't walk the sprite anywhere
             message_log.add_message(
                 f"{user.get_display_name()}'s grapple finds no purchase!",
                 MessageType.WARNING,

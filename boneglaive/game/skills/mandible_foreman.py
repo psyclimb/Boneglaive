@@ -154,13 +154,20 @@ class DischargeSkill(ActiveSkill):
         # Use planned move position if available, otherwise use current position
         from_y = user.y
         from_x = user.x
+        # Hand any queued move tile to the shared walk-in so the sprite walks there before the
+        # dash launches from it (the dash already starts there; this adds the walk). Always
+        # written so a stale launch tile from a cancelled cast can't leak in.
+        if user.move_target and user.move_target != (user.y, user.x):
+            user.skill_walkin_from = user.move_target
+        else:
+            user.skill_walkin_from = None
         if user.move_target:
             from_y, from_x = user.move_target
             # Store the planned position for the animation to use
             user.expedite_planned_start = user.move_target
             # Clear the move target - Expedite IS the movement, don't walk first
             user.move_target = None
-            
+
         path = get_line(Position(from_y, from_x), Position(target_pos[0], target_pos[1]))
         
         # Store path positions (excluding starting position) with UI indicator
