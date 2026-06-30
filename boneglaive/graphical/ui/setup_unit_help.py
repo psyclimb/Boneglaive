@@ -353,7 +353,7 @@ class SetupUnitHelp:
             UnitType.ORDNANCE_GRAFT: {
                 'difficulty': 2,  # Out of 5
                 'role': 'Burst Damage / Summoner / Escape Artist',
-                'overview': 'A gunner who grafts spiked bombs onto enemies and detonates them for damage scaled to maximum HP. The roster\'s anti-tank, backed by a piloted drone.',
+                'overview': 'A sapper who grafts spiked bombs onto enemies and detonates them for damage scaled to maximum HP. The roster\'s anti-tank, backed by a piloted drone.',
                 'passive': {
                     'name': 'QUADCOPTER',
                     'desc': 'Fields a leashed drone you pilot as a second body; it carries its own Inoculant. Regenerates after being destroyed.'

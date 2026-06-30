@@ -1243,7 +1243,7 @@ class FragmentationCracks:
         if frag_alpha > 0:
             for frag in self.fragments:
                 frag_surf = pygame.Surface((int(frag['size'] * 2), int(frag['size'] * 2)), pygame.SRCALPHA)
-                color = frag['color_choice'] + (frag_alpha)
+                color = (*frag['color_choice'], frag_alpha)
                 pygame.draw.circle(frag_surf, color,
                                  (int(frag['size']), int(frag['size'])), int(frag['size']))
                 surface.blit(frag_surf, (int(frag['x'] - frag['size']), int(frag['y'] - frag['size'])))

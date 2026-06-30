@@ -3170,7 +3170,7 @@ class TacticalEvaluator:
         return actions
 
     # ------------------------------------------------------------------
-    # ORDNANCE GRAFT — the anti-tank gunner and its QUADCOPTER drone.
+    # ORDNANCE GRAFT — the anti-tank sapper and its QUADCOPTER drone.
     #
     # His damage identity is %-of-max-HP "bombs" that scale UP with the target's
     # max HP, detonated en masse by Harvest. The generic path is actively wrong for

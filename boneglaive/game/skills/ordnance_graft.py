@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Skills for ORDNANCE GRAFT — the gunner who grafts %HP bombs and touches them off."""
+"""Skills for ORDNANCE GRAFT — the sapper who grafts %HP bombs and touches them off."""
 
 from typing import Optional, TYPE_CHECKING
 

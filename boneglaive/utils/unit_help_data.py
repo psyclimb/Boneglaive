@@ -765,7 +765,7 @@ def get_unit_help_data():
         UnitType.ORDNANCE_GRAFT: {
             'title': 'ORDNANCE GRAFT',
             'overview': [
-                'ORDNANCE GRAFT is a gunner who fights with a linstock — a match-staff for firing cannon. He grafts clustered spiked bombs onto enemies with his strikes, then touches them off for damage scaled to the target\'s maximum HP. This makes him the roster\'s dedicated anti-tank: the bigger the body, the harder he hits it. He also pilots a leashed quadcopter drone — a second body with its own Inoculant to graft bombs of its own.',
+                'ORDNANCE GRAFT is a sapper who fights with a radio-detonator staff — a tall pole topped with a cluster of spiked bombs, a radio trigger at the grip. He grafts those bombs onto enemies with his strikes, then thumbs the trigger to set them off remotely for damage scaled to the target\'s maximum HP. This makes him the roster\'s dedicated anti-tank: the bigger the body, the harder he hits it. He also pilots a leashed quadcopter drone — a second body with its own Inoculant to graft bombs of its own.',
                 '',
                 'Role: Burst Damage / Summoner / Escape Artist'
             ],
