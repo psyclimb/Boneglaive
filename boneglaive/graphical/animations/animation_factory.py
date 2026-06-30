@@ -81,6 +81,7 @@ from boneglaive.graphical.animations.ordnance_graft import (
     InoculantAnimation,
     DroneInoculantAnimation,
     SkyhookAnimationController,
+    JounceAnimationController,
     HarvestAnimation)
 
 # Import sound system
@@ -201,6 +202,7 @@ class AnimationFactory:
         # ORDNANCE GRAFT skills
         "INOCULANT": (InoculantAnimation, {}),
         "SKYHOOK": (SkyhookAnimationController, {}),  # Vault-style: moves the caster sprite
+        "JOUNCE": (JounceAnimationController, {}),    # Skyhook's drone-less grapple fallback
         "HARVEST": (HarvestAnimation, {}),
 
         # Core game events
@@ -458,6 +460,24 @@ class AnimationFactory:
                 animation = anim_class(
                     caster_unit=caster_unit,
                     target_pos=actual_target_pos,
+                    particle_emitter=particle_emitter,
+                    screen_shake_callback=screen_shake_callback,
+                    camera=camera,
+                    units_list=units_list
+                )
+            elif anim_class.__name__ == "JounceAnimationController":
+                # ORDNANCE GRAFT Jounce - grapple-pull fallback. Unlike Skyhook, the controller
+                # needs the ANCHOR tile (target_pos) to draw the hook flying to it, and reads the
+                # caster's grid_x/grid_y itself for the actual landing (stop tile). So pass the
+                # ORIGINAL target (the anchor), not the displaced landing — but still consume the
+                # vault_displaced_to flag so it can't leak to a later animation.
+                if not target_pos:
+                    return None
+                if caster_unit and hasattr(caster_unit, 'game_unit') and hasattr(caster_unit.game_unit, 'vault_displaced_to'):
+                    del caster_unit.game_unit.vault_displaced_to
+                animation = anim_class(
+                    caster_unit=caster_unit,
+                    target_pos=target_pos,
                     particle_emitter=particle_emitter,
                     screen_shake_callback=screen_shake_callback,
                     camera=camera,

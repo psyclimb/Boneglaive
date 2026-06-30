@@ -928,7 +928,7 @@ class GameStateAdapter:
 
                         # Track if this is a teleport/movement skill that will change position
                         # These skills have their own animation and should not show walking animation
-                        teleport_skills = ["Delta Config", "Vault", "Expedite", "Parallax", "Skyhook"]
+                        teleport_skills = ["Delta Config", "Vault", "Expedite", "Parallax", "Skyhook", "Jounce"]
                         if skill_name in teleport_skills:
                             # Store this in visual_unit so we can check it when detecting position changes
                             visual_unit.pending_teleport_skill = skill_name

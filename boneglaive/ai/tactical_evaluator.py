@@ -3219,12 +3219,14 @@ class TacticalEvaluator:
             logger.error(f"        Error getting ORDNANCE_GRAFT skills: {e}")
             return actions
 
-        inoculant = skyhook = harvest = None
+        inoculant = skyhook = harvest = jounce = None
         for skill in available_skills:
             if skill.name == "Inoculant":
                 inoculant = skill
             elif skill.name == "Skyhook":
                 skyhook = skill
+            elif skill.name == "Jounce":
+                jounce = skill
             elif skill.name == "Harvest":
                 harvest = skill
 
@@ -3245,6 +3247,12 @@ class TacticalEvaluator:
                 actions.extend(self._evaluate_ordnance_skyhook(unit, skyhook, analysis, plan))
             except Exception as e:
                 logger.error(f"          Error evaluating Skyhook: {e}")
+
+        if jounce:
+            try:
+                actions.extend(self._evaluate_ordnance_jounce(unit, jounce, analysis, plan))
+            except Exception as e:
+                logger.error(f"          Error evaluating Jounce: {e}")
 
         return actions
 
@@ -3416,6 +3424,77 @@ class TacticalEvaluator:
                 action = Action("skill", target=(skill, (y, x)), priority=score)
                 action.data['target_pos'] = (y, x)
                 actions.append(action)
+
+        return actions
+
+    def _evaluate_ordnance_jounce(self, unit: 'Unit', skill,
+                                  analysis: 'BattlefieldAnalysis',
+                                  plan: 'StrategicPlan') -> List[Action]:
+        """Skyhook's drone-less fallback: grapple an anchor (a unit, furniture, or solid
+        terrain) in line of sight and reel in to stop beside it, then the same arrival slam.
+        Unlike Skyhook he can't pick the landing tile — it's derived from the anchor — so we
+        iterate candidate ANCHORS, let the skill resolve where he'd come down, and score by
+        the slam AoE at that landing (mirroring the Skyhook value math, slightly lower base
+        since it's the weaker tool). Gated implicitly by can_use (LOS + range + valid anchor)."""
+        actions = []
+
+        src = unit.move_target if unit.move_target else (unit.y, unit.x)
+        cur_threat = 0
+        if src in analysis.threat_map:
+            cur_threat = analysis.threat_map[src].threat_level
+
+        search_range = getattr(skill, 'range', 3)
+
+        # Candidate anchors: every enemy plus every impassable/sight-blocking tile in range
+        # (furniture, walls). Dedupe by tile.
+        anchors = set()
+        for enemy in self._ordnance_targetable_enemies(unit, analysis):
+            anchors.add((enemy.y, enemy.x))
+        for y in range(self.game.map.height):
+            for x in range(self.game.map.width):
+                if self.game.chess_distance(src[0], src[1], y, x) > search_range:
+                    continue
+                # solid/sight-blocking terrain or furniture makes a grabbable anchor
+                if self.game.map.blocks_line_of_sight(y, x) or not self.game.map.is_passable(y, x):
+                    anchors.add((y, x))
+
+        for (ay, ax) in anchors:
+            if self.game.chess_distance(src[0], src[1], ay, ax) > search_range:
+                continue
+            try:
+                if not skill.can_use(unit, (ay, ax), self.game):
+                    continue
+                landing = skill._resolve_landing(self.game, unit, (ay, ax))
+            except Exception:
+                continue
+            if landing is None:
+                continue
+            ly, lx = landing
+
+            land_threat = 0
+            if (ly, lx) in analysis.threat_map:
+                land_threat = analysis.threat_map[(ly, lx)].threat_level
+
+            score = 20.0  # a touch below Skyhook's 25 base — the weaker leap
+            struck = 0
+            for enemy in self._ordnance_targetable_enemies(unit, analysis):
+                if self.game.chess_distance(ly, lx, enemy.y, enemy.x) <= 1:
+                    struck += 1
+                    score += self._ordnance_target_value(enemy, analysis, plan) * 0.5
+            if struck >= 2:
+                score += 25.0
+
+            # Defensive escape: reward reeling out of danger when currently exposed.
+            if cur_threat > 0:
+                score += max(0, cur_threat - land_threat) * 1.5
+
+            # Skip pointless/suicidal pulls: nobody struck and no threat reduction.
+            if struck == 0 and land_threat >= cur_threat:
+                continue
+
+            action = Action("skill", target=(skill, (ay, ax)), priority=score)
+            action.data['target_pos'] = (ay, ax)
+            actions.append(action)
 
         return actions
 

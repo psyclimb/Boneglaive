@@ -104,6 +104,7 @@ SKILL_SOUNDS = {
     # ORDNANCE GRAFT skills
     "INOCULANT": "inoculant",
     "SKYHOOK": "skyhook",
+    "JOUNCE": "jounce",
     "HARVEST": "harvest",
 }
 def get_sound_for_skill(skill_name: str) -> str:

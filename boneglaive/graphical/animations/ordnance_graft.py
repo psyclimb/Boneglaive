@@ -880,6 +880,193 @@ class SkyhookAnimationController:
 
 
 # ============================================================================
+# JOUNCE — Skyhook's drone-less fallback. He fires his grappling hook at an anchor
+# in line of sight and REELS himself along the ground (no lift, no drone) to stop
+# beside it, then the same arrival slam. A grounded, scrappier version of Skyhook.
+# ============================================================================
+
+class JounceAnimationController:
+    """Grappling-hook line-pull: the hook FIRES in a straight line to the grabbed anchor,
+    the cord snaps TAUT, and he REELS in low along the ground to stop beside it, then SLAMS.
+    Same lifecycle as SkyhookAnimationController (drives the caster sprite, honors
+    vault_displaced_to, plays the shared arrival graft-ins) but horizontal and drone-free."""
+
+    FIRE_END = 0.22     # hook travels out to the anchor
+    PULL_END = 0.72     # he reels in along the line
+    TOTAL = 0.9
+
+    def __init__(self, caster_unit, target_pos, particle_emitter, screen_shake_callback,
+                 camera=None, units_list=None):
+        self.caster = caster_unit
+        self.particle_emitter = particle_emitter
+        self.screen_shake = screen_shake_callback or (lambda i, d: None)
+        self.camera = camera
+        self.active = True
+        self.elapsed = 0.0
+
+        # Origin = where the sprite currently is (it hasn't moved yet).
+        self.ox, self.oy = caster_unit.x, caster_unit.y
+        # Landing = his actual grid cell after execute() moved the game unit (the displaced
+        # tile if any). Computed SHAKE-FREE (raw GRID_OFFSET), like Skyhook, so a live shake
+        # can't freeze the sprite off its tile.
+        tgy, tgx = target_pos
+        dest_gx = getattr(caster_unit, 'grid_x', None)
+        dest_gy = getattr(caster_unit, 'grid_y', None)
+        if dest_gx is None or dest_gy is None:
+            dest_gx, dest_gy = tgx, tgy
+        from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+        self.dx = dest_gx * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
+        self.dy = dest_gy * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
+        # Anchor screen pos = the grappled tile (where the hook bites), for the cord draw.
+        self.anchor_x = tgx * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
+        self.anchor_y = tgy * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
+        # Unit vector origin -> anchor (the hook/cord line).
+        adx, ady = self.anchor_x - self.ox, self.anchor_y - self.oy
+        adist = max(1.0, math.hypot(adx, ady))
+        self.ux, self.uy = adx / adist, ady / adist
+
+        self.slam_done = False
+        self._landed_at_total = False
+
+        # Graft-ins for every bomb the slam plants — timed to the landing, same as Skyhook.
+        graft_gu = getattr(caster_unit, 'game_unit', None)
+        self._slam_at = self.PULL_END * self.TOTAL + (self.TOTAL - self.PULL_END * self.TOTAL) * 0.7
+        plants = []
+        sky_data = getattr(graft_gu, 'last_skyhook_data', None) if graft_gu else None
+        if sky_data and sky_data.get('plants'):
+            plants = list(sky_data['plants'])
+            graft_gu.last_skyhook_data = None  # consume so it doesn't replay next cast
+        self.inocs = _make_inoculations(plants, self.camera, self.particle_emitter,
+                                        self.screen_shake, base_delay=self._slam_at + 0.02,
+                                        stagger=0.09)
+        last_finish = (max((ino.start_delay for ino in self.inocs), default=0.0)
+                       + _Inoculation.TOTAL) if self.inocs else 0.0
+        self._anim_end = max(self.TOTAL, last_finish + 0.03)
+
+        self.caster.wind_up_rotation = 0
+
+        # Fire beat: the launcher cracks and the hook shoots out.
+        play_sound("jounce_fire")
+
+    def update(self, delta_time):
+        if not self.active:
+            return False
+        self.elapsed += delta_time
+        t = min(1.0, self.elapsed / self.TOTAL)
+
+        if t < self.FIRE_END:
+            # FIRE: he stays put, braced; the hook (drawn in draw()) flies to the anchor.
+            self.caster.x, self.caster.y = self.ox, self.oy
+            self.caster.wind_up_rotation = -6  # slight brace lean
+        elif t < self.PULL_END:
+            # PULL: reel in low and fast along the line to the stop tile (ease-out).
+            pt = (t - self.FIRE_END) / (self.PULL_END - self.FIRE_END)
+            ease = 1 - (1 - pt) * (1 - pt)
+            self.caster.x = self.ox + (self.dx - self.ox) * ease
+            self.caster.y = self.oy + (self.dy - self.oy) * ease
+            self.caster.wind_up_rotation = -6 * (1 - pt)  # straighten as he arrives
+            # skid dust at his feet
+            if self.particle_emitter and random.random() < 0.5:
+                self.particle_emitter.emit_trail(self.caster.x + random.uniform(-5, 5),
+                                                 self.caster.y + 12, TAN, count=1)
+        else:
+            # Arrived on the tile; hold here. Fire the slam once, at _slam_at (which is just
+            # past PULL_END — keep the ring's clock and the trigger on the same moment).
+            self.caster.x, self.caster.y = self.dx, self.dy
+            self.caster.wind_up_rotation = 0
+            if not self.slam_done and self.elapsed >= self._slam_at:
+                self.slam_done = True
+                self._land_caster()
+                self._slam()
+
+        # Tick the per-bomb graft-ins (idle until their start delay, around the slam).
+        for ino in self.inocs:
+            ino.update(delta_time)
+
+        # Land the sprite ON TIME (at TOTAL) even if the controller lingers for graft-ins.
+        if not self._landed_at_total and self.elapsed >= self.TOTAL:
+            self._landed_at_total = True
+            self._land_caster()
+
+        if self.elapsed >= self._anim_end:
+            self._land_caster()
+            self.active = False
+        return self.active
+
+    def _land_caster(self):
+        """Snap the sprite onto its tile and clear movement state (mirrors Skyhook)."""
+        self.caster.x, self.caster.y = self.dx, self.dy
+        self.caster.target_x, self.caster.target_y = self.dx, self.dy
+        self.caster.is_moving = False
+        self.caster.wind_up_rotation = 0
+
+    def _slam(self):
+        play_sound("jounce_land")
+        self.screen_shake(6, 0.2)
+        pe = self.particle_emitter
+        if not pe:
+            return
+        lx, ly = self.dx, self.dy
+        pe.emit_burst(lx, ly, AMBER, count=16)
+        pe.emit_burst(lx, ly, AMBER_BRIGHT, count=8)
+        pe.emit_burst(lx, ly, BOMB_BLACK, count=8)
+        # low dust ring on the skid-to-slam
+        for _ in range(14):
+            a = random.uniform(0, math.tau)
+            sp = random.uniform(60, 130)
+            p = Particle(lx, ly + 10, math.cos(a) * sp, math.sin(a) * sp - 18,
+                         random.choice((SMOKE, TAN, (70, 70, 66))), random.uniform(3, 7), random.uniform(0.45, 0.8))
+            p.gravity = 140
+            pe.particles.append(p)
+
+    def draw(self, surface):
+        if not self.active:
+            return
+        overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
+        t = min(1.0, self.elapsed / self.TOTAL)
+
+        # FIRE + PULL: draw the cord from his hand out to the hook. During FIRE the hook
+        # races out to the anchor; during PULL the cord stays taut to the anchor while he
+        # reels along it.
+        if not self.slam_done:
+            cx, cy = self.caster.x, self.caster.y - 6
+            if t < self.FIRE_END:
+                ft = t / self.FIRE_END
+                hook_x = self.ox + (self.anchor_x - self.ox) * ft
+                hook_y = (self.oy - 6) + (self.anchor_y - (self.oy - 6)) * ft
+            else:
+                hook_x, hook_y = self.anchor_x, self.anchor_y
+            # gunmetal cord (taut), with a lighter highlight strand
+            pygame.draw.line(overlay, (*GUNMETAL_DARK, 230), (int(cx), int(cy)),
+                             (int(hook_x), int(hook_y)), 2)
+            pygame.draw.line(overlay, (*GUNMETAL_LIGHT, 130), (int(cx), int(cy)),
+                             (int(hook_x), int(hook_y)), 1)
+            # 3-prong claw at the hook end (a little grapnel), oriented along the line
+            px, py = -self.uy, self.ux
+            for s in (-1, 0, 1):
+                fx = hook_x + self.ux * 4 + px * 3 * s
+                fy = hook_y + self.uy * 4 + py * 3 * s
+                pygame.draw.line(overlay, (*GUNMETAL, 235), (int(hook_x), int(hook_y)),
+                                 (int(fx), int(fy)), 2)
+
+        # arrival shockwave ring at the landing (a low ground pop, not the banned flash)
+        if self.slam_done:
+            st = max(0.0, min(1.0, (self.elapsed - self._slam_at) / max(0.01, self.TOTAL - self._slam_at)))
+            ring_r = int(TILE_SIZE * 0.35 + st * TILE_SIZE * 1.4)
+            ring_a = max(0, int(190 * (1 - st)))
+            if ring_a > 0:
+                pygame.draw.circle(overlay, (*AMBER_BRIGHT, ring_a), (int(self.dx), int(self.dy)), ring_r, 3)
+                pygame.draw.circle(overlay, (*AMBER, max(0, ring_a - 70)),
+                                   (int(self.dx), int(self.dy)), int(ring_r * 0.6), 2)
+
+        # Per-bomb graft-ins on the struck enemies (seat/burrow/arm), after the slam.
+        for ino in self.inocs:
+            ino.draw(overlay)
+
+        surface.blit(overlay, (0, 0))
+
+
+# ============================================================================
 # HARVEST — field-wide bomb detonation. The showpiece.
 # ============================================================================
 

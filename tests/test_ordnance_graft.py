@@ -412,7 +412,8 @@ def test_skyhook_requires_living_drone():
 
 
 def test_skyhook_blocked_after_drone_dies():
-    """Killing the drone grounds Skyhook until it regenerates."""
+    """Killing the drone makes the (now swapped-out) Skyhook object unusable — its drone
+    gate fails. The slot itself is replaced by Jounce; see the Jounce swap tests."""
     g = fresh_game()
     ts = free_tiles(g, 40)
     graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
@@ -556,6 +557,130 @@ def test_skyhook_aborts_and_refunds_if_boxed_in():
           f"returned={ok} moved={(graft.y, graft.x) != before} (want abort, no move)")
     check("skyhook_boxed_refunds", sky.current_cooldown == 0,
           f"cd={sky.current_cooldown} (want refunded to 0)")
+
+
+# ---------------------------------------------------------------------------
+# JOUNCE — Skyhook's drone-less fallback (swapped into the "S" slot when the drone
+# dies; a grappling-hook line-pull to stop beside an anchor, then the same slam).
+# ---------------------------------------------------------------------------
+
+def _leap_slot(graft):
+    from boneglaive.game.skills.ordnance_graft import LEAP_SLOT_NAMES
+    return next((s for s in graft.active_skills if s.name in LEAP_SLOT_NAMES), None)
+
+
+def test_jounce_swaps_in_when_drone_dies_and_back_on_regen():
+    """Drone death replaces Skyhook with Jounce in the same slot; regenerating the drone
+    restores Skyhook. The cooldown carries across both swaps (no free leap on the swap)."""
+    g = fresh_game()
+    ts = free_tiles(g, 40)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()  # spawn drone
+    check("jounce_starts_skyhook", _leap_slot(graft).name == "Skyhook",
+          f"slot={_leap_slot(graft).name} (want Skyhook with drone alive)")
+    _leap_slot(graft).current_cooldown = 3
+    drone = graft.drone
+    drone.hp = 0
+    g.handle_unit_death(drone, None, cause="test", ui=None)
+    check("jounce_swaps_in_on_drone_death", _leap_slot(graft).name == "Jounce",
+          f"slot={_leap_slot(graft).name} (want Jounce after drone dies)")
+    check("jounce_carries_cooldown_in", _leap_slot(graft).current_cooldown == 3,
+          f"cd={_leap_slot(graft).current_cooldown} (want carried 3)")
+    # Regenerate the drone -> swap back to Skyhook, cooldown carried again.
+    _leap_slot(graft).current_cooldown = 2
+    g._spawn_ordnance_drone(graft)
+    check("skyhook_restored_on_regen", _leap_slot(graft).name == "Skyhook",
+          f"slot={_leap_slot(graft).name} (want Skyhook after regen)")
+    check("skyhook_carries_cooldown_back", _leap_slot(graft).current_cooldown == 2,
+          f"cd={_leap_slot(graft).current_cooldown} (want carried 2)")
+
+
+def _make_jounce_graft(g, gy, gx):
+    """Place a graft, give it a drone, then kill the drone so the "S" slot holds Jounce."""
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, gy, gx)
+    g._spawn_ordnance_drone(graft)
+    g.handle_unit_death(graft.drone, None, cause="test", ui=None)
+    return graft
+
+
+def test_jounce_requires_anchor_los_and_range():
+    """Jounce can only grab a real anchor (unit / furniture / solid terrain) that is in LOS
+    and within its shorter range; an empty tile, an out-of-range anchor, or an anchor behind
+    a wall are all rejected."""
+    from boneglaive.game.map import TerrainType
+    g = fresh_game()
+    g.unit_grid = {}
+    graft = _make_jounce_graft(g, 5, 5)
+    j = _leap_slot(graft)
+    check("jounce_is_active", j is not None and j.name == "Jounce", "slot holds Jounce")
+    # Empty passable tile in range -> not an anchor.
+    check("jounce_rejects_empty_tile", j.can_use(graft, (5, 8), g) is False,
+          "empty passable tile is not a grabbable anchor")
+    # Enemy anchor in LOS at range 3 -> OK.
+    enemy = place(g, UnitType.GLAIVEMAN, 2, 5, 8)
+    check("jounce_accepts_enemy_anchor", j.can_use(graft, (5, 8), g) is True,
+          "enemy in LOS at dist 3 is grabbable")
+    # Out of range (dist 4).
+    place(g, UnitType.GLAIVEMAN, 2, 5, 9)
+    check("jounce_rejects_out_of_range", j.can_use(graft, (5, 9), g) is False,
+          "anchor at dist 4 > range 3 rejected")
+    # Wall as anchor (solid terrain) at dist 2.
+    g.map.set_terrain_at(5, 7, TerrainType.LIMESTONE)
+    check("jounce_accepts_wall_anchor", j.can_use(graft, (5, 7), g) is True,
+          "solid terrain is grabbable")
+    # LOS blocked: a wall between him and a far enemy.
+    g2 = fresh_game()
+    g2.unit_grid = {}
+    gr = _make_jounce_graft(g2, 5, 5)
+    jj = _leap_slot(gr)
+    g2.map.set_terrain_at(5, 6, TerrainType.LIMESTONE)   # wall right in front
+    place(g2, UnitType.GLAIVEMAN, 2, 5, 8)               # enemy behind it
+    check("jounce_rejects_blocked_los", jj.can_use(gr, (5, 8), g2) is False,
+          "cannot grapple an enemy through a wall")
+
+
+def test_jounce_pulls_to_stop_adjacent_and_slams():
+    """Jounce reels him in a straight line to stop one tile short of the anchor, then runs
+    the same arrival slam (strike + graft one bomb) on the anchored enemy."""
+    g = fresh_game()
+    g.unit_grid = {}
+    graft = _make_jounce_graft(g, 5, 5)
+    j = _leap_slot(graft)
+    enemy = place(g, UnitType.GLAIVEMAN, 2, 5, 8)   # anchor at dist 3
+    e_hp0 = enemy.hp
+    check("jounce_can_use_ok", j.can_use(graft, (5, 8), g) is True, "setup")
+    j.use(graft, (5, 8), g)
+    # The arrival strike is flat STRIKE_DAMAGE reduced by the target's DEF (same as Skyhook).
+    expected_strike = max(1, STRIKE_DAMAGE - enemy.get_effective_stats()['defense'])
+    ok = j.execute(graft, (5, 8), g, ui=None)
+    check("jounce_executes", ok is True, f"returned={ok}")
+    check("jounce_stops_adjacent", (graft.y, graft.x) == (5, 7),
+          f"landed={(graft.y, graft.x)} (want (5,7), one short of the anchor)")
+    check("jounce_slam_strikes", enemy.hp == e_hp0 - expected_strike,
+          f"enemy {e_hp0}->{enemy.hp} (want -{expected_strike} after DEF)")
+    check("jounce_slam_plants", len(enemy.bombs) == 1,
+          f"bombs={len(enemy.bombs)} (want 1)")
+
+
+def test_jounce_aborts_and_refunds_with_no_anchor():
+    """If the target isn't a valid anchor at execute (e.g. it moved/died), Jounce aborts
+    without moving and refunds its cooldown."""
+    g = fresh_game()
+    g.unit_grid = {}
+    graft = _make_jounce_graft(g, 5, 5)
+    j = _leap_slot(graft)
+    enemy = place(g, UnitType.GLAIVEMAN, 2, 5, 8)
+    j.use(graft, (5, 8), g)            # queue against the enemy anchor
+    before = (graft.y, graft.x)
+    # The anchor leaves before it resolves: remove the enemy, leaving an empty tile.
+    g._remove_from_unit_grid(enemy)
+    g.units.remove(enemy)
+    ok = j.execute(graft, (5, 8), g, ui=None)
+    check("jounce_aborts_no_anchor", ok is False and (graft.y, graft.x) == before,
+          f"returned={ok} moved={(graft.y, graft.x) != before} (want abort, no move)")
+    check("jounce_refunds_no_anchor", j.current_cooldown == 0,
+          f"cd={j.current_cooldown} (want refunded to 0)")
 
 
 # ---------------------------------------------------------------------------
@@ -1497,6 +1622,10 @@ def main():
     test_skyhook_displaces_if_landing_occupied()
     test_skyhook_displaces_if_terrain_spawns_under_him()
     test_skyhook_aborts_and_refunds_if_boxed_in()
+    test_jounce_swaps_in_when_drone_dies_and_back_on_regen()
+    test_jounce_requires_anchor_los_and_range()
+    test_jounce_pulls_to_stop_adjacent_and_slams()
+    test_jounce_aborts_and_refunds_with_no_anchor()
     test_diagonal_move_does_not_strand_on_intermediate_corner()
     test_blocked_diagonal_destination_keeps_graft_put()
     test_partial_cleanse_removes_one()

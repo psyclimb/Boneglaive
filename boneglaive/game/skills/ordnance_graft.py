@@ -26,6 +26,15 @@ BOMB_PCT_PER_HP = 0.22 / 6   # extra per-stack % for each max-HP point above the
 # SKYHOOK cooldown refunded per stack detonated (the flow engine).
 SKYHOOK_REFUND_PER_STACK = 2
 SKYHOOK_SKILL_NAME = "Skyhook"
+# JOUNCE is the drone-less fallback for Skyhook: when the quadcopter dies, Skyhook is
+# swapped out of his kit for Jounce (a grappling-hook line-pull) and swapped back when the
+# drone regenerates (see the engine drone death/spawn hooks). It shares Skyhook's arrival
+# payload (the slam) and the Crash Landing upgrade, so several places must treat the two
+# names as the same kit slot. JOUNCE_RANGE < Skyhook's range_ (4): a weaker reach.
+JOUNCE_SKILL_NAME = "Jounce"
+JOUNCE_RANGE = 3
+# Both names occupy the one "leap" slot; helpers that find it by name accept either.
+LEAP_SLOT_NAMES = (SKYHOOK_SKILL_NAME, JOUNCE_SKILL_NAME)
 # Flat base damage for his strikes (Inoculant / Skyhook arrival). NOT ATK-scaled — his
 # damage identity is the bombs, not the strike. DEF/PRT still reduce it via deal_damage.
 STRIKE_DAMAGE = 2
@@ -180,15 +189,111 @@ def detonate_n_stacks(target: 'Unit', n: int, game: 'Game', killer: Optional['Un
 
 
 def _reduce_skyhook_cooldown(user: 'Unit', stacks_detonated: int) -> None:
-    """Refund SKYHOOK's cooldown by the stacks just detonated (the flow engine)."""
+    """Refund the leap skill's cooldown by the stacks just detonated (the flow engine).
+    Works whether the "S" slot currently holds Skyhook or its drone-less Jounce fallback —
+    both share the same detonation-refund identity."""
     if stacks_detonated <= 0:
         return
     refund = stacks_detonated * SKYHOOK_REFUND_PER_STACK
     for skill in user.active_skills:
-        if skill.name == SKYHOOK_SKILL_NAME:
+        if skill.name in LEAP_SLOT_NAMES:
             if skill.current_cooldown > 0:
                 skill.current_cooldown = max(0, skill.current_cooldown - refund)
             break
+
+
+def _arrival_slam(user: 'Unit', game: 'Game', skill: 'ActiveSkill', ui=None) -> None:
+    """The shared arrival payload for the leap slot (Skyhook AND Jounce): once `user` is
+    standing on the landing tile, strike + graft one bomb onto EVERY enemy in the 8 adjacent
+    tiles. With the Crash Landing upgrade (learned under the Skyhook key — it covers whichever
+    skill occupies the slot) the slam also detonates each struck enemy's already-fused bombs,
+    refunding `skill`'s cooldown per stack (floored so it can't perpetually re-launch). Records
+    the planted tiles into user.last_skyhook_data for the graphical graft-in (harmless headless).
+
+    Caller is responsible for getting `user` onto the tile (teleport for Skyhook, line-pull for
+    Jounce) and for the drone before calling this."""
+    from boneglaive.game.upgrades import UpgradeManager
+    # Crash Landing is stored under the Skyhook key (the slot's canonical upgrade); honor it
+    # for whichever skill currently fills the slot.
+    crash_landing = UpgradeManager.is_skill_upgraded(user, SKYHOOK_SKILL_NAME)
+    crash_stacks = 0
+
+    plant_tiles = []
+    for enemy in list(game.units):
+        if (enemy.is_alive() and enemy.player != user.player
+                and game.chess_distance(user.y, user.x, enemy.y, enemy.x) <= 1
+                and game.can_target_unit(user, enemy)):
+            immune = enemy.is_immune_to_effects()
+            target_def = enemy.get_effective_stats()['defense']
+            damage = max(1, STRIKE_DAMAGE - target_def)
+            dealt = enemy.deal_damage(damage)
+            if plant_bomb(enemy, 1) > 0:
+                plant_tiles.append((enemy.y, enemy.x))
+            if immune:
+                message_log.add_message(
+                    f"{user.get_display_name()} comes down hard on {enemy.get_display_name()} for #DAMAGE_{dealt}# damage",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+                message_log.add_message(
+                    f"{enemy.get_display_name()} is immune to bomb due to Stasiality",
+                    MessageType.ABILITY,
+                    player=enemy.player
+                )
+            else:
+                message_log.add_message(
+                    f"{user.get_display_name()}'s landing grafts a spiked cluster onto {enemy.get_display_name()} for #DAMAGE_{dealt}# damage ({len(enemy.bombs)})",
+                    MessageType.ABILITY,
+                    player=user.player
+                )
+            # The just-planted bomb is unfused, so this only blows bombs already fused from
+            # prior turns — the fresh seed survives. A lethal detonation is routed through
+            # handle_unit_death inside detonate_fused (on-death effects fire).
+            if crash_landing:
+                fused_here = fused_count(enemy)
+                if fused_here > 0:
+                    blown = detonate_fused(enemy, game, killer=user, ui=ui)
+                    crash_stacks += fused_here
+                    message_log.add_message(
+                        f"{enemy.get_display_name()}'s clusters detonate on landing for #DAMAGE_{blown}# damage",
+                        MessageType.ABILITY,
+                        player=user.player
+                    )
+
+    # Hand the planted tiles to the graphical layer (the leap animation plays a graft-in on
+    # each after the slam). Always overwrite so a recast can't reuse stale.
+    user.last_skyhook_data = {'plants': plant_tiles}
+
+    # Refund the cooldown for the detonations this slam set off — but never below the
+    # self-refund floor, so Crash Landing can't perpetually re-launch the slot.
+    if crash_stacks > 0:
+        _reduce_skyhook_cooldown(user, crash_stacks)
+        skill.current_cooldown = max(SKYHOOK_SELF_REFUND_FLOOR, skill.current_cooldown)
+
+
+def _swap_leap_skill(graft: 'Unit', from_name: str, make_to) -> None:
+    """In-place swap of the graft's "S" leap slot from the skill named `from_name` to a
+    fresh skill built by `make_to()`, carrying the current cooldown across (so losing the
+    drone mid-cooldown doesn't hand a free leap, and vice-versa). No-op if the from-skill
+    isn't present (already swapped, or the slot holds something else). Mirrors the
+    DELPHIC Divine Depreciation<->Deft Reroll runtime swap; active_skills is a per-unit
+    list of fresh instances, so this never touches other units."""
+    for i, skill in enumerate(graft.active_skills):
+        if skill.name == from_name:
+            replacement = make_to()
+            replacement.current_cooldown = skill.current_cooldown
+            graft.active_skills[i] = replacement
+            return
+
+
+def swap_to_jounce(graft: 'Unit') -> None:
+    """Drone died: replace Skyhook with its drone-less Jounce fallback."""
+    _swap_leap_skill(graft, SKYHOOK_SKILL_NAME, JounceSkill)
+
+
+def swap_to_skyhook(graft: 'Unit') -> None:
+    """Drone returned: restore Skyhook in place of the Jounce fallback."""
+    _swap_leap_skill(graft, JOUNCE_SKILL_NAME, SkyhookSkill)
 
 
 class Quadcopter(PassiveSkill):
@@ -475,70 +580,157 @@ class SkyhookSkill(ActiveSkill):
                 player=user.player
             )
 
-        # Crash Landing upgrade: the arrival slam also DETONATES the fused bombs already
-        # on each enemy it strikes (read once up front). A high-risk burst: hook into
-        # melee, blow the existing stack, leave a fresh seed for next time.
-        from boneglaive.game.upgrades import UpgradeManager
-        crash_landing = UpgradeManager.is_skill_upgraded(user, SKYHOOK_SKILL_NAME)
-        crash_stacks = 0
+        # Arrival slam: strike + graft a bomb onto every adjacent enemy (and, with Crash
+        # Landing, detonate their fused stacks + refund). Shared with Jounce.
+        _arrival_slam(user, game, self, ui)
+        return True
 
-        # Arrival slam: strike + graft a bomb onto EVERY enemy in the 8 adjacent tiles
-        # around the landing point. Snapshot the unit list since the strikes can change
-        # board state.
-        # Record every tile a bomb actually seats on, so the graphical layer can play a
-        # graft-in (seat/burrow/arm) per bomb after the slam — same as Inoculant. Harmless
-        # headless. Reset before the loop so a re-cast doesn't show stale plants.
-        plant_tiles = []
-        for enemy in list(game.units):
-            if (enemy.is_alive() and enemy.player != user.player
-                    and game.chess_distance(user.y, user.x, enemy.y, enemy.x) <= 1
-                    and game.can_target_unit(user, enemy)):
-                immune = enemy.is_immune_to_effects()
-                target_def = enemy.get_effective_stats()['defense']
-                damage = max(1, STRIKE_DAMAGE - target_def)
-                dealt = enemy.deal_damage(damage)
-                if plant_bomb(enemy, 1) > 0:
-                    plant_tiles.append((enemy.y, enemy.x))
-                if immune:
-                    message_log.add_message(
-                        f"{user.get_display_name()} comes down hard on {enemy.get_display_name()} for #DAMAGE_{dealt}# damage",
-                        MessageType.ABILITY,
-                        player=user.player
-                    )
-                    message_log.add_message(
-                        f"{enemy.get_display_name()} is immune to bomb due to Stasiality",
-                        MessageType.ABILITY,
-                        player=enemy.player
-                    )
-                else:
-                    message_log.add_message(
-                        f"{user.get_display_name()}'s landing grafts a spiked cluster onto {enemy.get_display_name()} for #DAMAGE_{dealt}# damage ({len(enemy.bombs)})",
-                        MessageType.ABILITY,
-                        player=user.player
-                    )
-                # The just-planted bomb is unfused, so this only blows bombs already fused
-                # from prior turns — the fresh seed survives. A lethal detonation is routed
-                # through handle_unit_death inside detonate_fused (on-death effects fire).
-                if crash_landing:
-                    fused_here = fused_count(enemy)
-                    if fused_here > 0:
-                        blown = detonate_fused(enemy, game, killer=user, ui=ui)
-                        crash_stacks += fused_here
-                        message_log.add_message(
-                            f"{enemy.get_display_name()}'s clusters detonate on landing for #DAMAGE_{blown}# damage",
-                            MessageType.ABILITY,
-                            player=user.player
-                        )
 
-        # Hand the planted tiles to the graphical layer (the Skyhook animation plays a
-        # graft-in on each after the slam). Always overwrite so a recast can't reuse stale.
-        user.last_skyhook_data = {'plants': plant_tiles}
+class JounceSkill(ActiveSkill):
+    """Skyhook's drone-less fallback (swapped into the "S" slot while the quadcopter is
+    dead). He fires his grappling hook at a unit, furniture, or solid terrain he can SEE,
+    and reels himself in a STRAIGHT LINE to stop just short of it — then performs the same
+    arrival slam as Skyhook (strike + graft a bomb on every adjacent enemy; shares Crash
+    Landing + the detonation cooldown refund). Weaker than Skyhook: shorter range, requires
+    line of sight, can't fly over obstacles, and he stops adjacent to the anchor rather than
+    on a chosen tile."""
 
-        # Refund the cooldown for the detonations this slam set off — but never below the
-        # self-refund floor, so Crash Landing can't perpetually re-launch itself.
-        if crash_stacks > 0:
-            _reduce_skyhook_cooldown(user, crash_stacks)
-            self.current_cooldown = max(SKYHOOK_SELF_REFUND_FLOOR, self.current_cooldown)
+    def __init__(self):
+        super().__init__(
+            name=JOUNCE_SKILL_NAME,
+            key="S",
+            description="Grapple a unit, furniture, or solid terrain in your line of sight and reel yourself in a straight line to stop beside it, then slam down to strike and graft a bomb onto every adjacent enemy. Skyhook's fallback while the drone is down. Cooldown is refunded when bombs detonate.",
+            target_type=TargetType.AREA,
+            cooldown=4,
+            range_=JOUNCE_RANGE
+        )
+
+    def _is_anchor(self, game: 'Game', y: int, x: int) -> bool:
+        """A tile is a valid grapple anchor if it holds something to hook onto: a living
+        unit, a piece of furniture, or solid (LOS-blocking) terrain. A plain empty/passable
+        tile is NOT an anchor — there's nothing to grab."""
+        if not game.is_valid_position(y, x):
+            return False
+        if game.get_unit_at(y, x) is not None:
+            return True
+        # Solid terrain that blocks sight is grabbable (walls, pillars, pylons, ...).
+        if game.map.blocks_line_of_sight(y, x):
+            return True
+        # Furniture blocks movement but not sight — still a hookable object.
+        if not game.map.is_passable(y, x):
+            return True
+        return False
+
+    def _resolve_landing(self, game: 'Game', user: 'Unit', target_pos: tuple) -> Optional[tuple]:
+        """Walk the straight line from the user toward the anchor and return the tile he
+        reels to: the LAST open (valid + passable + unoccupied) tile before the anchor. He
+        stops as soon as the path is blocked — by the anchor itself or anything in front of
+        it. Returns the user's own tile if the anchor is already adjacent (nowhere to pull,
+        but he can still slam in place), or None if the target isn't a valid anchor / the
+        very first step toward it is blocked by a different obstacle with no progress."""
+        from boneglaive.utils.coordinates import Position, get_line
+
+        ty, tx = target_pos
+        if not self._is_anchor(game, ty, tx):
+            return None
+
+        from_y, from_x = user.move_target if user.move_target else (user.y, user.x)
+        path = get_line(Position(from_y, from_x), Position(ty, tx))
+        # path[0] is the user's tile; walk outward and keep the last open tile we reach.
+        landing = (from_y, from_x)
+        for pos in path[1:]:
+            py, px = pos.y, pos.x
+            if (py, px) == (ty, tx):
+                break  # reached the anchor tile — stop just short (don't enter it)
+            if not game.is_valid_position(py, px):
+                break
+            if not game.map.is_passable(py, px):
+                break  # an obstacle in front of the anchor halts the reel
+            if game.get_unit_at(py, px) is not None:
+                break  # someone is in the way
+            landing = (py, px)
+        return landing
+
+    def can_use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        if not super().can_use(user, target_pos, game):
+            return False
+        if not game or not target_pos:
+            return False
+        ty, tx = target_pos
+        if not game.is_valid_position(ty, tx):
+            return False
+        from_y, from_x = user.move_target if user.move_target else (user.y, user.x)
+        # Range is measured to the anchor (what he hooks), within Jounce's shorter reach.
+        if game.chess_distance(from_y, from_x, ty, tx) > self.range:
+            return False
+        # Must be able to SEE the anchor (the hook needs a clear line). LOS checks the
+        # tiles BETWEEN endpoints, so a wall/unit AT the target is still visible to grab.
+        if not game.has_line_of_sight(from_y, from_x, ty, tx):
+            return False
+        # The target must actually be a grabbable anchor with a resolvable landing.
+        if self._resolve_landing(game, user, target_pos) is None:
+            return False
+        return True
+
+    def use(self, user: 'Unit', target_pos: Optional[tuple] = None, game: Optional['Game'] = None) -> bool:
+        if not self.can_use(user, target_pos, game):
+            return False
+        user.skill_target = target_pos
+        user.selected_skill = self
+        # The grapple-pull IS the movement — don't walk first.
+        user.move_target = None
+        user.vault_target_indicator = target_pos  # reuse the leap indicator
+        if game:
+            user.action_timestamp = game.action_counter
+            game.action_counter += 1
+        message_log.add_message(
+            f"{user.get_display_name()} fires a grappling hook toward ({target_pos[0]}, {target_pos[1]})",
+            MessageType.ABILITY,
+            player=user.player
+        )
+        self.current_cooldown = self.cooldown
+        return True
+
+    def execute(self, user: 'Unit', target_pos: tuple, game: 'Game', ui=None) -> bool:
+        user.vault_target_indicator = None
+
+        # Re-resolve the landing at execute time — the board may have changed since this was
+        # queued (the anchor moved/died, the lane got blocked). If it's no longer a valid
+        # grapple, abort and refund (the skill did nothing).
+        landing = self._resolve_landing(game, user, target_pos)
+        if landing is None:
+            message_log.add_message(
+                f"{user.get_display_name()}'s grapple finds no purchase!",
+                MessageType.WARNING,
+                player=user.player
+            )
+            self.current_cooldown = 0  # refund — the skill did nothing
+            return False
+
+        land_y, land_x = landing
+        moved = (land_y, land_x) != (user.y, user.x)
+        if moved:
+            game._remove_from_unit_grid(user)
+            user.y, user.x = land_y, land_x
+            game._update_unit_grid(user)
+            # Tell the graphical layer where the pull ends (the animation reads this, like
+            # Skyhook's displacement). Harmless headless.
+            user.vault_displaced_to = (land_y, land_x)
+            message_log.add_message(
+                f"{user.get_display_name()} reels in along the line to ({land_y}, {land_x})",
+                MessageType.ABILITY,
+                player=user.player
+            )
+        else:
+            message_log.add_message(
+                f"{user.get_display_name()} hauls hard on the line, already at the anchor",
+                MessageType.ABILITY,
+                player=user.player
+            )
+
+        # Same arrival slam as Skyhook (strike + graft on all adjacent enemies; Crash
+        # Landing detonates + refunds). Shares the upgrade and the flow engine.
+        _arrival_slam(user, game, self, ui)
         return True
 
 

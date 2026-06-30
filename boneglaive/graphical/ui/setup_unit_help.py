@@ -368,6 +368,10 @@ class SetupUnitHelp:
                         'desc': 'The drone hauls him to an empty tile within range, then he slams down to strike and graft a bomb onto every adjacent enemy. Requires a living drone. Its cooldown is refunded whenever bombs detonate.'
                     },
                     {
+                        'name': 'JOUNCE',
+                        'desc': 'Skyhook\'s fallback while the drone is down: he grapples a unit, furniture, or solid terrain in his line of sight and reels himself in a straight line to stop beside it, then slams with the same strike-and-graft. Weaker than Skyhook — shorter range, needs line of sight, no fly-over. Returns to Skyhook when the drone regenerates.'
+                    },
+                    {
                         'name': 'HARVEST',
                         'desc': 'Touches off every armed bomb on the field. Each stack deals a percent of the target\'s maximum HP that scales up with the size of the body, ignoring defense — devastating on tanks, slight on small units.'
                     }
