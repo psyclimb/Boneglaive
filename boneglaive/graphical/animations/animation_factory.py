@@ -483,6 +483,10 @@ class AnimationFactory:
                     camera=camera,
                     units_list=units_list
                 )
+                # The controller has read the walk-in launch tile; clear it so a later Jounce
+                # without a queued move can't inherit a stale launch origin.
+                if caster_unit and hasattr(caster_unit, 'game_unit'):
+                    caster_unit.game_unit.jounce_anim_from = None
             elif anim_class.__name__ == "VaultAnimationControllerUpgraded":
                 # VaultAnimationControllerUpgraded needs target position (same signature as regular Vault)
                 if not target_pos:

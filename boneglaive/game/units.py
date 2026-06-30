@@ -63,6 +63,7 @@ class Unit:
         self.selected_skill = None
         self.attack_queued_from = None  # Position at attack queue time (for Severance range validation)
         self.jounce_launch_from = None  # Intended move destination captured when Jounce is queued (reel origin)
+        self.jounce_anim_from = None  # Launch tile handed to the Jounce animation (walk-to-then-fire origin)
         
         # Visual indicators for skills
         self.vault_target_indicator = None  # Visual indicator for Vault destination

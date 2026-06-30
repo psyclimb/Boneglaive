@@ -904,8 +904,27 @@ class JounceAnimationController:
         self.active = True
         self.elapsed = 0.0
 
-        # Origin = where the sprite currently is (it hasn't moved yet).
-        self.ox, self.oy = caster_unit.x, caster_unit.y
+        from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
+        graft_gu = getattr(caster_unit, 'game_unit', None)
+
+        # Where the sprite currently sits (its pre-move tile if a move was queued this turn).
+        self.start_x, self.start_y = caster_unit.x, caster_unit.y
+        # Launch origin = the tile he fires the grapple FROM. If a move was queued before
+        # Jounce, execute() recorded that destination in jounce_anim_from; we walk the sprite
+        # there first (the MOVE phase) so the cord and reel read from where he aimed, not his
+        # pre-move tile. With no queued move this equals start_x/y and the MOVE phase is skipped.
+        launch_from = getattr(graft_gu, 'jounce_anim_from', None) if graft_gu else None
+        if launch_from:
+            ly, lx = launch_from
+            self.ox = lx * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
+            self.oy = ly * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
+        else:
+            self.ox, self.oy = self.start_x, self.start_y
+        # Brief walk to the launch tile, scaled by distance (capped). 0 when there's no move.
+        walk_dist = math.hypot(self.ox - self.start_x, self.oy - self.start_y)
+        self.move_dur = min(0.45, walk_dist / 520.0) if walk_dist > 1.0 else 0.0
+        self._move_done = self.move_dur <= 0.0
+
         # Landing = his actual grid cell after execute() moved the game unit (the displaced
         # tile if any). Computed SHAKE-FREE (raw GRID_OFFSET), like Skyhook, so a live shake
         # can't freeze the sprite off its tile.
@@ -914,13 +933,12 @@ class JounceAnimationController:
         dest_gy = getattr(caster_unit, 'grid_y', None)
         if dest_gx is None or dest_gy is None:
             dest_gx, dest_gy = tgx, tgy
-        from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
         self.dx = dest_gx * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
         self.dy = dest_gy * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
         # Anchor screen pos = the grappled tile (where the hook bites), for the cord draw.
         self.anchor_x = tgx * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_X
         self.anchor_y = tgy * TILE_SIZE + TILE_SIZE // 2 + GRID_OFFSET_Y
-        # Unit vector origin -> anchor (the hook/cord line).
+        # Unit vector launch origin -> anchor (the hook/cord line).
         adx, ady = self.anchor_x - self.ox, self.anchor_y - self.oy
         adist = max(1.0, math.hypot(adx, ady))
         self.ux, self.uy = adx / adist, ady / adist
@@ -928,10 +946,11 @@ class JounceAnimationController:
         self.slam_done = False
         self._landed_at_total = False
         self._reel_started = False   # so the reel-in sound fires once, not per frame
+        self._fire_sound_done = self.move_dur <= 0.0  # fire-beat fires when the grapple starts
 
         # Graft-ins for every bomb the slam plants — timed to the landing, same as Skyhook.
-        graft_gu = getattr(caster_unit, 'game_unit', None)
-        self._slam_at = self.PULL_END * self.TOTAL + (self.TOTAL - self.PULL_END * self.TOTAL) * 0.7
+        # All grapple-phase timings are offset by move_dur so they ride AFTER the walk-in.
+        self._slam_at = self.move_dur + self.PULL_END * self.TOTAL + (self.TOTAL - self.PULL_END * self.TOTAL) * 0.7
         plants = []
         sky_data = getattr(graft_gu, 'last_skyhook_data', None) if graft_gu else None
         if sky_data and sky_data.get('plants'):
@@ -942,18 +961,46 @@ class JounceAnimationController:
                                         stagger=0.09)
         last_finish = (max((ino.start_delay for ino in self.inocs), default=0.0)
                        + _Inoculation.TOTAL) if self.inocs else 0.0
-        self._anim_end = max(self.TOTAL, last_finish + 0.03)
+        self._anim_end = max(self.move_dur + self.TOTAL, last_finish + 0.03)
 
         self.caster.wind_up_rotation = 0
 
-        # Fire beat: the launcher cracks and the hook shoots out.
-        play_sound("jounce_fire")
+        if self._move_done:
+            # No walk-in needed — start the grapple immediately, like the in-place cast.
+            play_sound("jounce_fire")
 
     def update(self, delta_time):
         if not self.active:
             return False
         self.elapsed += delta_time
-        t = min(1.0, self.elapsed / self.TOTAL)
+
+        # MOVE: walk the sprite from its pre-move tile to the launch tile before the grapple,
+        # so the player sees him reposition first (only when a move was queued this turn).
+        # target_x/y point at the launch tile so the unit's own smooth-move update (which runs
+        # BEFORE this controller each frame) pulls the same way; the controller then sets the
+        # exact eased position, so the walk-cycle plays without the two fighting.
+        if not self._move_done:
+            if self.elapsed < self.move_dur:
+                mt = self.elapsed / self.move_dur
+                ease = mt * mt * (3 - 2 * mt)  # smoothstep stride
+                self.caster.x = self.start_x + (self.ox - self.start_x) * ease
+                self.caster.y = self.start_y + (self.oy - self.start_y) * ease
+                self.caster.target_x, self.caster.target_y = self.ox, self.oy
+                self.caster.is_moving = True
+                if self.particle_emitter and random.random() < 0.3:
+                    self.particle_emitter.emit_trail(self.caster.x + random.uniform(-4, 4),
+                                                     self.caster.y + 12, TAN, count=1)
+                return self.active
+            # Arrived at the launch tile — settle, then crack off the hook.
+            self._move_done = True
+            self.caster.x, self.caster.y = self.ox, self.oy
+            self.caster.is_moving = False
+            if not self._fire_sound_done:
+                self._fire_sound_done = True
+                play_sound("jounce_fire")
+
+        # Grapple clock runs AFTER the walk-in.
+        t = min(1.0, max(0.0, (self.elapsed - self.move_dur)) / self.TOTAL)
 
         if t < self.FIRE_END:
             # FIRE: he stays put, braced; the hook (drawn in draw()) flies to the anchor.
@@ -989,8 +1036,9 @@ class JounceAnimationController:
         for ino in self.inocs:
             ino.update(delta_time)
 
-        # Land the sprite ON TIME (at TOTAL) even if the controller lingers for graft-ins.
-        if not self._landed_at_total and self.elapsed >= self.TOTAL:
+        # Land the sprite ON TIME (at the grapple's TOTAL, after the walk-in) even if the
+        # controller lingers for graft-ins.
+        if not self._landed_at_total and self.elapsed >= self.move_dur + self.TOTAL:
             self._landed_at_total = True
             self._land_caster()
 
@@ -1029,7 +1077,11 @@ class JounceAnimationController:
         if not self.active:
             return
         overlay = pygame.Surface(surface.get_size(), pygame.SRCALPHA)
-        t = min(1.0, self.elapsed / self.TOTAL)
+        # Grapple clock (offset past the walk-in). No cord during the MOVE phase — the hook
+        # hasn't fired yet, he's just repositioning.
+        if not self._move_done:
+            return
+        t = min(1.0, max(0.0, (self.elapsed - self.move_dur)) / self.TOTAL)
 
         # FIRE + PULL: draw the cord from his hand out to the hook. During FIRE the hook
         # races out to the anchor; during PULL the cord stays taut to the anchor while he
