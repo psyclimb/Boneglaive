@@ -927,6 +927,7 @@ class JounceAnimationController:
 
         self.slam_done = False
         self._landed_at_total = False
+        self._reel_started = False   # so the reel-in sound fires once, not per frame
 
         # Graft-ins for every bomb the slam plants — timed to the landing, same as Skyhook.
         graft_gu = getattr(caster_unit, 'game_unit', None)
@@ -960,6 +961,11 @@ class JounceAnimationController:
             self.caster.wind_up_rotation = -6  # slight brace lean
         elif t < self.PULL_END:
             # PULL: reel in low and fast along the line to the stop tile (ease-out).
+            # The cord snaps taut and hauls him — one sustained reel sound (fires once,
+            # not per frame, so it doesn't machine-gun the mixer).
+            if not self._reel_started:
+                self._reel_started = True
+                play_sound("jounce_reel")
             pt = (t - self.FIRE_END) / (self.PULL_END - self.FIRE_END)
             ease = 1 - (1 - pt) * (1 - pt)
             self.caster.x = self.ox + (self.dx - self.ox) * ease

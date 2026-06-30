@@ -353,27 +353,27 @@ class SetupUnitHelp:
             UnitType.ORDNANCE_GRAFT: {
                 'difficulty': 2,  # Out of 5
                 'role': 'Burst Damage / Summoner / Escape Artist',
-                'overview': 'A gunner who grafts clustered spiked bombs onto enemies with his linstock, then touches them off for damage scaled to maximum HP. The roster\'s anti-tank: the bigger the body, the harder he hits. He also pilots a leashed quadcopter drone as a second body.',
+                'overview': 'A gunner who grafts spiked bombs onto enemies and detonates them for damage scaled to maximum HP. The roster\'s anti-tank, backed by a piloted drone.',
                 'passive': {
                     'name': 'QUADCOPTER',
-                    'desc': 'Fields one leashed quadcopter drone you pilot yourself — a second body that acts on its own orders and carries its own Inoculant to graft bombs. It stays within a few tiles of its owner. Immune to all status effects. Regenerates a few turns after being destroyed; falls and returns with its owner.'
+                    'desc': 'Fields a leashed drone you pilot as a second body; it carries its own Inoculant. Regenerates after being destroyed.'
                 },
                 'skills': [
                     {
                         'name': 'INOCULANT',
-                        'desc': 'Strikes an enemy within 2 tiles for normal damage and grafts a bomb (stacks up to 4, arms after one turn).'
+                        'desc': 'Strikes a nearby enemy and grafts a bomb that arms next turn.'
                     },
                     {
                         'name': 'SKYHOOK',
-                        'desc': 'The drone hauls him to an empty tile within range, then he slams down to strike and graft a bomb onto every adjacent enemy. Requires a living drone. Its cooldown is refunded whenever bombs detonate.'
+                        'desc': 'The drone hauls him to a tile, then he slams down to strike and bomb every adjacent enemy. Requires a living drone.'
                     },
                     {
                         'name': 'JOUNCE',
-                        'desc': 'Skyhook\'s fallback while the drone is down: he grapples a unit, furniture, or solid terrain in his line of sight and reels himself in a straight line to stop beside it, then slams with the same strike-and-graft. Weaker than Skyhook — shorter range, needs line of sight, no fly-over. Returns to Skyhook when the drone regenerates.'
+                        'desc': 'Grapples an anchor in line of sight and reels in beside it for the same slam. Skyhook\'s weaker fallback while the drone is down.'
                     },
                     {
                         'name': 'HARVEST',
-                        'desc': 'Touches off every armed bomb on the field. Each stack deals a percent of the target\'s maximum HP that scales up with the size of the body, ignoring defense — devastating on tanks, slight on small units.'
+                        'desc': 'Detonates every armed bomb for a percentage of each target\'s max HP — devastating on tanks, slight on small units.'
                     }
                 ]
             }

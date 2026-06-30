@@ -772,9 +772,9 @@ def get_unit_help_data():
             'stats': [
                 'HP: 20',
                 'Attack: 4',
-                'Defense: 1',
+                'Defense: 0',
                 'Movement: 3',
-                'Range: 1'
+                'Range: 2'
             ],
             'skills': [
                 {
@@ -784,9 +784,10 @@ def get_unit_help_data():
                 },
                 {
                     'name': 'INOCULANT (Active)',
-                    'description': 'Strike an enemy within 2 tiles for normal attack damage and graft a bomb onto them. Bombs stack up to 4 on one target and arm one turn after being planted. Each bomb is its own: a full cleanse clears them all, but a drip-cleanse only peels one at a time.',
+                    'description': 'Strike an enemy within 2 tiles for a small fixed amount of damage and graft a bomb onto them. His strikes do not scale with Attack — his damage is the bombs, not the hit. Bombs stack up to 4 on one target and arm one turn after being planted. Each bomb is its own: a full cleanse clears them all, but a drip-cleanse only peels one at a time.',
                     'details': [
                         'Range: 2, Cooldown: 1 turn',
+                        'Strike deals a flat 2 damage (reduced by DEF), not Attack-based',
                         'Bombs cap at 4 per target; individually cleansable'
                     ]
                 },
@@ -818,7 +819,7 @@ def get_unit_help_data():
                 }
             ],
             'tips': [
-                '- Stack bombs fast with two bodies: Inoculant plus the drone\'s own attack can land two per turn — then Harvest the cluster for a tank-melting burst',
+                '- Stack bombs fast with two bodies: his Inoculant plus the drone\'s own Inoculant can land two bombs a turn — then Harvest the cluster for a tank-melting burst',
                 '- A full 4-stack Harvest on a big-bodied tank can take off nearly its whole health bar',
                 '- Detonations refund Skyhook (and Jounce) — chain a Harvest into a redeploy to the next target',
                 '- He is weak into low-HP units; save him for the big bodies',
