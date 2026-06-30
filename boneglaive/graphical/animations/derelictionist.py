@@ -1322,8 +1322,8 @@ class FallingMetalBeam:
 
         # Draw metal beam with edge highlight
         beam_rect = pygame.Rect(2, 2, self.width, self.height)
-        pygame.draw.rect(beam_surf, self.color + (alpha), beam_rect)
-        pygame.draw.rect(beam_surf, self.edge_color + (alpha), beam_rect, 1)
+        pygame.draw.rect(beam_surf, self.color + (alpha,), beam_rect)
+        pygame.draw.rect(beam_surf, self.edge_color + (alpha,), beam_rect, 1)
 
         # Rotate
         rotated_surf = pygame.transform.rotate(beam_surf, self.rotation)
@@ -1380,14 +1380,14 @@ class MetalStructure:
         # Draw metal structure
         struct_rect = pygame.Rect(5, 5, self.width, self.height)
         alpha = 255
-        pygame.draw.rect(struct_surf, self.base_color + (alpha), struct_rect)
+        pygame.draw.rect(struct_surf, self.base_color + (alpha,), struct_rect)
         pygame.draw.rect(struct_surf, (48, 48, 48, alpha), struct_rect, 1)
 
         # Ice-blue glow during locking
         if self.active:
             glow_alpha = int(180 * (1.0 - progress))
             if glow_alpha > 0:
-                pygame.draw.rect(struct_surf, self.glow_color + (glow_alpha), struct_rect, 2)
+                pygame.draw.rect(struct_surf, self.glow_color + (glow_alpha,), struct_rect, 2)
 
         # Rotate
         rotated_surf = pygame.transform.rotate(struct_surf, self.angle)
@@ -1807,7 +1807,7 @@ class SeveranceDissolve:
         if frag_alpha > 0:
             for frag in self.fragments:
                 frag_surf = pygame.Surface((int(frag['size'] * 2), int(frag['size'] * 2)), pygame.SRCALPHA)
-                color = frag['color'] + (frag_alpha)
+                color = frag['color'] + (frag_alpha,)
                 pygame.draw.circle(frag_surf, color, (int(frag['size']), int(frag['size'])), int(frag['size']))
                 surface.blit(frag_surf, (int(frag['x'] - frag['size']), int(frag['y'] - frag['size'])))
 
@@ -1877,7 +1877,7 @@ class IceParticleSwirl:
                 py = self.center_y + math.sin(p['angle']) * p['radius']
 
                 particle_surf = pygame.Surface((int(p['size'] * 2), int(p['size'] * 2)), pygame.SRCALPHA)
-                color = p['color'] + (alpha)
+                color = p['color'] + (alpha,)
                 pygame.draw.circle(particle_surf, color, (int(p['size']), int(p['size'])), int(p['size']))
                 surface.blit(particle_surf, (int(px - p['size']), int(py - p['size'])))
 
@@ -1942,7 +1942,7 @@ class FragmentReassembly:
                 current_y = frag['start_y'] + (self.center_y - frag['start_y']) * ease_progress
 
                 frag_surf = pygame.Surface((int(frag['size'] * 2), int(frag['size'] * 2)), pygame.SRCALPHA)
-                color = frag['color'] + (alpha)
+                color = frag['color'] + (alpha,)
                 pygame.draw.circle(frag_surf, color, (int(frag['size']), int(frag['size'])), int(frag['size']))
                 surface.blit(frag_surf, (int(current_x - frag['size']), int(current_y - frag['size'])))
 
@@ -2684,7 +2684,7 @@ class FractureExplosion:
         if particle_alpha > 0:
             for p in self.particles:
                 particle_surf = pygame.Surface((int(p['size'] * 2), int(p['size'] * 2)), pygame.SRCALPHA)
-                color = p['color'] + (particle_alpha)
+                color = p['color'] + (particle_alpha,)
                 pygame.draw.circle(particle_surf, color, (int(p['size']), int(p['size'])), int(p['size']))
                 surface.blit(particle_surf, (int(p['x'] - p['size']), int(p['y'] - p['size'])))
 
