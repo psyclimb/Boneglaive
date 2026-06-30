@@ -62,6 +62,7 @@ class Unit:
         self.skill_target = None
         self.selected_skill = None
         self.attack_queued_from = None  # Position at attack queue time (for Severance range validation)
+        self.jounce_launch_from = None  # Intended move destination captured when Jounce is queued (reel origin)
         
         # Visual indicators for skills
         self.vault_target_indicator = None  # Visual indicator for Vault destination
@@ -649,7 +650,8 @@ class Unit:
         self.skill_target = None
         self.selected_skill = None
         self.attack_queued_from = None
-        
+        self.jounce_launch_from = None
+
         # Clear visual indicators
         self.vault_target_indicator = None
         self.site_inspection_indicator = None

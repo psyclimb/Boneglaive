@@ -621,6 +621,17 @@ class JounceSkill(ActiveSkill):
             return True
         return False
 
+    def _launch_origin(self, user: 'Unit') -> tuple:
+        """Where the grapple reels FROM. A queued move (move_target) is honored while the
+        action is being planned; once use() consumes/clears it, the captured destination
+        (jounce_launch_from) stands in; otherwise his current tile. Keeps can_use's range/LOS
+        checks and execute's landing resolution measuring from the SAME origin."""
+        if user.move_target:
+            return user.move_target
+        if getattr(user, 'jounce_launch_from', None):
+            return user.jounce_launch_from
+        return (user.y, user.x)
+
     def _resolve_landing(self, game: 'Game', user: 'Unit', target_pos: tuple) -> Optional[tuple]:
         """Walk the straight line from the user toward the anchor and return the tile he
         reels to: the LAST open (valid + passable + unoccupied) tile before the anchor. He
@@ -634,7 +645,21 @@ class JounceSkill(ActiveSkill):
         if not self._is_anchor(game, ty, tx):
             return None
 
-        from_y, from_x = user.move_target if user.move_target else (user.y, user.x)
+        # Reel origin: the unit's intended position. While the action is still being
+        # planned/validated (UI + AI), a queued move lives in move_target. By execute()
+        # time use() has cleared move_target (the leap replaces the walk), so fall back to
+        # the destination it captured in jounce_launch_from — NOT the stale pre-move tile —
+        # so the line is walked from where he ends up, not where he started the turn.
+        from_y, from_x = self._launch_origin(user)
+        # If the reel originates from a queued move destination (not his current tile), that
+        # tile must still be free to stand on — the physical move never ran, so nothing else
+        # confirmed it's open. If it got blocked since queueing, the whole move+reel fails.
+        if (from_y, from_x) != (user.y, user.x):
+            if not game.map.is_passable(from_y, from_x):
+                return None
+            occupant = game.get_unit_at(from_y, from_x)
+            if occupant is not None and occupant is not user:
+                return None
         path = get_line(Position(from_y, from_x), Position(ty, tx))
         # path[0] is the user's tile; walk outward and keep the last open tile we reach.
         landing = (from_y, from_x)
@@ -659,7 +684,7 @@ class JounceSkill(ActiveSkill):
         ty, tx = target_pos
         if not game.is_valid_position(ty, tx):
             return False
-        from_y, from_x = user.move_target if user.move_target else (user.y, user.x)
+        from_y, from_x = self._launch_origin(user)
         # Range is measured to the anchor (what he hooks), within Jounce's shorter reach.
         if game.chess_distance(from_y, from_x, ty, tx) > self.range:
             return False
@@ -677,7 +702,11 @@ class JounceSkill(ActiveSkill):
             return False
         user.skill_target = target_pos
         user.selected_skill = self
-        # The grapple-pull IS the movement — don't walk first.
+        # The grapple-pull IS the movement — don't walk first. But if a move was queued,
+        # remember its destination as the reel origin: he hooks and pulls FROM where he
+        # meant to move to, not from his pre-move tile. Captured before move_target is
+        # cleared; consumed in execute(). (No queued move -> reel from his current tile.)
+        user.jounce_launch_from = user.move_target if user.move_target else (user.y, user.x)
         user.move_target = None
         user.vault_target_indicator = target_pos  # reuse the leap indicator
         if game:
@@ -696,8 +725,11 @@ class JounceSkill(ActiveSkill):
 
         # Re-resolve the landing at execute time — the board may have changed since this was
         # queued (the anchor moved/died, the lane got blocked). If it's no longer a valid
-        # grapple, abort and refund (the skill did nothing).
+        # grapple, abort and refund (the skill did nothing). _resolve_landing reels from the
+        # destination use() captured (jounce_launch_from); consume it here so it can't carry
+        # into a later turn.
         landing = self._resolve_landing(game, user, target_pos)
+        user.jounce_launch_from = None
         if landing is None:
             message_log.add_message(
                 f"{user.get_display_name()}'s grapple finds no purchase!",

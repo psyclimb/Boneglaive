@@ -351,7 +351,7 @@ class SetupUnitHelp:
                 ]
             },
             UnitType.ORDNANCE_GRAFT: {
-                'difficulty': 2,  # Out of 5
+                'difficulty': 3,  # Out of 5
                 'role': 'Burst Damage / Summoner / Escape Artist',
                 'overview': 'A sapper who grafts spiked bombs onto enemies and detonates them for damage scaled to maximum HP. The roster\'s anti-tank, backed by a piloted drone.',
                 'passive': {

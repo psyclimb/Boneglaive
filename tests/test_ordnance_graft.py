@@ -683,6 +683,50 @@ def test_jounce_aborts_and_refunds_with_no_anchor():
           f"cd={j.current_cooldown} (want refunded to 0)")
 
 
+def test_jounce_reels_from_queued_move_destination_not_pre_move_tile():
+    """Move + Jounce: he must reel from where he MOVED to, not his pre-move tile.
+
+    Regression for the bug where a queued move was ignored at resolve time, so the reel
+    line was traced from his ORIGINAL position and got blocked by an obstacle that only
+    lies on the pre-move path. Geometry (a wall at (6,6) sits on the pre-move diagonal but
+    not on the destination's clear row):
+        pre-move   (7,5) --line--> anchor (5,8): [(7,5),(6,6),(6,7),(5,8)]  -- (6,6) wall blocks step 1
+        destination(5,5) --line--> anchor (5,8): [(5,5),(5,6),(5,7),(5,8)]  -- clear, lands (5,7)
+    Under the bug he is blocked at (6,6) and never reaches the anchor; correctly he reels
+    along row 5 from (5,5) and stops at (5,7), adjacent to the anchor, then slams it."""
+    from boneglaive.game.map import TerrainType
+    g = fresh_game()
+    g.unit_grid = {}
+    graft = _make_jounce_graft(g, 7, 5)
+    j = _leap_slot(graft)
+    enemy = place(g, UnitType.GLAIVEMAN, 2, 5, 8)   # anchor at dist 3 from the destination
+    e_hp0 = enemy.hp
+    # A wall on the PRE-MOVE diagonal only (not on the destination's row-5 line, not in its LOS).
+    g.map.set_terrain_at(6, 6, TerrainType.LIMESTONE)
+
+    # Queue the move to (5,5), exactly as the game does before confirming a skill.
+    graft.move_target = (5, 5)
+    # can_use is measured from the destination (range 3, clear LOS along row 5) -> valid.
+    check("jounce_movedest_can_use", j.can_use(graft, (5, 8), g) is True,
+          "anchor reachable from the queued destination")
+
+    j.use(graft, (5, 8), g)
+    check("jounce_movedest_captures_origin", graft.jounce_launch_from == (5, 5),
+          f"launch_from={graft.jounce_launch_from} (want the move destination (5,5))")
+    check("jounce_movedest_clears_move", graft.move_target is None,
+          "the leap replaces the walk -> move_target cleared")
+
+    expected_strike = max(1, STRIKE_DAMAGE - enemy.get_effective_stats()['defense'])
+    ok = j.execute(graft, (5, 8), g, ui=None)
+    check("jounce_movedest_executes", ok is True, f"returned={ok}")
+    check("jounce_movedest_lands_from_destination", (graft.y, graft.x) == (5, 7),
+          f"landed={(graft.y, graft.x)} (want (5,7) reeled from the destination, NOT blocked at (6,6))")
+    check("jounce_movedest_slam_strikes", enemy.hp == e_hp0 - expected_strike,
+          f"enemy {e_hp0}->{enemy.hp} (want -{expected_strike}; proves he reached the anchor)")
+    check("jounce_movedest_consumes_launch", graft.jounce_launch_from is None,
+          "launch origin consumed so it can't leak into a later turn")
+
+
 # ---------------------------------------------------------------------------
 # Atomic move: the graft must never strand on an intermediate corner when his
 # leashed QUADCOPTER sits on it (the "stops on a pylon on the way" bug).
@@ -1626,6 +1670,7 @@ def main():
     test_jounce_requires_anchor_los_and_range()
     test_jounce_pulls_to_stop_adjacent_and_slams()
     test_jounce_aborts_and_refunds_with_no_anchor()
+    test_jounce_reels_from_queued_move_destination_not_pre_move_tile()
     test_diagonal_move_does_not_strand_on_intermediate_corner()
     test_blocked_diagonal_destination_keeps_graft_put()
     test_partial_cleanse_removes_one()
