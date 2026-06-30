@@ -1964,6 +1964,7 @@ class Game:
             if owner is not None:
                 owner.drone = None
                 owner.drone_regen_timer = ORDNANCE_DRONE_REGEN
+                owner.drone_pending_regen = True  # this drone WILL regen -> play its respawn sound
                 # With the drone gone, Skyhook (which the drone carries) is replaced by the
                 # grappling-hook Jounce fallback until the drone regenerates.
                 from boneglaive.game.skills.ordnance_graft import swap_to_jounce
@@ -4942,8 +4943,11 @@ class Game:
                     and not (getattr(owner, 'drone', None) and owner.drone.is_alive())):
                 self._spawn_ordnance_drone(owner)
 
-    def _spawn_ordnance_drone(self, owner, ui=None):
-        """Spawn an ORDNANCE_DRONE adjacent to its owner and link the two."""
+    def _spawn_ordnance_drone(self, owner, ui=None, is_regen=False):
+        """Spawn an ORDNANCE_DRONE adjacent to its owner and link the two.
+
+        is_regen marks a drone that regenerated after being killed (vs the initial
+        game-start spawn) so the graphical layer can play its respawn sound."""
         from boneglaive.game.units import Unit
         from boneglaive.utils.coordinates import get_adjacent_positions
 
@@ -4963,6 +4967,11 @@ class Game:
         drone.creator = owner
         if hasattr(owner, 'greek_id') and owner.greek_id:
             drone.greek_id = owner.greek_id.lower()
+
+        # Mark a regenerated drone (post-death) for the graphical layer's respawn sound.
+        # The initial game-start spawn leaves this unset so it stays silent.
+        if is_regen:
+            drone._just_regenerated = True
 
         self.units.append(drone)
         self._update_unit_grid(drone)
@@ -5119,7 +5128,11 @@ class Game:
             if owner.drone_regen_timer > 0:
                 owner.drone_regen_timer -= 1
             else:
-                self._spawn_ordnance_drone(owner)
+                # is_regen only when a death actually queued this regen (set in
+                # handle_unit_death), so a first-ever upkeep spawn stays silent.
+                regen = getattr(owner, 'drone_pending_regen', False)
+                if self._spawn_ordnance_drone(owner, is_regen=regen) is not None:
+                    owner.drone_pending_regen = False
 
     def _check_scalar_node_traps(self, ui=None):
         """

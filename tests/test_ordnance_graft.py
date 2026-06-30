@@ -1153,6 +1153,9 @@ def test_drone_regenerates_after_death():
     g.current_player = 1
     g._process_ordnance_graft_upkeep()
     drone = graft.drone
+    # The first (initial) spawn must NOT be flagged for the respawn sound — only regens are.
+    check("initial_spawn_not_flagged", getattr(drone, '_just_regenerated', False) is False,
+          f"_just_regenerated={getattr(drone, '_just_regenerated', None)} (want unset on initial spawn)")
     # Kill the drone through the engine's death path.
     drone.hp = 0
     g.handle_unit_death(drone, None, cause="test", ui=None)
@@ -1167,6 +1170,9 @@ def test_drone_regenerates_after_death():
     g._process_ordnance_graft_upkeep()  # timer now 0 -> spawn
     check("regen_after_timer", graft.drone is not None and graft.drone.is_alive(),
           f"drone={'yes' if graft.drone else 'no'}")
+    # The regenerated drone IS flagged so the graphical layer plays drone_spawn.ogg.
+    check("regen_flagged_for_sound", getattr(graft.drone, '_just_regenerated', False) is True,
+          f"_just_regenerated={getattr(graft.drone, '_just_regenerated', None)} (want True on regen)")
 
 
 def test_drone_flies_over_terrain_but_cannot_land():

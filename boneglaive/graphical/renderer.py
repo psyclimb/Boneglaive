@@ -531,6 +531,15 @@ class GraphicalRenderer:
                     # Clear the respawn flag after triggering animation
                     game_unit._just_respawned = False
 
+                # ORDNANCE GRAFT's QUADCOPTER regenerated after being destroyed — play its
+                # respawn sound as it reappears. (The initial game-start spawn leaves the flag
+                # unset, so it stays silent.)
+                if (getattr(game_unit, 'type', None) == UnitType.ORDNANCE_DRONE
+                        and getattr(game_unit, '_just_regenerated', False)):
+                    from boneglaive.graphical.sound_helper import play_sound
+                    play_sound("drone_spawn")
+                    game_unit._just_regenerated = False
+
                 # If this is a HEINOUS VAPOR, trigger spawn animation
                 if hasattr(game_unit, 'type') and game_unit.type == UnitType.HEINOUS_VAPOR:
                     vapor_type = getattr(game_unit, 'vapor_type', 'BROACHING')
