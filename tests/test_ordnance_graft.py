@@ -559,6 +559,90 @@ def test_skyhook_aborts_and_refunds_if_boxed_in():
           f"cd={sky.current_cooldown} (want refunded to 0)")
 
 
+def test_skyhook_lands_on_target_when_own_drone_occupies_it():
+    """Regression: his OWN quadcopter must never displace him. If the drone is sitting on
+    (or has reserved) the exact tile he Skyhooks to, the graft still lands ON the target —
+    the drone yields and re-parks adjacent. (Bug: the drone was treated as a blocker, so the
+    graft sidestepped to an adjacent tile instead of hitting his mark.)"""
+    g = fresh_game()
+    ts = free_tiles(g, 40)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()  # drone exists
+    drone = graft.drone
+    dest = _empty_dest_in_range(g, graft)
+
+    # Case 1: the drone is physically standing on the target tile.
+    g._remove_from_unit_grid(drone)
+    drone.y, drone.x = dest
+    g._update_unit_grid(drone)
+    sky.use(graft, dest, g)
+    ok = sky.execute(graft, dest, g)
+    landed = (graft.y, graft.x)
+    check("sky_owndrone_lands_on_target", ok is True and landed == dest,
+          f"returned={ok} landed={landed} dest={dest} (want land ON the target, not sidestep)")
+    check("sky_owndrone_grid_is_graft", g.get_unit_at(*landed) is graft,
+          f"grid@{landed}={g.get_unit_at(*landed)} (graft must own its tile — no grid corruption)")
+    check("sky_owndrone_drone_moved_off", (drone.y, drone.x) != dest and drone.is_alive(),
+          f"drone={ (drone.y, drone.x) } (must vacate the target)")
+    check("sky_owndrone_drone_adjacent", g.chess_distance(drone.y, drone.x, dest[0], dest[1]) == 1,
+          f"drone={ (drone.y, drone.x) } dest={dest} (drone re-parks adjacent)")
+    check("sky_owndrone_not_displaced_flag", getattr(graft, 'vault_displaced_to', None) in (None, dest),
+          f"vault_displaced_to={getattr(graft, 'vault_displaced_to', None)} (landed on target, not displaced)")
+
+    # Case 2: the drone hasn't moved yet but has RESERVED the target via its move_target.
+    g2 = fresh_game()
+    ts2 = free_tiles(g2, 40)
+    graft2 = place(g2, UnitType.ORDNANCE_GRAFT, 1, *ts2[0])
+    sky2 = next(s for s in graft2.active_skills if s.name == "Skyhook")
+    g2.current_player = 1
+    g2._process_ordnance_graft_upkeep()
+    drone2 = graft2.drone
+    dest2 = _empty_dest_in_range(g2, graft2)
+    drone2.move_target = dest2  # drone has queued a move onto the very tile he'll Skyhook to
+    sky2.use(graft2, dest2, g2)
+    ok2 = sky2.execute(graft2, dest2, g2)
+    landed2 = (graft2.y, graft2.x)
+    check("sky_owndrone_reserved_lands_on_target", ok2 is True and landed2 == dest2,
+          f"returned={ok2} landed={landed2} dest={dest2} (a drone's reserved tile must not block him)")
+
+
+def test_skyhook_drone_never_parks_on_furniture_or_terrain():
+    """Regression: after a Skyhook, if no tile TOUCHING the graft's landing is free (the
+    landing is ringed by furniture/terrain/units), the drone must still relocate to a valid
+    tile — never get left sitting on furniture or impassable terrain. (Bug: it ended up on
+    a Tiffany lamp because the fallback left it wherever it was without checking the tile.)"""
+    from boneglaive.game.map import TerrainType
+    from boneglaive.utils.coordinates import get_adjacent_positions
+    g = fresh_game()
+    ts = free_tiles(g, 80)
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, *ts[0])
+    sky = next(s for s in graft.active_skills if s.name == "Skyhook")
+    g.current_player = 1
+    g._process_ordnance_graft_upkeep()  # drone exists
+    drone = graft.drone
+    dest = _empty_dest_in_range(g, graft)
+
+    # Ring the landing tile: a Tiffany lamp on one neighbour, impassable stone on the rest,
+    # so _snap_drone_adjacent finds NO free adjacent tile and must search outward.
+    neighbours = [(y, x) for (y, x) in get_adjacent_positions(dest[0], dest[1]) if g.is_valid_position(y, x)]
+    g.map.set_terrain_at(neighbours[0][0], neighbours[0][1], TerrainType.TIFFANY_LAMP)
+    for (ny, nx) in neighbours[1:]:
+        if g.get_unit_at(ny, nx) is None:
+            g.map.set_terrain_at(ny, nx, TerrainType.LIMESTONE)
+
+    sky.use(graft, dest, g)
+    ok = sky.execute(graft, dest, g)
+    dy, dx = drone.y, drone.x
+    check("sky_drone_not_on_furniture", ok is True and g.map.is_passable(dy, dx) and g.is_valid_position(dy, dx),
+          f"drone at ({dy},{dx}) terrain={g.map.get_terrain_at(dy, dx)} (must be a passable, in-bounds tile)")
+    check("sky_drone_alone_on_its_tile", g.get_unit_at(dy, dx) is drone,
+          f"tile ({dy},{dx}) occupant={g.get_unit_at(dy, dx)} (drone must own its tile, not stacked)")
+    check("sky_drone_not_on_graft", (dy, dx) != (graft.y, graft.x),
+          f"drone={(dy,dx)} graft={(graft.y, graft.x)} (must not overlap the graft)")
+
+
 # ---------------------------------------------------------------------------
 # JAUNT — Skyhook's drone-less fallback (swapped into the "S" slot when the drone
 # dies; a grappling-hook line-pull to stop beside an anchor, then the same slam).
@@ -1693,6 +1777,8 @@ def main():
     test_skyhook_displaces_if_landing_occupied()
     test_skyhook_displaces_if_terrain_spawns_under_him()
     test_skyhook_aborts_and_refunds_if_boxed_in()
+    test_skyhook_lands_on_target_when_own_drone_occupies_it()
+    test_skyhook_drone_never_parks_on_furniture_or_terrain()
     test_jaunt_swaps_in_when_drone_dies_and_back_on_regen()
     test_jaunt_requires_anchor_los_and_range()
     test_jaunt_pulls_to_stop_adjacent_and_slams()

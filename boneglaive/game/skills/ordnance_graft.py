@@ -443,28 +443,35 @@ class SkyhookSkill(ActiveSkill):
         drone = getattr(user, 'drone', None)
         return bool(drone and drone.is_alive())
 
-    def _find_landing_position(self, game: 'Game', target_pos: tuple) -> Optional[tuple]:
+    def _find_landing_position(self, game: 'Game', target_pos: tuple, user: 'Unit' = None) -> Optional[tuple]:
         """Find where the graft actually comes down. The landing tile was empty when
         Skyhook was queued, but a unit may have moved onto it, or terrain/furniture may
         have spawned there, before this resolves. If the tile is still open he lands on
         it; otherwise he twists down onto the nearest open adjacent tile (he's hauled in
         on a line, so a one-tile sidestep is fine). Returns None only if he's completely
-        boxed in. Mirrors Glaiveman Vault's displacement so the two leaps behave alike."""
+        boxed in. Mirrors Glaiveman Vault's displacement so the two leaps behave alike.
+
+        His OWN quadcopter is NOT an obstacle: it's the thing carrying him and it lands
+        adjacent afterward (_snap_drone_adjacent), so it must never bump him off his tile.
+        The graft claims the target; the drone yields to him, not the reverse."""
         from boneglaive.utils.coordinates import get_adjacent_positions
 
         ty, tx = target_pos
+        own_drone = getattr(user, 'drone', None) if user is not None else None
 
         def is_open(y: int, x: int) -> bool:
             if not game.is_valid_position(y, x):
                 return False
             if not game.map.is_passable(y, x):
                 return False
-            if game.get_unit_at(y, x) is not None:
+            occupant = game.get_unit_at(y, x)
+            if occupant is not None and occupant is not own_drone:
                 return False
             # Don't drop onto a tile another unit is already moving/leaping into this
             # same turn — that would just create a collision the engine has to untangle.
+            # (His own drone is exempt: it gets re-parked adjacent after he lands.)
             for other in game.units:
-                if not other.is_alive():
+                if not other.is_alive() or other is own_drone:
                     continue
                 if getattr(other, 'move_target', None) == (y, x):
                     return False
@@ -545,7 +552,7 @@ class SkyhookSkill(ActiveSkill):
         # terrain/furniture may have spawned there since. Resolve the real landing tile:
         # the intended one if it's still open, else the nearest open adjacent tile. Only
         # a complete box-in aborts the leap.
-        landing = self._find_landing_position(game, target_pos)
+        landing = self._find_landing_position(game, target_pos, user)
         if landing is None:
             message_log.add_message(
                 f"{user.get_display_name()}'s skyhook aborts - no room to land!",
@@ -556,15 +563,33 @@ class SkyhookSkill(ActiveSkill):
             return False
         displaced = landing != (ty, tx)
         land_y, land_x = landing
-        game._remove_from_unit_grid(user)
-        user.y, user.x = land_y, land_x
-        game._update_unit_grid(user)
+
+        # His own drone is never an obstacle for him — it's carrying him. If it's sitting on
+        # his landing tile, get it out of the way FIRST (park it on a free tile next to the
+        # landing) so the cell is genuinely empty before he comes down. Otherwise the graft's
+        # position setter, which restores-on-collision, would bounce him back to his old tile.
+        drone = getattr(user, 'drone', None)
+        if drone is not None and drone.is_alive() and (drone.y, drone.x) == (land_y, land_x):
+            from boneglaive.utils.coordinates import get_adjacent_positions
+            spot = next(((y, x) for (y, x) in get_adjacent_positions(land_y, land_x)
+                         if game.is_valid_position(y, x) and game.map.is_passable(y, x)
+                         and game.get_unit_at(y, x) is None), None)
+            if spot is not None:
+                drone.y, drone.x = spot          # setters keep the grid in sync
+                drone.skyhook_relocated = True   # graphical: snap, no walk
+
+        # Now the landing tile is clear — move the graft onto it (setters fire the usual
+        # side effects, e.g. releasing a MANDIBLE jaw-grip, and keep the grid consistent).
+        user.y = land_y
+        user.x = land_x
         # Tell the graphical layer the carry arc ends on the displaced tile (the Skyhook
         # animation reads vault_displaced_to, same as Vault) so the sprite doesn't fly to
         # the obstruction. Harmless in headless mode (no animation reads it).
         if displaced:
             user.vault_displaced_to = (land_y, land_x)
-        # The drone carried him here, so it lands ADJACENT to him at the new position.
+        # The drone carried him here, so it settles ADJACENT to him at the new position
+        # (finds its own free tile around the graft, who now owns the target). No-op if we
+        # already moved it aside above and it's still adjacent.
         game._snap_drone_adjacent(user, ui)
 
         if displaced:

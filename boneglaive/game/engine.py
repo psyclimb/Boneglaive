@@ -5005,11 +5005,17 @@ class Game:
         valid = [(y, x) for (y, x) in get_adjacent_positions(owner.y, owner.x)
                  if self.is_valid_position(y, x) and self.map.is_passable(y, x)
                  and self.get_unit_at(y, x) is None]
-        if not valid:
-            # No free adjacent tile — at least keep it within leash range.
-            self._move_leashed_drones(owner, owner.y, owner.x, ui)
-            return
-        best = min(valid, key=lambda p: self.chess_distance(drone.y, drone.x, p[0], p[1]))
+        if valid:
+            best = min(valid, key=lambda p: self.chess_distance(drone.y, drone.x, p[0], p[1]))
+        else:
+            # No free tile touching the landing (furniture/terrain/units all around). Search
+            # outward for the nearest valid (in-bounds, passable, unoccupied) tile so the
+            # drone is NEVER left sitting on furniture/terrain/another unit. Only if the
+            # whole board is full does it stay put (astronomically unlikely).
+            best = self._find_nearest_valid_position(owner.y, owner.x, owner.player,
+                                                     max_distance=max(HEIGHT, WIDTH))
+            if best is None:
+                return
         self._remove_from_unit_grid(drone)
         drone.y, drone.x = best
         self._update_unit_grid(drone)
