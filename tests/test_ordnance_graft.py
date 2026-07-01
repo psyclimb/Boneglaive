@@ -900,6 +900,43 @@ def test_blocked_diagonal_destination_keeps_graft_put():
           f"grid at {before} = {g.get_unit_at(*before)} (want the graft)")
 
 
+def test_skyhook_lands_on_issued_tile_with_drone_on_transit_corner():
+    """Skyhook's landing write used to be `user.y = ...; user.x = ...` — two setter
+    calls, so the graft transiently occupied the corner (land_y, old_x). His own
+    leashed QUADCOPTER routinely hovers there; the grid's collision safety-net then
+    bounced the y write while the x write still ran, silently landing him at
+    (old_y, land_x) — one row off the ISSUED tile, with nothing on it and no
+    displacement message. He must land exactly where the player aimed. Driven
+    through the real execute_turn."""
+    g = fresh_game(map_name="lime_foyer")
+    # Graft (5,3) skyhooks to the empty (4,7): a shallow leap, so the transit
+    # corner is (4,3) — directly above him, a classic drone hover spot.
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, 5, 3)
+    g._spawn_ordnance_drone(graft)
+    drone = graft.drone
+    g._remove_from_unit_grid(drone)
+    drone._y, drone._x = 4, 3          # force the drone onto the transit corner
+    g._update_unit_grid(drone)
+    place(g, UnitType.GLAIVEMAN, 2, 9, 18)  # enemy far away, uninvolved
+
+    sky = next(s for s in graft.get_active_skills() if s.name == "Skyhook")
+    check("corner_skyhook_queued", sky.use(graft, (4, 7), g) is True,
+          "Skyhook to the empty (4,7) must queue")
+    g.current_player = 1
+    g.execute_turn(ui=None)
+
+    check("corner_skyhook_lands_on_issued_tile", (graft.y, graft.x) == (4, 7),
+          f"graft at {(graft.y, graft.x)} (want the ISSUED tile (4,7))")
+    check("corner_skyhook_grid_consistent",
+          g.get_unit_at(4, 7) is graft
+          and [k for k, v in g.unit_grid.items() if v is graft] == [(4, 7)],
+          f"grid keys for graft={[k for k, v in g.unit_grid.items() if v is graft]}")
+    check("corner_skyhook_drone_adjacent",
+          drone.is_alive() and g.chess_distance(drone.y, drone.x, graft.y, graft.x) == 1
+          and g.get_unit_at(drone.y, drone.x) is drone,
+          f"drone at {(drone.y, drone.x)} (must hold station adjacent to (4,7))")
+
+
 # ---------------------------------------------------------------------------
 # Cleanse: partial (Broaching) vs full (Vagal Run)
 # ---------------------------------------------------------------------------
@@ -1787,6 +1824,7 @@ def main():
     test_jaunt_walkin_unset_without_queued_move()
     test_diagonal_move_does_not_strand_on_intermediate_corner()
     test_blocked_diagonal_destination_keeps_graft_put()
+    test_skyhook_lands_on_issued_tile_with_drone_on_transit_corner()
     test_partial_cleanse_removes_one()
     test_partial_cleanse_prefers_unfused()
     test_full_cleanse_removes_all()

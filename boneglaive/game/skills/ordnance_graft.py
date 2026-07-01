@@ -575,13 +575,15 @@ class SkyhookSkill(ActiveSkill):
                          if game.is_valid_position(y, x) and game.map.is_passable(y, x)
                          and game.get_unit_at(y, x) is None), None)
             if spot is not None:
-                drone.y, drone.x = spot          # setters keep the grid in sync
+                game._relocate_unit(drone, spot[0], spot[1])
                 drone.skyhook_relocated = True   # graphical: snap, no walk
 
-        # Now the landing tile is clear — move the graft onto it (setters fire the usual
-        # side effects, e.g. releasing a MANDIBLE jaw-grip, and keep the grid consistent).
-        user.y = land_y
-        user.x = land_x
+        # Now the landing tile is clear — move the graft onto it atomically (a per-axis
+        # `user.y = ...; user.x = ...` write transits the corner (land_y, old_x); if his
+        # own hovering drone sits there, the grid's collision net bounces the y write and
+        # he lands one row off the issued tile). _relocate_unit still releases a MANDIBLE
+        # jaw-grip and keeps the grid consistent.
+        game._relocate_unit(user, land_y, land_x)
         # Tell the graphical layer the carry arc ends on the displaced tile (the Skyhook
         # animation reads vault_displaced_to, same as Vault) so the sprite doesn't fly to
         # the obstruction. Harmless in headless mode (no animation reads it).
@@ -776,9 +778,9 @@ class JauntSkill(ActiveSkill):
         land_y, land_x = landing
         moved = (land_y, land_x) != (user.y, user.x)
         if moved:
-            game._remove_from_unit_grid(user)
-            user.y, user.x = land_y, land_x
-            game._update_unit_grid(user)
+            # Atomic relocate — a per-axis y/x write transits the corner (land_y, old_x)
+            # and a unit sitting there falsely collides, stranding him off the line.
+            game._relocate_unit(user, land_y, land_x)
             # Tell the graphical layer where the pull ends (the animation reads this, like
             # Skyhook's displacement). Harmless headless.
             user.vault_displaced_to = (land_y, land_x)

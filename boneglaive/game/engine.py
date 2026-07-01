@@ -952,6 +952,28 @@ class Game:
         if key in self.unit_grid and self.unit_grid[key] == unit:
             del self.unit_grid[key]
 
+    def _relocate_unit(self, unit, y, x):
+        """Move a unit to an already-validated tile ATOMICALLY.
+
+        Do NOT relocate with `unit.y, unit.x = y, x`: that assigns y then x through
+        the property setters, so the unit transiently occupies the corner (y, old_x).
+        If another unit is on that corner — e.g. an ORDNANCE_GRAFT's leashed
+        QUADCOPTER hovering next to him — the grid's collision safety net restores
+        _y to old_y, but the following x assignment still runs, stranding the unit
+        at (old_y, x): a tile that was never validated. Writing both axes then
+        updating the grid once moves the entry straight from the real old tile to
+        the validated destination, never touching a corner.
+
+        Preserves the setters' side effects (trap release) explicitly. The caller
+        is responsible for having validated (y, x)."""
+        old_y, old_x = unit.y, unit.x
+        if (old_y, old_x) == (y, x):
+            return
+        unit._y, unit._x = y, x
+        self._update_unit_grid(unit, old_y, old_x)
+        if unit.type == UnitType.MANDIBLE_FOREMAN or unit.trapped_by is not None:
+            self._check_position_change_trap_release(unit, old_y, old_x)
+
     def _rebuild_unit_grid(self):
         """Rebuild spatial grid from scratch (used for initialization or after complex operations)."""
         self.unit_grid.clear()
@@ -5016,9 +5038,7 @@ class Game:
                                                      max_distance=max(HEIGHT, WIDTH))
             if best is None:
                 return
-        self._remove_from_unit_grid(drone)
-        drone.y, drone.x = best
-        self._update_unit_grid(drone)
+        self._relocate_unit(drone, best[0], best[1])
         # Flag for the graphical layer: this relocation is part of Skyhook — snap the
         # drone INSTANTLY (no walk cycle) and the Skyhook animation hides it until the
         # graft lands. Without this the drone visibly slides to its spot before the
@@ -5062,9 +5082,7 @@ class Game:
                     best_d, best = d, (y, x)
         if best is None:
             return
-        self._remove_from_unit_grid(drone)
-        drone.y, drone.x = best
-        self._update_unit_grid(drone)
+        self._relocate_unit(drone, best[0], best[1])
         message_log.add_message(
             f"{drone.get_display_name()} is pulled along by {unit.get_display_name()}'s tether",
             MessageType.MOVEMENT,
