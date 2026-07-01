@@ -373,7 +373,7 @@ class SetupUnitHelp:
                     },
                     {
                         'name': 'HARVEST',
-                        'desc': 'Detonates every armed bomb for a percentage of each target\'s max HP — devastating on tanks, slight on small units.'
+                        'desc': 'Detonates every armed bomb for a percentage of each target\'s max HP — devastating on tanks, slight on small units. Each stack detonated refunds Skyhook/Jaunt cooldown.'
                     }
                 ]
             }
