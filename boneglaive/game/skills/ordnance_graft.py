@@ -26,15 +26,15 @@ BOMB_PCT_PER_HP = 0.22 / 6   # extra per-stack % for each max-HP point above the
 # SKYHOOK cooldown refunded per stack detonated (the flow engine).
 SKYHOOK_REFUND_PER_STACK = 2
 SKYHOOK_SKILL_NAME = "Skyhook"
-# JOUNCE is the drone-less fallback for Skyhook: when the quadcopter dies, Skyhook is
-# swapped out of his kit for Jounce (a grappling-hook line-pull) and swapped back when the
+# JAUNT is the drone-less fallback for Skyhook: when the quadcopter dies, Skyhook is
+# swapped out of his kit for Jaunt (a grappling-hook line-pull) and swapped back when the
 # drone regenerates (see the engine drone death/spawn hooks). It shares Skyhook's arrival
 # payload (the slam) and the Crash Landing upgrade, so several places must treat the two
-# names as the same kit slot. JOUNCE_RANGE < Skyhook's range_ (4): a weaker reach.
-JOUNCE_SKILL_NAME = "Jounce"
-JOUNCE_RANGE = 3
+# names as the same kit slot. JAUNT_RANGE < Skyhook's range_ (4): a weaker reach.
+JAUNT_SKILL_NAME = "Jaunt"
+JAUNT_RANGE = 3
 # Both names occupy the one "leap" slot; helpers that find it by name accept either.
-LEAP_SLOT_NAMES = (SKYHOOK_SKILL_NAME, JOUNCE_SKILL_NAME)
+LEAP_SLOT_NAMES = (SKYHOOK_SKILL_NAME, JAUNT_SKILL_NAME)
 # Flat base damage for his strikes (Inoculant / Skyhook arrival). NOT ATK-scaled — his
 # damage identity is the bombs, not the strike. DEF/PRT still reduce it via deal_damage.
 STRIKE_DAMAGE = 2
@@ -190,7 +190,7 @@ def detonate_n_stacks(target: 'Unit', n: int, game: 'Game', killer: Optional['Un
 
 def _reduce_skyhook_cooldown(user: 'Unit', stacks_detonated: int) -> None:
     """Refund the leap skill's cooldown by the stacks just detonated (the flow engine).
-    Works whether the "S" slot currently holds Skyhook or its drone-less Jounce fallback —
+    Works whether the "S" slot currently holds Skyhook or its drone-less Jaunt fallback —
     both share the same detonation-refund identity."""
     if stacks_detonated <= 0:
         return
@@ -203,7 +203,7 @@ def _reduce_skyhook_cooldown(user: 'Unit', stacks_detonated: int) -> None:
 
 
 def _arrival_slam(user: 'Unit', game: 'Game', skill: 'ActiveSkill', ui=None) -> None:
-    """The shared arrival payload for the leap slot (Skyhook AND Jounce): once `user` is
+    """The shared arrival payload for the leap slot (Skyhook AND Jaunt): once `user` is
     standing on the landing tile, strike + graft one bomb onto EVERY enemy in the 8 adjacent
     tiles. With the Crash Landing upgrade (learned under the Skyhook key — it covers whichever
     skill occupies the slot) the slam also detonates each struck enemy's already-fused bombs,
@@ -211,7 +211,7 @@ def _arrival_slam(user: 'Unit', game: 'Game', skill: 'ActiveSkill', ui=None) -> 
     the planted tiles into user.last_skyhook_data for the graphical graft-in (harmless headless).
 
     Caller is responsible for getting `user` onto the tile (teleport for Skyhook, line-pull for
-    Jounce) and for the drone before calling this."""
+    Jaunt) and for the drone before calling this."""
     from boneglaive.game.upgrades import UpgradeManager
     # Crash Landing is stored under the Skyhook key (the slot's canonical upgrade); honor it
     # for whichever skill currently fills the slot.
@@ -286,14 +286,14 @@ def _swap_leap_skill(graft: 'Unit', from_name: str, make_to) -> None:
             return
 
 
-def swap_to_jounce(graft: 'Unit') -> None:
-    """Drone died: replace Skyhook with its drone-less Jounce fallback."""
-    _swap_leap_skill(graft, SKYHOOK_SKILL_NAME, JounceSkill)
+def swap_to_jaunt(graft: 'Unit') -> None:
+    """Drone died: replace Skyhook with its drone-less Jaunt fallback."""
+    _swap_leap_skill(graft, SKYHOOK_SKILL_NAME, JauntSkill)
 
 
 def swap_to_skyhook(graft: 'Unit') -> None:
-    """Drone returned: restore Skyhook in place of the Jounce fallback."""
-    _swap_leap_skill(graft, JOUNCE_SKILL_NAME, SkyhookSkill)
+    """Drone returned: restore Skyhook in place of the Jaunt fallback."""
+    _swap_leap_skill(graft, JAUNT_SKILL_NAME, SkyhookSkill)
 
 
 class Quadcopter(PassiveSkill):
@@ -581,12 +581,12 @@ class SkyhookSkill(ActiveSkill):
             )
 
         # Arrival slam: strike + graft a bomb onto every adjacent enemy (and, with Crash
-        # Landing, detonate their fused stacks + refund). Shared with Jounce.
+        # Landing, detonate their fused stacks + refund). Shared with Jaunt.
         _arrival_slam(user, game, self, ui)
         return True
 
 
-class JounceSkill(ActiveSkill):
+class JauntSkill(ActiveSkill):
     """Skyhook's drone-less fallback (swapped into the "S" slot while the quadcopter is
     dead). He fires his grappling hook at a unit, furniture, or solid terrain he can SEE,
     and reels himself in a STRAIGHT LINE to stop just short of it — then performs the same
@@ -597,12 +597,12 @@ class JounceSkill(ActiveSkill):
 
     def __init__(self):
         super().__init__(
-            name=JOUNCE_SKILL_NAME,
+            name=JAUNT_SKILL_NAME,
             key="S",
             description="Grapple a unit, furniture, or solid terrain in your line of sight and reel yourself in a straight line to stop beside it, then slam down to strike and graft a bomb onto every adjacent enemy. Skyhook's fallback while the drone is down. Cooldown is refunded when bombs detonate.",
             target_type=TargetType.AREA,
             cooldown=4,
-            range_=JOUNCE_RANGE
+            range_=JAUNT_RANGE
         )
 
     def _is_anchor(self, game: 'Game', y: int, x: int) -> bool:
@@ -624,12 +624,12 @@ class JounceSkill(ActiveSkill):
     def _launch_origin(self, user: 'Unit') -> tuple:
         """Where the grapple reels FROM. A queued move (move_target) is honored while the
         action is being planned; once use() consumes/clears it, the captured destination
-        (jounce_launch_from) stands in; otherwise his current tile. Keeps can_use's range/LOS
+        (jaunt_launch_from) stands in; otherwise his current tile. Keeps can_use's range/LOS
         checks and execute's landing resolution measuring from the SAME origin."""
         if user.move_target:
             return user.move_target
-        if getattr(user, 'jounce_launch_from', None):
-            return user.jounce_launch_from
+        if getattr(user, 'jaunt_launch_from', None):
+            return user.jaunt_launch_from
         return (user.y, user.x)
 
     def _resolve_landing(self, game: 'Game', user: 'Unit', target_pos: tuple) -> Optional[tuple]:
@@ -648,7 +648,7 @@ class JounceSkill(ActiveSkill):
         # Reel origin: the unit's intended position. While the action is still being
         # planned/validated (UI + AI), a queued move lives in move_target. By execute()
         # time use() has cleared move_target (the leap replaces the walk), so fall back to
-        # the destination it captured in jounce_launch_from — NOT the stale pre-move tile —
+        # the destination it captured in jaunt_launch_from — NOT the stale pre-move tile —
         # so the line is walked from where he ends up, not where he started the turn.
         from_y, from_x = self._launch_origin(user)
         # If the reel originates from a queued move destination (not his current tile), that
@@ -685,7 +685,7 @@ class JounceSkill(ActiveSkill):
         if not game.is_valid_position(ty, tx):
             return False
         from_y, from_x = self._launch_origin(user)
-        # Range is measured to the anchor (what he hooks), within Jounce's shorter reach.
+        # Range is measured to the anchor (what he hooks), within Jaunt's shorter reach.
         if game.chess_distance(from_y, from_x, ty, tx) > self.range:
             return False
         # Must be able to SEE the anchor (the hook needs a clear line). LOS checks the
@@ -706,7 +706,7 @@ class JounceSkill(ActiveSkill):
         # remember its destination as the reel origin: he hooks and pulls FROM where he
         # meant to move to, not from his pre-move tile. Captured before move_target is
         # cleared; consumed in execute(). (No queued move -> reel from his current tile.)
-        user.jounce_launch_from = user.move_target if user.move_target else (user.y, user.x)
+        user.jaunt_launch_from = user.move_target if user.move_target else (user.y, user.x)
         user.move_target = None
         user.vault_target_indicator = target_pos  # reuse the leap indicator
         if game:
@@ -726,17 +726,17 @@ class JounceSkill(ActiveSkill):
         # Re-resolve the landing at execute time — the board may have changed since this was
         # queued (the anchor moved/died, the lane got blocked). If it's no longer a valid
         # grapple, abort and refund (the skill did nothing). _resolve_landing reels from the
-        # destination use() captured (jounce_launch_from); consume it here so it can't carry
+        # destination use() captured (jaunt_launch_from); consume it here so it can't carry
         # into a later turn.
-        launch_from = getattr(user, 'jounce_launch_from', None)
+        launch_from = getattr(user, 'jaunt_launch_from', None)
         pre_move_pos = (user.y, user.x)
         landing = self._resolve_landing(game, user, target_pos)
-        user.jounce_launch_from = None
+        user.jaunt_launch_from = None
         # Hand the animation the tile he reeled FROM when it differs from where the sprite
         # currently sits (i.e. a move was queued). The animation walks the sprite to this
         # launch tile first (shared WalkIn), THEN fires the grapple from it, so the trajectory
         # matches what the player aimed (the move ghost), instead of his pre-move tile.
-        # Cleared otherwise so a stale launch tile never leaks into a plain in-place Jounce.
+        # Cleared otherwise so a stale launch tile never leaks into a plain in-place Jaunt.
         user.skill_walkin_from = launch_from if (launch_from and launch_from != pre_move_pos) else None
         if landing is None:
             user.skill_walkin_from = None  # nothing happened — don't walk the sprite anywhere

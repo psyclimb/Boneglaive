@@ -368,7 +368,7 @@ class SetupUnitHelp:
                         'desc': 'The drone hauls him to a tile, then he slams down to strike and bomb every adjacent enemy. Requires a living drone.'
                     },
                     {
-                        'name': 'JOUNCE',
+                        'name': 'JAUNT',
                         'desc': 'Grapples an anchor in line of sight and reels in beside it for the same slam. Skyhook\'s weaker fallback while the drone is down.'
                     },
                     {

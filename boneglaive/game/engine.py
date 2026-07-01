@@ -1966,9 +1966,9 @@ class Game:
                 owner.drone_regen_timer = ORDNANCE_DRONE_REGEN
                 owner.drone_pending_regen = True  # this drone WILL regen -> play its respawn sound
                 # With the drone gone, Skyhook (which the drone carries) is replaced by the
-                # grappling-hook Jounce fallback until the drone regenerates.
-                from boneglaive.game.skills.ordnance_graft import swap_to_jounce
-                swap_to_jounce(owner)
+                # grappling-hook Jaunt fallback until the drone regenerates.
+                from boneglaive.game.skills.ordnance_graft import swap_to_jaunt
+                swap_to_jaunt(owner)
             if dying_unit in self.units:
                 self.units.remove(dying_unit)
             self._remove_from_unit_grid(dying_unit)
@@ -4979,7 +4979,7 @@ class Game:
         owner.drone = drone
         owner.drone_regen_timer = 0
         # The drone is back, so it can carry him again: restore Skyhook in place of the
-        # Jounce fallback (no-op at the initial game-start spawn, where Skyhook is already
+        # Jaunt fallback (no-op at the initial game-start spawn, where Skyhook is already
         # equipped). Carries the fallback's cooldown across.
         from boneglaive.game.skills.ordnance_graft import swap_to_skyhook
         swap_to_skyhook(owner)

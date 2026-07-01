@@ -988,7 +988,7 @@ class WalkIn:
     """A short walk-in that movement-skill animations prepend when the player queued a move
     before the skill.
 
-    Several movement skills (Vault, Delta Config, Expedite, Jounce) clear/ignore the queued
+    Several movement skills (Vault, Delta Config, Expedite, Jaunt) clear/ignore the queued
     move and resolve the unit straight to the skill's destination, so the visual layer never
     plays the walk to the move tile and the skill animation fires from the unit's PRE-MOVE
     tile. This helper walks the sprite from its pre-move tile (A) to the launch tile (B = the

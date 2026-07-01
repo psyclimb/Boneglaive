@@ -3219,14 +3219,14 @@ class TacticalEvaluator:
             logger.error(f"        Error getting ORDNANCE_GRAFT skills: {e}")
             return actions
 
-        inoculant = skyhook = harvest = jounce = None
+        inoculant = skyhook = harvest = jaunt = None
         for skill in available_skills:
             if skill.name == "Inoculant":
                 inoculant = skill
             elif skill.name == "Skyhook":
                 skyhook = skill
-            elif skill.name == "Jounce":
-                jounce = skill
+            elif skill.name == "Jaunt":
+                jaunt = skill
             elif skill.name == "Harvest":
                 harvest = skill
 
@@ -3248,11 +3248,11 @@ class TacticalEvaluator:
             except Exception as e:
                 logger.error(f"          Error evaluating Skyhook: {e}")
 
-        if jounce:
+        if jaunt:
             try:
-                actions.extend(self._evaluate_ordnance_jounce(unit, jounce, analysis, plan))
+                actions.extend(self._evaluate_ordnance_jaunt(unit, jaunt, analysis, plan))
             except Exception as e:
-                logger.error(f"          Error evaluating Jounce: {e}")
+                logger.error(f"          Error evaluating Jaunt: {e}")
 
         return actions
 
@@ -3427,7 +3427,7 @@ class TacticalEvaluator:
 
         return actions
 
-    def _evaluate_ordnance_jounce(self, unit: 'Unit', skill,
+    def _evaluate_ordnance_jaunt(self, unit: 'Unit', skill,
                                   analysis: 'BattlefieldAnalysis',
                                   plan: 'StrategicPlan') -> List[Action]:
         """Skyhook's drone-less fallback: grapple an anchor (a unit, furniture, or solid

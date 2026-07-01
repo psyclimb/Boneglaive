@@ -880,12 +880,12 @@ class SkyhookAnimationController:
 
 
 # ============================================================================
-# JOUNCE — Skyhook's drone-less fallback. He fires his grappling hook at an anchor
+# JAUNT — Skyhook's drone-less fallback. He fires his grappling hook at an anchor
 # in line of sight and REELS himself along the ground (no lift, no drone) to stop
 # beside it, then the same arrival slam. A grounded, scrappier version of Skyhook.
 # ============================================================================
 
-class JounceAnimationController:
+class JauntAnimationController:
     """Grappling-hook line-pull: the hook FIRES in a straight line to the grabbed anchor,
     the cord snaps TAUT, and he REELS in low along the ground to stop beside it, then SLAMS.
     Same lifecycle as SkyhookAnimationController (drives the caster sprite, honors
@@ -907,7 +907,7 @@ class JounceAnimationController:
         from boneglaive.graphical.renderer import GRID_OFFSET_X, GRID_OFFSET_Y
         graft_gu = getattr(caster_unit, 'game_unit', None)
 
-        # If a move was queued before Jounce, execute() recorded that destination in
+        # If a move was queued before Jaunt, execute() recorded that destination in
         # skill_walkin_from; the shared WalkIn walks the sprite there first so the cord and
         # reel read from where he aimed, not his pre-move tile. Inert with no queued move.
         launch_from = getattr(graft_gu, 'skill_walkin_from', None) if graft_gu else None
@@ -956,7 +956,7 @@ class JounceAnimationController:
 
         if not self._walk.had_walk:
             # No walk-in needed — start the grapple immediately, like the in-place cast.
-            play_sound("jounce_fire")
+            play_sound("jaunt_fire")
 
     def update(self, delta_time):
         if not self.active:
@@ -968,7 +968,7 @@ class JounceAnimationController:
             return self.active
         if not self._fire_sound_done:
             self._fire_sound_done = True
-            play_sound("jounce_fire")
+            play_sound("jaunt_fire")
 
         self.elapsed += delta_time
         t = min(1.0, self.elapsed / self.TOTAL)
@@ -983,7 +983,7 @@ class JounceAnimationController:
             # not per frame, so it doesn't machine-gun the mixer).
             if not self._reel_started:
                 self._reel_started = True
-                play_sound("jounce_reel")
+                play_sound("jaunt_reel")
             pt = (t - self.FIRE_END) / (self.PULL_END - self.FIRE_END)
             ease = 1 - (1 - pt) * (1 - pt)
             self.caster.x = self.ox + (self.dx - self.ox) * ease
@@ -1026,7 +1026,7 @@ class JounceAnimationController:
         self.caster.wind_up_rotation = 0
 
     def _slam(self):
-        play_sound("jounce_land")
+        play_sound("jaunt_land")
         self.screen_shake(6, 0.2)
         pe = self.particle_emitter
         if not pe:

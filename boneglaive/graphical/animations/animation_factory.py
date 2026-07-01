@@ -81,7 +81,7 @@ from boneglaive.graphical.animations.ordnance_graft import (
     InoculantAnimation,
     DroneInoculantAnimation,
     SkyhookAnimationController,
-    JounceAnimationController,
+    JauntAnimationController,
     HarvestAnimation)
 
 # Import sound system
@@ -202,7 +202,7 @@ class AnimationFactory:
         # ORDNANCE GRAFT skills
         "INOCULANT": (InoculantAnimation, {}),
         "SKYHOOK": (SkyhookAnimationController, {}),  # Vault-style: moves the caster sprite
-        "JOUNCE": (JounceAnimationController, {}),    # Skyhook's drone-less grapple fallback
+        "JAUNT": (JauntAnimationController, {}),    # Skyhook's drone-less grapple fallback
         "HARVEST": (HarvestAnimation, {}),
 
         # Core game events
@@ -465,8 +465,8 @@ class AnimationFactory:
                     camera=camera,
                     units_list=units_list
                 )
-            elif anim_class.__name__ == "JounceAnimationController":
-                # ORDNANCE GRAFT Jounce - grapple-pull fallback. Unlike Skyhook, the controller
+            elif anim_class.__name__ == "JauntAnimationController":
+                # ORDNANCE GRAFT Jaunt - grapple-pull fallback. Unlike Skyhook, the controller
                 # needs the ANCHOR tile (target_pos) to draw the hook flying to it, and reads the
                 # caster's grid_x/grid_y itself for the actual landing (stop tile). So pass the
                 # ORIGINAL target (the anchor), not the displaced landing — but still consume the
@@ -1346,7 +1346,7 @@ class AnimationFactory:
                 # Most animations expect just target coordinates
                 animation = anim_class(**kwargs)
 
-            # Movement-skill controllers (Vault/Delta/Expedite/Jounce) read skill_walkin_from
+            # Movement-skill controllers (Vault/Delta/Expedite/Jaunt) read skill_walkin_from
             # in their __init__ to walk the sprite to the queued move tile first. Consume it
             # here so a later cast without a queued move can't inherit a stale launch tile.
             if animation is not None and caster_unit is not None and hasattr(caster_unit, 'game_unit') \

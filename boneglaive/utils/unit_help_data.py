@@ -779,7 +779,7 @@ def get_unit_help_data():
             'skills': [
                 {
                     'name': 'QUADCOPTER (Passive)',
-                    'description': 'Fields one leashed QUADCOPTER — a second body you pilot yourself. It moves and acts on its own orders each turn and carries its own copy of Inoculant, so it is a mobile second planter. It may never stray beyond a few tiles of its owner; when he moves it follows. The drone is immune to all status effects, so it cannot be trapped, mired, estranged, or otherwise locked down. The drone is bound to its owner: if destroyed it regenerates after a few turns; if the owner dies it falls with him and returns when he respawns. Killing it removes your second planter — and downgrades Skyhook to the weaker Jounce.',
+                    'description': 'Fields one leashed QUADCOPTER — a second body you pilot yourself. It moves and acts on its own orders each turn and carries its own copy of Inoculant, so it is a mobile second planter. It may never stray beyond a few tiles of its owner; when he moves it follows. The drone is immune to all status effects, so it cannot be trapped, mired, estranged, or otherwise locked down. The drone is bound to its owner: if destroyed it regenerates after a few turns; if the owner dies it falls with him and returns when he respawns. Killing it removes your second planter — and downgrades Skyhook to the weaker Jaunt.',
                     'details': []
                 },
                 {
@@ -793,15 +793,15 @@ def get_unit_help_data():
                 },
                 {
                     'name': 'SKYHOOK (Active)',
-                    'description': 'The drone drops a line and hauls him to any empty position within range, ignoring pathing, then he slams down to strike and graft a bomb onto every enemy in the surrounding tiles. Requires a living drone — kill the drone and this is replaced by the weaker Jounce until it regenerates. Its cooldown is refunded whenever bombs detonate, so a big Harvest redeploys him at once.',
+                    'description': 'The drone drops a line and hauls him to any empty position within range, ignoring pathing, then he slams down to strike and graft a bomb onto every enemy in the surrounding tiles. Requires a living drone — kill the drone and this is replaced by the weaker Jaunt until it regenerates. Its cooldown is refunded whenever bombs detonate, so a big Harvest redeploys him at once.',
                     'details': [
                         'Range: 4, Cooldown: 4 turns',
                         'Requires a living drone; refunds 2 cooldown per stack detonated',
-                        'Replaced by JOUNCE while the drone is dead'
+                        'Replaced by JAUNT while the drone is dead'
                     ]
                 },
                 {
-                    'name': 'JOUNCE (Active)',
+                    'name': 'JAUNT (Active)',
                     'description': 'Skyhook\'s fallback while the drone is down. He fires his grappling hook at a unit, furniture, or solid terrain he can see and reels himself in a straight line to stop just short of it, then slams down with the same strike-and-graft as Skyhook. Weaker than Skyhook: shorter range, needs line of sight, cannot fly over obstacles, and he stops beside the anchor rather than on a tile of his choosing. Returns to Skyhook when the drone regenerates.',
                     'details': [
                         'Range: 3, Cooldown: 4 turns',
@@ -821,13 +821,13 @@ def get_unit_help_data():
             'tips': [
                 '- Stack bombs fast with two bodies: his Inoculant plus the drone\'s own Inoculant can land two bombs a turn — then Harvest the cluster for a tank-melting burst',
                 '- A full 4-stack Harvest on a big-bodied tank can take off nearly its whole health bar',
-                '- Detonations refund Skyhook (and Jounce) — chain a Harvest into a redeploy to the next target',
+                '- Detonations refund Skyhook (and Jaunt) — chain a Harvest into a redeploy to the next target',
                 '- He is weak into low-HP units; save him for the big bodies',
-                '- Protect the drone: losing it removes the second planter and downgrades Skyhook to the weaker, LOS-bound Jounce until it regenerates'
+                '- Protect the drone: losing it removes the second planter and downgrades Skyhook to the weaker, LOS-bound Jaunt until it regenerates'
             ],
             'tactical': [
                 '- Strong against: High-HP tanks and bruisers (POTPOURRIST, MARROW CONDENSER, GLAIVEMAN, MANDIBLE FOREMAN)',
-                '- Vulnerable to: Cleanses (Vagal Run removes bombs), killing the drone (downgrades Skyhook to Jounce), PRT, focus fire on his 20 HP',
+                '- Vulnerable to: Cleanses (Vagal Run removes bombs), killing the drone (downgrades Skyhook to Jaunt), PRT, focus fire on his 20 HP',
                 '- Best positioning: Engage range of a tank with the drone planting alongside; retreat on the Skyhook refund (while the drone lives)'
             ]
         },

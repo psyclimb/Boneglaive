@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Walk-in behaviour shared by the movement skills (Vault, Delta Config, Expedite, Jounce).
+"""Walk-in behaviour shared by the movement skills (Vault, Delta Config, Expedite, Jaunt).
 
 When the player queues a move BEFORE one of these skills, the unit should visually walk to
 the move tile and then perform the skill FROM there. The skills carry the move destination to
