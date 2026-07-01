@@ -361,7 +361,7 @@ class SetupUnitHelp:
                 'skills': [
                     {
                         'name': 'INOCULANT',
-                        'desc': 'Strikes a nearby enemy and grafts a bomb that arms next turn.'
+                        'desc': 'Strikes a nearby enemy in line of sight and grafts a bomb that arms next turn.'
                     },
                     {
                         'name': 'SKYHOOK',

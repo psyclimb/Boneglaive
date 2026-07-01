@@ -1130,6 +1130,45 @@ def test_drone_has_inoculant_and_plants():
           f"damage={hp0 - enemy.hp} expected flat {STRIKE_DAMAGE}")
 
 
+def test_inoculant_requires_line_of_sight():
+    """Inoculant (the graft's AND the drone's — the drone inherits can_use) needs a clear
+    line to the target: a LOS-blocking wall between them forbids the strike; the same
+    layout with the wall gone allows it. No lobbing bombs over walls."""
+    from boneglaive.game.map import TerrainType
+    g = fresh_game(map_name="lime_foyer")
+    # One open corridor: graft (4,6) -> wall (4,7) -> enemy (4,8) <- wall (4,9) <- drone (4,10)
+    for pos in [(4, 6), (4, 7), (4, 8), (4, 9), (4, 10)]:
+        if not g.map.can_place_unit(*pos):
+            check("inoc_los_layout", False, f"{pos} not placeable on this map")
+            return
+    graft = place(g, UnitType.ORDNANCE_GRAFT, 1, 4, 6)
+    g._spawn_ordnance_drone(graft)
+    drone = graft.drone
+    g._remove_from_unit_grid(drone)
+    drone._y, drone._x = 4, 10   # 2 on the enemy's far side
+    g._update_unit_grid(drone)
+    enemy = place(g, UnitType.INTERFERER, 2, 4, 8)  # 2 right of the graft
+
+    graft_inoc = next(s for s in graft.active_skills if s.name == "Inoculant")
+    drone_inoc = next(s for s in drone.active_skills if s.name == "Inoculant")
+
+    check("inoc_los_graft_clear_ok", graft_inoc.can_use(graft, (4, 8), g) is True,
+          "clear line graft->(4,8): Inoculant must be usable")
+    check("inoc_los_drone_clear_ok", drone_inoc.can_use(drone, (4, 8), g) is True,
+          "clear line drone->(4,8): drone Inoculant must be usable")
+
+    wall_graft = g.map.get_terrain_at(4, 7)
+    wall_drone = g.map.get_terrain_at(4, 9)
+    g.map.set_terrain_at(4, 7, TerrainType.LIMESTONE)  # between graft and enemy
+    g.map.set_terrain_at(4, 9, TerrainType.LIMESTONE)  # between drone and enemy
+    check("inoc_los_graft_walled_blocked", graft_inoc.can_use(graft, (4, 8), g) is False,
+          "wall on (4,7): the graft's Inoculant must be blocked")
+    check("inoc_los_drone_walled_blocked", drone_inoc.can_use(drone, (4, 8), g) is False,
+          "wall on (4,9): the drone's Inoculant must be blocked")
+    g.map.set_terrain_at(4, 7, wall_graft)
+    g.map.set_terrain_at(4, 9, wall_drone)
+
+
 def test_drone_leash_bounds_player_moves():
     """The player can move the drone within the leash radius but not past it.
     A 'near' tile is within both the leash AND the drone's move range; a 'far' tile is
@@ -1833,6 +1872,7 @@ def main():
     test_inoculant_plants_one_bomb()
     test_drone_basic_attack_is_plain_hit()
     test_drone_has_inoculant_and_plants()
+    test_inoculant_requires_line_of_sight()
     test_drone_leash_bounds_player_moves()
     test_drone_leash_pull_is_minimal()
     test_drone_spawns_on_upkeep()

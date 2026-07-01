@@ -784,9 +784,9 @@ def get_unit_help_data():
                 },
                 {
                     'name': 'INOCULANT (Active)',
-                    'description': 'Strike an enemy within 2 tiles for a small fixed amount of damage and graft a bomb onto them. His strikes do not scale with Attack — his damage is the bombs, not the hit. Bombs stack up to 4 on one target and arm one turn after being planted. Each bomb is its own: a full cleanse clears them all, but a drip-cleanse only peels one at a time.',
+                    'description': 'Strike an enemy within 2 tiles in line of sight for a small fixed amount of damage and graft a bomb onto them. His strikes do not scale with Attack — his damage is the bombs, not the hit. Bombs stack up to 4 on one target and arm one turn after being planted. Each bomb is its own: a full cleanse clears them all, but a drip-cleanse only peels one at a time.',
                     'details': [
-                        'Range: 2, Cooldown: 1 turn',
+                        'Range: 2, Cooldown: 1 turn, requires line of sight',
                         'Strike deals a flat 2 damage (reduced by DEF), not Attack-based',
                         'Bombs cap at 4 per target; individually cleansable'
                     ]

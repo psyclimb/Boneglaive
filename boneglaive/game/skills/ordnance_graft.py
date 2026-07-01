@@ -319,7 +319,7 @@ class InoculantSkill(ActiveSkill):
         super().__init__(
             name="Inoculant",
             key="I",
-            description="Strike an enemy within 2 tiles for normal damage and graft a bomb onto them (up to 4).",
+            description="Strike an enemy within 2 tiles in line of sight for normal damage and graft a bomb onto them (up to 4).",
             target_type=TargetType.ENEMY,
             cooldown=1,
             range_=2
@@ -337,6 +337,10 @@ class InoculantSkill(ActiveSkill):
             return False
         from_y, from_x = user.move_target if user.move_target else (user.y, user.x)
         if game.chess_distance(from_y, from_x, target_pos[0], target_pos[1]) > self.range:
+            return False
+        # The strike needs a clear line to the target (no lobbing bombs over walls).
+        # Applies to the drone's copy too (DroneInoculantSkill inherits this).
+        if not game.has_line_of_sight(from_y, from_x, target_pos[0], target_pos[1]):
             return False
         return True
 
@@ -417,7 +421,7 @@ class DroneInoculantSkill(InoculantSkill):
             self,
             name="Inoculant",
             key="I",
-            description="Strike an enemy within 2 tiles for normal damage and graft a bomb onto them (up to 4).",
+            description="Strike an enemy within 2 tiles in line of sight for normal damage and graft a bomb onto them (up to 4).",
             target_type=TargetType.ENEMY,
             cooldown=1,
             range_=2,

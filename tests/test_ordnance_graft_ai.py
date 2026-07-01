@@ -121,7 +121,8 @@ def test_inoculant_prefers_tank():
     gy, gx = ts[0]
     # Two enemies both within range 2 of the graft, NEITHER effect-immune.
     near = [(y, x) for (y, x) in ts
-            if 1 <= max(abs(y - gy), abs(x - gx)) <= 2 and (y, x) != (gy, gx)]
+            if 1 <= max(abs(y - gy), abs(x - gx)) <= 2 and (y, x) != (gy, gx)
+                  and g.has_line_of_sight(gy, gx, y, x)]
     (ty, tx), (sy, sx) = near[0], near[1]
     graft = place(g, UnitType.ORDNANCE_GRAFT, AI_PLAYER, gy, gx)
     tank = place(g, UnitType.POTPOURRIST, 1, ty, tx)      # 24 HP
@@ -165,7 +166,8 @@ def test_skyhook_requires_drone():
     ts = free_tiles(g, 40)
     gy, gx = ts[0]
     ey, ex = next((y, x) for (y, x) in ts
-                  if 1 <= max(abs(y - gy), abs(x - gx)) <= 2 and (y, x) != (gy, gx))
+                  if 1 <= max(abs(y - gy), abs(x - gx)) <= 2 and (y, x) != (gy, gx)
+                  and g.has_line_of_sight(gy, gx, y, x))
     graft = place(g, UnitType.ORDNANCE_GRAFT, AI_PLAYER, gy, gx)
     enemy = place(g, UnitType.POTPOURRIST, 1, ey, ex)
     graft.drone = None  # explicitly no drone
@@ -201,7 +203,8 @@ def test_drone_follows_graft_focus():
     # make the squishy the global best-by-nothing and force focus onto the tank.
     near = [(y, x) for (y, x) in ts
             if 1 <= max(abs(y - drone.y), abs(x - drone.x)) <= 2
-            and g.get_unit_at(y, x) is None]
+            and g.get_unit_at(y, x) is None
+            and g.has_line_of_sight(drone.y, drone.x, y, x)]
     (ty, tx), (sy, sx) = near[0], near[1]
     tank = place(g, UnitType.POTPOURRIST, 1, ty, tx)    # 24 HP
     squishy = place(g, UnitType.INTERFERER, 1, sy, sx)  # 18 HP
@@ -235,7 +238,8 @@ def test_drone_fallback_prefers_tank():
 
     near = [(y, x) for (y, x) in ts
             if 1 <= max(abs(y - drone.y), abs(x - drone.x)) <= 2
-            and g.get_unit_at(y, x) is None]
+            and g.get_unit_at(y, x) is None
+            and g.has_line_of_sight(drone.y, drone.x, y, x)]
     (ty, tx), (sy, sx) = near[0], near[1]
     tank = place(g, UnitType.POTPOURRIST, 1, ty, tx)
     squishy = place(g, UnitType.INTERFERER, 1, sy, sx)
@@ -262,7 +266,8 @@ def test_harvest_withheld_on_lone_weak_stack():
     ts = free_tiles(g, 40)
     gy, gx = ts[0]
     ey, ex = next((y, x) for (y, x) in ts
-                  if 1 <= max(abs(y - gy), abs(x - gx)) <= 2 and (y, x) != (gy, gx))
+                  if 1 <= max(abs(y - gy), abs(x - gx)) <= 2 and (y, x) != (gy, gx)
+                  and g.has_line_of_sight(gy, gx, y, x))
     graft = place(g, UnitType.ORDNANCE_GRAFT, AI_PLAYER, gy, gx)
     squishy = place(g, UnitType.INTERFERER, 1, ey, ex)  # 18 HP -> 1 dmg/stack
     plant_bomb(squishy, 1)
@@ -283,7 +288,8 @@ def test_harvest_fires_on_lethal_squishy():
     ts = free_tiles(g, 40)
     gy, gx = ts[0]
     ey, ex = next((y, x) for (y, x) in ts
-                  if 1 <= max(abs(y - gy), abs(x - gx)) <= 2 and (y, x) != (gy, gx))
+                  if 1 <= max(abs(y - gy), abs(x - gx)) <= 2 and (y, x) != (gy, gx)
+                  and g.has_line_of_sight(gy, gx, y, x))
     graft = place(g, UnitType.ORDNANCE_GRAFT, AI_PLAYER, gy, gx)
     squishy = place(g, UnitType.INTERFERER, 1, ey, ex)  # 18 HP, 1 dmg/stack
     squishy.hp = 3  # already wounded -> a 4-stack (4 dmg) kills it
@@ -306,7 +312,8 @@ def test_graft_produces_actions():
     ts = free_tiles(g, 40)
     gy, gx = ts[0]
     ey, ex = next((y, x) for (y, x) in ts
-                  if 1 <= max(abs(y - gy), abs(x - gx)) <= 2 and (y, x) != (gy, gx))
+                  if 1 <= max(abs(y - gy), abs(x - gx)) <= 2 and (y, x) != (gy, gx)
+                  and g.has_line_of_sight(gy, gx, y, x))
     graft = place(g, UnitType.ORDNANCE_GRAFT, AI_PLAYER, gy, gx)
     enemy = place(g, UnitType.POTPOURRIST, 1, ey, ex)
 
