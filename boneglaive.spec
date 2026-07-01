@@ -9,6 +9,18 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
+# Bundle the sounds folder but EXCLUDE the .wav masters — the game loads .ogg and the
+# .wav files are editable source only, so they must not bloat the shipped binary. Build
+# an explicit (src, dest_dir) list from every non-.wav file under sounds/, preserving the
+# folder layout.
+sound_datas = []
+for root, _dirs, files in os.walk('sounds'):
+    for name in files:
+        if name.lower().endswith('.wav'):
+            continue
+        src = os.path.join(root, name)
+        sound_datas.append((src, root))
+
 # On Windows, bundle Cairo and all its dependency DLLs from MSYS2
 extra_binaries = []
 if sys.platform == 'win32':
@@ -78,12 +90,12 @@ a = Analysis(
     binaries=extra_binaries,
     datas=[
         ('graphics',  'graphics'),
-        ('sounds',    'sounds'),
+        # sounds bundled via sound_datas (below) — excludes .wav masters
         ('maps',      'maps'),
         ('config.json', '.'),
         # LICENSE and ASSETS_LICENSE.md copied to top-level in build workflow
         ('boneglaive/graphical/assets', 'boneglaive/graphical/assets'),
-    ],
+    ] + sound_datas,
     hiddenimports=[
         'cairosvg',
         'cairosvg.surface',
