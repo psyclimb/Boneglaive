@@ -1051,6 +1051,11 @@ class WalkIn:
         self.active = False
         self.caster.x, self.caster.y = self.bx, self.by
         self.caster.is_moving = False
+        # Clear the walk-cycle hop. Because we stop the walk by forcing is_moving=False
+        # (rather than letting AnimatedUnit.update reach its arrival branch, the only place
+        # that zeroes it), a non-zero hop_offset would otherwise stay frozen and draw the
+        # sprite shifted upward on its tile for the rest of the game.
+        self.caster.hop_offset = 0
         return False
 
 

@@ -178,11 +178,56 @@ def test_walkin_helper_walks_and_is_inert_without_move():
     check("walkin_inert_same_tile", w3.had_walk is False, "launch tile == current tile -> inert")
 
 
+def test_walkin_clears_hop_offset_on_arrival():
+    """Regression: a move-then-skill walk-in must not leave the sprite floating above its tile.
+
+    WalkIn borrows AnimatedUnit's walk cycle (it sets is_moving=True each frame so the unit's
+    own update plays the stride), which raises hop_offset — a value draw() SUBTRACTS from y.
+    WalkIn ends the walk by forcing is_moving=False. When the walk's timer runs out on a frame
+    where the eased sprite is still >2px from B, the unit-update arrival branch (distance<2,
+    the only OTHER place hop_offset is zeroed) doesn't fire that frame, so a mid-stride hop is
+    left frozen and draws the sprite skewed upward for the rest of the game (the Jaunt bug).
+    Whether that window is hit depends on framerate — at ~30 FPS the leftover reaches ~14px.
+
+    Drives the REAL AnimatedUnit through the documented per-frame order (unit.update THEN
+    walk.update). Uses a low-FPS dt and a multi-tile route chosen so the walk ends inside that
+    unclean window (so the test genuinely fails without WalkIn's own hop reset)."""
+    import pygame
+    pygame.init()
+    from boneglaive.graphical.animations.core import AnimatedUnit, WalkIn
+
+    # dt=1/30 (30 FPS) + a 6-tile horizontal route lands WalkIn's arrival frame while the
+    # sprite is still mid-hop and >2px short of B — the exact case the fix addresses.
+    dt = 1 / 30.0
+    unit = AnimatedUnit("graft", 1, grid_x=2, grid_y=5, color=(200, 200, 200))
+    w = WalkIn(unit, (5, 8))   # B = (y=5, x=8), six tiles across
+    check("hop_walkin_started", w.had_walk is True, "a move was queued")
+
+    t = 0.0
+    hop_peaked = False
+    walking = True
+    while walking and t < 2.0:
+        unit.update(dt)                 # unit's own per-frame update runs FIRST (raises hop)
+        if unit.hop_offset > 0.5:
+            hop_peaked = True
+        walking = w.update(dt)          # then the controller advances the walk-in
+        t += dt
+
+    # The stride must actually have hopped at some point (else the test proves nothing)...
+    check("hop_rose_during_walk", hop_peaked is True,
+          f"hop_offset never rose during the walk (peaked={hop_peaked})")
+    # ...and must be flat again once he's arrived, so draw() centers him on the tile.
+    check("hop_cleared_on_arrival", unit.hop_offset == 0,
+          f"hop_offset={unit.hop_offset} after arrival (want 0 — non-zero floats the sprite up)")
+    check("walkin_landed_and_stopped", unit.is_moving is False, "walk-in ends stopped")
+
+
 def main():
     test_vault_records_walkin_from_move()
     test_delta_config_records_walkin_from_move()
     test_expedite_records_walkin_from_move()
     test_walkin_helper_walks_and_is_inert_without_move()
+    test_walkin_clears_hop_offset_on_arrival()
 
     print("==== MOVEMENT-SKILL WALK-IN ====")
     passed = 0
